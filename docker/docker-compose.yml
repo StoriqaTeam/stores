@@ -1,0 +1,41 @@
+version: '3'
+services:
+  stores:
+    image: stores
+    build:
+      context: .
+      dockerfile: Dockerfile.stores
+    container_name: stores
+    working_dir: /app
+    command: ["sh", "-c", "/utils/wait_for_it.sh stores-pg:5432 ; diesel migration run ; cargo run"]
+    volumes:
+      - ..:/app
+      - stores_cargo_cache:/usr/local/cargo
+    environment:
+      - DATABASE_URL=postgresql://stores:stores@stores-pg/stores
+    expose:
+      - 8000
+    stdin_open: true
+    depends_on:
+      - stores-pg
+
+  stores-pg:
+    image: postgres:10
+    container_name: stores-pg
+    volumes:
+      - stq-stores-postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=stores
+      - POSTGRES_DB=stores
+      - POSTGRES_PASSWORD=stores
+    expose:
+      - 5432
+
+volumes:
+  stores_cargo_cache:
+  stq-stores-postgres-data:
+
+networks:
+  default:
+    external:
+      name: storiqa

@@ -250,7 +250,7 @@ mod tests {
     use tokio_core::reactor::Core;
     use serde_json;
 
-    use ::models::store::{NewStore};
+    use ::models::NewStore;
     use ::controller::utils::{parse_body, read_body};
 
     #[test]

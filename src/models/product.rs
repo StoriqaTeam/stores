@@ -1,7 +1,7 @@
 //! Module containg product model for query, insert, update
 use std::time::SystemTime;
 use validator::Validate;
-
+use super::Language;
 
 /// diesel table for products
 table! {
@@ -39,11 +39,11 @@ pub struct Product {
     pub discount: Option<f32>,
     pub category: Option<i32>,
     pub photo_main: Option<String>,
-    pub created_at: SystemTime,
-    pub updated_at: SystemTime,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub default_language: Language
+    pub default_language: Language,
+    pub created_at: SystemTime,
+    pub updated_at: SystemTime,
 }
 
 /// Payload for creating products
@@ -80,16 +80,3 @@ pub struct UpdateProduct {
     pub cashback: Option<Option<f32>>,
     pub default_language: Option<Language>
 }
-
-pub enum Language {
-   English,
-   Chinese,
-   German,
-   Russian,
-   Spanish,
-   French,
-   Korean,
-   Portuguese,
-   Japanese,
-}
-

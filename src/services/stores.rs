@@ -4,7 +4,7 @@ use futures::Future;
 use futures_cpupool::CpuPool;
 
 
-use models::store::{NewStore, UpdateStore, Store};
+use models::{NewStore, UpdateStore, Store};
 use repos::stores::{StoresRepo, StoresRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;

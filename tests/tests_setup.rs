@@ -9,9 +9,9 @@ use stores_lib::repos::stores::StoresRepo;
 use stores_lib::repos::products::ProductsRepo;
 use stores_lib::repos::types::RepoFuture;
 use stores_lib::services::stores::{StoresService, StoresServiceImpl};
-use stores_lib::models::store::{NewStore, Store, UpdateStore};
+use stores_lib::models::{NewStore, Store, UpdateStore};
 use stores_lib::services::products::{ProductsService, ProductsServiceImpl};
-use stores_lib::models::product::{NewProduct, Product, UpdateProduct};
+use stores_lib::models::{NewProduct, Product, UpdateProduct};
 
 #[derive(Clone)]
 pub struct StoresRepoMock;

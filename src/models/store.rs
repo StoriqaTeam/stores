@@ -22,7 +22,6 @@ table! {
         facebook_url -> Nullable<VarChar>,
         twitter_url -> Nullable<VarChar>,
         instagram_url -> Nullable<VarChar>,
-        pinterest_url -> Nullable<VarChar>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -46,7 +45,6 @@ pub struct Store {
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
-    pub pinterest_url: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -68,7 +66,6 @@ pub struct NewStore {
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
-    pub pinterest_url: Option<String>,
 }
 
 /// Payload for updating users
@@ -88,5 +85,4 @@ pub struct UpdateStore {
     pub facebook_url: Option<Option<String>>,
     pub twitter_url: Option<Option<String>>,
     pub instagram_url: Option<Option<String>>,
-    pub pinterest_url: Option<Option<String>>,
 }

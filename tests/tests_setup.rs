@@ -90,7 +90,6 @@ pub fn create_store(id: i32, name: String) -> Store {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
-        pinterest_url: None,
     }
 }
 
@@ -109,7 +108,6 @@ pub fn create_new_store(name: String) -> NewStore {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
-        pinterest_url: None,
     }
 }
 
@@ -128,7 +126,6 @@ pub fn create_update_store(name: String) -> UpdateStore {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
-        pinterest_url: None,
     }
 }
 

@@ -17,6 +17,9 @@ table! {
         discount -> Nullable<Float>,
         category -> Nullable<Integer>,
         photo_main -> Nullable<VarChar>,
+        vendor_code -> Nullable<VarChar>,
+        cashback -> Nullable<Float>,
+        default_language -> Varchar,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -38,6 +41,9 @@ pub struct Product {
     pub photo_main: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
+    pub vendor_code: Option<String>,
+    pub cashback: Option<f32>,
+    pub default_language: Language
 }
 
 /// Payload for creating products
@@ -53,6 +59,9 @@ pub struct NewProduct {
     pub discount: Option<f32>,
     pub category: Option<i32>,
     pub photo_main: Option<String>,
+    pub vendor_code: Option<String>,
+    pub cashback: Option<f32>,
+    pub default_language: Language
 }
 
 /// Payload for updating products
@@ -67,4 +76,20 @@ pub struct UpdateProduct {
     pub discount: Option<Option<f32>>,
     pub category: Option<Option<i32>>,
     pub photo_main: Option<Option<String>>,
+    pub vendor_code: Option<Option<String>>,
+    pub cashback: Option<Option<f32>>,
+    pub default_language: Option<Language>
 }
+
+pub enum Language {
+   English,
+   Chinese,
+   German,
+   Russian,
+   Spanish,
+   French,
+   Korean,
+   Portuguese,
+   Japanese,
+}
+

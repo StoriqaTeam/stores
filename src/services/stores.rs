@@ -1,4 +1,5 @@
 //! Stores Services, presents CRUD operations with stores
+use std::cell::RefCell;
 
 use futures_cpupool::CpuPool;
 use diesel::Connection;
@@ -64,8 +65,8 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
+                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
+                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
                     });
                     let stores_repo = StoresRepoImpl::new(&conn, acl);
                     stores_repo.find(store_id).map_err(Error::from)
@@ -84,8 +85,8 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
+                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
+                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
                     });
                     let stores_repo = StoresRepoImpl::new(&conn, acl);
                     stores_repo
@@ -106,8 +107,8 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
+                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
+                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
                     });
                     let stores_repo = StoresRepoImpl::new(&conn, acl);
                     stores_repo.list(from, count).map_err(|e| Error::from(e))
@@ -126,8 +127,8 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
+                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
+                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
                     });
                     let stores_repo = StoresRepoImpl::new(&conn, acl);
                     conn.transaction::<Store, Error, _>(move || {
@@ -144,6 +145,7 @@ impl StoresService for StoresServiceImpl {
                                     .create(new_store)
                                     .map_err(|e| Error::from(e))
                             })
+                            //rollback if error
                     })
                 })
         }))
@@ -160,8 +162,8 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
+                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
+                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
                     });
                     let stores_repo = StoresRepoImpl::new(&conn, acl);
                     stores_repo
@@ -169,6 +171,7 @@ impl StoresService for StoresServiceImpl {
                         .and_then(move |_user| stores_repo.update(store_id, payload))
                         .map_err(|e| Error::from(e))
                 })
+                            //rollback if error
         }))
     }
 }

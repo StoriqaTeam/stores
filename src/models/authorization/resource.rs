@@ -2,6 +2,7 @@
 
 #[derive(PartialEq, Eq)]
 pub enum Resource {
-    Users,
+    Products,
+    Stores,
     UserRoles,
 }

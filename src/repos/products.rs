@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::cell::RefCell;
 
 use diesel;
 use diesel::prelude::*;
@@ -13,12 +14,13 @@ use models::product::products::dsl::*;
 use super::error::Error;
 use super::types::{DbConnection, RepoResult};
 use repos::acl::Acl;
+use models::authorization::*;
 
 
 /// Products repository, responsible for handling products
 pub struct ProductsRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: Box<Acl>,
+    pub acl: Box<RefCell<Acl>>,
 }
 
 pub trait ProductsRepo {
@@ -45,7 +47,7 @@ pub trait ProductsRepo {
 }
 
 impl<'a> ProductsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: Box<RefCell<Acl>>) -> Self {
         Self { db_conn, acl }
     }
 
@@ -60,15 +62,36 @@ impl<'a> ProductsRepoImpl<'a> {
     }
 }
 
+
 impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     /// Find specific product by ID
     fn find(&self, product_id_arg: i32) -> RepoResult<Product> {
         self.execute_query(products.find(product_id_arg))
+            .and_then(|product: Product| {
+                let resources = vec![]; // what Scope??
+                let mut acl = self.acl.borrow_mut();
+                match acl.can(Resource::Products, Action::Read, resources) {
+                    true => Ok(product.clone()),
+                    false => Err(Error::ContstaintViolation(
+                        "Unauthorized request.".to_string(),
+                    )),
+                }
+            })
     }
 
     /// Verifies product exist
     fn name_exists(&self, name_arg: String) -> RepoResult<bool> {
         self.execute_query(select(exists(products.filter(name.eq(name_arg)))))
+            .and_then(|exists| {
+                let resources = vec![];
+                let mut acl = self.acl.borrow_mut();
+                match acl.can(Resource::Products, Action::Read, resources) {
+                    true => Ok(exists),
+                    false => Err(Error::ContstaintViolation(
+                        "Unauthorized request.".to_string(),
+                    )),
+                }
+            })
     }
 
     /// Find specific product by full name
@@ -78,15 +101,34 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
         query
             .first::<Product>(&**self.db_conn)
             .map_err(|e| Error::from(e))
+            .and_then(|product: Product| {
+                let resources = vec![]; // what Scope??
+                let mut acl = self.acl.borrow_mut();
+                match acl.can(Resource::Products, Action::Read, resources) {
+                    true => Ok(product.clone()),
+                    false => Err(Error::ContstaintViolation(
+                        "Unauthorized request.".to_string(),
+                    )),
+                }
+            })
     }
 
 
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<Product> {
-        let query_product = diesel::insert_into(products).values(&payload);
-        query_product
-            .get_result::<Product>(&**self.db_conn)
-            .map_err(Error::from)
+        let resources = vec![]; // what Scope??
+        let mut acl = self.acl.borrow_mut();
+        match acl.can(Resource::Products, Action::Write, resources) {
+            true => Ok(payload.clone()),
+            false => Err(Error::ContstaintViolation(
+                "Unauthorized request.".to_string(),
+            )),
+        }.and_then(|p| {
+            let query_product = diesel::insert_into(products).values(&p);
+            query_product
+                .get_result::<Product>(&**self.db_conn)
+                .map_err(Error::from)
+        })
     }
 
     /// Returns list of products, limited by `from` and `count` parameters
@@ -100,6 +142,17 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
         query
             .get_results(&**self.db_conn)
             .map_err(|e| Error::from(e))
+            .and_then(|products_res: Vec<Product>| {
+                let resources = vec![]; // what Scope??
+                
+                let mut acl = self.acl.borrow_mut();
+                match acl.can(Resource::Products, Action::Read, resources) {
+                    true => Ok(products_res.clone()),
+                    false => Err(Error::ContstaintViolation(
+                        "Unauthorized request.".to_string(),
+                    )),
+                }
+            })
     }
 
     /// Updates specific product
@@ -112,6 +165,16 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
         query
             .get_result::<Product>(&**self.db_conn)
             .map_err(|e| Error::from(e))
+            .and_then(|product: Product| {
+                let resources = vec![]; // what Scope??
+                let mut acl = self.acl.borrow_mut();
+                match acl.can(Resource::Products, Action::Write, resources) {
+                    true => Ok(product.clone()),
+                    false => Err(Error::ContstaintViolation(
+                        "Unauthorized request.".to_string(),
+                    )),
+                }
+            })
     }
 
     /// Deactivates specific product
@@ -120,6 +183,15 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .filter(id.eq(product_id_arg))
             .filter(is_active.eq(true));
         let query = diesel::update(filter).set(is_active.eq(false));
-        self.execute_query(query)
+        self.execute_query(query).and_then(|product: Product| {
+            let resources = vec![]; // what Scope??
+            let mut acl = self.acl.borrow_mut();
+            match acl.can(Resource::Products, Action::Write, resources) {
+                true => Ok(product.clone()),
+                false => Err(Error::ContstaintViolation(
+                    "Unauthorized request.".to_string(),
+                )),
+            }
+        })
     }
 }

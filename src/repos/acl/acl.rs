@@ -74,11 +74,14 @@ impl<R: RolesCache> ApplicationAcl<R> {
     pub fn new(roles_cache: R, user_id: i32) -> Self {
         let mut hash = ::std::collections::HashMap::new();
         hash.insert(Role::Superuser, vec![
-                    permission!(Resource::Users), 
+                    permission!(Resource::Stores), 
+                    permission!(Resource::Products), 
                     permission!(Resource::UserRoles)]);
         hash.insert(Role::Superuser, vec![
-                    permission!(Resource::Users, Action::Read), 
-                    permission!(Resource::Users, Action::All, Scope::Owned),
+                    permission!(Resource::Stores, Action::Read), 
+                    permission!(Resource::Stores, Action::All, Scope::Owned),
+                    permission!(Resource::Products, Action::Read), 
+                    permission!(Resource::Products, Action::All, Scope::Owned),
                     permission!(Resource::UserRoles, Action::Read, Scope::Owned)]);
 
         ApplicationAcl { 

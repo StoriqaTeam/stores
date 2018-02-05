@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::sync::Arc;
 
 use diesel;
 use diesel::prelude::*;
@@ -14,13 +15,16 @@ use models::{UpdateProduct, Product, NewProduct};
 use models::product::products::dsl::*;
 use super::error::Error;
 use super::types::{DbConnection, DbPool, RepoFuture};
+use repos::acl::Acl;
+
 
 /// Products repository, responsible for handling products
 #[derive(Clone)]
 pub struct ProductsRepoImpl {
     // Todo - no need for Arc, since pool is itself an ARC-like structure
-    pub r2d2_pool: DbPool,
-    pub cpu_pool: CpuPool
+    pub db_pool: DbPool,
+    pub cpu_pool: CpuPool,
+    pub acl : Arc<Acl>
 }
 
 pub trait ProductsRepo {
@@ -47,15 +51,16 @@ pub trait ProductsRepo {
 }
 
 impl ProductsRepoImpl {
-    pub fn new(r2d2_pool: DbPool, cpu_pool: CpuPool) -> Self {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, acl : Arc<Acl>) -> Self {
         Self {
-            r2d2_pool,
-            cpu_pool
+            db_pool,
+            cpu_pool,
+            acl
         }
     }
 
     fn get_connection(&self) -> DbConnection {
-        match self.r2d2_pool.get() {
+        match self.db_pool.get() {
             Ok(connection) => connection,
             Err(e) => panic!("Error obtaining connection from pool: {}", e),
         }
@@ -65,7 +70,7 @@ impl ProductsRepoImpl {
         &self,
         query: U,
     ) -> RepoFuture<T> {
-        let conn = match self.r2d2_pool.get() {
+        let conn = match self.db_pool.get() {
             Ok(connection) => connection,
             Err(_) => {
                 return Box::new(future::err(

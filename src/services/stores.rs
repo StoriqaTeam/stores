@@ -1,3 +1,5 @@
+//! Stores Services, presents CRUD operations with stores
+use std::sync::Arc;
 
 use futures::future;
 use futures::Future;
@@ -9,6 +11,9 @@ use repos::stores::{StoresRepo, StoresRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
+
+use repos::acl::{ApplicationAcl, RolesCacheImpl, Acl, UnAuthanticatedACL};
+
 
 
 pub trait StoresService {
@@ -27,15 +32,20 @@ pub trait StoresService {
 /// Stores services, responsible for Store-related CRUD operations
 pub struct StoresServiceImpl<U: 'static + StoresRepo + Clone> {
     pub stores_repo: U,
-    pub user_email: Option<String>
+    pub user_id: Option<i32>,
 }
 
 impl StoresServiceImpl<StoresRepoImpl> {
-    pub fn new(r2d2_pool: DbPool, cpu_pool:CpuPool, user_email: Option<String>) -> Self {
-        let stores_repo = StoresRepoImpl::new(r2d2_pool.clone(), cpu_pool.clone());
+    pub fn new(db_pool: DbPool,
+        cpu_pool: CpuPool,
+        roles_cache: RolesCacheImpl,
+        user_id: Option<i32>,
+    ) -> Self {
+        let acl =  user_id.map_or((Arc::new(UnAuthanticatedACL::new()) as Arc<Acl>), |id| (Arc::new(ApplicationAcl::new(roles_cache.clone(), id)) as Arc<Acl>));
+        let stores_repo = StoresRepoImpl::new(db_pool, cpu_pool, acl);
         Self {
             stores_repo: stores_repo,
-            user_email: user_email
+            user_id: user_id,
         }
     }
 }

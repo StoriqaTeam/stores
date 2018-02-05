@@ -1,4 +1,4 @@
-//! Users is a microservice responsible for authentication and managing user profiles.
+//! Stores is a microservice responsible for authentication and managing stores and products
 //! The layered structure of the app is
 //!
 //! `Application -> Controller -> Service -> Repo + HttpClient`
@@ -56,6 +56,8 @@ use tokio_core::reactor::Core;
 
 use app::Application;
 use config::Config;
+use repos::acl::RolesCacheImpl;
+
 
 /// Starts new web service from provided `Config`
 pub fn start_server(config: Config) {
@@ -89,7 +91,9 @@ pub fn start_server(config: Config) {
         // Prepare CPU pool
         let cpu_pool = CpuPool::new(thread_count);
 
-        let controller = controller::Controller::new(r2d2_pool, cpu_pool, client_handle.clone(), config.clone());
+        let roles_cache = RolesCacheImpl::new(r2d2_pool.clone(), cpu_pool.clone());
+
+        let controller = controller::Controller::new(r2d2_pool, cpu_pool, client_handle.clone(), config.clone(), roles_cache);
 
         // Prepare application
         let app = Application {

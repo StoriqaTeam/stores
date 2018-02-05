@@ -1,3 +1,5 @@
+//! Products Services, presents CRUD operations with product
+use std::sync::Arc;
 
 use futures::future;
 use futures::Future;
@@ -9,6 +11,8 @@ use repos::products::{ProductsRepo, ProductsRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
+use repos::acl::{ApplicationAcl, RolesCacheImpl, Acl, UnAuthanticatedACL};
+
 
 
 pub trait ProductsService {
@@ -27,15 +31,20 @@ pub trait ProductsService {
 /// Products services, responsible for Product-related CRUD operations
 pub struct ProductsServiceImpl<U: 'static + ProductsRepo + Clone> {
     pub products_repo: U,
-    pub user_email: Option<String>
+    pub user_id: Option<i32>,
 }
 
 impl ProductsServiceImpl<ProductsRepoImpl> {
-    pub fn new(r2d2_pool: DbPool, cpu_pool:CpuPool, user_email: Option<String>) -> Self {
-        let products_repo = ProductsRepoImpl::new(r2d2_pool.clone(), cpu_pool.clone());
+    pub fn new(db_pool: DbPool,
+        cpu_pool: CpuPool,
+        roles_cache: RolesCacheImpl,
+        user_id: Option<i32>,
+    ) -> Self {
+        let acl =  user_id.map_or((Arc::new(UnAuthanticatedACL::new()) as Arc<Acl>), |id| (Arc::new(ApplicationAcl::new(roles_cache.clone(), id)) as Arc<Acl>));
+        let products_repo = ProductsRepoImpl::new(db_pool, cpu_pool, acl);
         Self {
             products_repo: products_repo,
-            user_email: user_email
+            user_id: user_id,
         }
     }
 }

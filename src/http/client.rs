@@ -250,7 +250,7 @@ mod tests {
     use tokio_core::reactor::Core;
     use serde_json;
 
-    use ::models::store::{NewStore};
+    use ::models::NewStore;
     use ::controller::utils::{parse_body, read_body};
 
     #[test]
@@ -281,7 +281,6 @@ mod tests {
             facebook_url: None,
             twitter_url: None,
             instagram_url: None,
-            pinterest_url: None,
         };
         let message_str = serde_json::to_string(&message).unwrap();
         let res = response_with_body(message_str.clone());

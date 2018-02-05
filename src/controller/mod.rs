@@ -102,7 +102,7 @@ impl Controller {
             // POST /stores
             (&Post, Some(Route::Stores)) => {
                 serialize_future!(
-                    parse_body::<models::store::NewStore>(req.body())
+                    parse_body::<models::NewStore>(req.body())
                         .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
                         .and_then(move |new_store| stores_service.create(new_store).map_err(|e| Error::from(e)))
                 )
@@ -111,7 +111,7 @@ impl Controller {
             // PUT /stores/<store_id>
             (&Put, Some(Route::Store(store_id))) => {
                 serialize_future!(
-                    parse_body::<models::store::UpdateStore>(req.body())
+                    parse_body::<models::UpdateStore>(req.body())
                         .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
                         .and_then(move |update_store| stores_service.update(store_id, update_store).map_err(|e| Error::from(e)))
                 )
@@ -141,7 +141,7 @@ impl Controller {
             // POST /products
             (&Post, Some(Route::Products)) => {
                 serialize_future!(
-                    parse_body::<models::product::NewProduct>(req.body())
+                    parse_body::<models::NewProduct>(req.body())
                         .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
                         .and_then(move |new_store| products_service.create(new_store).map_err(|e| Error::from(e)))
                 )
@@ -150,7 +150,7 @@ impl Controller {
             // PUT /products/<product_id>
             (&Put, Some(Route::Product(product_id))) => {
                 serialize_future!(
-                    parse_body::<models::product::UpdateProduct>(req.body())
+                    parse_body::<models::UpdateProduct>(req.body())
                         .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
                         .and_then(move |update_product| products_service.update(product_id, update_product).map_err(|e| Error::from(e)))
                 )

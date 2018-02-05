@@ -10,6 +10,9 @@ CREATE TABLE products (
     discount FLOAT,
     category INTEGER,
     photo_main VARCHAR,
+    vendor_code: VARCHAR,
+    cashback: FLOAT,
+    default_language: VARCHAR NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );

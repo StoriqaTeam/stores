@@ -14,7 +14,6 @@ CREATE TABLE stores (
     facebook_url VARCHAR,
     twitter_url VARCHAR,
     instagram_url VARCHAR,
-    pinterest_url VARCHAR,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );

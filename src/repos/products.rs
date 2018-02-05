@@ -10,7 +10,7 @@ use diesel::pg::PgConnection;
 use futures::future;
 use futures_cpupool::CpuPool;
 
-use models::product::{UpdateProduct, Product, NewProduct};
+use models::{UpdateProduct, Product, NewProduct};
 use models::product::products::dsl::*;
 use super::error::Error;
 use super::types::{DbConnection, DbPool, RepoFuture};

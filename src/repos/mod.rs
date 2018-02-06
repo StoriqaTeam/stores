@@ -1,5 +1,5 @@
 //! Repos is a module responsible for interacting with postgres db
-
+#[macro_use]
 pub mod acl;
 pub mod user_roles;
 pub mod stores;

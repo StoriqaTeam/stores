@@ -4,7 +4,6 @@ use std::time::SystemTime;
 use validator::Validate;
 
 use super::Language;
-use super::authorization::*;
 
 /// diesel table for products
 table! {

@@ -6,10 +6,37 @@ use std::collections::HashMap;
 use models::authorization::*;
 use super::RolesCache;
 
+
 macro_rules! permission {
     ($resource: expr) => { Permission { resource: $resource, action: Action::All, scope: Scope::All }  };
     ($resource: expr, $action: expr) => { Permission { resource: $resource, action: $action, scope: Scope::All }  };
     ($resource: expr, $action: expr, $scope: expr) => { Permission { resource: $resource, action: $action, scope: $scope }  };
+}
+
+#[macro_export]
+macro_rules! acl {
+    (vec_resources -> $resources: expr, $acl: expr, $res: expr, $act: expr) => (
+        { 
+            let acl = &mut $acl;
+            match acl.can($res, $act, $resources) {
+                true => Ok(()),
+                false => Err(Error::UnAuthorized($res, $act)),
+            }
+        }
+    );
+    (single_resource -> $cur_res: expr, $acl: expr,$res: expr, $act: expr) => (
+        { 
+            let resources = vec![(& $cur_res as &WithScope)];
+            acl!(vec_resources -> resources, $acl, $res, $act )
+        }
+    );
+    
+    (no_resource -> $acl: expr, $res: expr, $act: expr) => (
+        { 
+            let resources = vec![];
+            acl!(vec_resources -> resources, $acl, $res, $act )
+        }
+    );
 }
 
 /// Access control layer for repos. It tells if a user can do a certain action with

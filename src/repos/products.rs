@@ -76,9 +76,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
                         let mut acl = self.acl.borrow_mut();
                         match acl.can(Resource::Products, Action::Read, resources) {
                             true => Ok(product.clone()),
-                            false => Err(Error::ContstaintViolation(
-                                "Unauthorized request.".to_string(),
-                            )),
+                            false => Err(Error::UnAuthorized(Resource::Products, Action::Read)),
                         }
                     })
             })
@@ -93,9 +91,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
                 let mut acl = self.acl.borrow_mut();
                 match acl.can(Resource::Products, Action::Read, resources) {
                     true => Ok(exists),
-                    false => Err(Error::ContstaintViolation(
-                        "Unauthorized request.".to_string(),
-                    )),
+                    false => Err(Error::UnAuthorized(Resource::Products, Action::Read)),
                 }
             })
     }
@@ -112,9 +108,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
                 let mut acl = self.acl.borrow_mut();
                 match acl.can(Resource::Products, Action::Read, resources) {
                     true => Ok(product.clone()),
-                    false => Err(Error::ContstaintViolation(
-                        "Unauthorized request.".to_string(),
-                    )),
+                    false => Err(Error::UnAuthorized(Resource::Products, Action::Read)),
                 }
             })
     }
@@ -126,11 +120,9 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .and_then(|store: Store| {
                 let resources = vec![(&store as &WithScope)];
                 let mut acl = self.acl.borrow_mut();
-                match acl.can(Resource::Products, Action::Write, resources) {
+                match acl.can(Resource::Products, Action::Create, resources) {
                     true => Ok(()),
-                    false => Err(Error::ContstaintViolation(
-                        "Unauthorized request.".to_string(),
-                    )),
+                    false => Err(Error::UnAuthorized(Resource::Products, Action::Create)),
                 }
             })
             .and_then(|_| {
@@ -157,9 +149,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
                 let mut acl = self.acl.borrow_mut();
                 match acl.can(Resource::Products, Action::Read, resources) {
                     true => Ok(products_res.clone()),
-                    false => Err(Error::ContstaintViolation(
-                        "Unauthorized request.".to_string(),
-                    )),
+                    false => Err(Error::UnAuthorized(Resource::Products, Action::Read)),
                 }
             })
     }
@@ -173,11 +163,9 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .and_then(|store: Store| {
                 let resources = vec![(&store as &WithScope)];
                 let mut acl = self.acl.borrow_mut();
-                match acl.can(Resource::Products, Action::Write, resources) {
+                match acl.can(Resource::Products, Action::Update, resources) {
                     true => Ok(()),
-                    false => Err(Error::ContstaintViolation(
-                        "Unauthorized request.".to_string(),
-                    )),
+                    false => Err(Error::UnAuthorized(Resource::Products, Action::Update)),
                 }
             })
             .and_then(|_| {
@@ -201,11 +189,9 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .and_then(|store: Store| {
                 let resources = vec![(&store as &WithScope)];
                 let mut acl = self.acl.borrow_mut();
-                match acl.can(Resource::Products, Action::Write, resources) {
+                match acl.can(Resource::Products, Action::Delete, resources) {
                     true => Ok(()),
-                    false => Err(Error::ContstaintViolation(
-                        "Unauthorized request.".to_string(),
-                    )),
+                    false => Err(Error::UnAuthorized(Resource::Products, Action::Delete)),
                 }
             })
             .and_then(|_| {

@@ -1,5 +1,4 @@
 //! Products Services, presents CRUD operations with product
-use std::cell::RefCell;
 
 use futures_cpupool::CpuPool;
 use diesel::Connection;
@@ -64,10 +63,10 @@ impl ProductsService for ProductsServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
-                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
+                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let mut products_repo = ProductsRepoImpl::new(&conn, acl);
                     products_repo.find(product_id).map_err(Error::from)
                 })
         }))
@@ -84,10 +83,10 @@ impl ProductsService for ProductsServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
-                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
+                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let mut products_repo = ProductsRepoImpl::new(&conn, acl);
                     products_repo
                         .deactivate(product_id)
                         .map_err(|e| Error::from(e))
@@ -106,10 +105,10 @@ impl ProductsService for ProductsServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
-                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
+                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let mut products_repo = ProductsRepoImpl::new(&conn, acl);
                     products_repo.list(from, count).map_err(|e| Error::from(e))
                 })
         }))
@@ -126,10 +125,10 @@ impl ProductsService for ProductsServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
-                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
+                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let mut products_repo = ProductsRepoImpl::new(&conn, acl);
                     conn.transaction::<Product, Error, _>(move || {
                         products_repo
                             .name_exists(payload.name.to_string())
@@ -161,10 +160,10 @@ impl ProductsService for ProductsServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(RefCell::new(UnAuthanticatedACL::new())) as Box<RefCell<Acl>>), |id| {
-                        (Box::new(RefCell::new(ApplicationAcl::new(roles_cache.clone(), id))) as Box<RefCell<Acl>>)
+                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let mut products_repo = ProductsRepoImpl::new(&conn, acl);
                     products_repo
                         .find(product_id.clone())
                         .and_then(move |_user| products_repo.update(product_id, payload))

@@ -18,9 +18,10 @@ macro_rules! acl {
     (vec_resources -> $resources: expr, $acl: expr, $res: expr, $act: expr) => (
         { 
             let acl = &mut $acl;
-            match acl.can($res, $act, $resources) {
-                true => Ok(()),
-                false => Err(Error::UnAuthorized($res, $act)),
+            if acl.can($res, $act, $resources) {
+                Ok(())
+            } else {
+                Err(Error::UnAuthorized($res, $act))
             }
         }
     );

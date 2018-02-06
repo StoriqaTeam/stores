@@ -159,41 +159,48 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Updates specific store
     fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
-        let filter = stores
-            .filter(id.eq(store_id_arg))
-            .filter(is_active.eq(true));
-
-        let query = diesel::update(filter).set(&payload);
-        query
-            .get_result::<Store>(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+        self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 let resources = vec![(&store as &WithScope)];
                 let mut acl = self.acl.borrow_mut();
                 match acl.can(Resource::Stores, Action::Write, resources) {
-                    true => Ok(store.clone()),
+                    true => Ok(()),
                     false => Err(Error::ContstaintViolation(
                         "Unauthorized request.".to_string(),
                     )),
                 }
             })
+            .and_then(|_| {
+                let filter = stores
+                    .filter(id.eq(store_id_arg))
+                    .filter(is_active.eq(true));
+
+                let query = diesel::update(filter).set(&payload);
+                query
+                    .get_result::<Store>(&**self.db_conn)
+                    .map_err(|e| Error::from(e))
+            })
     }
 
     /// Deactivates specific store
     fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
-        let filter = stores
-            .filter(id.eq(store_id_arg))
-            .filter(is_active.eq(true));
-        let query = diesel::update(filter).set(is_active.eq(false));
-        self.execute_query(query).and_then(|store: Store| {
-            let resources = vec![(&store as &WithScope)];
-            let mut acl = self.acl.borrow_mut();
-            match acl.can(Resource::Stores, Action::Write, resources) {
-                true => Ok(store.clone()),
-                false => Err(Error::ContstaintViolation(
-                    "Unauthorized request.".to_string(),
-                )),
-            }
-        })
+        self.execute_query(stores.find(store_id_arg))
+            .and_then(|store: Store| {
+                let resources = vec![(&store as &WithScope)];
+                let mut acl = self.acl.borrow_mut();
+                match acl.can(Resource::Stores, Action::Write, resources) {
+                    true => Ok(()),
+                    false => Err(Error::ContstaintViolation(
+                        "Unauthorized request.".to_string(),
+                    )),
+                }
+            })
+            .and_then(|_| {
+                let filter = stores
+                    .filter(id.eq(store_id_arg))
+                    .filter(is_active.eq(true));
+                let query = diesel::update(filter).set(is_active.eq(false));
+                self.execute_query(query)
+            })
     }
 }

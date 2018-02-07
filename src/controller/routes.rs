@@ -8,6 +8,8 @@ pub enum Route {
     Store(i32),
     Products,
     Product(i32),
+    UserRoles,
+    UserRole(i32),
 }
 
 /// RouteParser class maps regex to type-safe list of routes, defined by `enum Route`

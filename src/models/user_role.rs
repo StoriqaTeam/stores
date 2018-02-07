@@ -12,7 +12,7 @@ table! {
     }
 }
 
-#[derive(Queryable, Insertable, Debug)]
+#[derive(Serialize, Queryable, Insertable, Debug)]
 #[table_name = "user_roles"]
 pub struct UserRole {
     pub id: i32,
@@ -23,6 +23,13 @@ pub struct UserRole {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
 #[table_name = "user_roles"]
 pub struct NewUserRole {
+    pub user_id: i32,
+    pub role: Role
+}
+
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[table_name = "user_roles"]
+pub struct OldUserRole {
     pub user_id: i32,
     pub role: Role
 }

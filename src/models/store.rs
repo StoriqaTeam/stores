@@ -4,6 +4,8 @@ use std::time::SystemTime;
 use validator::Validate;
 
 use super::authorization::*;
+use repos::types::DbConnection;
+
 
 
 /// diesel table for stores
@@ -31,7 +33,7 @@ table! {
 }
 
 /// Payload for querying stores
-#[derive(Debug, Serialize, Deserialize, Queryable, Clone)]
+#[derive(Debug, Serialize, Deserialize, Queryable, Clone, Identifiable)]
 pub struct Store {
     pub id: i32,
     pub user_id: i32,
@@ -93,7 +95,7 @@ pub struct UpdateStore {
 }
 
 impl WithScope for Store {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id,
@@ -102,7 +104,7 @@ impl WithScope for Store {
 }
 
 impl WithScope for NewStore {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id,

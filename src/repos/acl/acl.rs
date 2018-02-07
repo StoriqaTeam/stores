@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use models::authorization::*;
 use super::RolesCache;
+use repos::types::DbConnection;
 
 
 macro_rules! permission {
@@ -15,14 +16,32 @@ macro_rules! permission {
 
 #[macro_export]
 macro_rules! acl {
-    (vec_resources -> $resources: expr, $acl: expr, $res: expr, $act: expr) => (
+    (vec_resources_con -> $resources: expr, $acl: expr, $res: expr, $act: expr, $con: expr) => (
         { 
             let acl = &mut $acl;
-            if acl.can($res, $act, $resources) {
+            if acl.can($res, $act, $resources, $con) {
                 Ok(())
             } else {
                 Err(Error::UnAuthorized($res, $act))
             }
+        }
+    );
+    (single_resource_con -> $cur_res: expr, $acl: expr,$res: expr, $act: expr, $con: expr) => (
+        { 
+            let resources = vec![(& $cur_res as &WithScope)];
+            acl!(vec_resources_con -> resources, $acl, $res, $act, $con )
+        }
+    );
+    
+    (no_resource_con -> $acl: expr, $res: expr, $act: expr, $con: expr) => (
+        { 
+            let resources = vec![];
+            acl!(vec_resources_con -> resources, $acl, $res, $act, $con )
+        }
+    );
+    (vec_resources -> $resources: expr, $acl: expr, $res: expr, $act: expr) => (
+        {
+            acl!(vec_resources_con -> $resources, $acl, $res, $act, None )
         }
     );
     (single_resource -> $cur_res: expr, $acl: expr,$res: expr, $act: expr) => (
@@ -48,7 +67,7 @@ pub trait Acl {
     /// `resource_with_scope` can tell if this resource is in some scope, which is also a part of `acl` for some
     /// permissions. E.g. You can say that a user can do `Create` (`Action`) on `Store` (`Resource`) only if he's the
     /// `Owner` (`Scope`) of the store.
-    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>) -> bool;
+    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool;
 }
 
 /// SystemACL allows all manipulation with recources for all 
@@ -57,7 +76,7 @@ pub struct SystemACL {}
 
 #[allow(unused)]
 impl Acl for SystemACL {
-    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>) -> bool{
+    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool{
         true
     }
 }
@@ -76,7 +95,7 @@ pub struct UnAuthanticatedACL {}
 
 #[allow(unused)]
 impl Acl for UnAuthanticatedACL {
-    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>) -> bool{
+    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool{
         false
     }
 }
@@ -121,7 +140,7 @@ impl<R: RolesCache> ApplicationAcl<R> {
 }
 
 impl<R: RolesCache> Acl for ApplicationAcl<R> {
-    fn can(&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>) -> bool {
+    fn can(&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool {
         let empty: Vec<Permission> = Vec::new();
         let user_id = &self.user_id;
         let roles = self.roles_cache.get(*user_id);
@@ -132,7 +151,7 @@ impl<R: RolesCache> Acl for ApplicationAcl<R> {
                 (permission.resource == resource) &&
                 ((permission.action == action) || (permission.action == Action::All))
             )
-            .filter(|permission| resources_with_scope.iter().all(|res| res.is_in_scope(&permission.scope, *user_id)));
+            .filter(|permission| resources_with_scope.iter().all(|res| res.is_in_scope(&permission.scope, *user_id, conn)));
 
         acls.count() > 0
     }

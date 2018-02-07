@@ -9,9 +9,7 @@ use diesel::query_dsl::LoadQuery;
 use diesel::pg::PgConnection;
 
 use models::{NewProduct, Product, UpdateProduct};
-use models::product::products::dsl as Products;
-use models::Store;
-use models::store::stores::dsl as Stores;
+use models::product::products::dsl::*;
 use super::error::Error;
 use super::types::{DbConnection, RepoResult};
 use repos::acl::Acl;
@@ -67,20 +65,17 @@ impl<'a> ProductsRepoImpl<'a> {
 impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     /// Find specific product by ID
     fn find(&mut self, product_id_arg: i32) -> RepoResult<Product> {
-        self.execute_query(Products::products.find(product_id_arg))
+        self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                self.execute_query(Stores::stores.find(product.store_id))
-                    .and_then(|store: Store| {
-                        acl!(single_resource -> store, self.acl, Resource::Products, Action::Read)
-                        .and_then(|_| Ok(product))
-                    })
+                acl!(single_resource_con -> product, self.acl, Resource::Products, Action::Read, Some(self.db_conn))
+                .and_then(|_| Ok(product))
             })
     }
 
     /// Verifies product exist
     fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
         self.execute_query(select(exists(
-            Products::products.filter(Products::name.eq(name_arg)),
+            products.filter(name.eq(name_arg)),
         ))).and_then(|exists| {
                  acl!(no_resource -> self.acl, Resource::Products, Action::Read)
                 .and_then(|_| Ok(exists))
@@ -89,71 +84,60 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Find specific product by full name
     fn find_by_name(&mut self, name_arg: String) -> RepoResult<Product> {
-        let query = Products::products.filter(Products::name.eq(name_arg));
+        let query = products.filter(name.eq(name_arg));
 
         query
             .first::<Product>(&**self.db_conn)
             .map_err(|e| Error::from(e))
             .and_then(|product: Product| {
-                self.execute_query(Stores::stores.find(product.store_id))
-                    .and_then(|store: Store| {
-                        acl!(single_resource -> store, self.acl, Resource::Products, Action::Read)
-                        .and_then(|_| Ok(product))
-                    })
+                acl!(single_resource_con -> product, self.acl, Resource::Products, Action::Read, Some(self.db_conn))
+                .and_then(|_| Ok(product))
             })
     }
 
 
     /// Creates new product
     fn create(&mut self, payload: NewProduct) -> RepoResult<Product> {
-        self.execute_query(Stores::stores.find(payload.store_id))
-            .and_then(|store: Store| {
-                acl!(single_resource -> store, self.acl, Resource::Products, Action::Create)
-            })
-            .and_then(|_| {
-                let query_product = diesel::insert_into(Products::products).values(&payload);
-                query_product
-                    .get_result::<Product>(&**self.db_conn)
-                    .map_err(Error::from)
-            })
+        acl!(single_resource_con -> payload, self.acl, Resource::Products, Action::Create, Some(self.db_conn))
+        .and_then(|_| {
+            let query_product = diesel::insert_into(products).values(&payload);
+            query_product
+                .get_result::<Product>(&**self.db_conn)
+                .map_err(Error::from)
+        })
     }
 
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Product>> {
-        let query = Products::products
-            .filter(Products::is_active.eq(true))
-            .filter(Products::id.gt(from))
-            .order(Products::id)
+        let query = products
+            .filter(is_active.eq(true))
+            .filter(id.gt(from))
+            .order(id)
             .limit(count);
 
         query
             .get_results(&**self.db_conn)
             .map_err(|e| Error::from(e))
             .and_then(|products_res: Vec<Product>| {
-                let stores_res = vec![]; // find all stores
-                let resources = stores_res;
-                // let resources = stores_res
-                //     .iter()
-                //     .map(|store| (store as &WithScope))
-                //     .collect();
-                acl!(vec_resources -> resources, self.acl, Resource::Products, Action::Read)
-                .and_then(|_| Ok(products_res))
+                let resources = products_res
+                    .iter()
+                    .map(|product| (product as &WithScope))
+                    .collect();
+                acl!(vec_resources_con -> resources, self.acl, Resource::Products, Action::Read, Some(self.db_conn))
+                .and_then(|_| Ok(products_res.clone()))
             })
     }
 
     /// Updates specific product
     fn update(&mut self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
-        self.execute_query(Products::products.find(product_id_arg))
+        self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                self.execute_query(Stores::stores.find(product.store_id))
-            })
-            .and_then(|store: Store| {
-                acl!(single_resource -> store, self.acl, Resource::Products, Action::Update)
+                acl!(single_resource_con -> product, self.acl, Resource::Products, Action::Update, Some(self.db_conn) )
             })
             .and_then(|_| {
-                let filter = Products::products
-                    .filter(Products::id.eq(product_id_arg))
-                    .filter(Products::is_active.eq(true));
+                let filter = products
+                    .filter(id.eq(product_id_arg))
+                    .filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
                 query
@@ -164,18 +148,15 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Deactivates specific product
     fn deactivate(&mut self, product_id_arg: i32) -> RepoResult<Product> {
-        self.execute_query(Products::products.find(product_id_arg))
+        self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                self.execute_query(Stores::stores.find(product.store_id))
-            })
-            .and_then(|store: Store| {
-                acl!(single_resource -> store, self.acl, Resource::Products, Action::Delete)
+                acl!(single_resource_con -> product, self.acl, Resource::Products, Action::Delete, Some(self.db_conn) )
             })
             .and_then(|_| {
-                let filter = Products::products
-                    .filter(Products::id.eq(product_id_arg))
-                    .filter(Products::is_active.eq(true));
-                let query = diesel::update(filter).set(Products::is_active.eq(false));
+                let filter = products
+                    .filter(id.eq(product_id_arg))
+                    .filter(is_active.eq(true));
+                let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })
     }

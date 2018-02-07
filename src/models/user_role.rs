@@ -2,6 +2,7 @@
 use validator::Validate;
 
 use models::{Role, Scope, WithScope};
+use repos::types::DbConnection;
 
 table! {
     user_roles (id) {
@@ -27,7 +28,7 @@ pub struct NewUserRole {
 }
 
 impl WithScope for UserRole {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id

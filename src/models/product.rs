@@ -2,8 +2,16 @@
 use std::time::SystemTime;
 
 use validator::Validate;
+use diesel::prelude::*;
+
 
 use super::Language;
+use super::Store;
+use super::authorization::*;
+use repos::types::DbConnection;
+use models::store::stores::dsl as Stores;
+
+
 
 /// diesel table for products
 table! {
@@ -27,8 +35,10 @@ table! {
     }
 }
 
+
 /// Payload for querying products
-#[derive(Debug, Serialize, Deserialize, Queryable, Clone)]
+#[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
+#[belongs_to(Store)]
 pub struct Product {
     pub id: i32,
     pub store_id: i32,
@@ -63,7 +73,7 @@ pub struct NewProduct {
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub default_language: Language
+    pub default_language: Language,
 }
 
 /// Payload for updating products
@@ -80,5 +90,35 @@ pub struct UpdateProduct {
     pub photo_main: Option<Option<String>>,
     pub vendor_code: Option<Option<String>>,
     pub cashback: Option<Option<f32>>,
-    pub default_language: Option<Language>
+    pub default_language: Option<Language>,
+}
+
+impl WithScope for Product {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => conn.and_then(|con| {
+                Stores::stores
+                    .find(self.store_id)
+                    .get_result::<Store>(&**con)
+                    .and_then(|store: Store| Ok(store.user_id == user_id))
+                    .ok()
+            }).unwrap_or(false),
+        }
+    }
+}
+
+impl WithScope for NewProduct {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => conn.and_then(|con| {
+                Stores::stores
+                    .find(self.store_id)
+                    .get_result::<Store>(&**con)
+                    .and_then(|store: Store| Ok(store.user_id == user_id))
+                    .ok()
+            }).unwrap_or(false),
+        }
+    }
 }

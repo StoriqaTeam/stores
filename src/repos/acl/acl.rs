@@ -1,5 +1,4 @@
 //! Authorization module contains authorization logic for the repo layer app
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::HashMap;
 
@@ -111,7 +110,7 @@ impl UnAuthanticatedACL {
 // TODO: remove info about deleted user from cache
 #[derive(Clone)]
 pub struct ApplicationAcl<R: RolesCache> {
-    acls: Rc<RefCell<HashMap<Role, Vec<Permission>>>>,
+    acls: Rc<HashMap<Role, Vec<Permission>>>,
     roles_cache: R,
     user_id: i32
 }
@@ -132,7 +131,7 @@ impl<R: RolesCache> ApplicationAcl<R> {
                     permission!(Resource::UserRoles, Action::Read, Scope::Owned)]);
 
         ApplicationAcl { 
-            acls: Rc::new(RefCell::new(hash)), 
+            acls: Rc::new(hash), 
             roles_cache: roles_cache, 
             user_id: user_id,
         }
@@ -144,7 +143,7 @@ impl<R: RolesCache> Acl for ApplicationAcl<R> {
         let empty: Vec<Permission> = Vec::new();
         let user_id = &self.user_id;
         let roles = self.roles_cache.get(*user_id);
-        let hashed_acls = self.acls.borrow_mut();
+        let hashed_acls = self.acls.clone();
         let acls = roles.into_iter()
             .flat_map(|role| hashed_acls.get(&role).unwrap_or(&empty))
             .filter(|permission|

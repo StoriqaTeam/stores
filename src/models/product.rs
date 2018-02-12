@@ -94,31 +94,33 @@ pub struct UpdateProduct {
 }
 
 impl WithScope for Product {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: &DbConnection) -> bool {
         match *scope {
             Scope::All => true,
-            Scope::Owned => conn.and_then(|con| {
+            Scope::Owned => {
                 Stores::stores
                     .find(self.store_id)
-                    .get_result::<Store>(&**con)
+                    .get_result::<Store>(&**conn)
                     .and_then(|store: Store| Ok(store.user_id == user_id))
                     .ok()
-            }).unwrap_or(false),
+                    .unwrap_or(false)
+            }
         }
     }
 }
 
 impl WithScope for NewProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: &DbConnection) -> bool {
         match *scope {
             Scope::All => true,
-            Scope::Owned => conn.and_then(|con| {
+            Scope::Owned => {
                 Stores::stores
                     .find(self.store_id)
-                    .get_result::<Store>(&**con)
+                    .get_result::<Store>(&**conn)
                     .and_then(|store: Store| Ok(store.user_id == user_id))
                     .ok()
-            }).unwrap_or(false),
+                    .unwrap_or(false)
+            }
         }
     }
 }

@@ -95,7 +95,7 @@ pub struct UpdateStore {
 }
 
 impl WithScope for Store {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: &DbConnection) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id,
@@ -104,7 +104,7 @@ impl WithScope for Store {
 }
 
 impl WithScope for NewStore {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: &DbConnection) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id,

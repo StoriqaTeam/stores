@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use models::authorization::*;
 use super::RolesCache;
-use repos::types::DbConnection;
+use repos::types::{DbConnection, RepoResult};
 
 
 macro_rules! permission {
@@ -18,11 +18,12 @@ macro_rules! acl {
     (vec_resources_con -> $resources: expr, $acl: expr, $res: expr, $act: expr, $con: expr) => (
         { 
             let acl = &mut $acl;
-            if acl.can($res, $act, $resources, $con) {
+            acl.can($res, $act, $resources, $con).and_then(|result| {
+            if result {
                 Ok(())
             } else {
                 Err(Error::UnAuthorized($res, $act))
-            }
+            }}) 
         }
     );
     (single_resource_con -> $cur_res: expr, $acl: expr,$res: expr, $act: expr, $con: expr) => (
@@ -38,24 +39,7 @@ macro_rules! acl {
             acl!(vec_resources_con -> resources, $acl, $res, $act, $con )
         }
     );
-    (vec_resources -> $resources: expr, $acl: expr, $res: expr, $act: expr) => (
-        {
-            acl!(vec_resources_con -> $resources, $acl, $res, $act, None )
-        }
-    );
-    (single_resource -> $cur_res: expr, $acl: expr,$res: expr, $act: expr) => (
-        { 
-            let resources = vec![(& $cur_res as &WithScope)];
-            acl!(vec_resources -> resources, $acl, $res, $act )
-        }
-    );
     
-    (no_resource -> $acl: expr, $res: expr, $act: expr) => (
-        { 
-            let resources = vec![];
-            acl!(vec_resources -> resources, $acl, $res, $act )
-        }
-    );
 }
 
 /// Access control layer for repos. It tells if a user can do a certain action with
@@ -66,7 +50,7 @@ pub trait Acl {
     /// `resource_with_scope` can tell if this resource is in some scope, which is also a part of `acl` for some
     /// permissions. E.g. You can say that a user can do `Create` (`Action`) on `Store` (`Resource`) only if he's the
     /// `Owner` (`Scope`) of the store.
-    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool;
+    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: &DbConnection) -> RepoResult<bool>;
 }
 
 /// SystemACL allows all manipulation with recources for all 
@@ -75,8 +59,8 @@ pub struct SystemACL {}
 
 #[allow(unused)]
 impl Acl for SystemACL {
-    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool{
-        true
+    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: &DbConnection) -> RepoResult<bool> {
+        Ok(true)
     }
 }
 
@@ -94,8 +78,8 @@ pub struct UnAuthanticatedACL {}
 
 #[allow(unused)]
 impl Acl for UnAuthanticatedACL {
-    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool{
-        false
+    fn can (&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: &DbConnection) -> RepoResult<bool> {
+        Ok(false)
     }
 }
 
@@ -139,12 +123,12 @@ impl<R: RolesCache> ApplicationAcl<R> {
 }
 
 impl<R: RolesCache> Acl for ApplicationAcl<R> {
-    fn can(&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: Option<&DbConnection>) -> bool {
+    fn can(&mut self, resource: Resource, action: Action, resources_with_scope: Vec<&WithScope>, conn: &DbConnection) -> RepoResult<bool> {
         let empty: Vec<Permission> = Vec::new();
         let user_id = &self.user_id;
-        let roles = self.roles_cache.get(*user_id);
         let hashed_acls = self.acls.clone();
-        let acls = roles.into_iter()
+        self.roles_cache.get(*user_id, conn).and_then(|vec| {
+        let acls = vec.into_iter()
             .flat_map(|role| hashed_acls.get(&role).unwrap_or(&empty))
             .filter(|permission|
                 (permission.resource == resource) &&
@@ -152,7 +136,8 @@ impl<R: RolesCache> Acl for ApplicationAcl<R> {
             )
             .filter(|permission| resources_with_scope.iter().all(|res| res.is_in_scope(&permission.scope, *user_id, conn)));
 
-        acls.count() > 0
+            Ok(acls.count() > 0)
+        })
     }
 }
 

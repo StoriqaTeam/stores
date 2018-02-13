@@ -9,7 +9,6 @@ use models::authorization::*;
 use repos::acl::SystemACL;
 use repos::error::Error;
 
-
 #[derive(Clone)]
 pub struct RolesCacheImpl {
     roles_cache: Arc<Mutex<HashMap<i32, Vec<Role>>>>,
@@ -23,7 +22,6 @@ impl RolesCacheImpl {
     }
 }
 
-
 pub trait RolesCache {
     fn get(&mut self, id: i32, db_conn: Option<&DbConnection>) -> RepoResult<Vec<Role>>;
 }
@@ -33,23 +31,17 @@ impl RolesCache for RolesCacheImpl {
         let mut hash_map = self.roles_cache.lock().unwrap();
         match hash_map.entry(id) {
             Entry::Occupied(o) => Ok(o.get().clone()),
-            Entry::Vacant(v) => {
-                db_conn
+            Entry::Vacant(v) => db_conn
                 .ok_or(Error::Connection("No connection to db".to_string()))
                 .and_then(|con| {
-                    let repo =
-                    UserRolesRepoImpl::new(con, Box::new(SystemACL::new()));
+                    let repo = UserRolesRepoImpl::new(con, Box::new(SystemACL::new()));
                     repo.list_for_user(id)
-                        .map(|users| 
-                            users.into_iter()
-                                .map(|u| u.role)
-                                .collect())
+                        .map(|users| users.into_iter().map(|u| u.role).collect())
                 })
                 .and_then(move |vec: Vec<Role>| {
                     v.insert(vec.clone());
                     Ok(vec)
-                })
-            }
+                }),
         }
     }
 }

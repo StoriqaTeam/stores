@@ -1,17 +1,16 @@
 use diesel::result::Error as DieselError;
 use models::authorization::*;
 
-
 /// Repos layer Error
 #[derive(Debug)]
 pub enum Error {
-  NotFound,
-  Rollback,
-  ContstaintViolation(String),
-  Unauthorized(Resource, Action),
-  MismatchedType(String),
-  Connection(String),
-  Unknown(String)
+    NotFound,
+    Rollback,
+    ContstaintViolation(String),
+    Unauthorized(Resource, Action),
+    MismatchedType(String),
+    Connection(String),
+    Unknown(String),
 }
 
 impl From<DieselError> for Error {
@@ -24,7 +23,7 @@ impl From<DieselError> for Error {
             DieselError::SerializationError(e) => Error::MismatchedType(format!("{}", e)),
             DieselError::DeserializationError(e) => Error::MismatchedType(format!("{}", e)),
             DieselError::RollbackTransaction => Error::Rollback,
-            _ => Error::Unknown("Unknown diesel error".to_string())
+            _ => Error::Unknown("Unknown diesel error".to_string()),
         }
     }
 }

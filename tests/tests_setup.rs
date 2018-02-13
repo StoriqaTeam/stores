@@ -1,19 +1,18 @@
+extern crate diesel;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate hyper;
+extern crate r2d2;
+extern crate r2d2_diesel;
 extern crate serde_json;
 extern crate stores_lib;
 extern crate tokio_core;
-extern crate futures_cpupool;
-extern crate diesel;
-extern crate r2d2;
-extern crate r2d2_diesel;
 
 use std::time::SystemTime;
 
 use futures_cpupool::CpuPool;
 use diesel::pg::PgConnection;
 use r2d2_diesel::ConnectionManager;
-
 
 use stores_lib::repos::*;
 use stores_lib::services::*;
@@ -72,17 +71,14 @@ impl RolesCache for CacheRolesMock {
     fn get(&mut self, id: i32, _con: Option<&DbConnection>) -> RepoResult<Vec<Role>> {
         match id {
             1 => Ok(vec![Role::Superuser]),
-            _ => Ok(vec![Role::User])
+            _ => Ok(vec![Role::User]),
         }
     }
 }
 
 const MOCK_USER_ROLE: CacheRolesMock = CacheRolesMock {};
 
-
-fn new_store_service(
-    user_id: Option<i32>,
-) -> StoresServiceImpl<CacheRolesMock> {
+fn new_store_service(user_id: Option<i32>) -> StoresServiceImpl<CacheRolesMock> {
     let database_url = "127.0.0.1";
     let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
     let db_pool = r2d2::Pool::builder()
@@ -91,10 +87,10 @@ fn new_store_service(
     let cpu_pool = CpuPool::new(1);
 
     StoresServiceImpl {
-        db_pool:db_pool, 
-        cpu_pool:cpu_pool, 
-        roles_cache: MOCK_USER_ROLE, 
-        user_id:user_id,
+        db_pool: db_pool,
+        cpu_pool: cpu_pool,
+        roles_cache: MOCK_USER_ROLE,
+        user_id: user_id,
     }
 }
 
@@ -119,9 +115,9 @@ pub fn create_store(id: i32, name: String) -> Store {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
-        created_at: SystemTime::now(), 
-        updated_at: SystemTime::now(), 
-        user_id: MOCK_USER_ID
+        created_at: SystemTime::now(),
+        updated_at: SystemTime::now(),
+        user_id: MOCK_USER_ID,
     }
 }
 
@@ -140,7 +136,7 @@ pub fn create_new_store(name: String) -> NewStore {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
-        user_id: MOCK_USER_ID
+        user_id: MOCK_USER_ID,
     }
 }
 
@@ -175,9 +171,7 @@ impl ProductsRepo for ProductsRepoMock {
     }
 
     fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
-        Ok(
-            name_arg == MOCK_USER_ID.to_string(),
-        )
+        Ok(name_arg == MOCK_USER_ID.to_string())
     }
 
     fn find_by_name(&mut self, name_arg: String) -> RepoResult<Product> {
@@ -200,10 +194,7 @@ impl ProductsRepo for ProductsRepoMock {
     }
 
     fn update(&mut self, product_id: i32, payload: UpdateProduct) -> RepoResult<Product> {
-        let product = create_product(
-            product_id,
-            payload.name,
-        );
+        let product = create_product(product_id, payload.name);
 
         Ok(product)
     }
@@ -215,9 +206,7 @@ impl ProductsRepo for ProductsRepoMock {
     }
 }
 
-fn new_product_service(
-    user_id: Option<i32>,
-) -> ProductsServiceImpl<CacheRolesMock> {
+fn new_product_service(user_id: Option<i32>) -> ProductsServiceImpl<CacheRolesMock> {
     let database_url = "127.0.0.1";
     let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
     let db_pool = r2d2::Pool::builder()
@@ -226,10 +215,10 @@ fn new_product_service(
     let cpu_pool = CpuPool::new(1);
 
     ProductsServiceImpl {
-        db_pool:db_pool, 
-        cpu_pool:cpu_pool, 
-        roles_cache: MOCK_USER_ROLE, 
-        user_id:user_id,
+        db_pool: db_pool,
+        cpu_pool: cpu_pool,
+        roles_cache: MOCK_USER_ROLE,
+        user_id: user_id,
     }
 }
 
@@ -250,8 +239,8 @@ pub fn create_product(id: i32, name: String) -> Product {
         discount: None,
         category: None,
         photo_main: None,
-        created_at: SystemTime::now(), 
-        updated_at: SystemTime::now(), 
+        created_at: SystemTime::now(),
+        updated_at: SystemTime::now(),
         vendor_code: None,
         cashback: None,
         default_language: Language::Russian,
@@ -285,7 +274,7 @@ pub fn create_update_product(name: String) -> UpdateProduct {
         discount: None,
         category: None,
         photo_main: None,
-        vendor_code: None,  
+        vendor_code: None,
         cashback: None,
         default_language: None,
     }

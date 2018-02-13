@@ -1,4 +1,4 @@
-use regex::{Regex};
+use regex::Regex;
 
 /// List of all routes with params for the app
 #[derive(Clone, Debug, PartialEq)]
@@ -20,7 +20,6 @@ pub struct RouteParser {
 type ParamsConverter = Fn(Vec<&str>) -> Option<Route>;
 
 impl RouteParser {
-
     /// Creates new Router
     /// #Examples
     ///
@@ -30,7 +29,9 @@ impl RouteParser {
     /// let router = RouteParser::new();
     /// ```
     pub fn new() -> Self {
-        Self { regex_and_converters: Vec::new() }
+        Self {
+            regex_and_converters: Vec::new(),
+        }
     }
 
     /// Adds mapping between regex and route
@@ -43,9 +44,7 @@ impl RouteParser {
     /// router.add_route(r"^/stores$", Route::Stores);
     /// ```
     pub fn add_route(&mut self, regex_pattern: &str, route: Route) -> &Self {
-        self.add_route_with_params(regex_pattern, move |_| {
-            Some(route.clone())
-        });
+        self.add_route_with_params(regex_pattern, move |_| Some(route.clone()));
         self
     }
 
@@ -66,7 +65,9 @@ impl RouteParser {
     /// });
     /// ```
     pub fn add_route_with_params<F>(&mut self, regex_pattern: &str, converter: F) -> &Self
-        where F: Fn(Vec<&str>) -> Option<Route> + 'static {
+    where
+        F: Fn(Vec<&str>) -> Option<Route> + 'static,
+    {
         let regex = Regex::new(regex_pattern).unwrap();
         self.regex_and_converters.push((regex, Box::new(converter)));
         self
@@ -85,17 +86,22 @@ impl RouteParser {
     /// assert_eq!(route, Route::Stores);
     /// ```
     pub fn test(&self, route: &str) -> Option<Route> {
-        self.regex_and_converters.iter().fold(None, |acc, ref regex_and_converter| {
-            if acc.is_some() { return acc }
-            RouteParser::get_matches(&regex_and_converter.0, route)
-                .and_then(|params| regex_and_converter.1(params))
-        })
+        self.regex_and_converters
+            .iter()
+            .fold(None, |acc, ref regex_and_converter| {
+                if acc.is_some() {
+                    return acc;
+                }
+                RouteParser::get_matches(&regex_and_converter.0, route).and_then(|params| regex_and_converter.1(params))
+            })
     }
 
     fn get_matches<'a>(regex: &Regex, string: &'a str) -> Option<Vec<&'a str>> {
-        regex.captures(string)
-            .and_then(|captures| {
-                captures.iter().skip(1).fold(Some(Vec::<&str>::new()), |mut maybe_acc, maybe_match| {
+        regex.captures(string).and_then(|captures| {
+            captures
+                .iter()
+                .skip(1)
+                .fold(Some(Vec::<&str>::new()), |mut maybe_acc, maybe_match| {
                     if let Some(ref mut acc) = maybe_acc {
                         if let Some(mtch) = maybe_match {
                             acc.push(mtch.as_str());
@@ -103,7 +109,7 @@ impl RouteParser {
                     }
                     maybe_acc
                 })
-            })
+        })
     }
 }
 
@@ -118,7 +124,8 @@ pub fn create_route_parser() -> RouteParser {
 
     // Stores/:id route
     router.add_route_with_params(r"^/stores/(\d+)$", |params| {
-        params.get(0)
+        params
+            .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|store_id| Route::Store(store_id))
     });
@@ -128,7 +135,8 @@ pub fn create_route_parser() -> RouteParser {
 
     // Products/:id route
     router.add_route_with_params(r"^/products/(\d+)$", |params| {
-        params.get(0)
+        params
+            .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|store_id| Route::Product(store_id))
     });

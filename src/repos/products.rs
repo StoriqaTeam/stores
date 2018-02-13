@@ -15,7 +15,6 @@ use super::types::{DbConnection, RepoResult};
 use repos::acl::Acl;
 use models::authorization::*;
 
-
 /// Products repository, responsible for handling products
 pub struct ProductsRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
@@ -50,35 +49,39 @@ impl<'a> ProductsRepoImpl<'a> {
         Self { db_conn, acl }
     }
 
-
-    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(
-        &self,
-        query: U,
-    ) -> RepoResult<T> {
+    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> RepoResult<T> {
         query
             .get_result::<T>(&**self.db_conn)
             .map_err(|e| Error::from(e))
     }
 }
 
-
 impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     /// Find specific product by ID
     fn find(&mut self, product_id_arg: i32) -> RepoResult<Product> {
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                acl!([product], self.acl, Resource::Products, Action::Read, Some(self.db_conn))
-                .and_then(|_| Ok(product))
+                acl!(
+                    [product],
+                    self.acl,
+                    Resource::Products,
+                    Action::Read,
+                    Some(self.db_conn)
+                ).and_then(|_| Ok(product))
             })
     }
 
     /// Verifies product exist
     fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
-        self.execute_query(select(exists(
-            products.filter(name.eq(name_arg)),
-        ))).and_then(|exists| {
-                 acl!([], self.acl, Resource::Products, Action::Read, Some(self.db_conn))
-                .and_then(|_| Ok(exists))
+        self.execute_query(select(exists(products.filter(name.eq(name_arg)))))
+            .and_then(|exists| {
+                acl!(
+                    [],
+                    self.acl,
+                    Resource::Products,
+                    Action::Read,
+                    Some(self.db_conn)
+                ).and_then(|_| Ok(exists))
             })
     }
 
@@ -90,16 +93,25 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .first::<Product>(&**self.db_conn)
             .map_err(|e| Error::from(e))
             .and_then(|product: Product| {
-                acl!([product], self.acl, Resource::Products, Action::Read, Some(self.db_conn))
-                .and_then(|_| Ok(product))
+                acl!(
+                    [product],
+                    self.acl,
+                    Resource::Products,
+                    Action::Read,
+                    Some(self.db_conn)
+                ).and_then(|_| Ok(product))
             })
     }
 
-
     /// Creates new product
     fn create(&mut self, payload: NewProduct) -> RepoResult<Product> {
-        acl!([payload], self.acl, Resource::Products, Action::Create, Some(self.db_conn))
-        .and_then(|_| {
+        acl!(
+            [payload],
+            self.acl,
+            Resource::Products,
+            Action::Create,
+            Some(self.db_conn)
+        ).and_then(|_| {
             let query_product = diesel::insert_into(products).values(&payload);
             query_product
                 .get_result::<Product>(&**self.db_conn)
@@ -123,8 +135,13 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
                     .iter()
                     .map(|product| (product as &WithScope))
                     .collect();
-                acl!(resources, self.acl, Resource::Products, Action::Read, Some(self.db_conn))
-                .and_then(|_| Ok(products_res.clone()))
+                acl!(
+                    resources,
+                    self.acl,
+                    Resource::Products,
+                    Action::Read,
+                    Some(self.db_conn)
+                ).and_then(|_| Ok(products_res.clone()))
             })
     }
 
@@ -132,7 +149,13 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     fn update(&mut self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                acl!([product], self.acl, Resource::Products, Action::Update, Some(self.db_conn) )
+                acl!(
+                    [product],
+                    self.acl,
+                    Resource::Products,
+                    Action::Update,
+                    Some(self.db_conn)
+                )
             })
             .and_then(|_| {
                 let filter = products
@@ -150,7 +173,13 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     fn deactivate(&mut self, product_id_arg: i32) -> RepoResult<Product> {
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                acl!([product], self.acl, Resource::Products, Action::Delete, Some(self.db_conn) )
+                acl!(
+                    [product],
+                    self.acl,
+                    Resource::Products,
+                    Action::Delete,
+                    Some(self.db_conn)
+                )
             })
             .and_then(|_| {
                 let filter = products

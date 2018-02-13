@@ -6,8 +6,6 @@ use validator::Validate;
 use super::authorization::*;
 use repos::types::DbConnection;
 
-
-
 /// diesel table for stores
 table! {
     stores (id) {

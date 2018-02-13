@@ -3,15 +3,12 @@
 use futures_cpupool::CpuPool;
 use diesel::Connection;
 
-
 use models::product::{NewProduct, Product, UpdateProduct};
 use repos::products::{ProductsRepo, ProductsRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
 use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
-
-
 
 pub trait ProductsService {
     /// Returns product by ID
@@ -35,18 +32,12 @@ pub struct ProductsServiceImpl<R: RolesCache + Clone + Send + 'static> {
 }
 
 impl<R: RolesCache + Clone + Send + 'static> ProductsServiceImpl<R> {
-    pub fn new(
-        db_pool: DbPool,
-        cpu_pool: CpuPool,
-        roles_cache: R,
-        user_id: Option<i32>,
-    ) -> Self {
-        
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, user_id: Option<i32>) -> Self {
         Self {
             db_pool,
             cpu_pool,
             roles_cache,
-            user_id
+            user_id,
         }
     }
 }
@@ -143,7 +134,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                                     .create(new_product)
                                     .map_err(|e| Error::from(e))
                             })
-                            //rollback if error
+                        //rollback if error
                     })
                 })
         }))
@@ -169,7 +160,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                         .and_then(move |_user| products_repo.update(product_id, payload))
                         .map_err(|e| Error::from(e))
                 })
-                //rollback if error
+            //rollback if error
         }))
     }
 }

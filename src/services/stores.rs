@@ -3,16 +3,13 @@
 use futures_cpupool::CpuPool;
 use diesel::Connection;
 
-
-use models::{NewStore, UpdateStore, Store};
+use models::{NewStore, Store, UpdateStore};
 use repos::stores::{StoresRepo, StoresRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
 
-use repos::acl::{ApplicationAcl, RolesCache, Acl, UnauthorizedACL};
-
-
+use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 
 pub trait StoresService {
     /// Returns store by ID
@@ -36,18 +33,12 @@ pub struct StoresServiceImpl<R: RolesCache + Clone + Send + 'static> {
 }
 
 impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
-    pub fn new(
-        db_pool: DbPool,
-        cpu_pool: CpuPool,
-        roles_cache: R,
-        user_id: Option<i32>,
-    ) -> Self {
-        
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, user_id: Option<i32>) -> Self {
         Self {
             db_pool,
             cpu_pool,
             roles_cache,
-            user_id
+            user_id,
         }
     }
 }
@@ -88,9 +79,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);
-                    stores_repo
-                        .deactivate(store_id)
-                        .map_err(|e| Error::from(e))
+                    stores_repo.deactivate(store_id).map_err(|e| Error::from(e))
                 })
         }))
     }
@@ -139,12 +128,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                                 false => Ok(payload),
                                 true => Err(Error::Database("Store already exists".into())),
                             })
-                            .and_then(move |new_store| {
-                                stores_repo
-                                    .create(new_store)
-                                    .map_err(|e| Error::from(e))
-                            })
-                            //rollback if error
+                            .and_then(move |new_store| stores_repo.create(new_store).map_err(|e| Error::from(e)))
+                        //rollback if error
                     })
                 })
         }))
@@ -170,7 +155,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         .and_then(move |_user| stores_repo.update(store_id, payload))
                         .map_err(|e| Error::from(e))
                 })
-                            //rollback if error
+            //rollback if error
         }))
     }
 }

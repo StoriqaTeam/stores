@@ -2,14 +2,12 @@
 
 use futures_cpupool::CpuPool;
 
-
 use models::{NewUserRole, OldUserRole, UserRole};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
 use repos::acl::SystemACL;
 use repos::user_roles::{UserRolesRepo, UserRolesRepoImpl};
-
 
 pub trait UserRolesService {
     /// Returns user_role by ID
@@ -27,14 +25,8 @@ pub struct UserRolesServiceImpl {
 }
 
 impl UserRolesServiceImpl {
-    pub fn new(
-        db_pool: DbPool,
-        cpu_pool: CpuPool,
-    ) -> Self {
-        Self {
-            db_pool,
-            cpu_pool,
-        }
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool) -> Self {
+        Self { db_pool, cpu_pool }
     }
 }
 
@@ -66,13 +58,10 @@ impl UserRolesService for UserRolesServiceImpl {
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
                     let user_roles_repo = UserRolesRepoImpl::new(&conn, Box::new(SystemACL::new()));
-                    user_roles_repo
-                        .delete(payload)
-                        .map_err(|e| Error::from(e))
+                    user_roles_repo.delete(payload).map_err(|e| Error::from(e))
                 })
         }))
     }
-
 
     /// Creates new user_role
     fn create(&self, new_user_role: NewUserRole) -> ServiceFuture<UserRole> {

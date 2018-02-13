@@ -2,17 +2,16 @@ use std::str::FromStr;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum Language {
-   English,
-   Chinese,
-   German,
-   Russian,
-   Spanish,
-   French,
-   Korean,
-   Portuguese,
-   Japanese,
+    English,
+    Chinese,
+    German,
+    Russian,
+    Spanish,
+    French,
+    Korean,
+    Portuguese,
+    Japanese,
 }
-
 
 impl FromStr for Language {
     type Err = ();
@@ -45,7 +44,7 @@ mod diesel_impl {
     use std::error::Error;
     use std::io::Write;
 
-    use super::{Language};
+    use super::Language;
 
     impl<'a> AsExpression<VarChar> for &'a Language {
         type Expression = Bound<VarChar, &'a Language>;
@@ -64,10 +63,7 @@ mod diesel_impl {
     }
 
     impl ToSql<VarChar, Pg> for Language {
-        fn to_sql<W: Write>(
-            &self,
-            out: &mut Output<W, Pg>,
-        ) -> Result<IsNull, Box<Error + Send + Sync>> {
+        fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> Result<IsNull, Box<Error + Send + Sync>> {
             match *self {
                 Language::English => out.write_all(b"English")?,
                 Language::Chinese => out.write_all(b"Chinese")?,

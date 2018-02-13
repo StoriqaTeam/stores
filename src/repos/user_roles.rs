@@ -7,10 +7,10 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 
 use models::user_role::user_roles::dsl::*;
-use models::{NewUserRole, UserRole, OldUserRole};
+use models::{NewUserRole, OldUserRole, UserRole};
 use repos::acl::Acl;
 use super::error::Error;
-use super::types::{RepoResult, DbConnection};
+use super::types::{DbConnection, RepoResult};
 
 /// UserRoles repository for handling UserRoles
 pub trait UserRolesRepo {
@@ -31,7 +31,6 @@ pub struct UserRolesRepoImpl<'a> {
 }
 
 impl<'a> UserRolesRepoImpl<'a> {
-
     pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
         Self { db_conn, acl }
     }
@@ -39,18 +38,22 @@ impl<'a> UserRolesRepoImpl<'a> {
 
 impl<'a> UserRolesRepo for UserRolesRepoImpl<'a> {
     fn list_for_user(&self, user_id_value: i32) -> RepoResult<Vec<UserRole>> {
-                let query = user_roles.filter(id.eq(user_id_value));
-                query.get_results(&**self.db_conn).map_err(|e| Error::from(e))
+        let query = user_roles.filter(id.eq(user_id_value));
+        query
+            .get_results(&**self.db_conn)
+            .map_err(|e| Error::from(e))
     }
 
     fn create(&self, payload: NewUserRole) -> RepoResult<UserRole> {
-            let query = diesel::insert_into(user_roles).values(&payload);
-            query.get_result(&**self.db_conn).map_err(Error::from)
+        let query = diesel::insert_into(user_roles).values(&payload);
+        query.get_result(&**self.db_conn).map_err(Error::from)
     }
 
     fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
-            let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role));
-            let query = diesel::delete(filtered);
-            query.get_result(&**self.db_conn).map_err(Error::from)
+        let filtered = user_roles
+            .filter(user_id.eq(payload.user_id))
+            .filter(role.eq(payload.role));
+        let query = diesel::delete(filtered);
+        query.get_result(&**self.db_conn).map_err(Error::from)
     }
 }

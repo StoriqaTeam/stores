@@ -23,12 +23,14 @@ impl From<ServiceError> for Error {
         match e {
             ServiceError::NotFound => Error::NotFound,
             ServiceError::Rollback => Error::BadRequest("Transaction rollback".to_string()),
-            ServiceError::Validate(msg) => Error::BadRequest(serde_json::to_string(&msg).unwrap_or("Unable to serialize validation errors".to_string())),
+            ServiceError::Validate(msg) => {
+                Error::BadRequest(serde_json::to_string(&msg).unwrap_or("Unable to serialize validation errors".to_string()))
+            }
             ServiceError::Parse(msg) => Error::UnprocessableEntity(format!("Parse error: {}", msg)),
             ServiceError::Database(msg) => Error::InternalServerError(format!("Database error: {}", msg)),
             ServiceError::HttpClient(msg) => Error::InternalServerError(format!("Http Client error: {}", msg)),
             ServiceError::UnAuthorized(msg) => Error::UnAuthorized(msg),
-            ServiceError::Unknown(msg) => Error::InternalServerError(format!("Unknown: {}", msg))
+            ServiceError::Unknown(msg) => Error::InternalServerError(format!("Unknown: {}", msg)),
         }
     }
 }
@@ -48,7 +50,6 @@ impl Error {
         }
     }
 
-
     /// Converts `Error` to string
     pub fn message(&self) -> String {
         use super::error::Error::*;
@@ -63,7 +64,6 @@ impl Error {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -71,7 +71,7 @@ mod tests {
     use hyper::StatusCode;
 
     #[test]
-    fn error_to_code_test () {
+    fn error_to_code_test() {
         let mut error = Error::NotFound.code();
         assert_eq!(error, StatusCode::NotFound);
         error = Error::BadRequest("bad".to_string()).code();
@@ -83,7 +83,7 @@ mod tests {
     }
 
     #[test]
-    fn error_to_message_test () {
+    fn error_to_message_test() {
         let mut error = Error::NotFound.message();
         assert_eq!(error, "Not found".to_string());
         error = Error::BadRequest("bad".to_string()).message();

@@ -3,74 +3,103 @@ extern crate hyper;
 extern crate serde_json;
 extern crate stores_lib;
 extern crate tokio_core;
+extern crate futures_cpupool;
+extern crate diesel;
+extern crate r2d2;
+extern crate r2d2_diesel;
+
+use std::time::SystemTime;
+
+use futures_cpupool::CpuPool;
+use diesel::pg::PgConnection;
+use r2d2_diesel::ConnectionManager;
 
 
-use stores_lib::repos::stores::StoresRepo;
-use stores_lib::repos::products::ProductsRepo;
-use stores_lib::repos::types::RepoFuture;
-use stores_lib::services::stores::{StoresService, StoresServiceImpl};
-use stores_lib::models::{NewStore, Store, UpdateStore};
-use stores_lib::services::products::{ProductsService, ProductsServiceImpl};
-use stores_lib::models::{NewProduct, Product, UpdateProduct};
+use stores_lib::repos::*;
+use stores_lib::services::*;
+use stores_lib::models::*;
+use stores_lib::repos::acl::RolesCache;
 
 #[derive(Clone)]
 pub struct StoresRepoMock;
 
 impl StoresRepo for StoresRepoMock {
-    fn find(&self, store_id: i32) -> RepoFuture<Store> {
-        let store = create_store(store_id, MOCK_NAME.to_string());
-        Box::new(futures::future::ok(store))
+    fn find(&mut self, store_id: i32) -> RepoResult<Store> {
+        let store = create_store(store_id, MOCK_STORE_NAME.to_string());
+        Ok(store)
     }
 
-    fn name_exists(&self, name_arg: String) -> RepoFuture<bool> {
-        Box::new(futures::future::ok(name_arg == MOCK_NAME.to_string()))
+    fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
+        Ok(name_arg == MOCK_STORE_NAME.to_string())
     }
 
-    fn find_by_name(&self, name_arg: String) -> RepoFuture<Store> {
+    fn find_by_name(&mut self, name_arg: String) -> RepoResult<Store> {
         let store = create_store(1, name_arg);
-        Box::new(futures::future::ok(store))
+        Ok(store)
     }
 
-    fn list(&self, from: i32, count: i64) -> RepoFuture<Vec<Store>> {
+    fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
         let mut stores = vec![];
         for i in from..(from + count as i32) {
-            let store = create_store(i, MOCK_NAME.to_string());
+            let store = create_store(i, MOCK_STORE_NAME.to_string());
             stores.push(store);
         }
-        Box::new(futures::future::ok(stores))
+        Ok(stores)
     }
 
-    fn create(&self, payload: NewStore) -> RepoFuture<Store> {
+    fn create(&mut self, payload: NewStore) -> RepoResult<Store> {
         let store = create_store(1, payload.name);
-        Box::new(futures::future::ok(store))
+        Ok(store)
     }
 
-    fn update(&self, store_id: i32, payload: UpdateStore) -> RepoFuture<Store> {
+    fn update(&mut self, store_id: i32, payload: UpdateStore) -> RepoResult<Store> {
         let store = create_store(store_id, payload.name);
 
-        Box::new(futures::future::ok(store))
+        Ok(store)
     }
 
-    fn deactivate(&self, store_id: i32) -> RepoFuture<Store> {
-        let mut store = create_store(store_id, MOCK_NAME.to_string());
+    fn deactivate(&mut self, store_id: i32) -> RepoResult<Store> {
+        let mut store = create_store(store_id, MOCK_STORE_NAME.to_string());
         store.is_active = false;
-        Box::new(futures::future::ok(store))
+        Ok(store)
     }
 }
+
+#[derive(Clone)]
+pub struct CacheRolesMock {}
+
+impl RolesCache for CacheRolesMock {
+    fn get(&mut self, id: i32, _con: Option<&DbConnection>) -> RepoResult<Vec<Role>> {
+        match id {
+            1 => Ok(vec![Role::Superuser]),
+            _ => Ok(vec![Role::User])
+        }
+    }
+}
+
+const MOCK_USER_ROLE: CacheRolesMock = CacheRolesMock {};
 
 
 fn new_store_service(
-    stores_repo: StoresRepoMock,
-    user_email: Option<String>,
-) -> StoresServiceImpl<StoresRepoMock> {
+    user_id: Option<i32>,
+) -> StoresServiceImpl<CacheRolesMock> {
+    let database_url = "127.0.0.1";
+    let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
+    let db_pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create connection pool");
+    let cpu_pool = CpuPool::new(1);
+
     StoresServiceImpl {
-        stores_repo,
-        user_email,
+        db_pool:db_pool, 
+        cpu_pool:cpu_pool, 
+        roles_cache: MOCK_USER_ROLE, 
+        user_id:user_id,
     }
 }
 
-pub fn create_store_service(user_email: Option<String>) -> StoresServiceImpl<StoresRepoMock> {
-    new_store_service(MOCK_STORES, user_email)
+pub fn create_store_service(user_id: Option<i32>) -> StoresServiceImpl<CacheRolesMock> {
+    new_store_service(user_id)
 }
 
 pub fn create_store(id: i32, name: String) -> Store {
@@ -90,6 +119,9 @@ pub fn create_store(id: i32, name: String) -> Store {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
+        created_at: SystemTime::now(), 
+        updated_at: SystemTime::now(), 
+        user_id: MOCK_USER_ID
     }
 }
 
@@ -108,6 +140,7 @@ pub fn create_new_store(name: String) -> NewStore {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
+        user_id: MOCK_USER_ID
     }
 }
 
@@ -130,72 +163,78 @@ pub fn create_update_store(name: String) -> UpdateStore {
 }
 
 pub const MOCK_STORES: StoresRepoMock = StoresRepoMock {};
-pub static MOCK_NAME: &'static str = "store name";
+pub static MOCK_STORE_NAME: &'static str = "store name";
 
 #[derive(Clone)]
 pub struct ProductsRepoMock;
 
 impl ProductsRepo for ProductsRepoMock {
-    fn find(&self, product_id: i32) -> RepoFuture<Product> {
-        let product = create_product(product_id, MOCK_PRODUCT_NAME.to_string());
-        Box::new(futures::future::ok(product))
+    fn find(&mut self, product_id: i32) -> RepoResult<Product> {
+        let product = create_product(product_id, MOCK_USER_ID.to_string());
+        Ok(product)
     }
 
-    fn name_exists(&self, name_arg: String) -> RepoFuture<bool> {
-        Box::new(futures::future::ok(
-            name_arg == MOCK_PRODUCT_NAME.to_string(),
-        ))
+    fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
+        Ok(
+            name_arg == MOCK_USER_ID.to_string(),
+        )
     }
 
-    fn find_by_name(&self, name_arg: String) -> RepoFuture<Product> {
+    fn find_by_name(&mut self, name_arg: String) -> RepoResult<Product> {
         let product = create_product(1, name_arg);
-        Box::new(futures::future::ok(product))
+        Ok(product)
     }
 
-    fn list(&self, from: i32, count: i64) -> RepoFuture<Vec<Product>> {
+    fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Product>> {
         let mut products = vec![];
         for i in from..(from + count as i32) {
-            let product = create_product(i, MOCK_PRODUCT_NAME.to_string());
+            let product = create_product(i, MOCK_USER_ID.to_string());
             products.push(product);
         }
-        Box::new(futures::future::ok(products))
+        Ok(products)
     }
 
-    fn create(&self, payload: NewProduct) -> RepoFuture<Product> {
+    fn create(&mut self, payload: NewProduct) -> RepoResult<Product> {
         let product = create_product(1, payload.name);
-        Box::new(futures::future::ok(product))
+        Ok(product)
     }
 
-    fn update(&self, product_id: i32, payload: UpdateProduct) -> RepoFuture<Product> {
+    fn update(&mut self, product_id: i32, payload: UpdateProduct) -> RepoResult<Product> {
         let product = create_product(
             product_id,
             payload.name,
         );
 
-        Box::new(futures::future::ok(product))
+        Ok(product)
     }
 
-    fn deactivate(&self, product_id: i32) -> RepoFuture<Product> {
-        let mut product = create_product(product_id, MOCK_PRODUCT_NAME.to_string());
+    fn deactivate(&mut self, product_id: i32) -> RepoResult<Product> {
+        let mut product = create_product(product_id, MOCK_USER_ID.to_string());
         product.is_active = false;
-        Box::new(futures::future::ok(product))
+        Ok(product)
     }
 }
 
-pub fn new_product_service(
-    products_repo: ProductsRepoMock,
-    user_email: Option<String>,
-) -> ProductsServiceImpl<ProductsRepoMock> {
+fn new_product_service(
+    user_id: Option<i32>,
+) -> ProductsServiceImpl<CacheRolesMock> {
+    let database_url = "127.0.0.1";
+    let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
+    let db_pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create connection pool");
+    let cpu_pool = CpuPool::new(1);
+
     ProductsServiceImpl {
-        products_repo,
-        user_email,
+        db_pool:db_pool, 
+        cpu_pool:cpu_pool, 
+        roles_cache: MOCK_USER_ROLE, 
+        user_id:user_id,
     }
 }
 
-pub fn create_product_service(
-    users_email: Option<String>,
-) -> ProductsServiceImpl<ProductsRepoMock> {
-    new_product_service(MOCK_PRODUCTS, users_email)
+pub fn create_product_service(user_id: Option<i32>) -> ProductsServiceImpl<CacheRolesMock> {
+    new_product_service(user_id)
 }
 
 pub fn create_product(id: i32, name: String) -> Product {
@@ -211,6 +250,11 @@ pub fn create_product(id: i32, name: String) -> Product {
         discount: None,
         category: None,
         photo_main: None,
+        created_at: SystemTime::now(), 
+        updated_at: SystemTime::now(), 
+        vendor_code: None,
+        cashback: None,
+        default_language: Language::Russian,
     }
 }
 
@@ -225,6 +269,9 @@ pub fn create_new_product(name: String) -> NewProduct {
         discount: None,
         category: None,
         photo_main: None,
+        vendor_code: None,
+        cashback: None,
+        default_language: Language::Russian,
     }
 }
 
@@ -238,8 +285,12 @@ pub fn create_update_product(name: String) -> UpdateProduct {
         discount: None,
         category: None,
         photo_main: None,
+        vendor_code: None,  
+        cashback: None,
+        default_language: None,
     }
 }
 
 pub const MOCK_PRODUCTS: ProductsRepoMock = ProductsRepoMock {};
+pub static MOCK_USER_ID: i32 = 1;
 pub static MOCK_PRODUCT_NAME: &'static str = "show name";

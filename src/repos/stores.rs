@@ -69,7 +69,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     fn find(&mut self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
-                acl!(single_resource_con -> store, self.acl, Resource::Stores, Action::Read, self.db_conn)
+                acl!([store], self.acl, Resource::Stores, Action::Read, None)
                 .and_then(|_| Ok(store))
             })
     }
@@ -78,7 +78,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
         self.execute_query(select(exists(stores.filter(name.eq(name_arg)))))
             .and_then(|exists| {
-                acl!(no_resource_con -> self.acl, Resource::Stores, Action::Read, self.db_conn)
+                acl!([], self.acl, Resource::Stores, Action::Read, None)
                 .and_then(|_| Ok(exists))
             })
     }
@@ -91,7 +91,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
             .first::<Store>(&**self.db_conn)
             .map_err(|e| Error::from(e))
             .and_then(|store: Store| {
-                acl!(single_resource_con -> store, self.acl, Resource::Stores, Action::Read, self.db_conn)
+                acl!([store], self.acl, Resource::Stores, Action::Read, None)
                 .and_then(|_| Ok(store))
             })
     }
@@ -99,7 +99,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Creates new store
     fn create(&mut self, payload: NewStore) -> RepoResult<Store> {
-        acl!(single_resource_con -> payload, self.acl, Resource::Stores, Action::Create, self.db_conn)
+        acl!([payload], self.acl, Resource::Stores, Action::Create, None)
         .and_then(|_|  {
             let query_store = diesel::insert_into(stores).values(&payload);
             query_store
@@ -124,7 +124,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     .iter()
                     .map(|store| (store as &WithScope))
                     .collect();
-                acl!(vec_resources_con -> resources, self.acl, Resource::Stores, Action::Read, self.db_conn)
+                acl!(resources, self.acl, Resource::Stores, Action::Read, None)
                 .and_then(|_| Ok(stores_res.clone()))
             })
     }
@@ -133,7 +133,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     fn update(&mut self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
-                acl!(single_resource_con -> store, self.acl, Resource::Stores, Action::Update, self.db_conn)
+                acl!([store], self.acl, Resource::Stores, Action::Update, None)
             })
             .and_then(|_| {
                 let filter = stores
@@ -151,7 +151,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     fn deactivate(&mut self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
-                acl!(single_resource_con -> store, self.acl, Resource::Stores, Action::Delete, self.db_conn)
+                acl!([store], self.acl, Resource::Stores, Action::Delete, None)
             })
             .and_then(|_| {
                 let filter = stores

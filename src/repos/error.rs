@@ -3,11 +3,12 @@ use models::authorization::*;
 
 
 /// Repos layer Error
+#[derive(Debug)]
 pub enum Error {
   NotFound,
   Rollback,
   ContstaintViolation(String),
-  UnAuthorized(Resource, Action),
+  Unauthorized(Resource, Action),
   MismatchedType(String),
   Connection(String),
   Unknown(String)

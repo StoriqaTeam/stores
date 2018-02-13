@@ -4,7 +4,7 @@ use std::fmt;
 // All gives all permissions.
 // Read - read resource with id,
 // Write - Update or delete resource with id.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Action {
     All,
     Read,

@@ -1,5 +1,4 @@
 //! Models for managing Roles
-use validator::Validate;
 
 use models::{Role, Scope, WithScope};
 use repos::types::DbConnection;
@@ -20,14 +19,14 @@ pub struct UserRole {
     pub role: Role
 }
 
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone)]
 #[table_name = "user_roles"]
 pub struct NewUserRole {
     pub user_id: i32,
     pub role: Role
 }
 
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone)]
 #[table_name = "user_roles"]
 pub struct OldUserRole {
     pub user_id: i32,
@@ -35,7 +34,7 @@ pub struct OldUserRole {
 }
 
 impl WithScope for UserRole {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: &DbConnection) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id

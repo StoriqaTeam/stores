@@ -1,7 +1,7 @@
 //! Enum for resources available in ACLs
 use std::fmt;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Resource {
     Products,
     Stores,

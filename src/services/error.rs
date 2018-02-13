@@ -24,7 +24,7 @@ impl From<RepoError> for Error {
             RepoError::ContstaintViolation(msg) => Error::Database(format!("Constraint violation: {}", msg)),
             RepoError::MismatchedType(msg) => Error::Database(format!("Mismatched type: {}", msg)),
             RepoError::Connection(msg) => Error::Database(format!("Connection error: {}", msg)),
-            RepoError::UnAuthorized(res, act) => Error::UnAuthorized(format!("Unauthorized access: Resource: {}, Action: {}", res, act)),
+            RepoError::Unauthorized(res, act) => Error::UnAuthorized(format!("Unauthorized access: Resource: {}, Action: {}", res, act)),
             RepoError::Unknown(msg) => Error::Database(format!("Unknown: {}", msg)),
         }
     }

@@ -94,32 +94,40 @@ pub struct UpdateProduct {
 }
 
 impl WithScope for Product {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: &DbConnection) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {
-                Stores::stores
-                    .find(self.store_id)
-                    .get_result::<Store>(&**conn)
-                    .and_then(|store: Store| Ok(store.user_id == user_id))
-                    .ok()
-                    .unwrap_or(false)
+                if let Some(conn) = conn {
+                    Stores::stores
+                        .find(self.store_id)
+                        .get_result::<Store>(&**conn)
+                        .and_then(|store: Store| Ok(store.user_id == user_id))
+                        .ok()
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
             }
         }
     }
 }
 
 impl WithScope for NewProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: &DbConnection) -> bool {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {
-                Stores::stores
-                    .find(self.store_id)
-                    .get_result::<Store>(&**conn)
-                    .and_then(|store: Store| Ok(store.user_id == user_id))
-                    .ok()
-                    .unwrap_or(false)
+                if let Some(conn) = conn {
+                    Stores::stores
+                        .find(self.store_id)
+                        .get_result::<Store>(&**conn)
+                        .and_then(|store: Store| Ok(store.user_id == user_id))
+                        .ok()
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
             }
         }
     }

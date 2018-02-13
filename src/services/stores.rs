@@ -10,7 +10,7 @@ use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
 
-use repos::acl::{ApplicationAcl, RolesCacheImpl, Acl, UnAuthanticatedACL};
+use repos::acl::{ApplicationAcl, RolesCache, Acl, UnauthorizedACL};
 
 
 
@@ -28,18 +28,18 @@ pub trait StoresService {
 }
 
 /// Stores services, responsible for Store-related CRUD operations
-pub struct StoresServiceImpl {
+pub struct StoresServiceImpl<R: RolesCache + Clone + Send + 'static> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub roles_cache: RolesCacheImpl,
+    pub roles_cache: R,
     pub user_id: Option<i32>,
 }
 
-impl StoresServiceImpl {
+impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
-        roles_cache: RolesCacheImpl,
+        roles_cache: R,
         user_id: Option<i32>,
     ) -> Self {
         
@@ -52,7 +52,7 @@ impl StoresServiceImpl {
     }
 }
 
-impl StoresService for StoresServiceImpl {
+impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl<R> {
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
@@ -64,7 +64,7 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);
@@ -84,7 +84,7 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);
@@ -106,7 +106,7 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);
@@ -126,7 +126,7 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);
@@ -161,7 +161,7 @@ impl StoresService for StoresServiceImpl {
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnAuthanticatedACL::new()) as Box<Acl>), |id| {
+                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);

@@ -23,10 +23,8 @@ pub struct Server {
 pub struct Client {
     pub http_client_retries: usize,
     pub http_client_buffer_size: usize,
-    pub dns_worker_thread_count: usize
+    pub dns_worker_thread_count: usize,
 }
-
-
 
 /// Creates new app config struct
 /// #Examples

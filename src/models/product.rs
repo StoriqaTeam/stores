@@ -4,14 +4,11 @@ use std::time::SystemTime;
 use validator::Validate;
 use diesel::prelude::*;
 
-
 use super::Language;
 use super::Store;
 use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
-
-
 
 /// diesel table for products
 table! {
@@ -34,7 +31,6 @@ table! {
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
 }
-
 
 /// Payload for querying products
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]

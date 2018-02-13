@@ -1,4 +1,4 @@
-//! ACL Macroses 
+//! ACL Macroses
 
 /// Macros used adding permissions to user.
 #[macro_export]
@@ -12,25 +12,25 @@ macro_rules! permission {
 #[macro_export]
 macro_rules! acl {
     ($resources: ident, $acl: expr, $res: expr, $act: expr, $con: expr) => (
-        { 
+        {
             let acl = &mut $acl;
             acl.can($res, $act, $resources, $con).and_then(|result| {
             if result {
                 Ok(())
             } else {
                 Err(Error::Unauthorized($res, $act))
-            }}) 
+            }})
         }
     );
     ([$cur_res: ident], $acl: expr,$res: expr, $act: expr, $con: expr) => (
-        { 
+        {
             let resources = vec![(& $cur_res as &WithScope)];
             acl!(resources, $acl, $res, $act, $con )
         }
     );
-    
+
     ([], $acl: expr, $res: expr, $act: expr, $con: expr) => (
-        { 
+        {
             let resources = vec![];
             acl!(resources, $acl, $res, $act, $con )
         }
@@ -41,11 +41,10 @@ macro_rules! acl {
 mod tests {
     use std::time::SystemTime;
 
-    use ::repos::acl::{Acl, SystemACL};
-    use ::repos::error::Error;
-    use ::models::authorization::*;
-    use ::models::*;
-
+    use repos::acl::{Acl, SystemACL};
+    use repos::error::Error;
+    use models::authorization::*;
+    use models::*;
 
     fn create_store() -> Store {
         Store {
@@ -65,35 +64,35 @@ mod tests {
             facebook_url: None,
             twitter_url: None,
             instagram_url: None,
-            created_at: SystemTime::now(), 
-            updated_at: SystemTime::now(), 
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
         }
     }
 
     #[test]
     fn test_system_acl_one_prod() {
-        let mut acl = SystemACL{};
+        let mut acl = SystemACL {};
         let store = create_store();
         let res = acl!([store], acl, Resource::Products, Action::Read, None).unwrap();
 
-        assert_eq!(res,());
+        assert_eq!(res, ());
     }
 
     #[test]
     fn test_system_acl_no_prod() {
-        let mut acl = SystemACL{};
+        let mut acl = SystemACL {};
         let res = acl!([], acl, Resource::Products, Action::Read, None).unwrap();
 
-        assert_eq!(res,());
+        assert_eq!(res, ());
     }
 
     #[test]
     fn test_system_acl_vec_prod() {
-        let mut acl = SystemACL{};
+        let mut acl = SystemACL {};
         let store = create_store();
         let resources = vec![&store as &WithScope];
         let res = acl!(resources, acl, Resource::Products, Action::Read, None).unwrap();
 
-        assert_eq!(res,());
+        assert_eq!(res, ());
     }
 }

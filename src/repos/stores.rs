@@ -16,7 +16,6 @@ use super::types::{DbConnection, RepoResult};
 use repos::acl::Acl;
 use models::authorization::*;
 
-
 /// Stores repository, responsible for handling stores
 pub struct StoresRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
@@ -51,36 +50,24 @@ impl<'a> StoresRepoImpl<'a> {
         Self { db_conn, acl }
     }
 
-
-    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(
-        &self,
-        query: U,
-    ) -> Result<T, Error> {
+    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> Result<T, Error> {
         query
             .get_result::<T>(&**self.db_conn)
             .map_err(|e| Error::from(e))
     }
 }
 
-
-
 impl<'a> StoresRepo for StoresRepoImpl<'a> {
     /// Find specific store by ID
     fn find(&mut self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| {
-                acl!([store], self.acl, Resource::Stores, Action::Read, None)
-                .and_then(|_| Ok(store))
-            })
+            .and_then(|store: Store| acl!([store], self.acl, Resource::Stores, Action::Read, None).and_then(|_| Ok(store)))
     }
 
     /// Verifies store exist
     fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
         self.execute_query(select(exists(stores.filter(name.eq(name_arg)))))
-            .and_then(|exists| {
-                acl!([], self.acl, Resource::Stores, Action::Read, None)
-                .and_then(|_| Ok(exists))
-            })
+            .and_then(|exists| acl!([], self.acl, Resource::Stores, Action::Read, None).and_then(|_| Ok(exists)))
     }
 
     /// Find specific store by full name
@@ -90,17 +77,12 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
         query
             .first::<Store>(&**self.db_conn)
             .map_err(|e| Error::from(e))
-            .and_then(|store: Store| {
-                acl!([store], self.acl, Resource::Stores, Action::Read, None)
-                .and_then(|_| Ok(store))
-            })
+            .and_then(|store: Store| acl!([store], self.acl, Resource::Stores, Action::Read, None).and_then(|_| Ok(store)))
     }
-
 
     /// Creates new store
     fn create(&mut self, payload: NewStore) -> RepoResult<Store> {
-        acl!([payload], self.acl, Resource::Stores, Action::Create, None)
-        .and_then(|_|  {
+        acl!([payload], self.acl, Resource::Stores, Action::Create, None).and_then(|_| {
             let query_store = diesel::insert_into(stores).values(&payload);
             query_store
                 .get_result::<Store>(&**self.db_conn)
@@ -124,17 +106,14 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     .iter()
                     .map(|store| (store as &WithScope))
                     .collect();
-                acl!(resources, self.acl, Resource::Stores, Action::Read, None)
-                .and_then(|_| Ok(stores_res.clone()))
+                acl!(resources, self.acl, Resource::Stores, Action::Read, None).and_then(|_| Ok(stores_res.clone()))
             })
     }
 
     /// Updates specific store
     fn update(&mut self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| {
-                acl!([store], self.acl, Resource::Stores, Action::Update, None)
-            })
+            .and_then(|store: Store| acl!([store], self.acl, Resource::Stores, Action::Update, None))
             .and_then(|_| {
                 let filter = stores
                     .filter(id.eq(store_id_arg))
@@ -150,9 +129,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     /// Deactivates specific store
     fn deactivate(&mut self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| {
-                acl!([store], self.acl, Resource::Stores, Action::Delete, None)
-            })
+            .and_then(|store: Store| acl!([store], self.acl, Resource::Stores, Action::Delete, None))
             .and_then(|_| {
                 let filter = stores
                     .filter(id.eq(store_id_arg))
@@ -162,6 +139,3 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
             })
     }
 }
-
-    
-

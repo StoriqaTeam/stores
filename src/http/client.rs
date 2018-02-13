@@ -269,6 +269,7 @@ mod tests {
     fn test_parse_body() {
         let message = NewStore {
             name: "new store".to_string(),
+            user_id: 1,
             currency_id: 1,
             short_description: "short description".to_string(),
             long_description: None,

@@ -9,6 +9,7 @@ pub enum Error {
     BadRequest(String),
     UnprocessableEntity(String),
     InternalServerError(String),
+    UnAuthorized(String),
 }
 
 impl From<serde_json::error::Error> for Error {
@@ -26,6 +27,7 @@ impl From<ServiceError> for Error {
             ServiceError::Parse(msg) => Error::UnprocessableEntity(format!("Parse error: {}", msg)),
             ServiceError::Database(msg) => Error::InternalServerError(format!("Database error: {}", msg)),
             ServiceError::HttpClient(msg) => Error::InternalServerError(format!("Http Client error: {}", msg)),
+            ServiceError::UnAuthorized(msg) => Error::UnAuthorized(msg),
             ServiceError::Unknown(msg) => Error::InternalServerError(format!("Unknown: {}", msg))
         }
     }
@@ -42,6 +44,7 @@ impl Error {
             &BadRequest(_) => StatusCode::BadRequest,
             &UnprocessableEntity(_) => StatusCode::UnprocessableEntity,
             &InternalServerError(_) => StatusCode::InternalServerError,
+            &UnAuthorized(_) => StatusCode::Unauthorized,
         }
     }
 
@@ -55,6 +58,7 @@ impl Error {
             &BadRequest(ref msg) => msg.to_string(),
             &UnprocessableEntity(ref msg) => msg.to_string(),
             &InternalServerError(ref msg) => msg.to_string(),
+            &UnAuthorized(ref msg) => msg.to_string(),
         }
     }
 }

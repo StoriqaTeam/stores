@@ -1,3 +1,4 @@
+//! Stores repo, presents CRUD operations with db for users
 use std::convert::From;
 
 use diesel;
@@ -7,146 +8,160 @@ use diesel::dsl::exists;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
 use diesel::pg::PgConnection;
-use futures::future;
-use futures_cpupool::CpuPool;
 
-use models::{UpdateStore, Store, NewStore};
+use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
 use super::error::Error;
-use super::types::{DbConnection, DbPool, RepoFuture};
+use super::types::{DbConnection, RepoResult};
+use repos::acl::Acl;
+use models::authorization::*;
+
 
 /// Stores repository, responsible for handling stores
-#[derive(Clone)]
-pub struct StoresRepoImpl {
-    // Todo - no need for Arc, since pool is itself an ARC-like structure
-    pub r2d2_pool: DbPool,
-    pub cpu_pool: CpuPool
+pub struct StoresRepoImpl<'a> {
+    pub db_conn: &'a DbConnection,
+    pub acl: Box<Acl>,
 }
 
 pub trait StoresRepo {
     /// Find specific store by ID
-    fn find(&self, store_id: i32) -> RepoFuture<Store>;
+    fn find(&mut self, store_id: i32) -> RepoResult<Store>;
 
     /// Verifies store exist
-    fn name_exists(&self, name_arg: String) -> RepoFuture<bool>;
+    fn name_exists(&mut self, name_arg: String) -> RepoResult<bool>;
 
     /// Find specific store by full name
-    fn find_by_name(&self, name_arg: String) -> RepoFuture<Store>;
+    fn find_by_name(&mut self, name_arg: String) -> RepoResult<Store>;
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoFuture<Vec<Store>>;
+    fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Store>>;
 
     /// Creates new store
-    fn create(&self, payload: NewStore) -> RepoFuture<Store>;
+    fn create(&mut self, payload: NewStore) -> RepoResult<Store>;
 
     /// Updates specific store
-    fn update(&self, store_id: i32, payload: UpdateStore) -> RepoFuture<Store>;
+    fn update(&mut self, store_id: i32, payload: UpdateStore) -> RepoResult<Store>;
 
     /// Deactivates specific store
-    fn deactivate(&self, store_id: i32) -> RepoFuture<Store>;
+    fn deactivate(&mut self, store_id: i32) -> RepoResult<Store>;
 }
 
-impl StoresRepoImpl {
-    pub fn new(r2d2_pool: DbPool, cpu_pool: CpuPool) -> Self {
-        Self {
-            r2d2_pool,
-            cpu_pool
-        }
+impl<'a> StoresRepoImpl<'a> {
+    pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
+        Self { db_conn, acl }
     }
 
-    fn get_connection(&self) -> DbConnection {
-        match self.r2d2_pool.get() {
-            Ok(connection) => connection,
-            Err(e) => panic!("Error obtaining connection from pool: {}", e),
-        }
-    }
 
     fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(
         &self,
         query: U,
-    ) -> RepoFuture<T> {
-        let conn = match self.r2d2_pool.get() {
-            Ok(connection) => connection,
-            Err(_) => {
-                return Box::new(future::err(
-                    Error::Connection("Cannot connect to stores db".to_string()),
-                ))
-            }
-        };
-
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            query.get_result::<T>(&*conn).map_err(|e| Error::from(e))
-        }))
+    ) -> Result<T, Error> {
+        query
+            .get_result::<T>(&**self.db_conn)
+            .map_err(|e| Error::from(e))
     }
 }
 
-impl StoresRepo for StoresRepoImpl {
+
+
+impl<'a> StoresRepo for StoresRepoImpl<'a> {
     /// Find specific store by ID
-    fn find(&self, store_id_arg: i32) -> RepoFuture<Store> {
+    fn find(&mut self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
+            .and_then(|store: Store| {
+                acl!([store], self.acl, Resource::Stores, Action::Read, None)
+                .and_then(|_| Ok(store))
+            })
     }
 
     /// Verifies store exist
-    fn name_exists(&self, name_arg: String) -> RepoFuture<bool> {
-        self.execute_query(select(exists(
-            stores
-                .filter(name.eq(name_arg))
-        )))
+    fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
+        self.execute_query(select(exists(stores.filter(name.eq(name_arg)))))
+            .and_then(|exists| {
+                acl!([], self.acl, Resource::Stores, Action::Read, None)
+                .and_then(|_| Ok(exists))
+            })
     }
 
     /// Find specific store by full name
-    fn find_by_name(&self, name_arg: String) -> RepoFuture<Store>{
-        let conn = self.get_connection();
-        let query = stores
-            .filter(name.eq(name_arg));
+    fn find_by_name(&mut self, name_arg: String) -> RepoResult<Store> {
+        let query = stores.filter(name.eq(name_arg));
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            query.first::<Store>(&*conn).map_err(|e| Error::from(e))
-        }))
+        query
+            .first::<Store>(&**self.db_conn)
+            .map_err(|e| Error::from(e))
+            .and_then(|store: Store| {
+                acl!([store], self.acl, Resource::Stores, Action::Read, None)
+                .and_then(|_| Ok(store))
+            })
     }
 
 
     /// Creates new store
-    fn create(&self, payload: NewStore) -> RepoFuture<Store> {
-        let conn = self.get_connection();
-
-        Box::new(self.cpu_pool.spawn_fn(move || {
+    fn create(&mut self, payload: NewStore) -> RepoResult<Store> {
+        acl!([payload], self.acl, Resource::Stores, Action::Create, None)
+        .and_then(|_|  {
             let query_store = diesel::insert_into(stores).values(&payload);
             query_store
-                .get_result::<Store>(&*conn)
+                .get_result::<Store>(&**self.db_conn)
                 .map_err(Error::from)
-        }))
+        })
     }
 
-     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoFuture<Vec<Store>> {
-        let conn = self.get_connection();
+    /// Returns list of stores, limited by `from` and `count` parameters
+    fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
         let query = stores
             .filter(is_active.eq(true))
             .filter(id.gt(from))
             .order(id)
             .limit(count);
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            query.get_results(&*conn).map_err(|e| Error::from(e))
-        }))
+        query
+            .get_results(&**self.db_conn)
+            .map_err(|e| Error::from(e))
+            .and_then(|stores_res: Vec<Store>| {
+                let resources = stores_res
+                    .iter()
+                    .map(|store| (store as &WithScope))
+                    .collect();
+                acl!(resources, self.acl, Resource::Stores, Action::Read, None)
+                .and_then(|_| Ok(stores_res.clone()))
+            })
     }
 
     /// Updates specific store
-    fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoFuture<Store> {
-        let conn = self.get_connection();
-        let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
+    fn update(&mut self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
+        self.execute_query(stores.find(store_id_arg))
+            .and_then(|store: Store| {
+                acl!([store], self.acl, Resource::Stores, Action::Update, None)
+            })
+            .and_then(|_| {
+                let filter = stores
+                    .filter(id.eq(store_id_arg))
+                    .filter(is_active.eq(true));
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            let query = diesel::update(filter).set(&payload);
-            query.get_result::<Store>(&*conn).map_err(|e| Error::from(e))
-        }))
+                let query = diesel::update(filter).set(&payload);
+                query
+                    .get_result::<Store>(&**self.db_conn)
+                    .map_err(|e| Error::from(e))
+            })
     }
 
     /// Deactivates specific store
-    fn deactivate(&self, store_id_arg: i32) -> RepoFuture<Store> {
-        let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
-        let query = diesel::update(filter).set(is_active.eq(false));
-        self.execute_query(query)
+    fn deactivate(&mut self, store_id_arg: i32) -> RepoResult<Store> {
+        self.execute_query(stores.find(store_id_arg))
+            .and_then(|store: Store| {
+                acl!([store], self.acl, Resource::Stores, Action::Delete, None)
+            })
+            .and_then(|_| {
+                let filter = stores
+                    .filter(id.eq(store_id_arg))
+                    .filter(is_active.eq(true));
+                let query = diesel::update(filter).set(is_active.eq(false));
+                self.execute_query(query)
+            })
     }
 }
+
+    
+

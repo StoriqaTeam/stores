@@ -9,6 +9,8 @@ pub mod types;
 pub mod utils;
 
 use std::sync::Arc;
+use std::str::FromStr;
+
 
 use futures::Future;
 use futures::future;
@@ -22,7 +24,10 @@ use self::error::Error;
 use services::system::{SystemServiceImpl, SystemService};
 use services::stores::{StoresServiceImpl, StoresService};
 use services::products::{ProductsServiceImpl, ProductsService};
+use services::user_roles::{UserRolesServiceImpl, UserRolesService};
 use repos::types::DbPool;
+use repos::acl::{RolesCacheImpl};
+
 
 use models;
 use self::utils::parse_body;
@@ -38,7 +43,8 @@ pub struct Controller {
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser>,
     pub config : Config,
-    pub client_handle: ClientHandle
+    pub client_handle: ClientHandle,
+    pub roles_cache: RolesCacheImpl
 }
 
 macro_rules! serialize_future {
@@ -51,7 +57,8 @@ impl Controller {
         r2d2_pool: DbPool, 
         cpu_pool: CpuPool,
         client_handle: ClientHandle,
-        config: Config
+        config: Config,
+        roles_cache: RolesCacheImpl
     ) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
@@ -59,7 +66,8 @@ impl Controller {
             r2d2_pool,
             cpu_pool,
             client_handle,
-            config
+            config,
+            roles_cache
         }
     }
 
@@ -68,13 +76,17 @@ impl Controller {
     {
         let headers = req.headers().clone();
         let auth_header = headers.get::<Authorization<String>>();
-        let user_email = auth_header.map (move |auth| {
-                auth.0.clone()
-            });
+        let user_id = auth_header.map (move |auth| {
+            auth.0.clone() 
+        }).and_then(|id| {
+            i32::from_str(&id).ok()
+        });
 
+        let cached_roles = self.roles_cache.clone();
         let system_service = SystemServiceImpl::new();
-        let stores_service = StoresServiceImpl::new(self.r2d2_pool.clone(), self.cpu_pool.clone(), user_email.clone());
-        let products_service = ProductsServiceImpl::new(self.r2d2_pool.clone(), self.cpu_pool.clone(), user_email);
+        let stores_service = StoresServiceImpl::new(self.r2d2_pool.clone(), self.cpu_pool.clone(), cached_roles.clone(), user_id);
+        let products_service = ProductsServiceImpl::new(self.r2d2_pool.clone(), self.cpu_pool.clone(), cached_roles, user_id);
+        let user_roles_service = UserRolesServiceImpl::new(self.r2d2_pool.clone(), self.cpu_pool.clone());
 
 
         match (req.method(), self.route_parser.test(req.path())) {
@@ -143,7 +155,7 @@ impl Controller {
                 serialize_future!(
                     parse_body::<models::NewProduct>(req.body())
                         .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
-                        .and_then(move |new_store| products_service.create(new_store).map_err(|e| Error::from(e)))
+                        .and_then(move |new_product| products_service.create(new_product).map_err(|e| Error::from(e)))
                 )
             },
 
@@ -159,6 +171,29 @@ impl Controller {
             // DELETE /products/<product_id>
             (&Delete, Some(Route::Product(product_id))) => {
                 serialize_future!(products_service.deactivate(product_id))
+            },
+
+             // GET /user_role/<user_role_id>
+            (&Get, Some(Route::UserRole(user_role_id))) => {
+                serialize_future!(user_roles_service.get(user_role_id))
+            },
+
+            // POST /user_roles
+            (&Post, Some(Route::UserRoles)) => {
+                serialize_future!(
+                    parse_body::<models::NewUserRole>(req.body())
+                        .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
+                        .and_then(move |new_store| user_roles_service.create(new_store).map_err(|e| Error::from(e)))
+                )
+            },
+
+            // DELETE /user_roles/<user_role_id>
+            (&Delete, Some(Route::UserRoles)) => {
+                serialize_future!(
+                    parse_body::<models::OldUserRole>(req.body())
+                        .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
+                        .and_then(move |old_role| user_roles_service.delete(old_role).map_err(|e| Error::from(e)))
+                )
             },
 
             // Fallback

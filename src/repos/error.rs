@@ -1,10 +1,14 @@
 use diesel::result::Error as DieselError;
+use models::authorization::*;
+
 
 /// Repos layer Error
+#[derive(Debug)]
 pub enum Error {
   NotFound,
   Rollback,
   ContstaintViolation(String),
+  Unauthorized(Resource, Action),
   MismatchedType(String),
   Connection(String),
   Unknown(String)

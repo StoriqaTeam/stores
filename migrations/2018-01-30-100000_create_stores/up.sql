@@ -1,5 +1,6 @@
 CREATE TABLE stores (
     id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT 't',
     name VARCHAR NOT NULL,
     currency_id INTEGER NOT NULL REFERENCES currencies (id),

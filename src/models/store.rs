@@ -3,11 +3,16 @@ use std::time::SystemTime;
 
 use validator::Validate;
 
+use super::authorization::*;
+use repos::types::DbConnection;
+
+
 
 /// diesel table for stores
 table! {
     stores (id) {
         id -> Integer,
+        user_id -> Integer,
         is_active -> Bool,
         name -> VarChar,
         currency_id -> Integer,
@@ -28,9 +33,10 @@ table! {
 }
 
 /// Payload for querying stores
-#[derive(Debug, Serialize, Deserialize, Queryable, Clone)]
+#[derive(Debug, Serialize, Deserialize, Queryable, Clone, Identifiable)]
 pub struct Store {
     pub id: i32,
+    pub user_id: i32,
     pub is_active: bool,
     pub name: String,
     pub currency_id: i32,
@@ -54,6 +60,7 @@ pub struct Store {
 #[table_name = "stores"]
 pub struct NewStore {
     pub name: String,
+    pub user_id: i32,
     pub currency_id: i32,
     pub short_description: String,
     pub long_description: Option<String>,
@@ -85,4 +92,22 @@ pub struct UpdateStore {
     pub facebook_url: Option<Option<String>>,
     pub twitter_url: Option<Option<String>>,
     pub instagram_url: Option<Option<String>>,
+}
+
+impl WithScope for Store {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => self.user_id == user_id,
+        }
+    }
+}
+
+impl WithScope for NewStore {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => self.user_id == user_id,
+        }
+    }
 }

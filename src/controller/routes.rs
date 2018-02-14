@@ -140,5 +140,17 @@ pub fn create_route_parser() -> RouteParser {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|store_id| Route::Product(store_id))
     });
+
+    // User_roles Routes
+    router.add_route(r"^/user_roles$", Route::UserRoles);
+
+    // User_roles/:id route
+    router.add_route_with_params(r"^/user_roles/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|user_id| Route::UserRole(user_id))
+    });
+
     router
 }

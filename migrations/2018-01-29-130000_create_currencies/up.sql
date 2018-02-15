@@ -4,3 +4,5 @@ CREATE TABLE currencies (
 );
 
 CREATE UNIQUE INDEX stores_currency_id_idx ON currencies (id);
+
+INSERT INTO currencies (name) VALUES ('roubles'); 

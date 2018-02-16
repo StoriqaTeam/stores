@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.stores
     container_name: stores
     working_dir: /app
-    command: ["sh", "-c", "/utils/wait_for_it.sh stores-pg:5432 ; diesel migration run ; cargo run"]
+    command: ["sh", "-c", "/utils/wait_for_it.sh stores-pg:5432 ; /utils/wait_for_it.sh stores-el:9200 ; diesel migration run ; cargo run"]
     volumes:
       - ..:/app
       - stores_cargo_cache:/usr/local/cargo
@@ -18,6 +18,7 @@ services:
     stdin_open: true
     depends_on:
       - stores-pg
+      - stores-el
 
   stores-pg:
     image: postgres:10
@@ -31,9 +32,27 @@ services:
     expose:
       - 5432
 
+  stores-el:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.2.1
+    container_name: stores-el
+    environment:
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - stq-stores-elastic-data:/var/lib/elasticsearch/data
+    ports:
+      - 9200:9200
+
+
 volumes:
   stores_cargo_cache:
   stq-stores-postgres-data:
+  stq-stores-elastic-data:
 
 networks:
   default:

@@ -1,6 +1,7 @@
 [server]
 address = "0.0.0.0:8001"
 database = "postgresql://stores:stores@stores-pg/stores"
+elastic = "127.0.0.1:9200"
 thread_count = 20
 
 [client]

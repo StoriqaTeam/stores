@@ -8,6 +8,7 @@ use repos::stores::{StoresRepo, StoresRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
+use http::client::ClientHandle;
 
 use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 
@@ -30,15 +31,19 @@ pub struct StoresServiceImpl<R: RolesCache + Clone + Send + 'static> {
     pub cpu_pool: CpuPool,
     pub roles_cache: R,
     pub user_id: Option<i32>,
+    client_handle: ClientHandle,
+    pub elastic_address: String
 }
 
 impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, user_id: Option<i32>) -> Self {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, user_id: Option<i32>, client_handle: ClientHandle, elastic_address: String) -> Self {
         Self {
             db_pool,
             cpu_pool,
             roles_cache,
             user_id,
+            client_handle,
+            elastic_address
         }
     }
 }
@@ -109,6 +114,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id.clone();
         let roles_cache = self.roles_cache.clone();
+        let client_handle = self.client_handle.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool

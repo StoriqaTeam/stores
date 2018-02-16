@@ -77,6 +77,8 @@ impl Controller {
             self.cpu_pool.clone(),
             cached_roles.clone(),
             user_id,
+            self.client_handle.clone(),
+            self.config.server.elastic.clone()
         );
         let products_service = ProductsServiceImpl::new(
             self.r2d2_pool.clone(),
@@ -95,8 +97,8 @@ impl Controller {
 
             // GET /stores
             (&Get, Some(Route::Stores)) => {
-                if let (Some(from), Some(to)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "to" => i64) {
-                    serialize_future!(stores_service.list(from, to))
+                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
+                    serialize_future!(stores_service.list(from, count))
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
                         "Error parsing request from gateway body".to_string(),
@@ -128,8 +130,8 @@ impl Controller {
 
             // GET /products
             (&Get, Some(Route::Products)) => {
-                if let (Some(from), Some(to)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "to" => i64) {
-                    serialize_future!(products_service.list(from, to))
+                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
+                    serialize_future!(products_service.list(from, count))
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
                         "Error parsing request from gateway body".to_string(),

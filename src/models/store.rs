@@ -54,7 +54,7 @@ pub struct Store {
 }
 
 /// Payload for creating stores
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone, ElasticType)]
 #[table_name = "stores"]
 pub struct NewStore {
     pub name: String,

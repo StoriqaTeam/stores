@@ -5,4 +5,9 @@ CREATE TABLE currencies (
 
 CREATE UNIQUE INDEX stores_currency_id_idx ON currencies (id);
 
-INSERT INTO currencies (name) VALUES ('roubles'); 
+INSERT INTO currencies (name) VALUES ('rouble'); 
+INSERT INTO currencies (name) VALUES ('euro'); 
+INSERT INTO currencies (name) VALUES ('dollar'); 
+INSERT INTO currencies (name) VALUES ('bitcoin'); 
+INSERT INTO currencies (name) VALUES ('etherium'); 
+INSERT INTO currencies (name) VALUES ('stq'); 

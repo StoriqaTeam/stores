@@ -45,7 +45,7 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     fn find_by_name(&mut self, name: String) -> RepoFuture<Store> {
         let req = SearchRequest::for_index_ty(
             "store",
-            "store",
+            "_doc",
             format!("{{'query': {{ 'match': {{ 'name': '{}' }} }} }}", name),
         );
         let url = format!("http://{}{}", self.elastic_address, *req.url);
@@ -65,11 +65,11 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     /// Creates new store
     fn create(&mut self, store: Store) -> RepoFuture<()> {
         let body = serde_json::to_string(&store).unwrap();
-        let req = CreateRequest::for_index_ty_id("store", "store", store.id, body.clone());
+        let req = CreateRequest::for_index_ty_id("store", "_doc", store.id, body.clone());
         let url = format!("http://{}{}", self.elastic_address, *req.url);
         Box::new(
             self.client_handle
-                .request::<IndexResponse>(Method::Post, url, Some(body), None)
+                .request::<IndexResponse>(Method::Put, url, Some(body), None)
                 .map_err(Error::from)
                 .and_then(|res| {
                     if res.created() {
@@ -84,7 +84,7 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     /// Updates specific store
     fn update(&mut self, store: Store) -> RepoFuture<()> {
         let body = serde_json::to_string(&store).unwrap();
-        let req = UpdateRequest::for_index_ty_id("store", "store", store.id, body.clone());
+        let req = UpdateRequest::for_index_ty_id("store", "_doc", store.id, body.clone());
         let url = format!("http://{}{}", self.elastic_address, *req.url);
         Box::new(
             self.client_handle

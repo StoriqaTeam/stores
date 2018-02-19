@@ -31,11 +31,6 @@ impl From<DieselError> for Error {
 
 impl From<HttpError> for Error {
     fn from(err: HttpError) -> Self {
-        match err {
-            HttpError::Api(_, _) => Error::Connection(format!("Cant connect to elastic.")),
-            HttpError::Network(_) => Error::Connection(format!("Cant connect to elastic.")),
-            HttpError::Parse(_) => Error::Connection(format!("Cant connect to elastic.")),
-            HttpError::Unknown(_) => Error::Connection(format!("Cant connect to elastic.")),
-        }
+        Error::Connection(format!("Http error. {}", err))
     }
 }

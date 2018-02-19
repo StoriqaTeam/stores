@@ -105,8 +105,10 @@ impl Client {
                     Box::new(Self::read_body(res.body()).map_err(|err| Error::Network(err)));
                 match status {
                     hyper::StatusCode::Ok => body_future,
+                    hyper::StatusCode::Created => body_future,
 
                     _ => Box::new(body_future.and_then(move |body| {
+                        println!("{}", body);
                         let message = serde_json::from_str::<ErrorMessage>(&body).ok();
                         let error = Error::Api(status, message);
                         future::err(error)

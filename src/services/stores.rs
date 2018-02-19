@@ -35,7 +35,7 @@ pub struct StoresServiceImpl<R: RolesCache + Clone + Send + 'static> {
     pub cpu_pool: CpuPool,
     pub roles_cache: R,
     pub user_id: Option<i32>,
-    client_handle: ClientHandle,
+    pub client_handle: ClientHandle,
     pub elastic_address: String,
 }
 

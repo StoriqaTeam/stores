@@ -5,8 +5,9 @@ use tokio_core::reactor::Core;
 #[test]
 #[ignore]
 fn test_get_store() {
-    let service = create_store_service(Some(MOCK_USER_ID));
     let mut core = Core::new().unwrap();
+    let handle = Arc::new(core.handle());
+    let service = create_store_service(Some(MOCK_USER_ID), handle);
     let work = service.get(1);
     let result = core.run(work).unwrap();
     assert_eq!(result.id, 1);
@@ -15,8 +16,9 @@ fn test_get_store() {
 #[test]
 #[ignore]
 fn test_create_allready_existed() {
-    let service = create_store_service(Some(MOCK_USER_ID));
     let mut core = Core::new().unwrap();
+    let handle = Arc::new(core.handle());
+    let service = create_store_service(Some(MOCK_USER_ID), handle);
     let new_store = create_new_store(MOCK_STORE_NAME.to_string());
     let work = service.create(new_store);
     let result = core.run(work);
@@ -26,8 +28,9 @@ fn test_create_allready_existed() {
 #[test]
 #[ignore]
 fn test_list() {
-    let service = create_store_service(Some(MOCK_USER_ID));
     let mut core = Core::new().unwrap();
+    let handle = Arc::new(core.handle());
+    let service = create_store_service(Some(MOCK_USER_ID), handle);
     let work = service.list(1, 5);
     let result = core.run(work).unwrap();
     assert_eq!(result.len(), 5);
@@ -36,8 +39,9 @@ fn test_list() {
 #[test]
 #[ignore]
 fn test_create_store() {
-    let service = create_store_service(Some(MOCK_USER_ID));
     let mut core = Core::new().unwrap();
+    let handle = Arc::new(core.handle());
+    let service = create_store_service(Some(MOCK_USER_ID), handle);
     let new_store = create_new_store(MOCK_STORE_NAME.to_string());
     let work = service.create(new_store);
     let result = core.run(work).unwrap();
@@ -47,8 +51,9 @@ fn test_create_store() {
 #[test]
 #[ignore]
 fn test_update() {
-    let service = create_store_service(Some(MOCK_USER_ID));
     let mut core = Core::new().unwrap();
+    let handle = Arc::new(core.handle());
+    let service = create_store_service(Some(MOCK_USER_ID), handle);
     let new_store = create_update_store(MOCK_STORE_NAME.to_string());
     let work = service.update(1, new_store);
     let result = core.run(work).unwrap();
@@ -59,8 +64,9 @@ fn test_update() {
 #[test]
 #[ignore]
 fn test_deactivate() {
-    let service = create_store_service(Some(MOCK_USER_ID));
     let mut core = Core::new().unwrap();
+    let handle = Arc::new(core.handle());
+    let service = create_store_service(Some(MOCK_USER_ID), handle);
     let work = service.deactivate(1);
     let result = core.run(work).unwrap();
     assert_eq!(result.id, 1);

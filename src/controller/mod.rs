@@ -106,6 +106,17 @@ impl Controller {
                 }
             }
 
+            // GET /stores/search
+            (&Get, Some(Route::StoresSearch)) => {
+                if let Some(name) = parse_query!(req.query().unwrap_or_default(), "name" => String) {
+                    serialize_future!(stores_service.find_by_name(name))
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(
+                        "Error parsing request from gateway body".to_string(),
+                    )))
+                }
+            }
+
             // POST /stores
             (&Post, Some(Route::Stores)) => serialize_future!(
                 parse_body::<models::NewStore>(req.body())

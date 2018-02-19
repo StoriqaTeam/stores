@@ -144,9 +144,9 @@ impl ClientHandle {
         url: String,
         body: Option<String>,
         headers: Option<hyper::Headers>,
-    ) -> Box<Future<Item = T, Error = Error>>
+    ) -> Box<Future<Item = T, Error = Error> + Send>
     where
-        T: for<'a> Deserialize<'a> + 'static,
+        T: for<'a> Deserialize<'a> + 'static + Send,
     {
         Box::new(
             self.send_request_with_retries(method, url, body, headers, None, self.max_retries)
@@ -162,7 +162,7 @@ impl ClientHandle {
         headers: Option<hyper::Headers>,
         last_err: Option<Error>,
         retries: usize,
-    ) -> Box<Future<Item = String, Error = Error>> {
+    ) -> Box<Future<Item = String, Error = Error> + Send> {
         if retries == 0 {
             let error = last_err.unwrap_or(Error::Unknown(
                 "Unexpected missing error in send_request_with_retries".to_string(),
@@ -203,7 +203,7 @@ impl ClientHandle {
         url: String,
         body: Option<String>,
         headers: Option<hyper::Headers>,
-    ) -> Box<Future<Item = String, Error = Error>> {
+    ) -> Box<Future<Item = String, Error = Error> + Send> {
         info!(
             "Starting outbound http request: {} {} with body {} and headers {}",
             method,

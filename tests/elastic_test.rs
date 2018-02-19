@@ -22,24 +22,23 @@ fn create_store(id: i32, name: String) -> Store {
         is_active: true,
         currency_id: 1,
         short_description: "short description".to_string(),
-        long_description: None,
-        slug: "myname".to_string(),
+        long_description: Some("long description".to_string()),
+        slug: "slug-new-store-12323".to_string(),
         cover: None,
         logo: None,
-        phone: "1234567".to_string(),
-        email: "example@mail.com".to_string(),
-        address: "town city street".to_string(),
+        phone: "+79138889900".to_string(),
+        email: "teamer777@gmail.com".to_string(),
+        address: "lenina street 11".to_string(),
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
         created_at: SystemTime::now(),
         updated_at: SystemTime::now(),
-        user_id: 100500,
+        user_id: 6,
     }
 }
 
 #[test]
-#[ignore]
 fn test_create() {
     let addr = "127.0.0.1:9200".to_string();
     let mut core = Core::new().unwrap();
@@ -50,7 +49,7 @@ fn test_create() {
     let client_stream = client.stream();
     handle.spawn(client_stream.for_each(|_| Ok(())));
     let mut repo = StoresSearchRepoImpl::new(client_handle, addr);
-    let store = create_store(101, "new store".to_string());
+    let store = create_store(11, "New store 11".to_string());
     let work = repo.create(store);
     let _result = core.run(work).unwrap();
 }
@@ -74,6 +73,7 @@ fn test_update() {
 
 
 #[test]
+#[ignore]
 fn test_find() {
     let addr = "127.0.0.1:9200".to_string();
     let mut core = Core::new().unwrap();

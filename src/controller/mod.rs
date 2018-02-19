@@ -78,7 +78,7 @@ impl Controller {
             cached_roles.clone(),
             user_id,
             self.client_handle.clone(),
-            self.config.server.elastic.clone()
+            self.config.server.elastic.clone(),
         );
         let products_service = ProductsServiceImpl::new(
             self.r2d2_pool.clone(),

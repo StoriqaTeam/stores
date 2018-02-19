@@ -29,7 +29,6 @@ impl From<DieselError> for Error {
     }
 }
 
-
 impl From<HttpError> for Error {
     fn from(err: HttpError) -> Self {
         match err {

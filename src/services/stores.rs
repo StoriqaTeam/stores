@@ -1,10 +1,11 @@
 //! Stores Services, presents CRUD operations with stores
 
 use futures_cpupool::CpuPool;
+use futures::prelude::*;
 use diesel::Connection;
 
 use models::{NewStore, Store, UpdateStore};
-use repos::stores::{StoresRepo, StoresRepoImpl};
+use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
@@ -13,6 +14,8 @@ use http::client::ClientHandle;
 use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 
 pub trait StoresService {
+    /// Returns store by name
+    // fn find_by_name(&self, name: String) -> ServiceFuture<Store>;
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store>;
     /// Deactivates specific store
@@ -32,23 +35,43 @@ pub struct StoresServiceImpl<R: RolesCache + Clone + Send + 'static> {
     pub roles_cache: R,
     pub user_id: Option<i32>,
     client_handle: ClientHandle,
-    pub elastic_address: String
+    pub elastic_address: String,
 }
 
 impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, user_id: Option<i32>, client_handle: ClientHandle, elastic_address: String) -> Self {
+    pub fn new(
+        db_pool: DbPool,
+        cpu_pool: CpuPool,
+        roles_cache: R,
+        user_id: Option<i32>,
+        client_handle: ClientHandle,
+        elastic_address: String,
+    ) -> Self {
         Self {
             db_pool,
             cpu_pool,
             roles_cache,
             user_id,
             client_handle,
-            elastic_address
+            elastic_address,
         }
     }
 }
 
 impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl<R> {
+    
+    /// Returns store by name
+    //  fn find_by_name(&self, name: String) -> ServiceFuture<Store> {
+    //     let client_handle = self.client_handle.clone();
+    //     let address = self.elastic_address.clone();
+    //     let fut = {
+    //         let stores_el = StoresSearchRepoImpl::new(client_handle, address);
+    //         Box::new(stores_el.find_by_name(name).map_err(Error::from))
+    //     };
+
+    //     Box::new(self.cpu_pool.spawn(fut as Box<Future<Item=Store, Error=Error> + Send>))
+    // }
+
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
@@ -135,7 +158,6 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                                 true => Err(Error::Database("Store already exists".into())),
                             })
                             .and_then(move |new_store| stores_repo.create(new_store).map_err(|e| Error::from(e)))
-                        //rollback if error
                     })
                 })
         }))
@@ -161,7 +183,6 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         .and_then(move |_user| stores_repo.update(store_id, payload))
                         .map_err(|e| Error::from(e))
                 })
-            //rollback if error
         }))
     }
 }

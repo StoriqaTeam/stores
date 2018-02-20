@@ -105,8 +105,10 @@ impl Client {
                     Box::new(Self::read_body(res.body()).map_err(|err| Error::Network(err)));
                 match status {
                     hyper::StatusCode::Ok => body_future,
+                    hyper::StatusCode::Created => body_future,
 
                     _ => Box::new(body_future.and_then(move |body| {
+                        println!("{}", body);
                         let message = serde_json::from_str::<ErrorMessage>(&body).ok();
                         let error = Error::Api(status, message);
                         future::err(error)
@@ -144,9 +146,9 @@ impl ClientHandle {
         url: String,
         body: Option<String>,
         headers: Option<hyper::Headers>,
-    ) -> Box<Future<Item = T, Error = Error>>
+    ) -> Box<Future<Item = T, Error = Error> + Send>
     where
-        T: for<'a> Deserialize<'a> + 'static,
+        T: for<'a> Deserialize<'a> + 'static + Send,
     {
         Box::new(
             self.send_request_with_retries(method, url, body, headers, None, self.max_retries)
@@ -162,7 +164,7 @@ impl ClientHandle {
         headers: Option<hyper::Headers>,
         last_err: Option<Error>,
         retries: usize,
-    ) -> Box<Future<Item = String, Error = Error>> {
+    ) -> Box<Future<Item = String, Error = Error> + Send> {
         if retries == 0 {
             let error = last_err.unwrap_or(Error::Unknown(
                 "Unexpected missing error in send_request_with_retries".to_string(),
@@ -203,7 +205,7 @@ impl ClientHandle {
         url: String,
         body: Option<String>,
         headers: Option<hyper::Headers>,
-    ) -> Box<Future<Item = String, Error = Error>> {
+    ) -> Box<Future<Item = String, Error = Error> + Send> {
         info!(
             "Starting outbound http request: {} {} with body {} and headers {}",
             method,

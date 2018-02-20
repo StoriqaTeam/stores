@@ -123,7 +123,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Product>> {
         let query = products
             .filter(is_active.eq(true))
-            .filter(id.gt(from))
+            .filter(id.ge(from))
             .order(id)
             .limit(count);
 

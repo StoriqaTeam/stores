@@ -9,15 +9,18 @@ extern crate stores_lib;
 extern crate tokio_core;
 
 use std::time::SystemTime;
+use std::sync::Arc;
 
 use futures_cpupool::CpuPool;
+use tokio_core::reactor::Handle;
 use diesel::pg::PgConnection;
 use r2d2_diesel::ConnectionManager;
 
 use stores_lib::repos::*;
 use stores_lib::services::*;
 use stores_lib::models::*;
-use stores_lib::repos::acl::RolesCache;
+use stores_lib::config::Config;
+use stores_lib::http::client::Client;
 
 #[derive(Clone)]
 pub struct StoresRepoMock;
@@ -78,24 +81,27 @@ impl RolesCache for CacheRolesMock {
 
 const MOCK_USER_ROLE: CacheRolesMock = CacheRolesMock {};
 
-fn new_store_service(user_id: Option<i32>) -> StoresServiceImpl<CacheRolesMock> {
+fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServiceImpl<CacheRolesMock> {
     let database_url = "127.0.0.1";
+    let elastic_address = "127.0.0.1:9200".to_string();
     let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
     let db_pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create connection pool");
     let cpu_pool = CpuPool::new(1);
 
+    let config = Config::new().unwrap();
+    let client = Client::new(&config, &handle);
+    let client_handle = client.handle();
+
     StoresServiceImpl {
         db_pool: db_pool,
         cpu_pool: cpu_pool,
         roles_cache: MOCK_USER_ROLE,
         user_id: user_id,
+        elastic_address: elastic_address,
+        client_handle: client_handle,
     }
-}
-
-pub fn create_store_service(user_id: Option<i32>) -> StoresServiceImpl<CacheRolesMock> {
-    new_store_service(user_id)
 }
 
 pub fn create_store(id: i32, name: String) -> Store {

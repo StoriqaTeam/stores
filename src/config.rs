@@ -15,6 +15,7 @@ pub struct Config {
 pub struct Server {
     pub address: String,
     pub database: String,
+    pub elastic: String,
     pub thread_count: usize,
 }
 

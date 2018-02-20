@@ -53,6 +53,23 @@ pub struct Store {
     pub updated_at: SystemTime,
 }
 
+#[derive(Serialize, Deserialize, Clone, ElasticType)]
+pub struct ElasticStore {
+    pub id: i32,
+    pub user_id: i32,
+    pub name: String,
+}
+
+impl From<Store> for ElasticStore {
+    fn from(store: Store) -> Self {
+        Self {
+            id: store.id,
+            user_id: store.user_id,
+            name: store.name,
+        }
+    }
+}
+
 /// Payload for creating stores
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
 #[table_name = "stores"]

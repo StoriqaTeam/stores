@@ -6,9 +6,11 @@ pub mod store;
 pub mod product;
 pub mod user_role;
 pub mod language;
+pub mod elastic;
 
 pub use self::authorization::*;
 pub use self::store::*;
 pub use self::product::*;
 pub use self::language::Language;
 pub use self::user_role::*;
+pub use self::elastic::*;

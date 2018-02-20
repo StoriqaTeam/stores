@@ -12,6 +12,10 @@ extern crate chrono;
 extern crate config as config_crate;
 #[macro_use]
 extern crate diesel;
+extern crate elastic_responses;
+extern crate elastic_types;
+#[macro_use]
+extern crate elastic_types_derive;
 extern crate env_logger;
 extern crate futures;
 extern crate futures_cpupool;
@@ -26,6 +30,7 @@ extern crate regex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
 extern crate serde_json;
 extern crate tokio_core;
 extern crate validator;

@@ -1,5 +1,6 @@
 use diesel::result::Error as DieselError;
 use models::authorization::*;
+use http::client::Error as HttpError;
 
 /// Repos layer Error
 #[derive(Debug)]
@@ -25,5 +26,11 @@ impl From<DieselError> for Error {
             DieselError::RollbackTransaction => Error::Rollback,
             _ => Error::Unknown("Unknown diesel error".to_string()),
         }
+    }
+}
+
+impl From<HttpError> for Error {
+    fn from(err: HttpError) -> Self {
+        Error::Connection(format!("Http error. {}", err))
     }
 }

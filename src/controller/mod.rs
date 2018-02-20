@@ -36,7 +36,7 @@ use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 pub struct Controller {
-    pub r2d2_pool: DbPool,
+    pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser>,
     pub config: Config,
@@ -50,11 +50,11 @@ macro_rules! serialize_future {
 
 impl Controller {
     /// Create a new controller based on services
-    pub fn new(r2d2_pool: DbPool, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, roles_cache: RolesCacheImpl) -> Self {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, roles_cache: RolesCacheImpl) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
             route_parser,
-            r2d2_pool,
+            db_pool,
             cpu_pool,
             client_handle,
             config,
@@ -73,18 +73,20 @@ impl Controller {
         let cached_roles = self.roles_cache.clone();
         let system_service = SystemServiceImpl::new();
         let stores_service = StoresServiceImpl::new(
-            self.r2d2_pool.clone(),
+            self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles.clone(),
             user_id,
+            self.client_handle.clone(),
+            self.config.server.elastic.clone(),
         );
         let products_service = ProductsServiceImpl::new(
-            self.r2d2_pool.clone(),
+            self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles,
             user_id,
         );
-        let user_roles_service = UserRolesServiceImpl::new(self.r2d2_pool.clone(), self.cpu_pool.clone());
+        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
@@ -95,8 +97,30 @@ impl Controller {
 
             // GET /stores
             (&Get, Some(Route::Stores)) => {
-                if let (Some(from), Some(to)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "to" => i64) {
-                    serialize_future!(stores_service.list(from, to))
+                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
+                    serialize_future!(stores_service.list(from, count))
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(
+                        "Error parsing request from gateway body".to_string(),
+                    )))
+                }
+            }
+
+            // GET /stores/search
+            (&Get, Some(Route::StoresSearch)) => {
+                if let Some(name) = parse_query!(req.query().unwrap_or_default(), "name" => String) {
+                    serialize_future!(stores_service.find_by_name(name))
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(
+                        "Error parsing request from gateway body".to_string(),
+                    )))
+                }
+            }
+
+            // GET /stores/auto_complete
+            (&Get, Some(Route::StoresAutoComplete)) => {
+                if let Some(name_part) = parse_query!(req.query().unwrap_or_default(), "name_part" => String) {
+                    serialize_future!(stores_service.find_full_names_by_name_part(name_part))
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
                         "Error parsing request from gateway body".to_string(),
@@ -128,8 +152,8 @@ impl Controller {
 
             // GET /products
             (&Get, Some(Route::Products)) => {
-                if let (Some(from), Some(to)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "to" => i64) {
-                    serialize_future!(products_service.list(from, to))
+                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
+                    serialize_future!(products_service.list(from, count))
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
                         "Error parsing request from gateway body".to_string(),

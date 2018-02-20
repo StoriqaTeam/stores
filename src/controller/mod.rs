@@ -36,7 +36,7 @@ use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 pub struct Controller {
-    pub r2d2_pool: DbPool,
+    pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser>,
     pub config: Config,
@@ -50,11 +50,11 @@ macro_rules! serialize_future {
 
 impl Controller {
     /// Create a new controller based on services
-    pub fn new(r2d2_pool: DbPool, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, roles_cache: RolesCacheImpl) -> Self {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, roles_cache: RolesCacheImpl) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
             route_parser,
-            r2d2_pool,
+            db_pool,
             cpu_pool,
             client_handle,
             config,
@@ -73,7 +73,7 @@ impl Controller {
         let cached_roles = self.roles_cache.clone();
         let system_service = SystemServiceImpl::new();
         let stores_service = StoresServiceImpl::new(
-            self.r2d2_pool.clone(),
+            self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles.clone(),
             user_id,
@@ -81,12 +81,12 @@ impl Controller {
             self.config.server.elastic.clone(),
         );
         let products_service = ProductsServiceImpl::new(
-            self.r2d2_pool.clone(),
+            self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles,
             user_id,
         );
-        let user_roles_service = UserRolesServiceImpl::new(self.r2d2_pool.clone(), self.cpu_pool.clone());
+        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck

@@ -15,8 +15,8 @@ use http::client::ClientHandle;
 use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 
 pub trait StoresService {
-    /// Returns store by name
-    fn find_by_name(&self, name: String) -> ServiceFuture<Store>;
+    /// Find stores by name
+    fn find_by_name(&self, name: String) -> ServiceFuture<Vec<Store>>;
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store>;
     /// Deactivates specific store
@@ -60,8 +60,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
 }
 
 impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl<R> {
-    /// Returns store by name
-    fn find_by_name(&self, name: String) -> ServiceFuture<Store> {
+    /// Find stores by name
+    fn find_by_name(&self, name: String) -> ServiceFuture<Vec<Store>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let fut = {
@@ -137,8 +137,6 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id.clone();
         let roles_cache = self.roles_cache.clone();
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
 
         Box::new(
             self.cpu_pool
@@ -166,6 +164,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 })
                 .and_then({
                     let cpu_pool = self.cpu_pool.clone();
+                    let client_handle = self.client_handle.clone();
+                    let address = self.elastic_address.clone();
                     move |store| {
                         let fut = {
                             let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
@@ -185,8 +185,6 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id.clone();
         let roles_cache = self.roles_cache.clone();
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
 
         Box::new(
             self.cpu_pool
@@ -207,6 +205,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 })
                 .and_then({
                     let cpu_pool = self.cpu_pool.clone();
+                    let client_handle = self.client_handle.clone();
+                    let address = self.elastic_address.clone();
                     move |store| {
                         let fut = {
                             let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);

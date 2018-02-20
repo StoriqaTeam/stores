@@ -5,7 +5,6 @@ use hyper::header::{ContentType, Headers};
 use hyper::Method;
 use future;
 use futures::Future;
-use future::IntoFuture;
 use serde_json;
 use elastic_requests::{CreateRequest, SearchRequest, UpdateRequest};
 use elastic_responses::{SearchResponse, UpdateResponse};
@@ -22,7 +21,7 @@ pub struct StoresSearchRepoImpl {
 
 pub trait StoresSearchRepo {
     /// Find specific store by ID
-    fn find_by_name(&mut self, name: String) -> RepoFuture<Store>;
+    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<Store>>;
 
     /// Creates new store
     fn create(&mut self, store: Store) -> RepoFuture<()>;
@@ -41,8 +40,8 @@ impl StoresSearchRepoImpl {
 }
 
 impl StoresSearchRepo for StoresSearchRepoImpl {
-    /// Find specific store by ID
-    fn find_by_name(&mut self, name: String) -> RepoFuture<Store> {
+    /// Find stores by name
+    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<Store>> {
         let query = json!({
             "query": {
                 "term" : {
@@ -63,10 +62,8 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
                 .request::<SearchResponse<Store>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| {
-                    res.into_documents()
-                        .next()
-                        .ok_or(Error::NotFound)
-                        .into_future()
+                    future::ok(res.into_documents()
+                        .collect::<Vec<Store>>())
                 }),
         )
     }

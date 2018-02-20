@@ -117,6 +117,17 @@ impl Controller {
                 }
             }
 
+            // GET /stores/auto_complete
+            (&Get, Some(Route::StoresAutoComplete)) => {
+                if let Some(name_part) = parse_query!(req.query().unwrap_or_default(), "name_part" => String) {
+                    serialize_future!(stores_service.find_full_names_by_name_part(name_part))
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(
+                        "Error parsing request from gateway body".to_string(),
+                    )))
+                }
+            }
+
             // POST /stores
             (&Post, Some(Route::Stores)) => serialize_future!(
                 parse_body::<models::NewStore>(req.body())

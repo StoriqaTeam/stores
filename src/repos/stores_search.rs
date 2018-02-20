@@ -6,28 +6,31 @@ use hyper::Method;
 use future;
 use futures::Future;
 use serde_json;
-use elastic_requests::{CreateRequest, SearchRequest, UpdateRequest};
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{IndexResponse, Store};
+use models::{ElasticStore, IndexResponse};
 use super::error::Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
+
 /// StoresSearch repository, responsible for handling stores
 pub struct StoresSearchRepoImpl {
     pub client_handle: ClientHandle,
     pub elastic_address: String,
 }
 
+pub static ELASTIC_INDEX: &'static str = "stores";
+pub static ELASTIC_TYPE_STORE: &'static str = "store";
+
 pub trait StoresSearchRepo {
     /// Find specific store by ID
-    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<Store>>;
+    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<ElasticStore>>;
 
     /// Creates new store
-    fn create(&mut self, store: Store) -> RepoFuture<()>;
+    fn create(&mut self, store: ElasticStore) -> RepoFuture<()>;
 
     /// Updates specific store
-    fn update(&mut self, store: Store) -> RepoFuture<()>;
+    fn update(&mut self, store: ElasticStore) -> RepoFuture<()>;
 }
 
 impl StoresSearchRepoImpl {
@@ -41,47 +44,44 @@ impl StoresSearchRepoImpl {
 
 impl StoresSearchRepo for StoresSearchRepoImpl {
     /// Find stores by name
-    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<Store>> {
+    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<ElasticStore>> {
         let query = json!({
             "query": {
-                "term" : {
+                "match" : {
                     "name" : name
                 }
             }
         }).to_string();
-        let req = SearchRequest::for_index_ty(
-            "store",
-            "_doc",
-            query.clone(),
+        let url = format!(
+            "http://{}/{}/{}/_search",
+            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_STORE
         );
-        let url = format!("http://{}{}", self.elastic_address, *req.url);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         Box::new(
             self.client_handle
-                .request::<SearchResponse<Store>>(Method::Get, url, Some(query), Some(headers))
+                .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
-                .and_then(|res| {
-                    future::ok(res.into_documents()
-                        .collect::<Vec<Store>>())
-                }),
+                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>())),
         )
     }
 
     /// Creates new store
-    fn create(&mut self, store: Store) -> RepoFuture<()> {
+    fn create(&mut self, store: ElasticStore) -> RepoFuture<()> {
         let body = serde_json::to_string(&store).unwrap();
-        let req = CreateRequest::for_index_ty_id("store", "_doc", store.id, body.clone());
-        let url = format!("http://{}{}", self.elastic_address, *req.url);
+        let url = format!(
+            "http://{}/{}/{}/{}/_create",
+            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_STORE, store.id
+        );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
 
         Box::new(
             self.client_handle
-                .request::<IndexResponse>(Method::Put, url, Some(body), Some(headers))
+                .request::<IndexResponse>(Method::Post, url, Some(body), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| {
-                    if res.created() {
+                    if res.is_created() {
                         future::ok(())
                     } else {
                         future::err(Error::NotFound)
@@ -91,12 +91,14 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     }
 
     /// Updates specific store
-    fn update(&mut self, store: Store) -> RepoFuture<()> {
+    fn update(&mut self, store: ElasticStore) -> RepoFuture<()> {
         let body = json!({
             "doc": store,
         }).to_string();
-        let req = UpdateRequest::for_index_ty_id("store", "_doc", store.id, body.clone());
-        let url = format!("http://{}{}", self.elastic_address, *req.url);
+        let url = format!(
+            "http://{}/{}/{}/{}/_update",
+            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_STORE, store.id
+        );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
 

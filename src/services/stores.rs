@@ -17,6 +17,8 @@ use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 pub trait StoresService {
     /// Find stores by name
     fn find_by_name(&self, name: String) -> ServiceFuture<Vec<Store>>;
+    /// Find stores full name by name part
+    fn find_full_names_by_name_part(&self, name_part: String) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store>;
     /// Deactivates specific store
@@ -60,6 +62,28 @@ impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
 }
 
 impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl<R> {
+    fn find_full_names_by_name_part(&self, name_part: String) -> ServiceFuture<Vec<String>> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let fut = {
+            let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
+            stores_el
+                .find_by_name(name_part)
+                .map_err(Error::from)
+                .and_then(|el_stores| {
+                    future::ok(
+                        el_stores
+                            .into_iter()
+                            .map(|el_store| el_store.name)
+                            .collect(),
+                    )
+                })
+        };
+
+        let cpu_pool = self.cpu_pool.clone();
+        Box::new(cpu_pool.spawn(fut))
+    }
+
     /// Find stores by name
     fn find_by_name(&self, name: String) -> ServiceFuture<Vec<Store>> {
         let client_handle = self.client_handle.clone();
@@ -69,7 +93,32 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
             stores_el.find_by_name(name).map_err(Error::from)
         };
 
-        Box::new(self.cpu_pool.spawn(fut))
+        let cpu_pool = self.cpu_pool.clone();
+        Box::new(cpu_pool.spawn(fut).and_then({
+            let cpu_pool = self.cpu_pool.clone();
+            let db_pool = self.db_pool.clone();
+            let user_id = self.user_id.clone();
+            let roles_cache = self.roles_cache.clone();
+            move |el_stores| {
+                cpu_pool.spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                        .and_then(move |conn| {
+                            el_stores
+                                .into_iter()
+                                .map(|el_store| {
+                                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
+                                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
+                                    });
+                                    let mut stores_repo = StoresRepoImpl::new(&conn, acl);
+                                    stores_repo.find(el_store.id).map_err(Error::from)
+                                })
+                                .collect()
+                        })
+                })
+            }
+        }))
     }
 
     /// Returns store by ID
@@ -107,7 +156,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);
-                    stores_repo.deactivate(store_id).map_err(|e| Error::from(e))
+                    stores_repo.deactivate(store_id).map_err(Error::from)
                 })
         }))
     }
@@ -127,7 +176,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
                     let mut stores_repo = StoresRepoImpl::new(&conn, acl);
-                    stores_repo.list(from, count).map_err(|e| Error::from(e))
+                    stores_repo.list(from, count).map_err(Error::from)
                 })
         }))
     }
@@ -158,7 +207,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                                         false => Ok(payload),
                                         true => Err(Error::Database("Store already exists".into())),
                                     })
-                                    .and_then(move |new_store| stores_repo.create(new_store).map_err(|e| Error::from(e)))
+                                    .and_then(move |new_store| stores_repo.create(new_store).map_err(Error::from))
                             })
                         })
                 })
@@ -170,7 +219,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         let fut = {
                             let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
                             stores_el
-                                .create(store.clone())
+                                .create(store.clone().into())
                                 .map_err(Error::from)
                                 .and_then(|_| future::ok(store))
                         };
@@ -200,7 +249,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                             stores_repo
                                 .find(store_id.clone())
                                 .and_then(move |_user| stores_repo.update(store_id, payload))
-                                .map_err(|e| Error::from(e))
+                                .map_err(Error::from)
                         })
                 })
                 .and_then({
@@ -211,7 +260,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         let fut = {
                             let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
                             stores_el
-                                .update(store.clone())
+                                .update(store.clone().into())
                                 .map_err(Error::from)
                                 .and_then(|_| future::ok(store))
                         };

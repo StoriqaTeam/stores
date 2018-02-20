@@ -18,7 +18,7 @@ pub struct IndexResponse {
 }
 
 impl IndexResponse {
-    pub fn created(&self) -> bool {
-        self.result == "created".to_string()
+    pub fn is_created(&self) -> bool {
+        &self.result == "created"
     }
 }

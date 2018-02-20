@@ -71,7 +71,6 @@ fn test_update() {
     let _result = core.run(work).unwrap();
 }
 
-
 #[test]
 #[ignore]
 fn test_find() {

@@ -8,11 +8,12 @@ CREATE TABLE products (
     price DOUBLE PRECISION NOT NULL,
     currency_id INTEGER NOT NULL REFERENCES currencies (id),
     discount FLOAT,
-    category INTEGER,
+    properties JSONB,
     photo_main VARCHAR,
     vendor_code VARCHAR,
     cashback FLOAT,
     default_language VARCHAR NOT NULL,
+    categories JSONB,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );

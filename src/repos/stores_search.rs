@@ -46,8 +46,8 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     /// Find specific stores by name limited by `count` parameters
     fn find_by_name(&mut self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
         let query = json!({
+            "from" : offset, "size" : count,
             "query": {
-                "from" : offset, "size" : count,
                 "match" : {
                     "name" : name
                 }

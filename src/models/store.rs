@@ -94,7 +94,7 @@ pub struct NewStore {
 #[derive(Serialize, Deserialize, Insertable, AsChangeset)]
 #[table_name = "stores"]
 pub struct UpdateStore {
-    pub name: String,
+    pub name: Option<String>,
     pub currency_id: Option<i32>,
     pub short_description: Option<String>,
     pub long_description: Option<Option<String>>,

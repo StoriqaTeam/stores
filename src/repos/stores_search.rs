@@ -23,8 +23,8 @@ pub static ELASTIC_INDEX: &'static str = "stores";
 pub static ELASTIC_TYPE_STORE: &'static str = "store";
 
 pub trait StoresSearchRepo {
-    /// Find specific store by ID
-    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<ElasticStore>>;
+    /// Find specific store by name limited by `count` parameters
+    fn find_by_name(&mut self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>>;
 
     /// Creates new store
     fn create(&mut self, store: ElasticStore) -> RepoFuture<()>;
@@ -43,9 +43,10 @@ impl StoresSearchRepoImpl {
 }
 
 impl StoresSearchRepo for StoresSearchRepoImpl {
-    /// Find stores by name
-    fn find_by_name(&mut self, name: String) -> RepoFuture<Vec<ElasticStore>> {
+    /// Find specific stores by name limited by `count` parameters
+    fn find_by_name(&mut self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
         let query = json!({
+            "from" : offset, "size" : count,
             "query": {
                 "match" : {
                     "name" : name

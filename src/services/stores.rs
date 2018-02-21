@@ -15,10 +15,10 @@ use http::client::ClientHandle;
 use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 
 pub trait StoresService {
-    /// Find stores by name
-    fn find_by_name(&self, name: String) -> ServiceFuture<Vec<Store>>;
-    /// Find stores full name by name part
-    fn find_full_names_by_name_part(&self, name_part: String) -> ServiceFuture<Vec<String>>;
+    /// Find stores by name limited by `count` parameters
+    fn find_by_name(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<Store>>;
+    /// Find stores full name by name part limited by `count` parameters
+    fn find_full_names_by_name_part(&self, name_part: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store>;
     /// Deactivates specific store
@@ -62,13 +62,13 @@ impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
 }
 
 impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl<R> {
-    fn find_full_names_by_name_part(&self, name_part: String) -> ServiceFuture<Vec<String>> {
+    fn find_full_names_by_name_part(&self, name_part: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let fut = {
             let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
             stores_el
-                .find_by_name(name_part)
+                .find_by_name(name_part, count, offset)
                 .map_err(Error::from)
                 .and_then(|el_stores| {
                     future::ok(
@@ -85,12 +85,12 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
     }
 
     /// Find stores by name
-    fn find_by_name(&self, name: String) -> ServiceFuture<Vec<Store>> {
+    fn find_by_name(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<Store>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let fut = {
             let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
-            stores_el.find_by_name(name).map_err(Error::from)
+            stores_el.find_by_name(name, count, offset).map_err(Error::from)
         };
 
         let cpu_pool = self.cpu_pool.clone();

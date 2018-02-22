@@ -90,7 +90,9 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         let address = self.elastic_address.clone();
         let fut = {
             let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
-            stores_el.find_by_name(name, count, offset).map_err(Error::from)
+            stores_el
+                .find_by_name(name, count, offset)
+                .map_err(Error::from)
         };
 
         let cpu_pool = self.cpu_pool.clone();

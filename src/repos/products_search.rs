@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{ElasticProduct, IndexResponse};
+use models::{AttributeFilter, ElasticProduct, IndexResponse, SearchProduct};
 use super::error::Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
@@ -24,7 +24,7 @@ pub static ELASTIC_TYPE_PRODUCT: &'static str = "product";
 
 pub trait ProductsSearchRepo {
     /// Find specific product by name limited by `count` parameters
-    fn find_by_name(&mut self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn search(&mut self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Creates new product
     fn create(&mut self, product: ElasticProduct) -> RepoFuture<()>;
@@ -44,19 +44,103 @@ impl ProductsSearchRepoImpl {
 
 impl ProductsSearchRepo for ProductsSearchRepoImpl {
     /// Find specific products by name limited by `count` parameters
-    fn find_by_name(&mut self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+    fn search(&mut self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        let name_query = match prod.name {
+            None => json!({
+                "match_all": {}
+            }),
+            Some(name) => json!({
+                 "multi_match" : {
+                    "query":      name,
+                    "fields":     [ "name", "short_description", "long_description" ],
+                    "operator":   "or" 
+                }
+            }),
+        };
+
+        let props = match prod.attr_filters {
+            None => json!({}),
+            Some(filters) => {
+                let fil: Vec<serde_json::Value> = filters
+                    .into_iter()
+                    .map(|filter| match filter {
+                        AttributeFilter::EqualBool {
+                            attribute_name,
+                            attribute_value,
+                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
+                                                 {"term": {"attribute_value": attribute_value}}],
+                                }),
+                        AttributeFilter::EqualEnum {
+                            attribute_name,
+                            attribute_value,
+                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
+                                                 {"term": {"attribute_value": attribute_value}}],
+                                }),
+                        AttributeFilter::MinNum {
+                            attribute_name,
+                            attribute_value,
+                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
+                                                 { "range": { "value": { "gte": attribute_value }}}],
+                                }),
+                        AttributeFilter::MaxNum {
+                            attribute_name,
+                            attribute_value,
+                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
+                                                 { "range": { "value": { "lte": attribute_value }}}],
+                                }),
+                        AttributeFilter::EqualNum {
+                            attribute_name,
+                            attribute_value,
+                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
+                                                 {"term": {"attribute_value": attribute_value}}],
+                                }),
+                        AttributeFilter::RangeNum {
+                            attribute_name,
+                            attribute_value_min,
+                            attribute_value_max,
+                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
+                                                 { "range": { "value": { "gte": attribute_value_min, "lte": attribute_value_max }}}],
+                                }),
+                    })
+                    .collect();
+                json!({
+                        "nested" : {
+                            "path" : "properties",
+                            "filter" : {
+                                "bool" : fil
+                            }
+                        }
+                })
+            }
+        };
+
+        let categories = match prod.cat_filters {
+            None => json!({}),
+            Some(cat) => {
+                let categories = cat.iter()
+                    .fold("".to_string(), |sum, val| format!("{} {}", sum, val));
+                json!({
+                    "query": {
+                        "simple_query_string" : {
+                            "fields" : ["categories"],
+                            "query" : categories
+                        }
+                    }
+                })
+            }
+        };
+
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
-                    "bool" : {
-                    "should" : [
-                        { "match" : { "name" : name } },
-                        { "match" : { "short_description" : name } },
-                        { "match" : { "long_description" : name } },
-                    ],
-                    }
+                "bool" : {
+                    "must" : name_query,
+                    "filter" : props,
+                    "filter" : categories
+                }
             }
         }).to_string();
+
         let url = format!(
             "http://{}/{}/{}/_search",
             self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_PRODUCT
@@ -121,3 +205,31 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         )
     }
 }
+
+// curl -XPUT 'stores-es:9200/stores/product?pretty' -H 'Content-Type: application/json' -d'
+// {
+//   "mappings": {
+//     "_doc": {
+//       "properties": {
+//         "name": {
+//             "type": "integer"
+//         },
+//         "name": {
+//             "type": "string"
+//         },
+//         "properties": {
+//             "type": "nested"
+//         },
+//         "short_description": {
+//             "type": "string"
+//         },
+//         "long_description": {
+//             "type": "string"
+//         },
+//         "categories": {
+//             "type": "nested"
+//         },
+//       }
+//     }
+//   }
+// }

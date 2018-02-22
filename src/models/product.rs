@@ -8,9 +8,10 @@ use serde_json;
 use super::Language;
 use super::Store;
 use super::authorization::*;
-use super::category::{AttributeValue, CategoryId};
+use super::{AttributeTypeValue, CategoryId};
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
+use models::AttributeFilter;
 
 /// diesel table for products
 table! {
@@ -99,7 +100,7 @@ pub struct UpdateProduct {
 pub struct ElasticProduct {
     pub id: i32,
     pub name: String,
-    pub properties: Option<Vec<AttributeValue>>,
+    pub properties: Option<Vec<AttributeTypeValue>>,
     pub short_description: String,
     pub long_description: Option<String>,
     pub categories: Option<Vec<CategoryId>>,
@@ -110,12 +111,23 @@ impl From<Product> for ElasticProduct {
         Self {
             id: product.id,
             name: product.name,
-            properties: product.properties.and_then(|c| serde_json::from_value::<Vec<AttributeValue>>(c).ok()),
+            properties: product
+                .properties
+                .and_then(|c| serde_json::from_value::<Vec<AttributeTypeValue>>(c).ok()),
             short_description: product.short_description,
             long_description: product.long_description,
-            categories: product.categories.and_then(|c| serde_json::from_value::<Vec<CategoryId>>(c).ok()),
+            categories: product
+                .categories
+                .and_then(|c| serde_json::from_value::<Vec<CategoryId>>(c).ok()),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SearchProduct {
+    pub name: Option<String>,
+    pub attr_filters: Option<Vec<AttributeFilter>>,
+    pub cat_filters: Option<Vec<CategoryId>>,
 }
 
 impl WithScope for Product {

@@ -85,6 +85,8 @@ impl Controller {
             self.cpu_pool.clone(),
             cached_roles,
             user_id,
+            self.client_handle.clone(),
+            self.config.server.elastic.clone(),
         );
         let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
 
@@ -108,7 +110,9 @@ impl Controller {
 
             // GET /stores/search
             (&Get, Some(Route::StoresSearch)) => {
-                if let (Some(name), Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "name" => String, "count" => i64, "offset" => i64) {
+                if let (Some(name), Some(count), Some(offset)) =
+                    parse_query!(req.query().unwrap_or_default(), "name" => String, "count" => i64, "offset" => i64)
+                {
                     serialize_future!(stores_service.find_by_name(name, count, offset))
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
@@ -119,7 +123,9 @@ impl Controller {
 
             // GET /stores/auto_complete
             (&Get, Some(Route::StoresAutoComplete)) => {
-                if let (Some(name_part), Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "name_part" => String, "count" => i64, "offset" => i64) {
+                if let (Some(name_part), Some(count), Some(offset)) =
+                    parse_query!(req.query().unwrap_or_default(), "name_part" => String, "count" => i64, "offset" => i64)
+                {
                     serialize_future!(stores_service.find_full_names_by_name_part(name_part, count, offset))
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
@@ -154,6 +160,23 @@ impl Controller {
             (&Get, Some(Route::Products)) => {
                 if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
                     serialize_future!(products_service.list(from, count))
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(
+                        "Error parsing request from gateway body".to_string(),
+                    )))
+                }
+            }
+
+            // GET /products/search
+            (&Get, Some(Route::ProductsSearch)) => {
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future!(
+                        parse_body::<models::SearchProduct>(req.body())
+                            .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
+                            .and_then(move |prod| products_service
+                                .search(prod, count, offset)
+                                .map_err(|e| Error::from(e)))
+                    )
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
                         "Error parsing request from gateway body".to_string(),

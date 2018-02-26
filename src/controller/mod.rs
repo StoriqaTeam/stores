@@ -186,7 +186,7 @@ impl Controller {
 
             // POST /products
             (&Post, Some(Route::Products)) => serialize_future!(
-                parse_body::<models::NewProduct>(req.body())
+                parse_body::<models::NewProductWithAttributes>(req.body())
                     .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
                     .and_then(move |new_product| products_service
                         .create(new_product)

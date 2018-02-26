@@ -2,11 +2,7 @@ use std::convert::From;
 
 use diesel;
 use diesel::prelude::*;
-use diesel::select;
-use diesel::dsl::exists;
 use diesel::query_dsl::RunQueryDsl;
-use diesel::query_dsl::LoadQuery;
-use diesel::pg::PgConnection;
 
 use models::{ProdAttr, NewProdAttr, UpdateProdAttr};
 use models::attribute_product::prod_attr_values::dsl::*;
@@ -36,12 +32,6 @@ impl<'a> ProductAttrsRepoImpl<'a> {
     pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
         Self { db_conn, acl }
     }
-
-    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> RepoResult<T> {
-        query
-            .get_result::<T>(&**self.db_conn)
-            .map_err(|e| Error::from(e))
-    }
 }
 
 impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
@@ -54,18 +44,18 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
         query
             .get_results(&**self.db_conn)
             .map_err(|e| Error::from(e))
-            .and_then(|products_res: Vec<ProdAttr>| {
-                let resources = products_res
+            .and_then(|prod_attrs_res: Vec<ProdAttr>| {
+                let resources = prod_attrs_res
                     .iter()
-                    .map(|product| (product as &WithScope))
+                    .map(|prod_attr| (prod_attr as &WithScope))
                     .collect();
                 acl!(
                     resources,
                     self.acl,
-                    Resource::Products,
+                    Resource::ProductAttrs,
                     Action::Read,
                     Some(self.db_conn)
-                ).and_then(|_| Ok(products_res.clone()))
+                ).and_then(|_| Ok(prod_attrs_res.clone()))
             })
     }
 
@@ -74,37 +64,42 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
         acl!(
             [payload],
             self.acl,
-            Resource::Products,
+            Resource::ProductAttrs,
             Action::Create,
             Some(self.db_conn)
         ).and_then(|_| {
             let query_product_attribute = diesel::insert_into(prod_attr_values).values(&payload);
             query_product_attribute
-                .get_result::<Product>(&**self.db_conn)
+                .get_result::<ProdAttr>(&**self.db_conn)
                 .map_err(Error::from)
         })
     }
 
     /// Updates specific product_attribute
     fn update(&mut self, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
-        self.execute_query(prod_attr_values.find(product_attribute_id_arg))
-            .and_then(|product_attribute: Product| {
+        let query = prod_attr_values
+            .filter(prod_id.eq(payload.prod_id))
+            .filter(attr_id.eq(payload.attr_id));
+        query
+            .first::<ProdAttr>(&**self.db_conn)
+            .map_err(|e| Error::from(e))
+            .and_then(|prod_attr: ProdAttr| {
                 acl!(
-                    [product_attribute],
+                    [prod_attr],
                     self.acl,
-                    Resource::Products,
+                    Resource::ProductAttrs,
                     Action::Update,
                     Some(self.db_conn)
                 )
             })
             .and_then(|_| {
                 let filter = prod_attr_values
-                    .filter(id.eq(product_attribute_id_arg))
-                    .filter(is_active.eq(true));
+                    .filter(prod_id.eq(payload.prod_id))
+                    .filter(attr_id.eq(payload.attr_id));
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<Product>(&**self.db_conn)
+                    .get_result::<ProdAttr>(&**self.db_conn)
                     .map_err(|e| Error::from(e))
             })
     }

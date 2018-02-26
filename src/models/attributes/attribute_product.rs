@@ -70,7 +70,28 @@ impl WithScope for ProdAttr {
                     Products::products
                         .find(self.prod_id)
                         .get_result::<Product>(&**conn)
-                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, conn)))
+                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(&conn))))
+                        .ok()
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+
+impl WithScope for NewProdAttr {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(conn) = conn {
+                    Products::products
+                        .find(self.prod_id)
+                        .get_result::<Product>(&**conn)
+                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(&conn))))
                         .ok()
                         .unwrap_or(false)
                 } else {

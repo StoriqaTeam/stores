@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(PartialEq, Eq, Debug)]
 pub enum Resource {
     Products,
+    ProductAttrs,
     Stores,
     UserRoles,
 }
@@ -14,6 +15,7 @@ impl fmt::Display for Resource {
             Resource::Products => write!(f, "products"),
             Resource::Stores => write!(f, "stores"),
             Resource::UserRoles => write!(f, "user roles"),
+            Resource::ProductAttrs => write!(f, "prod attrs"),
         }
     }
 }

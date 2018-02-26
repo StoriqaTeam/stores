@@ -3,12 +3,10 @@ use std::time::SystemTime;
 
 use validator::Validate;
 use diesel::prelude::*;
-use serde_json;
 
 use super::Language;
 use super::Store;
 use super::authorization::*;
-use super::{AttributeTypeValue, CategoryId};
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
 use models::AttributeFilter;
@@ -25,12 +23,10 @@ table! {
         price -> Double,
         currency_id -> Integer,
         discount -> Nullable<Float>,
-        properties -> Nullable<Jsonb>,
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Float>,
         default_language -> Varchar,
-        categories -> Nullable<Jsonb>,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -49,12 +45,10 @@ pub struct Product {
     pub price: f64,
     pub currency_id: i32,
     pub discount: Option<f32>,
-    pub properties: Option<serde_json::Value>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
     pub default_language: Language,
-    pub categories: Option<serde_json::Value>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -70,12 +64,10 @@ pub struct NewProduct {
     pub long_description: Option<String>,
     pub price: f64,
     pub discount: Option<f32>,
-    pub properties: Option<serde_json::Value>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
     pub default_language: Language,
-    pub categories: Option<serde_json::Value>,
 }
 
 /// Payload for updating products
@@ -88,22 +80,18 @@ pub struct UpdateProduct {
     pub long_description: Option<String>,
     pub price: Option<f64>,
     pub discount: Option<f32>,
-    pub properties: Option<serde_json::Value>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
     pub default_language: Option<Language>,
-    pub categories: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ElasticProduct {
     pub id: i32,
     pub name: String,
-    pub properties: Option<Vec<AttributeTypeValue>>,
     pub short_description: String,
     pub long_description: Option<String>,
-    pub categories: Option<Vec<CategoryId>>,
 }
 
 impl From<Product> for ElasticProduct {
@@ -111,23 +99,17 @@ impl From<Product> for ElasticProduct {
         Self {
             id: product.id,
             name: product.name,
-            properties: product
-                .properties
-                .and_then(|c| serde_json::from_value::<Vec<AttributeTypeValue>>(c).ok()),
             short_description: product.short_description,
             long_description: product.long_description,
-            categories: product
-                .categories
-                .and_then(|c| serde_json::from_value::<Vec<CategoryId>>(c).ok()),
         }
     }
 }
+
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SearchProduct {
     pub name: Option<String>,
     pub attr_filters: Option<Vec<AttributeFilter>>,
-    pub cat_filters: Option<Vec<CategoryId>>,
 }
 
 impl WithScope for Product {

@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Deserialize, Debug, Clone, Copy)]
 pub struct Shards {
     total: u32,
@@ -20,5 +22,23 @@ pub struct IndexResponse {
 impl IndexResponse {
     pub fn is_created(&self) -> bool {
         &self.result == "created"
+    }
+}
+
+pub enum ElasticIndex {
+    Store,
+    Product,
+    Attribute,
+    ProductAttributeValue,
+}
+
+impl fmt::Display for ElasticIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &ElasticIndex::Store => write!(f, "store"),
+            &ElasticIndex::Product => write!(f, "product"),
+            &ElasticIndex::Attribute => write!(f, "attribute"),
+            &ElasticIndex::ProductAttributeValue => write!(f, "product_attribute_value"),
+        }
     }
 }

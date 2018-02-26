@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{ElasticStore, IndexResponse};
+use models::{ElasticStore, IndexResponse, ElasticIndex};
 use super::error::Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
@@ -18,9 +18,6 @@ pub struct StoresSearchRepoImpl {
     pub client_handle: ClientHandle,
     pub elastic_address: String,
 }
-
-pub static ELASTIC_INDEX: &'static str = "stores";
-pub static ELASTIC_TYPE_STORE: &'static str = "store";
 
 pub trait StoresSearchRepo {
     /// Find specific store by name limited by `count` parameters
@@ -54,8 +51,8 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
             }
         }).to_string();
         let url = format!(
-            "http://{}/{}/{}/_search",
-            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_STORE
+            "http://{}/{}/_doc/_search",
+            self.elastic_address, ElasticIndex::Store
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -71,8 +68,8 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     fn create(&mut self, store: ElasticStore) -> RepoFuture<()> {
         let body = serde_json::to_string(&store).unwrap();
         let url = format!(
-            "http://{}/{}/{}/{}/_create",
-            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_STORE, store.id
+            "http://{}/{}/_doc/{}/_create",
+            self.elastic_address, ElasticIndex::Store, store.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -97,8 +94,8 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
             "doc": store,
         }).to_string();
         let url = format!(
-            "http://{}/{}/{}/{}/_update",
-            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_STORE, store.id
+            "http://{}/{}/_doc/{}/_update",
+            self.elastic_address, ElasticIndex::Store, store.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());

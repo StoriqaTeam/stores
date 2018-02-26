@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{AttributeFilter, ElasticProduct, IndexResponse, SearchProduct};
+use models::{Filter, ElasticProduct, IndexResponse, SearchProduct, ElasticIndex, ProdAttr};
 use super::error::Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
@@ -19,15 +19,15 @@ pub struct ProductsSearchRepoImpl {
     pub elastic_address: String,
 }
 
-pub static ELASTIC_INDEX: &'static str = "stores";
-pub static ELASTIC_TYPE_PRODUCT: &'static str = "product";
-
 pub trait ProductsSearchRepo {
     /// Find specific product by name limited by `count` parameters
     fn search(&mut self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Creates new product
-    fn create(&mut self, product: ElasticProduct) -> RepoFuture<()>;
+    fn create_product(&mut self, product: ElasticProduct) -> RepoFuture<()>;
+
+    /// Creates new product
+    fn create_attribute_product_value(&mut self, attr_prod: ProdAttr) -> RepoFuture<()>;
 
     /// Updates specific product
     fn update(&mut self, product: ElasticProduct) -> RepoFuture<()>;
@@ -63,44 +63,15 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
             Some(filters) => {
                 let fil: Vec<serde_json::Value> = filters
                     .into_iter()
-                    .map(|filter| match filter {
-                        AttributeFilter::EqualBool {
-                            attribute_name,
-                            attribute_value,
-                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
-                                                 {"term": {"attribute_value": attribute_value}}],
-                                }),
-                        AttributeFilter::EqualEnum {
-                            attribute_name,
-                            attribute_value,
-                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
-                                                 {"term": {"attribute_value": attribute_value}}],
-                                }),
-                        AttributeFilter::MinNum {
-                            attribute_name,
-                            attribute_value,
-                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
-                                                 { "range": { "value": { "gte": attribute_value }}}],
-                                }),
-                        AttributeFilter::MaxNum {
-                            attribute_name,
-                            attribute_value,
-                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
-                                                 { "range": { "value": { "lte": attribute_value }}}],
-                                }),
-                        AttributeFilter::EqualNum {
-                            attribute_name,
-                            attribute_value,
-                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
-                                                 {"term": {"attribute_value": attribute_value}}],
-                                }),
-                        AttributeFilter::RangeNum {
-                            attribute_name,
-                            attribute_value_min,
-                            attribute_value_max,
-                        } => json!({ "must": [{"term": {"attribute_name": attribute_name}},
-                                                 { "range": { "value": { "gte": attribute_value_min, "lte": attribute_value_max }}}],
-                                }),
+                    .map(|attr| {
+                        let attribute_name = attr.name.clone();
+                        match attr.filter {
+                            Filter::Equal(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}},{"term": {"attribute_value": val}}]}),
+                            Filter::Lte(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"lte": val }}}]}),
+                            Filter::Le(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"le": val }}}]}),
+                            Filter::Ge(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"ge": val }}}]}),
+                            Filter::Gte(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"gte": val }}}]}),
+                        }
                     })
                     .collect();
                 json!({
@@ -114,36 +85,19 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
             }
         };
 
-        let categories = match prod.cat_filters {
-            None => json!({}),
-            Some(cat) => {
-                let categories = cat.iter()
-                    .fold("".to_string(), |sum, val| format!("{} {}", sum, val));
-                json!({
-                    "query": {
-                        "simple_query_string" : {
-                            "fields" : ["categories"],
-                            "query" : categories
-                        }
-                    }
-                })
-            }
-        };
-
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
                 "bool" : {
                     "must" : name_query,
                     "filter" : props,
-                    "filter" : categories
                 }
             }
         }).to_string();
 
         let url = format!(
-            "http://{}/{}/{}/_search",
-            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_PRODUCT
+            "http://{}/{}/_doc/_search",
+            self.elastic_address, ElasticIndex::Product
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -155,12 +109,36 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         )
     }
 
+    /// Creates new attribute product value
+    fn create_attribute_product_value(&mut self, new_prod_attr: ProdAttr) -> RepoFuture<()> {
+        let body = serde_json::to_string(&new_prod_attr).unwrap();
+        let url = format!(
+            "http://{}/{}/_doc/{}/_create",
+            self.elastic_address, ElasticIndex::ProductAttributeValue, new_prod_attr.id
+        );
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+
+        Box::new(
+            self.client_handle
+                .request::<IndexResponse>(Method::Post, url, Some(body), Some(headers))
+                .map_err(Error::from)
+                .and_then(|res| {
+                    if res.is_created() {
+                        future::ok(())
+                    } else {
+                        future::err(Error::NotFound)
+                    }
+                }),
+        )
+    }
+
     /// Creates new product
-    fn create(&mut self, product: ElasticProduct) -> RepoFuture<()> {
+    fn create_product(&mut self, product: ElasticProduct) -> RepoFuture<()> {
         let body = serde_json::to_string(&product).unwrap();
         let url = format!(
-            "http://{}/{}/{}/{}/_create",
-            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_PRODUCT, product.id
+            "http://{}/{}/_doc/{}/_create",
+            self.elastic_address, ElasticIndex::Product, product.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -185,8 +163,8 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
             "doc": product,
         }).to_string();
         let url = format!(
-            "http://{}/{}/{}/{}/_update",
-            self.elastic_address, ELASTIC_INDEX, ELASTIC_TYPE_PRODUCT, product.id
+            "http://{}/{}/_doc/{}/_update",
+            self.elastic_address, ElasticIndex::Product, product.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -205,31 +183,3 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         )
     }
 }
-
-// curl -XPUT 'stores-es:9200/stores/product?pretty' -H 'Content-Type: application/json' -d'
-// {
-//   "mappings": {
-//     "_doc": {
-//       "properties": {
-//         "name": {
-//             "type": "integer"
-//         },
-//         "name": {
-//             "type": "string"
-//         },
-//         "properties": {
-//             "type": "nested"
-//         },
-//         "short_description": {
-//             "type": "string"
-//         },
-//         "long_description": {
-//             "type": "string"
-//         },
-//         "categories": {
-//             "type": "nested"
-//         },
-//       }
-//     }
-//   }
-// }

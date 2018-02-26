@@ -201,7 +201,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                         let fut = {
                             let mut products_el = ProductsSearchRepoImpl::new(client_handle, address);
                             products_el
-                                .create(product.clone().into())
+                                .create_product(product.clone().into())
                                 .map_err(Error::from)
                                 .and_then(|_| future::ok(product))
                         };

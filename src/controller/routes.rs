@@ -154,6 +154,12 @@ pub fn create_route_parser() -> RouteParser {
     // User_roles Routes
     router.add_route(r"^/user_roles$", Route::UserRoles);
 
+    // Languages Routes
+    router.add_route(r"^/languages$", Route::Languages);
+
+    // Currencies Routes
+    router.add_route(r"^/currencies$", Route::Currencies);
+
     // User_roles/:id route
     router.add_route_with_params(r"^/user_roles/(\d+)$", |params| {
         params

@@ -19,14 +19,16 @@ table! {
         slug -> VarChar,
         cover -> Nullable<VarChar>,
         logo -> Nullable<VarChar>,
-        phone -> VarChar,
-        email -> VarChar,
-        address -> VarChar,
+        phone -> Nullable<VarChar>,
+        email -> Nullable<VarChar>,
+        address -> Nullable<VarChar>,
         facebook_url -> Nullable<VarChar>,
         twitter_url -> Nullable<VarChar>,
         instagram_url -> Nullable<VarChar>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        default_language -> Integer,
+        slogan -> Nullable<VarChar>,
     }
 }
 
@@ -43,14 +45,16 @@ pub struct Store {
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
-    pub phone: String,
-    pub email: String,
-    pub address: String,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+    pub address: Option<String>,
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
+    pub default_language: i32,
+    pub slogan: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, ElasticType)]
@@ -82,12 +86,14 @@ pub struct NewStore {
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
-    pub phone: String,
-    pub email: String,
-    pub address: String,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+    pub address: Option<String>,
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
+    pub default_language: i32,
+    pub slogan: Option<String>,
 }
 
 /// Payload for updating users
@@ -97,16 +103,18 @@ pub struct UpdateStore {
     pub name: Option<String>,
     pub currency_id: Option<i32>,
     pub short_description: Option<String>,
-    pub long_description: Option<Option<String>>,
+    pub long_description: Option<String>,
     pub slug: Option<String>,
-    pub cover: Option<Option<String>>,
-    pub logo: Option<Option<String>>,
+    pub cover: Option<String>,
+    pub logo: Option<String>,
     pub phone: Option<String>,
     pub email: Option<String>,
     pub address: Option<String>,
-    pub facebook_url: Option<Option<String>>,
-    pub twitter_url: Option<Option<String>>,
-    pub instagram_url: Option<Option<String>>,
+    pub facebook_url: Option<String>,
+    pub twitter_url: Option<String>,
+    pub instagram_url: Option<String>,
+    pub default_language: Option<i32>,
+    pub slogan: Option<String>,
 }
 
 impl WithScope for Store {

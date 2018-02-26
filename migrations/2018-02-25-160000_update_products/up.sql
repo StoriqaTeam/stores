@@ -1,0 +1,2 @@
+ALTER TABLE products DROP COLUMN IF EXISTS default_language;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_language INTEGER NOT NULL REFERENCES languages (id) DEFAULT 1;

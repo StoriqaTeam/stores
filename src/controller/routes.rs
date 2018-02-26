@@ -12,6 +12,8 @@ pub enum Route {
     Product(i32),
     UserRoles,
     UserRole(i32),
+    Languages,
+    Currencies
 }
 
 /// RouteParser class maps regex to type-safe list of routes, defined by `enum Route`

@@ -4,7 +4,6 @@ use std::time::SystemTime;
 use validator::Validate;
 use diesel::prelude::*;
 
-use super::Language;
 use super::Store;
 use super::authorization::*;
 use repos::types::DbConnection;
@@ -26,7 +25,7 @@ table! {
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Float>,
-        default_language -> Varchar,
+        default_language -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -49,7 +48,7 @@ pub struct Product {
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub default_language: Language,
+    pub default_language: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -69,14 +68,14 @@ pub struct NewProduct {
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub default_language: Language,
+    pub default_language: i32,
 }
 
 /// Payload for updating products
 #[derive(Serialize, Deserialize, Insertable, AsChangeset)]
 #[table_name = "products"]
 pub struct UpdateProduct {
-    pub name: String,
+    pub name: Option<String>,
     pub currency_id: Option<i32>,
     pub short_description: Option<String>,
     pub long_description: Option<Option<String>>,
@@ -86,7 +85,7 @@ pub struct UpdateProduct {
     pub photo_main: Option<Option<String>>,
     pub vendor_code: Option<Option<String>>,
     pub cashback: Option<Option<f32>>,
-    pub default_language: Option<Language>,
+    pub default_language: Option<i32>,
 }
 
 impl WithScope for Product {

@@ -24,6 +24,7 @@ use services::system::{SystemService, SystemServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
+use services::catalogue::{CatalogueService, CatalogueServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 
@@ -87,6 +88,8 @@ impl Controller {
             user_id,
         );
         let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
+        let catalogue_service = CatalogueServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
+
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
@@ -202,6 +205,12 @@ impl Controller {
                         .delete(old_role)
                         .map_err(|e| Error::from(e)))
             ),
+
+            // GET /languages
+            (&Get, Some(Route::Languages)) => serialize_future!(catalogue_service.languages()),
+
+            // GET /currencies
+            (&Get, Some(Route::Currencies)) => serialize_future!(catalogue_service.currencies()),
 
             // Fallback
             _ => Box::new(future::err(Error::NotFound)),

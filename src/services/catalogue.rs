@@ -5,14 +5,14 @@ use repos::catalogue::{CatalogueRepo, CatalogueRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
-
+use models::{Language, Currency};
 
 /// Catalogue service, responsible for common static data
 pub trait CatalogueService {
     /// Languages endpoint
-    fn languages(&self) -> ServiceFuture<Vec<String>>;
+    fn languages(&self) -> ServiceFuture<Vec<Language>>;
     /// Currencies endpoint
-    fn currencies(&self) -> ServiceFuture<Vec<String>>;
+    fn currencies(&self) -> ServiceFuture<Vec<Currency>>;
 }
 
 pub struct CatalogueServiceImpl {
@@ -29,7 +29,7 @@ impl CatalogueServiceImpl {
 
 impl CatalogueService for CatalogueServiceImpl {
     /// Healthcheck endpoint, always returns OK status
-    fn languages(&self) -> ServiceFuture<Vec<String>> {
+    fn languages(&self) -> ServiceFuture<Vec<Language>> {
         let db_pool = self.db_pool.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -43,7 +43,7 @@ impl CatalogueService for CatalogueServiceImpl {
         }))
     }
 
-    fn currencies(&self) -> ServiceFuture<Vec<String>>{
+    fn currencies(&self) -> ServiceFuture<Vec<Currency>>{
         let db_pool = self.db_pool.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {

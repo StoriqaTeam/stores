@@ -5,7 +5,7 @@ use futures_cpupool::CpuPool;
 use diesel::Connection;
 use futures::prelude::*;
 
-use models::product::{NewProduct, Product, UpdateProduct};
+use models::product::{NewProductWithAttributes, NewProduct, Product, UpdateProduct};
 use models::SearchProduct;
 use repos::{ProductsRepo, ProductsRepoImpl, ProductsSearchRepo, ProductsSearchRepoImpl};
 use super::types::ServiceFuture;
@@ -22,7 +22,7 @@ pub trait ProductsService {
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> ServiceFuture<Product>;
     /// Creates new product
-    fn create(&self, payload: NewProduct) -> ServiceFuture<Product>;
+    fn create(&self, payload: NewProductWithAttributes) -> ServiceFuture<Product>;
     /// Lists users limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Product>>;
     /// Updates specific product
@@ -159,7 +159,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
     }
 
     /// Creates new product
-    fn create(&self, payload: NewProduct) -> ServiceFuture<Product> {
+    fn create(&self, payload: NewProductWithAttributes) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id.clone();
         let roles_cache = self.roles_cache.clone();
@@ -177,7 +177,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                             let mut products_repo = ProductsRepoImpl::new(&conn, acl);
                             conn.transaction::<Product, Error, _>(move || {
                                 products_repo
-                                    .name_exists(payload.name.to_string())
+                                    .name_exists(payload.product.name.to_string())
                                     .map(move |exists| (payload, exists))
                                     .map_err(Error::from)
                                     .and_then(|(payload, exists)| match exists {
@@ -186,10 +186,9 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                                     })
                                     .and_then(move |new_product| {
                                         products_repo
-                                            .create(new_product)
+                                            .create(new_product.product)
                                             .map_err(|e| Error::from(e))
                                     })
-                                //rollback if error
                             })
                         })
                 })

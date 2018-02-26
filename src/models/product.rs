@@ -9,7 +9,7 @@ use super::Store;
 use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
-use models::AttributeFilter;
+use models::{AttributeFilter, AttrValue};
 
 /// diesel table for products
 table! {
@@ -68,6 +68,13 @@ pub struct NewProduct {
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
     pub default_language: Language,
+}
+
+/// Payload for creating products and attributes
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewProductWithAttributes {
+    pub product: NewProduct,
+    pub attributes: Vec<AttrValue>
 }
 
 /// Payload for updating products

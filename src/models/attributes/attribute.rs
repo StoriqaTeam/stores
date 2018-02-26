@@ -13,21 +13,15 @@ table! {
 pub struct Attribute {
     pub id: i32,
     pub name: String,
-    pub ty: AttributeType
+    pub ty: WidgetType
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(tag = "attribute_type")]
-pub enum AttributeType {
-    Str,
-    Float
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(tag = "attribute_type", content = "attribute_value")]
-pub enum AttributeValue {
-    Str(String),
-    Float(f32)
+pub enum WidgetType {
+    ComboBox,
+    CheckBox,
+    TextBox,
 }
 
 mod diesel_impl {
@@ -44,18 +38,19 @@ mod diesel_impl {
     use diesel::deserialize::Queryable;
     use diesel::sql_types::VarChar;
 
-    use super::AttributeType;
+    use super::WidgetType;
 
-    impl NotNull for AttributeType {}
-    impl SingleValue for AttributeType {}
+    impl NotNull for WidgetType {}
+    impl SingleValue for WidgetType {}
 
-    impl FromSqlRow<VarChar, Pg> for AttributeType {
+    impl FromSqlRow<VarChar, Pg> for WidgetType {
         fn build_from_row<R: Row<Pg>>(row: &mut R) -> Result<Self, Box<Error + Send + Sync>> {
             match row.take() {
-                Some(b"str") => Ok(AttributeType::Str),
-                Some(b"float") => Ok(AttributeType::Float),
+                Some(b"combobox") => Ok(WidgetType::ComboBox),
+                Some(b"checkbox") => Ok(WidgetType::CheckBox),
+                Some(b"textbox") => Ok(WidgetType::TextBox),
                 Some(value) => Err(format!(
-                    "Unrecognized enum variant for AttributeType: {}",
+                    "Unrecognized enum variant for WidgetType: {}",
                     str::from_utf8(value).unwrap_or("unreadable value")
                 ).into()),
                 None => Err("Unexpected null for non-null column `role`".into()),
@@ -63,32 +58,33 @@ mod diesel_impl {
         }
     }
 
-    impl Queryable<VarChar, Pg> for AttributeType {
-        type Row = AttributeType;
+    impl Queryable<VarChar, Pg> for WidgetType {
+        type Row = WidgetType;
         fn build(row: Self::Row) -> Self {
             row
         }
     }
 
-    impl ToSql<VarChar, Pg> for AttributeType {
+    impl ToSql<VarChar, Pg> for WidgetType {
         fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> Result<IsNull, Box<Error + Send + Sync>> {
             match *self {
-                AttributeType::Str => out.write_all(b"str")?,
-                AttributeType::Float => out.write_all(b"float")?,
+                WidgetType::ComboBox => out.write_all(b"combobox")?,
+                WidgetType::CheckBox => out.write_all(b"checkbox")?,
+                WidgetType::TextBox => out.write_all(b"textbox")?,
             }
             Ok(IsNull::No)
         }
     }
 
-    impl AsExpression<VarChar> for AttributeType {
-        type Expression = Bound<VarChar, AttributeType>;
+    impl AsExpression<VarChar> for WidgetType {
+        type Expression = Bound<VarChar, WidgetType>;
         fn as_expression(self) -> Self::Expression {
             Bound::new(self)
         }
     }
 
-    impl<'a> AsExpression<VarChar> for &'a AttributeType {
-        type Expression = Bound<VarChar, &'a AttributeType>;
+    impl<'a> AsExpression<VarChar> for &'a WidgetType {
+        type Expression = Bound<VarChar, &'a WidgetType>;
         fn as_expression(self) -> Self::Expression {
             Bound::new(self)
         }

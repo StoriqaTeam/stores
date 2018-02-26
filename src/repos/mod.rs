@@ -6,11 +6,13 @@ pub mod stores;
 pub mod stores_search;
 pub mod products;
 pub mod products_search;
+pub mod product_attrs;
 pub mod error;
 pub mod types;
 
 pub use self::products::*;
 pub use self::products_search::*;
+pub use self::product_attrs::*;
 pub use self::stores::*;
 pub use self::stores_search::*;
 pub use self::types::*;

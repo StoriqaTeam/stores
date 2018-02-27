@@ -13,11 +13,13 @@ use std::str::FromStr;
 
 use futures::Future;
 use futures::future;
+use futures::IntoFuture;
 use hyper::{Delete, Get, Post, Put};
 use hyper::header::Authorization;
 use hyper::server::Request;
 use serde_json;
 use futures_cpupool::CpuPool;
+use validator::Validate;
 
 use self::error::Error;
 use services::system::{SystemService, SystemServiceImpl};
@@ -83,12 +85,13 @@ impl Controller {
         let products_service = ProductsServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_roles,
+            cached_roles.clone(),
             user_id,
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
         );
-        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
+            
+        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), cached_roles);
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
@@ -138,16 +141,24 @@ impl Controller {
             (&Post, Some(Route::Stores)) => serialize_future!(
                 parse_body::<models::NewStore>(req.body())
                     .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
-                    .and_then(move |new_store| stores_service.create(new_store).map_err(|e| Error::from(e)))
+                    .and_then(move |new_store| new_store
+                        .validate()
+                        .map_err(Error::Validate)
+                        .into_future()
+                        .and_then(move |_| stores_service.create(new_store).map_err(Error::from)))
             ),
 
             // PUT /stores/<store_id>
             (&Put, Some(Route::Store(store_id))) => serialize_future!(
                 parse_body::<models::UpdateStore>(req.body())
                     .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
-                    .and_then(move |update_store| stores_service
-                        .update(store_id, update_store)
-                        .map_err(|e| Error::from(e)))
+                    .and_then(move |update_store| update_store
+                        .validate()
+                        .map_err(Error::Validate)
+                        .into_future()
+                        .and_then(move |_| stores_service
+                            .update(store_id, update_store)
+                            .map_err(Error::from)))
             ),
 
             // DELETE /stores/<store_id>
@@ -188,18 +199,25 @@ impl Controller {
             (&Post, Some(Route::Products)) => serialize_future!(
                 parse_body::<models::NewProductWithAttributes>(req.body())
                     .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
-                    .and_then(move |new_product| products_service
-                        .create(new_product)
-                        .map_err(|e| Error::from(e)))
+                    .and_then(move |new_product| new_product
+                        .product
+                        .validate()
+                        .map_err(Error::Validate)
+                        .into_future()
+                        .and_then(move |_| products_service.create(new_product).map_err(Error::from)))
             ),
 
             // PUT /products/<product_id>
             (&Put, Some(Route::Product(product_id))) => serialize_future!(
                 parse_body::<models::UpdateProduct>(req.body())
                     .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
-                    .and_then(move |update_product| products_service
-                        .update(product_id, update_product)
-                        .map_err(|e| Error::from(e)))
+                    .and_then(move |update_product| update_product
+                        .validate()
+                        .map_err(Error::Validate)
+                        .into_future()
+                        .and_then(move |_| products_service
+                            .update(product_id, update_product)
+                            .map_err(Error::from)))
             ),
 
             // DELETE /products/<product_id>

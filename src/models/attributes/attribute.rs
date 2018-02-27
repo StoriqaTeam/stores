@@ -4,7 +4,7 @@ table! {
     attributes {
         id -> Integer,
         name -> VarChar,
-        ty -> VarChar,
+        ui_type -> VarChar,
     }
 }
 
@@ -13,7 +13,7 @@ table! {
 pub struct Attribute {
     pub id: i32,
     pub name: String,
-    pub ty: WidgetType,
+    pub ui_type: WidgetType,
 }
 
 /// Payload for creating attributes
@@ -21,7 +21,7 @@ pub struct Attribute {
 #[table_name = "attributes"]
 pub struct NewAttribute {
     pub name: String,
-    pub ty: WidgetType,
+    pub ui_type: WidgetType,
 }
 
 /// Payload for updating attributes
@@ -29,7 +29,7 @@ pub struct NewAttribute {
 #[table_name = "attributes"]
 pub struct UpdateAttribute {
     pub name: Option<String>,
-    pub ty: Option<WidgetType>,
+    pub ui_type: Option<WidgetType>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

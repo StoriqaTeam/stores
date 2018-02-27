@@ -3,10 +3,7 @@ use models::Product;
 use models::authorization::*;
 use repos::types::DbConnection;
 use diesel::prelude::*;
-use serde::ser::{Serialize, Serializer, SerializeStruct};
-
-
-
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 /// diesel table for product attributes
 table! {
@@ -32,21 +29,20 @@ pub struct ProdAttr {
 
 impl Serialize for ProdAttr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
-        // 3 is the number of fields in the struct.
         let mut state = serializer.serialize_struct("ProdAttr", 4)?;
         state.serialize_field("id", &self.id)?;
         state.serialize_field("prod_id", &self.prod_id)?;
         state.serialize_field("attr_id", &self.attr_id)?;
-        let res = match &self.value_type {
+        match &self.value_type {
             &AttributeType::Float => {
-                    let f = self.value.parse::<f32>().map_err(|e| e.to_string());
-                    state.serialize_field("float_val", &f)
-                },
+                let f = self.value.parse::<f32>().map_err(|e| e.to_string());
+                state.serialize_field("float_val", &f)
+            }
             &AttributeType::Str => state.serialize_field("str_val", &self.value),
-        };
-        res?;
+        }?;
 
         state.end()
     }
@@ -71,9 +67,6 @@ pub struct UpdateProdAttr {
     pub value: String,
     pub value_type: AttributeType,
 }
-
-
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AttrValue {

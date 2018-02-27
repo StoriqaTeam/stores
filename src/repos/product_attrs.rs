@@ -14,7 +14,7 @@ use models::authorization::*;
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: Box<Acl>,
+    pub acl: &'a Acl,
 }
 
 pub trait ProductAttrsRepo {
@@ -29,7 +29,7 @@ pub trait ProductAttrsRepo {
 }
 
 impl<'a> ProductAttrsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
         Self { db_conn, acl }
     }
 }

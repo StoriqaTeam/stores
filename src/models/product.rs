@@ -1,7 +1,9 @@
 //! Module containg product model for query, insert, update
 use std::time::SystemTime;
 
-use validator::Validate;
+use validator::{Validate, ValidationError};
+use std::borrow::Cow;
+use std::collections::HashMap;
 use diesel::prelude::*;
 
 use super::Language;
@@ -10,6 +12,18 @@ use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
 use models::{AttrValue, AttributeFilter};
+
+pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError> {
+    if val.into() > 0f64 {
+        Ok(())
+    } else {
+        Err(ValidationError {
+            code: Cow::from("value"),
+            message: Some(Cow::from("Value must be non negative.")),
+            params: HashMap::new(),
+        })
+    }
+}
 
 /// diesel table for products
 table! {
@@ -60,12 +74,17 @@ pub struct NewProduct {
     pub name: String,
     pub store_id: i32,
     pub currency_id: i32,
+    #[validate(length(min = "1", message = "Short description must not be empty"))]
     pub short_description: String,
+    #[validate(length(min = "1", message = "Long description must not be empty"))]
     pub long_description: Option<String>,
+    #[validate(custom = "validate_non_negative")]
     pub price: f64,
+    #[validate(custom = "validate_non_negative")]
     pub discount: Option<f32>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
+    #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
     pub default_language: Language,
 }
@@ -78,17 +97,22 @@ pub struct NewProductWithAttributes {
 }
 
 /// Payload for updating products
-#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
 #[table_name = "products"]
 pub struct UpdateProduct {
     pub name: Option<String>,
     pub currency_id: Option<i32>,
+    #[validate(length(min = "1", message = "Short description must not be empty"))]
     pub short_description: Option<String>,
+    #[validate(length(min = "1", message = "Long description must not be empty"))]
     pub long_description: Option<String>,
+    #[validate(custom = "validate_non_negative")]
     pub price: Option<f64>,
+    #[validate(custom = "validate_non_negative")]
     pub discount: Option<f32>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
+    #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
     pub default_language: Option<Language>,
 }

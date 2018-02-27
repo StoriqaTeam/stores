@@ -61,7 +61,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         let props = match prod.attr_filters {
             None => json!({}),
             Some(filters) => {
-                let fil: Vec<serde_json::Value> = filters
+                let filter: Vec<serde_json::Value> = filters
                     .into_iter()
                     .map(|attr| {
                         let attribute_name = attr.name.clone();
@@ -88,7 +88,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         "nested" : {
                             "path" : "properties",
                             "filter" : {
-                                "bool" : fil
+                                "bool" : filter
                             }
                         }
                 })

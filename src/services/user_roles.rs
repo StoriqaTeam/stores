@@ -6,31 +6,33 @@ use models::{NewUserRole, OldUserRole, UserRole};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
-use repos::acl::SystemACL;
+use repos::acl::{SystemACL, RolesCache};
 use repos::user_roles::{UserRolesRepo, UserRolesRepoImpl};
 
 pub trait UserRolesService {
     /// Returns user_role by ID
     fn get(&self, user_role_id: i32) -> ServiceFuture<Vec<UserRole>>;
     /// Delete specific user role
-    fn delete(&self, payload: OldUserRole) -> ServiceFuture<UserRole>;
+    fn delete(&self, payload: OldUserRole) -> ServiceFuture<()>;
     /// Creates new user_role
     fn create(&self, payload: NewUserRole) -> ServiceFuture<UserRole>;
 }
 
 /// UserRoles services, responsible for UserRole-related CRUD operations
-pub struct UserRolesServiceImpl {
+pub struct UserRolesServiceImpl<R: RolesCache + Clone + Send + 'static> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
+    pub roles_cache: R,
 }
 
-impl UserRolesServiceImpl {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool) -> Self {
-        Self { db_pool, cpu_pool }
+impl<R: RolesCache + Clone + Send + 'static> UserRolesServiceImpl<R> {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool,         roles_cache: R
+) -> Self {
+        Self { db_pool, cpu_pool, roles_cache }
     }
 }
 
-impl UserRolesService for UserRolesServiceImpl {
+impl<R: RolesCache + Clone + Send + 'static> UserRolesService for UserRolesServiceImpl<R> {
     /// Returns user_role by ID
     fn get(&self, user_role_id: i32) -> ServiceFuture<Vec<UserRole>> {
         let db_pool = self.db_pool.clone();
@@ -49,8 +51,9 @@ impl UserRolesService for UserRolesServiceImpl {
     }
 
     /// Deletes specific user role
-    fn delete(&self, payload: OldUserRole) -> ServiceFuture<UserRole> {
+    fn delete(&self, payload: OldUserRole) -> ServiceFuture<()> {
         let db_pool = self.db_pool.clone();
+        let roles_cache = self.roles_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -60,6 +63,7 @@ impl UserRolesService for UserRolesServiceImpl {
                     let user_roles_repo = UserRolesRepoImpl::new(&conn, Box::new(SystemACL::new()));
                     user_roles_repo.delete(payload).map_err(|e| Error::from(e))
                 })
+                .and_then(|_| roles_cache.clear().map_err(|e| Error::from(e)))
         }))
     }
 

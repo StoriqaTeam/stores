@@ -1,10 +1,29 @@
 //! Module containg store model for query, insert, update
 use std::time::SystemTime;
 
-use validator::Validate;
+use validator::{Validate, ValidationError};
+use regex::Regex;
+use std::borrow::Cow;
+use std::collections::HashMap;
 
 use super::authorization::*;
 use repos::types::DbConnection;
+
+pub fn validate_phone(phone: &String) -> Result<(), ValidationError> {
+    lazy_static! {
+        static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^\+?\d{7}\d*$").unwrap();
+    }
+
+    if PHONE_VALIDATION_RE.is_match(phone) {
+        Ok(())
+    } else {
+        Err(ValidationError {
+            code: Cow::from("phone"),
+            message: Some(Cow::from("Incorrect phone format")),
+            params: HashMap::new(),
+        })
+    }
+}
 
 /// diesel table for stores
 table! {
@@ -77,31 +96,41 @@ pub struct NewStore {
     pub name: String,
     pub user_id: i32,
     pub currency_id: i32,
+    #[validate(length(min = "1", message = "Short description must not be empty"))]
     pub short_description: String,
+    #[validate(length(min = "1", message = "Long description must not be empty"))]
     pub long_description: Option<String>,
+    #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
-    pub phone: String,
-    pub email: String,
-    pub address: String,
+    #[validate(custom = "validate_phone")]
+    pub phone: Option<String>,
+    #[validate(email(message = "Invalid email format"))]
+    pub email: Option<String>,
+    pub address: Option<String>,
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
 }
 
 /// Payload for updating users
-#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
 #[table_name = "stores"]
 pub struct UpdateStore {
     pub name: Option<String>,
     pub currency_id: Option<i32>,
+    #[validate(length(min = "1", message = "Short description must not be empty"))]
     pub short_description: Option<String>,
-    pub long_description: Option<Option<String>>,
+    #[validate(length(min = "1", message = "Long description must not be empty"))]
+    pub long_description: Option<String>,
+    #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: Option<String>,
     pub cover: Option<Option<String>>,
     pub logo: Option<Option<String>>,
+    #[validate(custom = "validate_phone")]
     pub phone: Option<String>,
+    #[validate(email(message = "Invalid email format"))]
     pub email: Option<String>,
     pub address: Option<String>,
     pub facebook_url: Option<Option<String>>,

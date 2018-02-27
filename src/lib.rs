@@ -23,6 +23,8 @@ extern crate hyper;
 extern crate hyper_tls;
 extern crate jsonwebtoken;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
 extern crate r2d2;
 extern crate r2d2_diesel;

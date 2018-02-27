@@ -18,7 +18,7 @@ use models::authorization::*;
 /// Products repository, responsible for handling products
 pub struct ProductsRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: Box<Acl>,
+    pub acl: &'a Acl,
 }
 
 pub trait ProductsRepo {
@@ -45,7 +45,7 @@ pub trait ProductsRepo {
 }
 
 impl<'a> ProductsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
         Self { db_conn, acl }
     }
 

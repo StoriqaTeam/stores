@@ -23,11 +23,12 @@ impl RolesCacheImpl {
 }
 
 pub trait RolesCache {
-    fn get(&mut self, id: i32, db_conn: Option<&DbConnection>) -> RepoResult<Vec<Role>>;
+    fn get(&self, id: i32, db_conn: Option<&DbConnection>) -> RepoResult<Vec<Role>>;
+    fn clear(&self) -> RepoResult<()>;
 }
 
 impl RolesCache for RolesCacheImpl {
-    fn get(&mut self, id: i32, db_conn: Option<&DbConnection>) -> RepoResult<Vec<Role>> {
+    fn get(&self, id: i32, db_conn: Option<&DbConnection>) -> RepoResult<Vec<Role>> {
         let mut hash_map = self.roles_cache.lock().unwrap();
         match hash_map.entry(id) {
             Entry::Occupied(o) => Ok(o.get().clone()),
@@ -43,5 +44,11 @@ impl RolesCache for RolesCacheImpl {
                     Ok(vec)
                 }),
         }
+    }
+
+    fn clear(&self) -> RepoResult<()> {
+        let mut hash_map = self.roles_cache.lock().unwrap();
+        hash_map.clear();
+        Ok(())
     }
 }

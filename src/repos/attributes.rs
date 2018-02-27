@@ -14,7 +14,7 @@ use models::authorization::*;
 /// Attributes repository, responsible for handling attribute_values
 pub struct AttributesRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: Box<Acl>,
+    pub acl: &'a Acl,
 }
 
 pub trait AttributesRepo {
@@ -29,7 +29,7 @@ pub trait AttributesRepo {
 }
 
 impl<'a> AttributesRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
         Self { db_conn, acl }
     }
 }

@@ -2,6 +2,7 @@ use hyper;
 use serde_json;
 
 use services::error::Error as ServiceError;
+use validator::ValidationErrors;
 
 #[derive(Debug)]
 pub enum Error {
@@ -10,6 +11,7 @@ pub enum Error {
     UnprocessableEntity(String),
     InternalServerError(String),
     UnAuthorized(String),
+    Validate(ValidationErrors),
 }
 
 impl From<serde_json::error::Error> for Error {
@@ -43,7 +45,7 @@ impl Error {
 
         match self {
             &NotFound => StatusCode::NotFound,
-            &BadRequest(_) => StatusCode::BadRequest,
+            &BadRequest(_) | &Validate(_) => StatusCode::BadRequest,
             &UnprocessableEntity(_) => StatusCode::UnprocessableEntity,
             &InternalServerError(_) => StatusCode::InternalServerError,
             &UnAuthorized(_) => StatusCode::Unauthorized,
@@ -60,6 +62,10 @@ impl Error {
             &UnprocessableEntity(ref msg) => msg.to_string(),
             &InternalServerError(ref msg) => msg.to_string(),
             &UnAuthorized(ref msg) => msg.to_string(),
+            &Validate(ref valid_err) => match serde_json::to_string(valid_err) {
+                Ok(res) => res,
+                Err(_) => "Bad request".to_string(),
+            },
         }
     }
 }

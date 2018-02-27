@@ -21,7 +21,7 @@ pub trait UserRolesRepo {
     fn create(&self, payload: NewUserRole) -> RepoResult<UserRole>;
 
     /// Delete role of a user
-    fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole>;
+    fn delete(&self, payload: OldUserRole) -> RepoResult<()>;
 }
 
 /// Implementation of UserRoles trait
@@ -49,11 +49,13 @@ impl<'a> UserRolesRepo for UserRolesRepoImpl<'a> {
         query.get_result(&**self.db_conn).map_err(Error::from)
     }
 
-    fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
+    fn delete(&self, payload: OldUserRole) -> RepoResult<()> {
         let filtered = user_roles
             .filter(user_id.eq(payload.user_id))
             .filter(role.eq(payload.role));
         let query = diesel::delete(filtered);
-        query.get_result(&**self.db_conn).map_err(Error::from)
+        query.execute(&**self.db_conn)
+            .map_err(Error::from)
+            .and_then(|_| Ok(()))
     }
 }

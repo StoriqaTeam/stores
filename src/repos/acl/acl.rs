@@ -15,7 +15,7 @@ pub trait Acl {
     /// permissions. E.g. You can say that a user can do `Create` (`Action`) on `Store` (`Resource`) only if he's the
     /// `Owner` (`Scope`) of the store.
     fn can(
-        &mut self,
+        &self,
         resource: Resource,
         action: Action,
         resources_with_scope: Vec<&WithScope>,
@@ -30,7 +30,7 @@ pub struct SystemACL {}
 #[allow(unused)]
 impl Acl for SystemACL {
     fn can(
-        &mut self,
+        &self,
         resource: Resource,
         action: Action,
         resources_with_scope: Vec<&WithScope>,
@@ -53,7 +53,7 @@ pub struct UnauthorizedACL {}
 #[allow(unused)]
 impl Acl for UnauthorizedACL {
     fn can(
-        &mut self,
+        &self,
         resource: Resource,
         action: Action,
         resources_with_scope: Vec<&WithScope>,
@@ -110,7 +110,7 @@ impl<R: RolesCache> ApplicationAcl<R> {
 
 impl<R: RolesCache> Acl for ApplicationAcl<R> {
     fn can(
-        &mut self,
+        &self,
         resource: Resource,
         action: Action,
         resources_with_scope: Vec<&WithScope>,

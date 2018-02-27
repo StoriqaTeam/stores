@@ -1,14 +1,28 @@
 //! Module containg product model for query, insert, update
 use std::time::SystemTime;
 
-use validator::Validate;
+use validator::{Validate, ValidationError};
+use std::borrow::Cow;
+use std::collections::HashMap;
 use diesel::prelude::*;
 
-use super::Language;
 use super::Store;
 use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
+use models::{AttrValue, AttributeFilter};
+
+pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError> {
+    if val.into() > 0f64 {
+        Ok(())
+    } else {
+        Err(ValidationError {
+            code: Cow::from("value"),
+            message: Some(Cow::from("Value must be non negative.")),
+            params: HashMap::new(),
+        })
+    }
+}
 
 /// diesel table for products
 table! {
@@ -22,11 +36,10 @@ table! {
         price -> Double,
         currency_id -> Integer,
         discount -> Nullable<Float>,
-        category -> Nullable<Integer>,
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Float>,
-        default_language -> Varchar,
+        language_id -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -45,11 +58,10 @@ pub struct Product {
     pub price: f64,
     pub currency_id: i32,
     pub discount: Option<f32>,
-    pub category: Option<i32>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub default_language: Language,
+    pub language_id: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -61,32 +73,72 @@ pub struct NewProduct {
     pub name: String,
     pub store_id: i32,
     pub currency_id: i32,
+    #[validate(length(min = "1", message = "Short description must not be empty"))]
     pub short_description: String,
+    #[validate(length(min = "1", message = "Long description must not be empty"))]
     pub long_description: Option<String>,
+    #[validate(custom = "validate_non_negative")]
     pub price: f64,
+    #[validate(custom = "validate_non_negative")]
     pub discount: Option<f32>,
-    pub category: Option<i32>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
+    #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
-    pub default_language: Language,
+    pub language_id: i32,
+}
+
+/// Payload for creating products and attributes
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewProductWithAttributes {
+    pub product: NewProduct,
+    pub attributes: Vec<AttrValue>,
 }
 
 /// Payload for updating products
-#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
 #[table_name = "products"]
 pub struct UpdateProduct {
-    pub name: String,
+    pub name: Option<String>,
     pub currency_id: Option<i32>,
+    #[validate(length(min = "1", message = "Short description must not be empty"))]
     pub short_description: Option<String>,
-    pub long_description: Option<Option<String>>,
+    #[validate(length(min = "1", message = "Long description must not be empty"))]
+    pub long_description: Option<String>,
+    #[validate(custom = "validate_non_negative")]
     pub price: Option<f64>,
-    pub discount: Option<Option<f32>>,
-    pub category: Option<Option<i32>>,
-    pub photo_main: Option<Option<String>>,
-    pub vendor_code: Option<Option<String>>,
-    pub cashback: Option<Option<f32>>,
-    pub default_language: Option<Language>,
+    #[validate(custom = "validate_non_negative")]
+    pub discount: Option<f32>,
+    pub photo_main: Option<String>,
+    pub vendor_code: Option<String>,
+    #[validate(custom = "validate_non_negative")]
+    pub cashback: Option<f32>,
+    pub language_id: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ElasticProduct {
+    pub id: i32,
+    pub name: String,
+    pub short_description: String,
+    pub long_description: Option<String>,
+}
+
+impl From<Product> for ElasticProduct {
+    fn from(product: Product) -> Self {
+        Self {
+            id: product.id,
+            name: product.name,
+            short_description: product.short_description,
+            long_description: product.long_description,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SearchProduct {
+    pub name: Option<String>,
+    pub attr_filters: Option<Vec<AttributeFilter>>,
 }
 
 impl WithScope for Product {

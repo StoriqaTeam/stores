@@ -38,14 +38,16 @@ table! {
         slug -> VarChar,
         cover -> Nullable<VarChar>,
         logo -> Nullable<VarChar>,
-        phone -> VarChar,
-        email -> VarChar,
-        address -> VarChar,
+        phone -> Nullable<VarChar>,
+        email -> Nullable<VarChar>,
+        address -> Nullable<VarChar>,
         facebook_url -> Nullable<VarChar>,
         twitter_url -> Nullable<VarChar>,
         instagram_url -> Nullable<VarChar>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        language_id -> Integer,
+        slogan -> Nullable<VarChar>,
     }
 }
 
@@ -62,14 +64,16 @@ pub struct Store {
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
-    pub phone: String,
-    pub email: String,
-    pub address: String,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+    pub address: Option<String>,
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
+    pub language_id: i32,
+    pub slogan: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, ElasticType)]
@@ -112,6 +116,8 @@ pub struct NewStore {
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
+    pub language_id: i32,
+    pub slogan: Option<String>,
 }
 
 /// Payload for updating users
@@ -133,9 +139,11 @@ pub struct UpdateStore {
     #[validate(email(message = "Invalid email format"))]
     pub email: Option<String>,
     pub address: Option<String>,
-    pub facebook_url: Option<Option<String>>,
-    pub twitter_url: Option<Option<String>>,
-    pub instagram_url: Option<Option<String>>,
+    pub facebook_url: Option<String>,
+    pub twitter_url: Option<String>,
+    pub instagram_url: Option<String>,
+    pub language_id: Option<i32>,
+    pub slogan: Option<String>,
 }
 
 impl WithScope for Store {

@@ -6,7 +6,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use diesel::prelude::*;
 
-use super::Language;
 use super::Store;
 use super::authorization::*;
 use repos::types::DbConnection;
@@ -40,7 +39,7 @@ table! {
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Float>,
-        default_language -> Varchar,
+        language_id -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -62,7 +61,7 @@ pub struct Product {
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub default_language: Language,
+    pub language_id: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -86,7 +85,7 @@ pub struct NewProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
-    pub default_language: Language,
+    pub language_id: i32,
 }
 
 /// Payload for creating products and attributes
@@ -114,7 +113,7 @@ pub struct UpdateProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
-    pub default_language: Option<Language>,
+    pub language_id: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

@@ -13,7 +13,7 @@ pub mod attributes;
 pub use self::authorization::*;
 pub use self::store::*;
 pub use self::product::*;
-pub use self::language::Language;
+pub use self::language::*;
 pub use self::user_role::*;
 pub use self::elastic::*;
 pub use self::category::*;

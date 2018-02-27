@@ -249,7 +249,7 @@ pub fn create_product(id: i32, name: String) -> Product {
         updated_at: SystemTime::now(),
         vendor_code: None,
         cashback: None,
-        default_language: Language::Russian,
+        language_id: 1,
     }
 }
 
@@ -266,7 +266,7 @@ pub fn create_new_product(name: String) -> NewProduct {
         photo_main: None,
         vendor_code: None,
         cashback: None,
-        default_language: Language::Russian,
+        language_id: 1,
     }
 }
 
@@ -282,7 +282,7 @@ pub fn create_update_product(name: String) -> UpdateProduct {
         photo_main: None,
         vendor_code: None,
         cashback: None,
-        default_language: None,
+        language_id: None,
     }
 }
 

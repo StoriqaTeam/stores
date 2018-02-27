@@ -5,7 +5,6 @@ pub mod attribute;
 pub mod attribute_product;
 pub mod attribute_filter;
 
-
 pub use self::attribute_product::*;
 pub use self::attribute_filter::*;
 pub use self::attribute::*;

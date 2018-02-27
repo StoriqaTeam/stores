@@ -9,7 +9,7 @@ use super::Store;
 use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
-use models::{AttributeFilter, AttrValue};
+use models::{AttrValue, AttributeFilter};
 
 /// diesel table for products
 table! {
@@ -74,7 +74,7 @@ pub struct NewProduct {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewProductWithAttributes {
     pub product: NewProduct,
-    pub attributes: Vec<AttrValue>
+    pub attributes: Vec<AttrValue>,
 }
 
 /// Payload for updating products
@@ -111,7 +111,6 @@ impl From<Product> for ElasticProduct {
         }
     }
 }
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SearchProduct {

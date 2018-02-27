@@ -3,6 +3,9 @@ use models::Product;
 use models::authorization::*;
 use repos::types::DbConnection;
 use diesel::prelude::*;
+use serde::ser::{Serialize, Serializer, SerializeStruct};
+
+
 
 
 /// diesel table for product attributes
@@ -11,13 +14,13 @@ table! {
         id -> Integer,
         prod_id -> Integer,
         attr_id -> Integer,
-        value -> VarChar, 
+        value -> VarChar,
         value_type -> VarChar,
     }
 }
 
-/// Payload for querying products
-#[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
+/// Payload for querying product attributes
+#[derive(Debug, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "prod_attr_values"]
 pub struct ProdAttr {
     pub id: i32,
@@ -27,7 +30,29 @@ pub struct ProdAttr {
     pub value_type: AttributeType,
 }
 
-/// Payload for creating products
+impl Serialize for ProdAttr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("ProdAttr", 4)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("prod_id", &self.prod_id)?;
+        state.serialize_field("attr_id", &self.attr_id)?;
+        let res = match &self.value_type {
+            &AttributeType::Float => {
+                    let f = self.value.parse::<f32>().map_err(|e| e.to_string());
+                    state.serialize_field("float_val", &f)
+                },
+            &AttributeType::Str => state.serialize_field("str_val", &self.value),
+        };
+        res?;
+
+        state.end()
+    }
+}
+
+/// Payload for creating product attributes
 #[derive(Serialize, Deserialize, Insertable, Clone)]
 #[table_name = "prod_attr_values"]
 pub struct NewProdAttr {
@@ -37,7 +62,7 @@ pub struct NewProdAttr {
     pub value_type: AttributeType,
 }
 
-/// Payload for updating products
+/// Payload for updating product attributes
 #[derive(Serialize, Deserialize, Insertable, AsChangeset)]
 #[table_name = "prod_attr_values"]
 pub struct UpdateProdAttr {
@@ -46,6 +71,9 @@ pub struct UpdateProdAttr {
     pub value: String,
     pub value_type: AttributeType,
 }
+
+
+
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AttrValue {
@@ -58,7 +86,7 @@ pub struct AttrValue {
 #[serde(tag = "attribute_type")]
 pub enum AttributeType {
     Str,
-    Float
+    Float,
 }
 
 impl WithScope for ProdAttr {
@@ -80,7 +108,6 @@ impl WithScope for ProdAttr {
         }
     }
 }
-
 
 impl WithScope for NewProdAttr {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {

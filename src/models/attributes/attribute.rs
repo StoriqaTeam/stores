@@ -13,9 +13,24 @@ table! {
 pub struct Attribute {
     pub id: i32,
     pub name: String,
-    pub ty: WidgetType
+    pub ty: WidgetType,
 }
 
+/// Payload for creating attributes
+#[derive(Serialize, Deserialize, Insertable, Clone)]
+#[table_name = "attributes"]
+pub struct NewAttribute {
+    pub name: String,
+    pub ty: WidgetType,
+}
+
+/// Payload for updating attributes
+#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[table_name = "attributes"]
+pub struct UpdateAttribute {
+    pub name: Option<String>,
+    pub ty: Option<WidgetType>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum WidgetType {

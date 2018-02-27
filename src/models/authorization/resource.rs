@@ -5,6 +5,7 @@ use std::fmt;
 pub enum Resource {
     Products,
     ProductAttrs,
+    Attributes,
     Stores,
     UserRoles,
 }
@@ -16,6 +17,7 @@ impl fmt::Display for Resource {
             Resource::Stores => write!(f, "stores"),
             Resource::UserRoles => write!(f, "user roles"),
             Resource::ProductAttrs => write!(f, "prod attrs"),
+            Resource::Attributes => write!(f, "attributes"),
         }
     }
 }

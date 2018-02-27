@@ -10,7 +10,6 @@ pub mod elastic;
 pub mod category;
 pub mod attributes;
 
-
 pub use self::authorization::*;
 pub use self::store::*;
 pub use self::product::*;

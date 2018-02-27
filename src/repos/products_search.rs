@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{Filter, ElasticProduct, IndexResponse, SearchProduct, ElasticIndex, ProdAttr};
+use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, ProdAttr, SearchProduct};
 use super::error::Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
@@ -66,11 +66,21 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                     .map(|attr| {
                         let attribute_name = attr.name.clone();
                         match attr.filter {
-                            Filter::Equal(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}},{"term": {"attribute_value": val}}]}),
-                            Filter::Lte(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"lte": val }}}]}),
-                            Filter::Le(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"le": val }}}]}),
-                            Filter::Ge(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"ge": val }}}]}),
-                            Filter::Gte(val) => json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"gte": val }}}]}),
+                            Filter::Equal(val) => {
+                                json!({ "must": [{"term": {"attribute_name": attribute_name}},{"term": {"attribute_value": val}}]})
+                            }
+                            Filter::Lte(val) => {
+                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"lte": val }}}]})
+                            }
+                            Filter::Le(val) => {
+                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"le": val }}}]})
+                            }
+                            Filter::Ge(val) => {
+                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"ge": val }}}]})
+                            }
+                            Filter::Gte(val) => {
+                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"gte": val }}}]})
+                            }
                         }
                     })
                     .collect();
@@ -97,7 +107,8 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
 
         let url = format!(
             "http://{}/{}/_doc/_search",
-            self.elastic_address, ElasticIndex::Product
+            self.elastic_address,
+            ElasticIndex::Product
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -114,7 +125,9 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         let body = serde_json::to_string(&new_prod_attr).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",
-            self.elastic_address, ElasticIndex::ProductAttributeValue, new_prod_attr.id
+            self.elastic_address,
+            ElasticIndex::ProductAttributeValue,
+            new_prod_attr.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -138,7 +151,9 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         let body = serde_json::to_string(&product).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",
-            self.elastic_address, ElasticIndex::Product, product.id
+            self.elastic_address,
+            ElasticIndex::Product,
+            product.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -164,7 +179,9 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         }).to_string();
         let url = format!(
             "http://{}/{}/_doc/{}/_update",
-            self.elastic_address, ElasticIndex::Product, product.id
+            self.elastic_address,
+            ElasticIndex::Product,
+            product.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());

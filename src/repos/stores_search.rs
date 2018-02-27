@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{ElasticStore, IndexResponse, ElasticIndex};
+use models::{ElasticIndex, ElasticStore, IndexResponse};
 use super::error::Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
@@ -52,7 +52,8 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
         }).to_string();
         let url = format!(
             "http://{}/{}/_doc/_search",
-            self.elastic_address, ElasticIndex::Store
+            self.elastic_address,
+            ElasticIndex::Store
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -69,7 +70,9 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
         let body = serde_json::to_string(&store).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",
-            self.elastic_address, ElasticIndex::Store, store.id
+            self.elastic_address,
+            ElasticIndex::Store,
+            store.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -95,7 +98,9 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
         }).to_string();
         let url = format!(
             "http://{}/{}/_doc/{}/_update",
-            self.elastic_address, ElasticIndex::Store, store.id
+            self.elastic_address,
+            ElasticIndex::Store,
+            store.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());

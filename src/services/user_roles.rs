@@ -6,7 +6,7 @@ use models::{NewUserRole, OldUserRole, UserRole};
 use super::types::ServiceFuture;
 use super::error::Error;
 use repos::types::DbPool;
-use repos::acl::{SystemACL, RolesCache};
+use repos::acl::{RolesCache, SystemACL};
 use repos::user_roles::{UserRolesRepo, UserRolesRepoImpl};
 
 pub trait UserRolesService {
@@ -26,9 +26,12 @@ pub struct UserRolesServiceImpl<R: RolesCache + Clone + Send + 'static> {
 }
 
 impl<R: RolesCache + Clone + Send + 'static> UserRolesServiceImpl<R> {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool,         roles_cache: R
-) -> Self {
-        Self { db_pool, cpu_pool, roles_cache }
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R) -> Self {
+        Self {
+            db_pool,
+            cpu_pool,
+            roles_cache,
+        }
     }
 }
 
@@ -42,7 +45,8 @@ impl<R: RolesCache + Clone + Send + 'static> UserRolesService for UserRolesServi
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let user_roles_repo = UserRolesRepoImpl::new(&conn, Box::new(SystemACL::new()));
+                    let acl = SystemACL::new();
+                    let user_roles_repo = UserRolesRepoImpl::new(&conn, &acl);
                     user_roles_repo
                         .list_for_user(user_role_id)
                         .map_err(Error::from)
@@ -54,32 +58,41 @@ impl<R: RolesCache + Clone + Send + 'static> UserRolesService for UserRolesServi
     fn delete(&self, payload: OldUserRole) -> ServiceFuture<()> {
         let db_pool = self.db_pool.clone();
         let roles_cache = self.roles_cache.clone();
+        let user_id = payload.user_id;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let user_roles_repo = UserRolesRepoImpl::new(&conn, Box::new(SystemACL::new()));
-                    user_roles_repo.delete(payload).map_err(|e| Error::from(e))
+                    let acl = SystemACL::new();
+                    let user_roles_repo = UserRolesRepoImpl::new(&conn, &acl);
+                    user_roles_repo.delete(payload).map_err(Error::from)
                 })
-                .and_then(|_| roles_cache.clear().map_err(|e| Error::from(e)))
+                .and_then(|_| roles_cache.remove(user_id).map_err(Error::from))
         }))
     }
 
     /// Creates new user_role
     fn create(&self, new_user_role: NewUserRole) -> ServiceFuture<UserRole> {
         let db_pool = self.db_pool.clone();
+        let roles_cache = self.roles_cache.clone();
+        let user_id = new_user_role.user_id;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Database(format!("Connection error {}", e)))
                 .and_then(move |conn| {
-                    let user_roles_repo = UserRolesRepoImpl::new(&conn, Box::new(SystemACL::new()));
-                    user_roles_repo
-                        .create(new_user_role)
-                        .map_err(|e| Error::from(e))
+                    let acl = SystemACL::new();
+                    let user_roles_repo = UserRolesRepoImpl::new(&conn, &acl);
+                    user_roles_repo.create(new_user_role).map_err(Error::from)
+                })
+                .and_then(|user_role| {
+                    roles_cache
+                        .remove(user_id)
+                        .map_err(Error::from)
+                        .and_then(|_| Ok(user_role))
                 })
         }))
     }

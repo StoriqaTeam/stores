@@ -19,13 +19,13 @@ pub struct ProductAttrsRepoImpl<'a> {
 
 pub trait ProductAttrsRepo {
     /// Find specific product_attribute by product_id
-    fn find(&mut self, product_id: i32) -> RepoResult<Vec<ProdAttr>>;
+    fn find(&self, product_id: i32) -> RepoResult<Vec<ProdAttr>>;
 
     /// Creates new product_attribute
-    fn create(&mut self, payload: NewProdAttr) -> RepoResult<ProdAttr>;
+    fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr>;
 
     /// Updates specific product_attribute
-    fn update(&mut self, prod_attr_id_arg: i32, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
+    fn update(&self, prod_attr_id_arg: i32, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
 }
 
 impl<'a> ProductAttrsRepoImpl<'a> {
@@ -36,14 +36,14 @@ impl<'a> ProductAttrsRepoImpl<'a> {
 
 impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
     /// Find specific product_attribute by ID
-    fn find(&mut self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+    fn find(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
         let query = prod_attr_values
             .filter(prod_id.eq(product_id_arg))
             .order(id);
 
         query
             .get_results(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 let resources = prod_attrs_res
                     .iter()
@@ -60,7 +60,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
     }
 
     /// Creates new product_attribute
-    fn create(&mut self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
+    fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
         acl!(
             [payload],
             self.acl,
@@ -75,12 +75,12 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
         })
     }
 
-    fn update(&mut self, prod_attr_id_arg: i32, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
+    fn update(&self, prod_attr_id_arg: i32, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
         let query = prod_attr_values.find(prod_attr_id_arg);
 
         query
             .first::<ProdAttr>(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|prod_attr: ProdAttr| {
                 acl!(
                     [prod_attr],
@@ -96,7 +96,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
                 let query = diesel::update(filter).set(&payload);
                 query
                     .get_result::<ProdAttr>(&**self.db_conn)
-                    .map_err(|e| Error::from(e))
+                    .map_err(Error::from)
             })
     }
 }

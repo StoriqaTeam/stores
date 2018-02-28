@@ -27,11 +27,11 @@ pub trait UserRolesRepo {
 /// Implementation of UserRoles trait
 pub struct UserRolesRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: Box<Acl>,
+    pub acl: &'a Acl,
 }
 
 impl<'a> UserRolesRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -39,9 +39,7 @@ impl<'a> UserRolesRepoImpl<'a> {
 impl<'a> UserRolesRepo for UserRolesRepoImpl<'a> {
     fn list_for_user(&self, user_id_value: i32) -> RepoResult<Vec<UserRole>> {
         let query = user_roles.filter(user_id.eq(user_id_value));
-        query
-            .get_results(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+        query.get_results(&**self.db_conn).map_err(Error::from)
     }
 
     fn create(&self, payload: NewUserRole) -> RepoResult<UserRole> {
@@ -54,7 +52,8 @@ impl<'a> UserRolesRepo for UserRolesRepoImpl<'a> {
             .filter(user_id.eq(payload.user_id))
             .filter(role.eq(payload.role));
         let query = diesel::delete(filtered);
-        query.execute(&**self.db_conn)
+        query
+            .execute(&**self.db_conn)
             .map_err(Error::from)
             .and_then(|_| Ok(()))
     }

@@ -21,16 +21,16 @@ pub struct ProductsSearchRepoImpl {
 
 pub trait ProductsSearchRepo {
     /// Find specific product by name limited by `count` parameters
-    fn search(&mut self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Creates new product
-    fn create_product(&mut self, product: ElasticProduct) -> RepoFuture<()>;
+    fn create_product(&self, product: ElasticProduct) -> RepoFuture<()>;
 
     /// Creates new product
-    fn create_attribute_product_value(&mut self, attr_prod: ProdAttr) -> RepoFuture<()>;
+    fn create_attribute_product_value(&self, attr_prod: ProdAttr) -> RepoFuture<()>;
 
     /// Updates specific product
-    fn update(&mut self, product: ElasticProduct) -> RepoFuture<()>;
+    fn update(&self, product: ElasticProduct) -> RepoFuture<()>;
 }
 
 impl ProductsSearchRepoImpl {
@@ -44,7 +44,7 @@ impl ProductsSearchRepoImpl {
 
 impl ProductsSearchRepo for ProductsSearchRepoImpl {
     /// Find specific products by name limited by `count` parameters
-    fn search(&mut self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
         let name_query = match prod.name {
             None => json!({
                 "match_all": {}
@@ -121,7 +121,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
     }
 
     /// Creates new attribute product value
-    fn create_attribute_product_value(&mut self, new_prod_attr: ProdAttr) -> RepoFuture<()> {
+    fn create_attribute_product_value(&self, new_prod_attr: ProdAttr) -> RepoFuture<()> {
         let body = serde_json::to_string(&new_prod_attr).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",
@@ -147,7 +147,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
     }
 
     /// Creates new product
-    fn create_product(&mut self, product: ElasticProduct) -> RepoFuture<()> {
+    fn create_product(&self, product: ElasticProduct) -> RepoFuture<()> {
         let body = serde_json::to_string(&product).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",
@@ -173,7 +173,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
     }
 
     /// Updates specific product
-    fn update(&mut self, product: ElasticProduct) -> RepoFuture<()> {
+    fn update(&self, product: ElasticProduct) -> RepoFuture<()> {
         let body = json!({
             "doc": product,
         }).to_string();

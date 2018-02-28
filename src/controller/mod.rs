@@ -47,7 +47,7 @@ pub struct Controller {
 }
 
 macro_rules! serialize_future {
-    ($e:expr) => (Box::new($e.map_err(|e| Error::from(e)).and_then(|resp| serde_json::to_string(&resp).map_err(|e| Error::from(e)))))
+    ($e:expr) => (Box::new($e.map_err(Error::from).and_then(|resp| serde_json::to_string(&resp).map_err(Error::from))))
 }
 
 impl Controller {
@@ -90,12 +90,12 @@ impl Controller {
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
         );
-            
+
         let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), cached_roles);
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
-            (&Get, Some(Route::Healthcheck)) => serialize_future!(system_service.healthcheck().map_err(|e| Error::from(e))),
+            (&Get, Some(Route::Healthcheck)) => serialize_future!(system_service.healthcheck().map_err(Error::from)),
 
             // GET /stores/<store_id>
             (&Get, Some(Route::Store(store_id))) => serialize_future!(stores_service.get(store_id)),
@@ -186,7 +186,7 @@ impl Controller {
                             .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
                             .and_then(move |prod| products_service
                                 .search(prod, count, offset)
-                                .map_err(|e| Error::from(e)))
+                                .map_err(Error::from))
                     )
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
@@ -230,18 +230,14 @@ impl Controller {
             (&Post, Some(Route::UserRoles)) => serialize_future!(
                 parse_body::<models::NewUserRole>(req.body())
                     .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
-                    .and_then(move |new_store| user_roles_service
-                        .create(new_store)
-                        .map_err(|e| Error::from(e)))
+                    .and_then(move |new_store| user_roles_service.create(new_store).map_err(Error::from))
             ),
 
             // DELETE /user_roles/<user_role_id>
             (&Delete, Some(Route::UserRoles)) => serialize_future!(
                 parse_body::<models::OldUserRole>(req.body())
                     .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
-                    .and_then(move |old_role| user_roles_service
-                        .delete(old_role)
-                        .map_err(|e| Error::from(e)))
+                    .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from))
             ),
 
             // Fallback

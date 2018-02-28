@@ -65,7 +65,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products = {
-            let mut products_el = ProductsSearchRepoImpl::new(client_handle, address);
+            let products_el = ProductsSearchRepoImpl::new(client_handle, address);
             products_el
                 .search(search_product, count, offset)
                 .map_err(Error::from)
@@ -88,7 +88,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                                     });
-                                    let mut products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
                                     products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -112,7 +112,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let mut products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
                     products_repo.find(product_id).map_err(Error::from)
                 })
         }))
@@ -132,10 +132,8 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let mut products_repo = ProductsRepoImpl::new(&conn, &*acl);
-                    products_repo
-                        .deactivate(product_id)
-                        .map_err(|e| Error::from(e))
+                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                    products_repo.deactivate(product_id).map_err(Error::from)
                 })
         }))
     }
@@ -154,8 +152,8 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let mut products_repo = ProductsRepoImpl::new(&conn, &*acl);
-                    products_repo.list(from, count).map_err(|e| Error::from(e))
+                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                    products_repo.list(from, count).map_err(Error::from)
                 })
         }))
     }
@@ -176,9 +174,9 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                             let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                 (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                             });
-                            let mut products_repo = ProductsRepoImpl::new(&conn, &*acl);
-                            let mut attr_repo = AttributesRepoImpl::new(&conn, &*acl);
-                            let mut attr_prod_repo = ProductAttrsRepoImpl::new(&conn, &*acl);
+                            let products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                            let attr_repo = AttributesRepoImpl::new(&conn, &*acl);
+                            let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, &*acl);
                             let product = payload.product;
                             let attrs = payload.attributes;
                             conn.transaction::<(Product, Vec<ProdAttr>), Error, _>(move || {
@@ -190,11 +188,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                                         false => Ok(product),
                                         true => Err(Error::Database("Product already exists".into())),
                                     })
-                                    .and_then(move |new_product| {
-                                        products_repo
-                                            .create(new_product)
-                                            .map_err(|e| Error::from(e))
-                                    })
+                                    .and_then(move |new_product| products_repo.create(new_product).map_err(Error::from))
                                     .map(move |product| (product, attrs))
                                     .and_then(move |(product, attrs)| {
                                         let product_id = product.id;
@@ -225,7 +219,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                     let client_handle = self.client_handle.clone();
                     let address = self.elastic_address.clone();
                     move |(product, attrs)| {
-                        let mut products_el = ProductsSearchRepoImpl::new(client_handle, address);
+                        let products_el = ProductsSearchRepoImpl::new(client_handle, address);
                         products_el
                             .create_product(product.clone().into())
                             .map_err(Error::from)
@@ -264,18 +258,18 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                             let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                 (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                             });
-                            let mut products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                            let products_repo = ProductsRepoImpl::new(&conn, &*acl);
                             products_repo
                                 .find(product_id.clone())
                                 .and_then(move |_user| products_repo.update(product_id, payload))
-                                .map_err(|e| Error::from(e))
+                                .map_err(Error::from)
                         })
                 })
                 .and_then({
                     let client_handle = self.client_handle.clone();
                     let address = self.elastic_address.clone();
                     move |product| {
-                        let mut products_el = ProductsSearchRepoImpl::new(client_handle, address);
+                        let products_el = ProductsSearchRepoImpl::new(client_handle, address);
                         products_el
                             .update(product.clone().into())
                             .map_err(Error::from)

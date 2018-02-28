@@ -19,47 +19,45 @@ use models::authorization::*;
 /// Stores repository, responsible for handling stores
 pub struct StoresRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: Box<Acl>,
+    pub acl: &'a Acl,
 }
 
 pub trait StoresRepo {
     /// Find specific store by ID
-    fn find(&mut self, store_id: i32) -> RepoResult<Store>;
+    fn find(&self, store_id: i32) -> RepoResult<Store>;
 
     /// Verifies store exist
-    fn name_exists(&mut self, name_arg: String) -> RepoResult<bool>;
+    fn name_exists(&self, name_arg: String) -> RepoResult<bool>;
 
     /// Find specific store by full name
-    fn find_by_name(&mut self, name_arg: String) -> RepoResult<Store>;
+    fn find_by_name(&self, name_arg: String) -> RepoResult<Store>;
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Store>>;
+    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>>;
 
     /// Creates new store
-    fn create(&mut self, payload: NewStore) -> RepoResult<Store>;
+    fn create(&self, payload: NewStore) -> RepoResult<Store>;
 
     /// Updates specific store
-    fn update(&mut self, store_id: i32, payload: UpdateStore) -> RepoResult<Store>;
+    fn update(&self, store_id: i32, payload: UpdateStore) -> RepoResult<Store>;
 
     /// Deactivates specific store
-    fn deactivate(&mut self, store_id: i32) -> RepoResult<Store>;
+    fn deactivate(&self, store_id: i32) -> RepoResult<Store>;
 }
 
 impl<'a> StoresRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: Box<Acl>) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
         Self { db_conn, acl }
     }
 
     fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> Result<T, Error> {
-        query
-            .get_result::<T>(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+        query.get_result::<T>(&**self.db_conn).map_err(Error::from)
     }
 }
 
 impl<'a> StoresRepo for StoresRepoImpl<'a> {
     /// Find specific store by ID
-    fn find(&mut self, store_id_arg: i32) -> RepoResult<Store> {
+    fn find(&self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl!(
@@ -73,7 +71,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     }
 
     /// Verifies store exist
-    fn name_exists(&mut self, name_arg: String) -> RepoResult<bool> {
+    fn name_exists(&self, name_arg: String) -> RepoResult<bool> {
         self.execute_query(select(exists(stores.filter(name.eq(name_arg)))))
             .and_then(|exists| {
                 acl!(
@@ -87,12 +85,12 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     }
 
     /// Find specific store by full name
-    fn find_by_name(&mut self, name_arg: String) -> RepoResult<Store> {
+    fn find_by_name(&self, name_arg: String) -> RepoResult<Store> {
         let query = stores.filter(name.eq(name_arg));
 
         query
             .first::<Store>(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|store: Store| {
                 acl!(
                     [store],
@@ -105,7 +103,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     }
 
     /// Creates new store
-    fn create(&mut self, payload: NewStore) -> RepoResult<Store> {
+    fn create(&self, payload: NewStore) -> RepoResult<Store> {
         acl!(
             [payload],
             self.acl,
@@ -121,7 +119,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&mut self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
+    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
         let query = stores
             .filter(is_active.eq(true))
             .filter(id.gt(from))
@@ -130,7 +128,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
         query
             .get_results(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|stores_res: Vec<Store>| {
                 let resources = stores_res
                     .iter()
@@ -147,7 +145,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     }
 
     /// Updates specific store
-    fn update(&mut self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
+    fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl!(
@@ -166,12 +164,12 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                 let query = diesel::update(filter).set(&payload);
                 query
                     .get_result::<Store>(&**self.db_conn)
-                    .map_err(|e| Error::from(e))
+                    .map_err(Error::from)
             })
     }
 
     /// Deactivates specific store
-    fn deactivate(&mut self, store_id_arg: i32) -> RepoResult<Store> {
+    fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl!(

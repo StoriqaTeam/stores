@@ -1,0 +1,2 @@
+ALTER TABLE products DROP COLUMN language_id;
+ALTER TABLE products ADD COLUMN language VARCHAR NOT NULL;

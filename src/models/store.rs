@@ -1,29 +1,11 @@
 //! Module containg store model for query, insert, update
 use std::time::SystemTime;
 
-use validator::{Validate, ValidationError};
-use regex::Regex;
-use std::borrow::Cow;
-use std::collections::HashMap;
+use validator::Validate;
 
 use super::authorization::*;
 use repos::types::DbConnection;
-
-pub fn validate_phone(phone: &String) -> Result<(), ValidationError> {
-    lazy_static! {
-        static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^\+?\d{7}\d*$").unwrap();
-    }
-
-    if PHONE_VALIDATION_RE.is_match(phone) {
-        Ok(())
-    } else {
-        Err(ValidationError {
-            code: Cow::from("phone"),
-            message: Some(Cow::from("Incorrect phone format")),
-            params: HashMap::new(),
-        })
-    }
-}
+use models::validation_rules::*;
 
 /// diesel table for stores
 table! {
@@ -46,7 +28,7 @@ table! {
         instagram_url -> Nullable<VarChar>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        language_id -> Integer,
+        language -> VarChar,
         slogan -> Nullable<VarChar>,
     }
 }
@@ -72,7 +54,7 @@ pub struct Store {
     pub instagram_url: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
-    pub language_id: i32,
+    pub language: String,
     pub slogan: Option<String>,
 }
 
@@ -116,7 +98,8 @@ pub struct NewStore {
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
-    pub language_id: i32,
+    #[validate(custom = "validate_lang")]
+    pub language: String,
     pub slogan: Option<String>,
 }
 
@@ -142,7 +125,8 @@ pub struct UpdateStore {
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
-    pub language_id: Option<i32>,
+    #[validate(custom = "validate_lang")]
+    pub language: Option<String>,
     pub slogan: Option<String>,
 }
 

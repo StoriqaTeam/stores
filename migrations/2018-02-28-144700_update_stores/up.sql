@@ -1,0 +1,3 @@
+
+ALTER TABLE stores DROP COLUMN language_id;
+ALTER TABLE stores ADD COLUMN language VARCHAR NOT NULL;

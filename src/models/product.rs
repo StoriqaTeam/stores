@@ -1,9 +1,7 @@
 //! Module containg product model for query, insert, update
 use std::time::SystemTime;
 
-use validator::{Validate, ValidationError};
-use std::borrow::Cow;
-use std::collections::HashMap;
+use validator::Validate;
 use diesel::prelude::*;
 
 use super::Store;
@@ -11,18 +9,7 @@ use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
 use models::{AttrValue, AttributeFilter};
-
-pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError> {
-    if val.into() > 0f64 {
-        Ok(())
-    } else {
-        Err(ValidationError {
-            code: Cow::from("value"),
-            message: Some(Cow::from("Value must be non negative.")),
-            params: HashMap::new(),
-        })
-    }
-}
+use models::validation_rules::*;
 
 /// diesel table for products
 table! {
@@ -39,7 +26,7 @@ table! {
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Float>,
-        language_id -> Integer,
+        language -> VarChar,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -61,7 +48,7 @@ pub struct Product {
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub language_id: i32,
+    pub language: String,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -85,7 +72,8 @@ pub struct NewProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
-    pub language_id: i32,
+    #[validate(custom = "validate_lang")]
+    pub language: String,
 }
 
 /// Payload for creating products and attributes
@@ -113,7 +101,8 @@ pub struct UpdateProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
-    pub language_id: Option<i32>,
+    #[validate(custom = "validate_lang")]
+    pub language: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

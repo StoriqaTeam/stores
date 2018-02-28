@@ -2,6 +2,7 @@
 use std::time::SystemTime;
 
 use validator::Validate;
+use serde_json;
 
 use super::authorization::*;
 use repos::types::DbConnection;
@@ -13,10 +14,10 @@ table! {
         id -> Integer,
         user_id -> Integer,
         is_active -> Bool,
-        name -> VarChar,
+        name -> Jsonb,
         currency_id -> Integer,
-        short_description -> VarChar,
-        long_description -> Nullable<VarChar>,
+        short_description -> Jsonb,
+        long_description -> Nullable<Jsonb>,
         slug -> VarChar,
         cover -> Nullable<VarChar>,
         logo -> Nullable<VarChar>,
@@ -39,10 +40,10 @@ pub struct Store {
     pub id: i32,
     pub user_id: i32,
     pub is_active: bool,
-    pub name: String,
+    pub name: serde_json::Value,
     pub currency_id: i32,
-    pub short_description: String,
-    pub long_description: Option<String>,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
@@ -62,7 +63,7 @@ pub struct Store {
 pub struct ElasticStore {
     pub id: i32,
     pub user_id: i32,
-    pub name: String,
+    pub name: serde_json::Value,
 }
 
 impl From<Store> for ElasticStore {
@@ -79,13 +80,11 @@ impl From<Store> for ElasticStore {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
 #[table_name = "stores"]
 pub struct NewStore {
-    pub name: String,
+    pub name: serde_json::Value,
     pub user_id: i32,
     pub currency_id: i32,
-    #[validate(length(min = "1", message = "Short description must not be empty"))]
-    pub short_description: String,
-    #[validate(length(min = "1", message = "Long description must not be empty"))]
-    pub long_description: Option<String>,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: String,
     pub cover: Option<String>,
@@ -107,12 +106,10 @@ pub struct NewStore {
 #[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
 #[table_name = "stores"]
 pub struct UpdateStore {
-    pub name: Option<String>,
+    pub name: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
-    #[validate(length(min = "1", message = "Short description must not be empty"))]
-    pub short_description: Option<String>,
-    #[validate(length(min = "1", message = "Long description must not be empty"))]
-    pub long_description: Option<String>,
+    pub short_description: Option<serde_json::Value>,
+    pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: Option<String>,
     pub cover: Option<Option<String>>,
@@ -128,6 +125,13 @@ pub struct UpdateStore {
     #[validate(custom = "validate_lang")]
     pub language: Option<String>,
     pub slogan: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Validate, Clone)]
+pub struct SearchStore {
+    pub name: Option<String>,
+    #[validate(custom = "validate_lang")]
+    pub lang: String,
 }
 
 impl WithScope for Store {

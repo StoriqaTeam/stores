@@ -181,14 +181,8 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                             let attrs = payload.attributes;
                             conn.transaction::<(Product, Vec<ProdAttr>), Error, _>(move || {
                                 products_repo
-                                    .name_exists(product.name.to_string())
-                                    .map(move |exists| (product, exists))
+                                    .create(product)
                                     .map_err(Error::from)
-                                    .and_then(|(product, exists)| match exists {
-                                        false => Ok(product),
-                                        true => Err(Error::Database("Product already exists".into())),
-                                    })
-                                    .and_then(move |new_product| products_repo.create(new_product).map_err(Error::from))
                                     .map(move |product| (product, attrs))
                                     .and_then(move |(product, attrs)| {
                                         let product_id = product.id;

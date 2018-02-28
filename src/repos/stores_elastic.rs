@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{ElasticIndex, ElasticStore, IndexResponse};
+use models::{ElasticIndex, ElasticStore, IndexResponse, SearchStore};
 use super::error::Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
@@ -21,7 +21,10 @@ pub struct StoresSearchRepoImpl {
 
 pub trait StoresSearchRepo {
     /// Find specific store by name limited by `count` parameters
-    fn find_by_name(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>>;
+    fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>>;
+
+    /// Checks name exists
+    fn name_exists(&self, name: String) -> RepoFuture<bool>;
 
     /// Creates new store
     fn create(&self, store: ElasticStore) -> RepoFuture<()>;
@@ -41,12 +44,20 @@ impl StoresSearchRepoImpl {
 
 impl StoresSearchRepo for StoresSearchRepoImpl {
     /// Find specific stores by name limited by `count` parameters
-    fn find_by_name(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
+    fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
-                "match" : {
-                    "name" : name
+                "nested" : {
+                    "path" : "name",
+                    "filter" : {
+                        "must": {
+                            "match": {
+                                    search_store.lang: search_store.name
+                                }
+                            }
+
+                    }
                 }
             }
         }).to_string();
@@ -62,6 +73,30 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
                 .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>())),
+        )
+    }
+
+    /// Checks name exists
+    fn name_exists(&self, name: String) -> RepoFuture<bool> {
+        let query = json!({
+            "query": {
+                "term" : {
+                    "name" : name
+                }
+            }
+        }).to_string();
+        let url = format!(
+            "http://{}/{}/_doc/_search",
+            self.elastic_address,
+            ElasticIndex::Store
+        );
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        Box::new(
+            self.client_handle
+                .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
+                .map_err(Error::from)
+                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>().len() != 0)),
         )
     }
 

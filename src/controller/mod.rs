@@ -113,10 +113,14 @@ impl Controller {
 
             // GET /stores/search
             (&Get, Some(Route::StoresSearch)) => {
-                if let (Some(name), Some(count), Some(offset)) =
-                    parse_query!(req.query().unwrap_or_default(), "name" => String, "count" => i64, "offset" => i64)
-                {
-                    serialize_future!(stores_service.find_by_name(name, count, offset))
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future!(
+                        parse_body::<models::SearchStore>(req.body())
+                            .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
+                            .and_then(move |store_search| stores_service
+                                .find_by_name(store_search, count, offset)
+                                .map_err(Error::from))
+                    )
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
                         "Error parsing request from gateway body".to_string(),
@@ -126,10 +130,14 @@ impl Controller {
 
             // GET /stores/auto_complete
             (&Get, Some(Route::StoresAutoComplete)) => {
-                if let (Some(name_part), Some(count), Some(offset)) =
-                    parse_query!(req.query().unwrap_or_default(), "name_part" => String, "count" => i64, "offset" => i64)
-                {
-                    serialize_future!(stores_service.find_full_names_by_name_part(name_part, count, offset))
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future!(
+                        parse_body::<models::SearchStore>(req.body())
+                            .map_err(|_| Error::UnprocessableEntity("Error parsing request from gateway body".to_string()))
+                            .and_then(move |store_search| stores_service
+                                .find_full_names_by_name_part(store_search, count, offset)
+                                .map_err(Error::from))
+                    )
                 } else {
                     Box::new(future::err(Error::UnprocessableEntity(
                         "Error parsing request from gateway body".to_string(),

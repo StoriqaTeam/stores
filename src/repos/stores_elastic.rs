@@ -21,13 +21,13 @@ pub struct StoresSearchRepoImpl {
 
 pub trait StoresSearchRepo {
     /// Find specific store by name limited by `count` parameters
-    fn find_by_name(&mut self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>>;
+    fn find_by_name(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>>;
 
     /// Creates new store
-    fn create(&mut self, store: ElasticStore) -> RepoFuture<()>;
+    fn create(&self, store: ElasticStore) -> RepoFuture<()>;
 
     /// Updates specific store
-    fn update(&mut self, store: ElasticStore) -> RepoFuture<()>;
+    fn update(&self, store: ElasticStore) -> RepoFuture<()>;
 }
 
 impl StoresSearchRepoImpl {
@@ -41,7 +41,7 @@ impl StoresSearchRepoImpl {
 
 impl StoresSearchRepo for StoresSearchRepoImpl {
     /// Find specific stores by name limited by `count` parameters
-    fn find_by_name(&mut self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
+    fn find_by_name(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
@@ -66,7 +66,7 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     }
 
     /// Creates new store
-    fn create(&mut self, store: ElasticStore) -> RepoFuture<()> {
+    fn create(&self, store: ElasticStore) -> RepoFuture<()> {
         let body = serde_json::to_string(&store).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",
@@ -92,7 +92,7 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     }
 
     /// Updates specific store
-    fn update(&mut self, store: ElasticStore) -> RepoFuture<()> {
+    fn update(&self, store: ElasticStore) -> RepoFuture<()> {
         let body = json!({
             "doc": store,
         }).to_string();

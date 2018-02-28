@@ -25,6 +25,7 @@ impl RolesCacheImpl {
 pub trait RolesCache {
     fn get(&self, id: i32, db_conn: Option<&DbConnection>) -> RepoResult<Vec<Role>>;
     fn clear(&self) -> RepoResult<()>;
+    fn remove(&self, id: i32) -> RepoResult<()>;
 }
 
 impl RolesCache for RolesCacheImpl {
@@ -35,7 +36,8 @@ impl RolesCache for RolesCacheImpl {
             Entry::Vacant(v) => db_conn
                 .ok_or(Error::Connection("No connection to db".to_string()))
                 .and_then(|con| {
-                    let repo = UserRolesRepoImpl::new(con, Box::new(SystemACL::new()));
+                    let acl = SystemACL::new();
+                    let repo = UserRolesRepoImpl::new(con, &acl);
                     repo.list_for_user(id)
                         .map(|users| users.into_iter().map(|u| u.role).collect())
                 })
@@ -49,6 +51,12 @@ impl RolesCache for RolesCacheImpl {
     fn clear(&self) -> RepoResult<()> {
         let mut hash_map = self.roles_cache.lock().unwrap();
         hash_map.clear();
+        Ok(())
+    }
+
+    fn remove(&self, id: i32) -> RepoResult<()> {
+        let mut hash_map = self.roles_cache.lock().unwrap();
+        hash_map.remove(&id);
         Ok(())
     }
 }

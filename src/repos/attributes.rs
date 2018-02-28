@@ -19,13 +19,13 @@ pub struct AttributesRepoImpl<'a> {
 
 pub trait AttributesRepo {
     /// Find specific attribute by name
-    fn find(&mut self, name: String) -> RepoResult<Attribute>;
+    fn find(&self, name: String) -> RepoResult<Attribute>;
 
     /// Creates new attribute
-    fn create(&mut self, payload: NewAttribute) -> RepoResult<Attribute>;
+    fn create(&self, payload: NewAttribute) -> RepoResult<Attribute>;
 
     /// Updates specific attribute
-    fn update(&mut self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute>;
+    fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute>;
 }
 
 impl<'a> AttributesRepoImpl<'a> {
@@ -36,12 +36,12 @@ impl<'a> AttributesRepoImpl<'a> {
 
 impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
     /// Find specific attribute by name
-    fn find(&mut self, name_arg: String) -> RepoResult<Attribute> {
+    fn find(&self, name_arg: String) -> RepoResult<Attribute> {
         let query = attributes.filter(name.eq(name_arg));
 
         query
             .first::<Attribute>(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|attribute: Attribute| {
                 acl!(
                     [],
@@ -54,7 +54,7 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
     }
 
     /// Creates new attribute
-    fn create(&mut self, payload: NewAttribute) -> RepoResult<Attribute> {
+    fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
         acl!(
             [],
             self.acl,
@@ -70,12 +70,12 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
     }
 
     /// Updates specific attribute
-    fn update(&mut self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
+    fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
         let query = attributes.find(attribute_id_arg);
 
         query
             .first::<Attribute>(&**self.db_conn)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|_| {
                 acl!(
                     [],
@@ -91,7 +91,7 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
                 let query = diesel::update(filter).set(&payload);
                 query
                     .get_result::<Attribute>(&**self.db_conn)
-                    .map_err(|e| Error::from(e))
+                    .map_err(Error::from)
             })
     }
 }

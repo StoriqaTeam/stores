@@ -13,7 +13,7 @@ macro_rules! permission {
 macro_rules! acl {
     ($resources: ident, $acl: expr, $res: expr, $act: expr, $con: expr) => (
         {
-            let acl = &mut $acl;
+            let acl = & $acl;
             acl.can($res, $act, $resources, $con).and_then(|result| {
             if result {
                 Ok(())

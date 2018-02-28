@@ -66,7 +66,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let fut = {
-            let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
+            let stores_el = StoresSearchRepoImpl::new(client_handle, address);
             stores_el
                 .find_by_name(name_part, count, offset)
                 .map_err(Error::from)
@@ -89,7 +89,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let fut = {
-            let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
+            let stores_el = StoresSearchRepoImpl::new(client_handle, address);
             stores_el
                 .find_by_name(name, count, offset)
                 .map_err(Error::from)
@@ -113,7 +113,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                                     });
-                                    let mut stores_repo = StoresRepoImpl::new(&conn, acl);
+                                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
                                     stores_repo.find(el_store.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -137,7 +137,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let mut stores_repo = StoresRepoImpl::new(&conn, acl);
+                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
                     stores_repo.find(store_id).map_err(Error::from)
                 })
         }))
@@ -157,7 +157,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let mut stores_repo = StoresRepoImpl::new(&conn, acl);
+                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
                     stores_repo.deactivate(store_id).map_err(Error::from)
                 })
         }))
@@ -177,7 +177,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                     });
-                    let mut stores_repo = StoresRepoImpl::new(&conn, acl);
+                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
                     stores_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -199,7 +199,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                             let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                 (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                             });
-                            let mut stores_repo = StoresRepoImpl::new(&conn, acl);
+                            let stores_repo = StoresRepoImpl::new(&conn, &*acl);
                             conn.transaction::<Store, Error, _>(move || {
                                 stores_repo
                                     .name_exists(payload.name.to_string())
@@ -219,7 +219,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                     let address = self.elastic_address.clone();
                     move |store| {
                         let fut = {
-                            let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
+                            let stores_el = StoresSearchRepoImpl::new(client_handle, address);
                             stores_el
                                 .create(store.clone().into())
                                 .map_err(Error::from)
@@ -247,7 +247,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                             let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                 (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
                             });
-                            let mut stores_repo = StoresRepoImpl::new(&conn, acl);
+                            let stores_repo = StoresRepoImpl::new(&conn, &*acl);
                             stores_repo
                                 .find(store_id.clone())
                                 .and_then(move |_user| stores_repo.update(store_id, payload))
@@ -260,7 +260,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                     let address = self.elastic_address.clone();
                     move |store| {
                         let fut = {
-                            let mut stores_el = StoresSearchRepoImpl::new(client_handle, address);
+                            let stores_el = StoresSearchRepoImpl::new(client_handle, address);
                             stores_el
                                 .update(store.clone().into())
                                 .map_err(Error::from)

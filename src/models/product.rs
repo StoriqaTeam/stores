@@ -56,10 +56,13 @@ pub struct Product {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
 #[table_name = "products"]
 pub struct NewProduct {
+    #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub store_id: i32,
     pub currency_id: i32,
+    #[validate(custom = "validate_translation")]
     pub short_description: serde_json::Value,
+    #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_non_negative")]
     pub price: f64,
@@ -79,12 +82,15 @@ pub struct NewProductWithAttributes {
 }
 
 /// Payload for updating products
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone)]
 #[table_name = "products"]
 pub struct UpdateProduct {
+    #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
+    #[validate(custom = "validate_translation")]
     pub short_description: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_non_negative")]
     pub price: Option<f64>,
@@ -97,20 +103,28 @@ pub struct UpdateProduct {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct UpdateProductWithAttributes {
+    pub product: UpdateProduct,
+    pub attributes: Vec<AttrValue>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ElasticProduct {
     pub id: i32,
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
+    pub properties: Vec<AttrValue>
 }
 
-impl From<Product> for ElasticProduct {
-    fn from(product: Product) -> Self {
+impl ElasticProduct {
+    pub fn new(product: Product, attrs: Vec<AttrValue>) -> Self {
         Self {
             id: product.id,
             name: product.name,
             short_description: product.short_description,
             long_description: product.long_description,
+            properties: attrs
         }
     }
 }

@@ -18,14 +18,14 @@ pub struct ProductAttrsRepoImpl<'a> {
 }
 
 pub trait ProductAttrsRepo {
-    /// Find specific product_attribute by product_id
-    fn find(&self, product_id: i32) -> RepoResult<Vec<ProdAttr>>;
+    /// Find product attributes by product ID
+    fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>>;
 
     /// Creates new product_attribute
     fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr>;
 
     /// Updates specific product_attribute
-    fn update(&self, prod_attr_id_arg: i32, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
+    fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
 }
 
 impl<'a> ProductAttrsRepoImpl<'a> {
@@ -35,8 +35,8 @@ impl<'a> ProductAttrsRepoImpl<'a> {
 }
 
 impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
-    /// Find specific product_attribute by ID
-    fn find(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+    /// Find specific product_attributes by product ID
+    fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
         let query = prod_attr_values
             .filter(prod_id.eq(product_id_arg))
             .order(id);
@@ -75,8 +75,10 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
         })
     }
 
-    fn update(&self, prod_attr_id_arg: i32, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
-        let query = prod_attr_values.find(prod_attr_id_arg);
+    fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
+        let query = prod_attr_values
+            .filter(prod_id.eq(payload.prod_id))
+            .filter(attr_id.eq(payload.attr_id));
 
         query
             .first::<ProdAttr>(&**self.db_conn)
@@ -91,7 +93,9 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
                 )
             })
             .and_then(|_| {
-                let filter = prod_attr_values.filter(id.eq(prod_attr_id_arg));
+                let filter = prod_attr_values
+                    .filter(prod_id.eq(payload.prod_id))
+                    .filter(attr_id.eq(payload.attr_id));
 
                 let query = diesel::update(filter).set(&payload);
                 query

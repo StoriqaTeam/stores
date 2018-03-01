@@ -229,9 +229,10 @@ impl Controller {
 
             // PUT /products/<product_id>
             (&Put, Some(Route::Product(product_id))) => serialize_future(
-                parse_body::<models::UpdateProduct>(req.body())
+                parse_body::<models::UpdateProductWithAttributes>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                     .and_then(move |update_product| update_product
+                        .product
                         .validate()
                         .map_err(Error::Validate)
                         .into_future()

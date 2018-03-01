@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, ProdAttr, SearchProduct};
+use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProduct};
 use repos::error::RepoError as Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
@@ -24,10 +24,7 @@ pub trait ProductsSearchRepo {
     fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Creates new product
-    fn create_product(&self, product: ElasticProduct) -> RepoFuture<()>;
-
-    /// Creates new product
-    fn create_attribute_product_value(&self, attr_prod: ProdAttr) -> RepoFuture<()>;
+    fn create(&self, product: ElasticProduct) -> RepoFuture<()>;
 
     /// Updates specific product
     fn update(&self, product: ElasticProduct) -> RepoFuture<()>;
@@ -45,17 +42,39 @@ impl ProductsSearchRepoImpl {
 impl ProductsSearchRepo for ProductsSearchRepoImpl {
     /// Find specific products by name limited by `count` parameters
     fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        let lang = prod.lang.clone();
         let name_query = match prod.name {
             None => json!({
                 "match_all": {}
             }),
-            Some(name) => json!({
-                 "multi_match" : {
-                    "query":      name,
-                    "fields":     [ "name", "short_description", "long_description" ],
-                    "operator":   "or" 
-                }
-            }),
+            Some(name) => json!(
+                [
+                    {"nested": {
+                        "path": "name",
+                        "query": {
+                            "bool": {
+                                "must": [{"match": {lang.clone(): {"query": name}}}]
+                            }  
+                        }
+                    }},
+                    {"nested": {
+                        "path": "short_description",
+                        "query": {
+                            "bool": {
+                                "must": [{"match": {lang.clone(): {"query": name}}}]
+                            }  
+                        }
+                    }},
+                    {"nested": {
+                        "path": "long_description",
+                        "query": {
+                            "bool": {
+                                "must": [{"match": {lang: {"query": name}}}]
+                            }  
+                        }
+                    }}
+                ]
+            ),
         };
 
         let props = match prod.attr_filters {
@@ -67,19 +86,19 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         let attribute_name = attr.name.clone();
                         match attr.filter {
                             Filter::Equal(val) => {
-                                json!({ "must": [{"term": {"attribute_name": attribute_name}},{"term": {"attribute_value": val}}]})
+                                json!({ "must": [{"term": {"name": attribute_name}},{"term": {"str_val": val}}]})
                             }
                             Filter::Lte(val) => {
-                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"lte": val }}}]})
+                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"lte": val }}}]})
                             }
                             Filter::Le(val) => {
-                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"le": val }}}]})
+                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"le": val }}}]})
                             }
                             Filter::Ge(val) => {
-                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"ge": val }}}]})
+                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"ge": val }}}]})
                             }
                             Filter::Gte(val) => {
-                                json!({ "must": [{"term": {"attribute_name": attribute_name}}, { "range": { "attribute_value": {"gte": val }}}]})
+                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"gte": val }}}]})
                             }
                         }
                     })
@@ -120,34 +139,8 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         )
     }
 
-    /// Creates new attribute product value
-    fn create_attribute_product_value(&self, new_prod_attr: ProdAttr) -> RepoFuture<()> {
-        let body = serde_json::to_string(&new_prod_attr).unwrap();
-        let url = format!(
-            "http://{}/{}/_doc/{}/_create",
-            self.elastic_address,
-            ElasticIndex::ProductAttributeValue,
-            new_prod_attr.id
-        );
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-
-        Box::new(
-            self.client_handle
-                .request::<IndexResponse>(Method::Post, url, Some(body), Some(headers))
-                .map_err(Error::from)
-                .and_then(|res| {
-                    if res.is_created() {
-                        future::ok(())
-                    } else {
-                        future::err(Error::NotFound)
-                    }
-                }),
-        )
-    }
-
     /// Creates new product
-    fn create_product(&self, product: ElasticProduct) -> RepoFuture<()> {
+    fn create(&self, product: ElasticProduct) -> RepoFuture<()> {
         let body = serde_json::to_string(&product).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",

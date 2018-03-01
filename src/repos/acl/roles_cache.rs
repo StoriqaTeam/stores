@@ -9,7 +9,6 @@ use models::authorization::*;
 use repos::acl::SystemACL;
 use repos::error::RepoError as Error;
 
-
 #[derive(Clone)]
 pub struct RolesCacheImpl {
     roles_cache: Arc<Mutex<HashMap<i32, Vec<Role>>>>,

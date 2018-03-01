@@ -117,9 +117,9 @@ impl Controller {
                 if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
                     serialize_future(stores_service.list(from, count))
                 } else {
-                    Box::new(future::err(Error::UnprocessableEntity(
-                        format_err!("Error parsing request from gateway body"),
-                    )))
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
                 }
             }
 
@@ -129,14 +129,16 @@ impl Controller {
                     serialize_future(
                         parse_body::<models::SearchStore>(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                            .and_then(move |store_search| stores_service
-                                .find_by_name(store_search, count, offset)
-                                .map_err(Error::from))
+                            .and_then(move |store_search| {
+                                stores_service
+                                    .find_by_name(store_search, count, offset)
+                                    .map_err(Error::from)
+                            }),
                     )
                 } else {
-                    Box::new(future::err(Error::UnprocessableEntity(
-                        format_err!("Error parsing request from gateway body"),
-                    )))
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
                 }
             }
 
@@ -146,14 +148,16 @@ impl Controller {
                     serialize_future(
                         parse_body::<models::SearchStore>(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                            .and_then(move |store_search| stores_service
-                                .find_full_names_by_name_part(store_search, count, offset)
-                                .map_err(Error::from))
+                            .and_then(move |store_search| {
+                                stores_service
+                                    .find_full_names_by_name_part(store_search, count, offset)
+                                    .map_err(Error::from)
+                            }),
                     )
                 } else {
-                    Box::new(future::err(Error::UnprocessableEntity(
-                        format_err!("Error parsing request from gateway body"),
-                    )))
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
                 }
             }
 
@@ -161,24 +165,30 @@ impl Controller {
             (&Post, Some(Route::Stores)) => serialize_future(
                 parse_body::<models::NewStore>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |new_store| new_store
-                        .validate()
-                        .map_err(Error::Validate)
-                        .into_future()
-                        .and_then(move |_| stores_service.create(new_store).map_err(Error::from)))
+                    .and_then(move |new_store| {
+                        new_store
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| stores_service.create(new_store).map_err(Error::from))
+                    }),
             ),
 
             // PUT /stores/<store_id>
             (&Put, Some(Route::Store(store_id))) => serialize_future(
                 parse_body::<models::UpdateStore>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |update_store| update_store
-                        .validate()
-                        .map_err(Error::Validate)
-                        .into_future()
-                        .and_then(move |_| stores_service
-                            .update(store_id, update_store)
-                            .map_err(Error::from)))
+                    .and_then(move |update_store| {
+                        update_store
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| {
+                                stores_service
+                                    .update(store_id, update_store)
+                                    .map_err(Error::from)
+                            })
+                    }),
             ),
 
             // DELETE /stores/<store_id>
@@ -192,9 +202,9 @@ impl Controller {
                 if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
                     serialize_future(products_service.list(from, count))
                 } else {
-                    Box::new(future::err(Error::UnprocessableEntity(
-                        format_err!("Error parsing request from gateway body"),
-                    )))
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
                 }
             }
 
@@ -204,14 +214,16 @@ impl Controller {
                     serialize_future(
                         parse_body::<models::SearchProduct>(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                            .and_then(move |prod| products_service
-                                .search(prod, count, offset)
-                                .map_err(Error::from))
+                            .and_then(move |prod| {
+                                products_service
+                                    .search(prod, count, offset)
+                                    .map_err(Error::from)
+                            }),
                     )
                 } else {
-                    Box::new(future::err(Error::UnprocessableEntity(
-                        format_err!("Error parsing request from gateway body"),
-                    )))
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
                 }
             }
 
@@ -219,26 +231,32 @@ impl Controller {
             (&Post, Some(Route::Products)) => serialize_future(
                 parse_body::<models::NewProductWithAttributes>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |new_product| new_product
-                        .product
-                        .validate()
-                        .map_err(Error::Validate)
-                        .into_future()
-                        .and_then(move |_| products_service.create(new_product).map_err(Error::from)))
+                    .and_then(move |new_product| {
+                        new_product
+                            .product
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| products_service.create(new_product).map_err(Error::from))
+                    }),
             ),
 
             // PUT /products/<product_id>
             (&Put, Some(Route::Product(product_id))) => serialize_future(
                 parse_body::<models::UpdateProductWithAttributes>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |update_product| update_product
-                        .product
-                        .validate()
-                        .map_err(Error::Validate)
-                        .into_future()
-                        .and_then(move |_| products_service
-                            .update(product_id, update_product)
-                            .map_err(Error::from)))
+                    .and_then(move |update_product| {
+                        update_product
+                            .product
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| {
+                                products_service
+                                    .update(product_id, update_product)
+                                    .map_err(Error::from)
+                            })
+                    }),
             ),
 
             // DELETE /products/<product_id>
@@ -251,14 +269,14 @@ impl Controller {
             (&Post, Some(Route::UserRoles)) => serialize_future(
                 parse_body::<models::NewUserRole>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |new_store| user_roles_service.create(new_store).map_err(Error::from))
+                    .and_then(move |new_store| user_roles_service.create(new_store).map_err(Error::from)),
             ),
 
             // DELETE /user_roles/<user_role_id>
             (&Delete, Some(Route::UserRoles)) => serialize_future(
                 parse_body::<models::OldUserRole>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from))
+                    .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from)),
             ),
 
             // Fallback

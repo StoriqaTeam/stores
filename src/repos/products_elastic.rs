@@ -80,25 +80,25 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         let props = match prod.attr_filters {
             None => json!({}),
             Some(filters) => {
-                let filter: Vec<serde_json::Value> = filters
+                let filters: Vec<serde_json::Value> = filters
                     .into_iter()
                     .map(|attr| {
                         let attribute_name = attr.name.clone();
                         match attr.filter {
                             Filter::Equal(val) => {
-                                json!({ "must": [{"term": {"name": attribute_name}},{"term": {"str_val": val}}]})
+                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}},{"term": {"str_val": val}}]}})
                             }
                             Filter::Lte(val) => {
-                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"lte": val }}}]})
+                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"lte": val }}}]}})
                             }
                             Filter::Le(val) => {
-                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"le": val }}}]})
+                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"le": val }}}]}})
                             }
                             Filter::Ge(val) => {
-                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"ge": val }}}]})
+                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"ge": val }}}]}})
                             }
                             Filter::Gte(val) => {
-                                json!({ "must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"gte": val }}}]})
+                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"gte": val }}}]}})
                             }
                         }
                     })
@@ -107,7 +107,9 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         "nested" : {
                             "path" : "properties",
                             "filter" : {
-                                "bool" : filter
+                                "bool" : {
+                                    "must" : filters
+                                }
                             }
                         }
                 })

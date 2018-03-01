@@ -2,7 +2,6 @@ use diesel::result::Error as DieselError;
 use models::authorization::*;
 use http::client::Error as HttpError;
 
-
 use failure::Error;
 
 #[derive(Debug, Fail)]

@@ -6,7 +6,7 @@ use futures_cpupool::CpuPool;
 use diesel::Connection;
 
 use models::product::{NewProductWithAttributes, Product, UpdateProductWithAttributes};
-use models::{NewProdAttr, UpdateProdAttr, ProdAttr, AttrValue, SearchProduct, ElasticProduct};
+use models::{AttrValue, ElasticProduct, NewProdAttr, ProdAttr, SearchProduct, UpdateProdAttr};
 use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl,
             ProductsSearchRepo, ProductsSearchRepoImpl};
 use super::types::ServiceFuture;
@@ -201,9 +201,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                                                             value: attr_value.value,
                                                             value_type: attr_value.value_type,
                                                         };
-                                                        attr_prod_repo
-                                                            .create(new_attr)
-                                                            .map_err(Error::from)
+                                                        attr_prod_repo.create(new_attr).map_err(Error::from)
                                                     })
                                             })
                                             .collect();

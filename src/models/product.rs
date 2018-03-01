@@ -114,7 +114,7 @@ pub struct ElasticProduct {
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
-    pub properties: Vec<AttrValue>
+    pub properties: Vec<AttrValue>,
 }
 
 impl ElasticProduct {
@@ -124,7 +124,7 @@ impl ElasticProduct {
             name: product.name,
             short_description: product.short_description,
             long_description: product.long_description,
-            properties: attrs
+            properties: attrs,
         }
     }
 }

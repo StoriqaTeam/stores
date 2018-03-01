@@ -196,8 +196,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 .and_then(|(payload, exists)| match exists {
                     false => Ok(payload),
                     true => Err(Error::Validate(
-                                    validation_errors!({"name": ["name" => "Store with this name already exists"]}),
-                                )),
+                        validation_errors!({"name": ["name" => "Store with this name already exists"]}),
+                    )),
                 })
         };
 

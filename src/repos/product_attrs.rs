@@ -6,7 +6,7 @@ use diesel::query_dsl::RunQueryDsl;
 
 use models::{NewProdAttr, ProdAttr, UpdateProdAttr};
 use models::attribute_product::prod_attr_values::dsl::*;
-use super::error::Error;
+use repos::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
 use repos::acl::Acl;
 use models::authorization::*;

@@ -9,7 +9,7 @@ use diesel::query_dsl::RunQueryDsl;
 use models::user_role::user_roles::dsl::*;
 use models::{NewUserRole, OldUserRole, UserRole};
 use repos::acl::Acl;
-use super::error::Error;
+use super::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
 
 /// UserRoles repository for handling UserRoles

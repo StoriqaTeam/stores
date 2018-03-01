@@ -2,35 +2,44 @@ use diesel::result::Error as DieselError;
 use models::authorization::*;
 use http::client::Error as HttpError;
 
-/// Repos layer Error
-#[derive(Debug)]
-pub enum Error {
+
+use failure::Error;
+
+#[derive(Debug, Fail)]
+pub enum RepoError {
+    #[fail(display = "Not found")]
     NotFound,
+    #[fail(display = "Rollback")]
     Rollback,
-    ContstaintViolation(String),
+    #[fail(display = "Unauthorized")]
     Unauthorized(Resource, Action),
-    MismatchedType(String),
-    Connection(String),
-    Unknown(String),
+    #[fail(display = "Constraint violation")]
+    ContstaintViolation(Error),
+    #[fail(display = "Mismatched type")]
+    MismatchedType(Error),
+    #[fail(display = "Connection")]
+    Connection(Error),
+    #[fail(display = "Unknown")]
+    Unknown(Error),
 }
 
-impl From<DieselError> for Error {
+impl From<DieselError> for RepoError {
     fn from(err: DieselError) -> Self {
         match err {
-            DieselError::InvalidCString(e) => Error::Unknown(format!("{}", e)),
-            DieselError::DatabaseError(kind, info) => Error::ContstaintViolation(format!("{:?}: {:?}", kind, info)),
-            DieselError::NotFound => Error::NotFound,
-            DieselError::QueryBuilderError(e) => Error::Unknown(format!("{}", e)),
-            DieselError::SerializationError(e) => Error::MismatchedType(format!("{}", e)),
-            DieselError::DeserializationError(e) => Error::MismatchedType(format!("{}", e)),
-            DieselError::RollbackTransaction => Error::Rollback,
-            _ => Error::Unknown("Unknown diesel error".to_string()),
+            DieselError::InvalidCString(e) => RepoError::Unknown(DieselError::InvalidCString(e).into()),
+            DieselError::DatabaseError(kind, info) => RepoError::ContstaintViolation(DieselError::DatabaseError(kind, info).into()),
+            DieselError::NotFound => RepoError::NotFound,
+            DieselError::QueryBuilderError(e) => RepoError::Unknown(DieselError::QueryBuilderError(e).into()),
+            DieselError::SerializationError(e) => RepoError::MismatchedType(DieselError::SerializationError(e).into()),
+            DieselError::DeserializationError(e) => RepoError::MismatchedType(DieselError::DeserializationError(e).into()),
+            DieselError::RollbackTransaction => RepoError::Rollback,
+            _ => RepoError::Unknown(DieselError::__Nonexhaustive.into()),
         }
     }
 }
 
-impl From<HttpError> for Error {
+impl From<HttpError> for RepoError {
     fn from(err: HttpError) -> Self {
-        Error::Connection(format!("Http error. {}", err))
+        RepoError::Connection(format_err!("Http error. {}", err))
     }
 }

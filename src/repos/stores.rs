@@ -9,7 +9,7 @@ use diesel::pg::PgConnection;
 
 use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
-use super::error::Error;
+use super::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
 use repos::acl::Acl;
 use models::authorization::*;

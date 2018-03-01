@@ -8,7 +8,8 @@ use diesel::Connection;
 use models::{NewStore, SearchStore, Store, UpdateStore};
 use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
 use super::types::ServiceFuture;
-use super::error::Error;
+use super::error::ServiceError as Error;
+
 use repos::types::DbPool;
 use http::client::ClientHandle;
 
@@ -104,7 +105,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                        .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
                             el_stores
                                 .into_iter()
@@ -131,7 +132,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -151,7 +152,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -171,7 +172,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -194,7 +195,9 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 .map_err(Error::from)
                 .and_then(|(payload, exists)| match exists {
                     false => Ok(payload),
-                    true => Err(Error::Database("Store already exists".into())),
+                    true => Err(Error::Validate(
+                                    validation_errors!({"name": ["name" => "Store with this name already exists"]}),
+                                )),
                 })
         };
 
@@ -210,7 +213,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                     .spawn_fn(move || {
                         db_pool
                             .get()
-                            .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                            .map_err(|e| Error::Connection(e.into()))
                             .and_then(move |conn| {
                                 let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                     (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -246,7 +249,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                        .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
                             let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                 (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)

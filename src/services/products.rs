@@ -10,7 +10,7 @@ use models::{NewProdAttr, ProdAttr, SearchProduct};
 use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl,
             ProductsSearchRepo, ProductsSearchRepoImpl};
 use super::types::ServiceFuture;
-use super::error::Error;
+use super::error::ServiceError as Error;
 use repos::types::DbPool;
 use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 use http::client::ClientHandle;
@@ -80,7 +80,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                        .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
                             el_products
                                 .into_iter()
@@ -107,7 +107,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -127,7 +127,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -147,7 +147,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                         (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -169,7 +169,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                        .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
                             let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                 (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
@@ -247,7 +247,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                        .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
                             let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
                                 (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)

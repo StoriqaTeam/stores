@@ -9,7 +9,7 @@ use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
 use models::{ElasticIndex, ElasticStore, IndexResponse, SearchStore};
-use super::error::Error;
+use repos::error::RepoError as Error;
 use super::types::RepoFuture;
 use http::client::ClientHandle;
 

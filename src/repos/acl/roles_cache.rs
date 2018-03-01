@@ -7,7 +7,8 @@ use repos::user_roles::{UserRolesRepo, UserRolesRepoImpl};
 use repos::types::{DbConnection, RepoResult};
 use models::authorization::*;
 use repos::acl::SystemACL;
-use repos::error::Error;
+use repos::error::RepoError as Error;
+
 
 #[derive(Clone)]
 pub struct RolesCacheImpl {
@@ -34,7 +35,7 @@ impl RolesCache for RolesCacheImpl {
         match hash_map.entry(id) {
             Entry::Occupied(o) => Ok(o.get().clone()),
             Entry::Vacant(v) => db_conn
-                .ok_or(Error::Connection("No connection to db".to_string()))
+                .ok_or(Error::Connection(format_err!("No connection to db")))
                 .and_then(|con| {
                     let acl = SystemACL::new();
                     let repo = UserRolesRepoImpl::new(con, &acl);

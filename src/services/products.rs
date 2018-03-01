@@ -16,7 +16,7 @@ use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 use http::client::ClientHandle;
 
 pub trait ProductsService {
-    /// Find stores by name limited by `count` parameters
+    /// Find product by search pattern limited by `count` and `offset` parameters
     fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<Product>>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product>;

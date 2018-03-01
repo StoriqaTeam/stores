@@ -5,7 +5,7 @@ use futures_cpupool::CpuPool;
 use futures::prelude::*;
 use diesel::Connection;
 
-use models::{NewStore, Store, UpdateStore, SearchStore};
+use models::{NewStore, SearchStore, Store, UpdateStore};
 use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::Error;
@@ -67,6 +67,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         let address = self.elastic_address.clone();
         let stores = {
             let stores_el = StoresSearchRepoImpl::new(client_handle, address);
+            let lang = search_store.lang.clone();
             stores_el
                 .find_by_name(search_store, count, offset)
                 .map_err(Error::from)
@@ -74,7 +75,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                     future::ok(
                         el_stores
                             .into_iter()
-                            .map(|el_store| el_store.name)
+                            .map(move |el_store| el_store.name[lang.clone()].to_string())
                             .collect(),
                     )
                 })

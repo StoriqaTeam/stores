@@ -29,7 +29,7 @@ table! {
         instagram_url -> Nullable<VarChar>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        language -> VarChar,
+        default_language -> VarChar,
         slogan -> Nullable<VarChar>,
     }
 }
@@ -55,7 +55,7 @@ pub struct Store {
     pub instagram_url: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
-    pub language: String,
+    pub default_language: String,
     pub slogan: Option<String>,
 }
 
@@ -98,7 +98,7 @@ pub struct NewStore {
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
     #[validate(custom = "validate_lang")]
-    pub language: String,
+    pub default_language: String,
     pub slogan: Option<String>,
 }
 
@@ -123,7 +123,7 @@ pub struct UpdateStore {
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
     #[validate(custom = "validate_lang")]
-    pub language: Option<String>,
+    pub default_language: Option<String>,
     pub slogan: Option<String>,
 }
 

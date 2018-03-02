@@ -4,7 +4,7 @@ use futures_cpupool::CpuPool;
 
 use models::{NewUserRole, OldUserRole, UserRole};
 use super::types::ServiceFuture;
-use super::error::Error;
+use super::error::ServiceError as Error;
 use repos::types::DbPool;
 use repos::acl::{RolesCache, SystemACL};
 use repos::user_roles::{UserRolesRepo, UserRolesRepoImpl};
@@ -43,7 +43,7 @@ impl<R: RolesCache + Clone + Send + 'static> UserRolesService for UserRolesServi
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = SystemACL::new();
                     let user_roles_repo = UserRolesRepoImpl::new(&conn, &acl);
@@ -63,7 +63,7 @@ impl<R: RolesCache + Clone + Send + 'static> UserRolesService for UserRolesServi
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = SystemACL::new();
                     let user_roles_repo = UserRolesRepoImpl::new(&conn, &acl);
@@ -82,7 +82,7 @@ impl<R: RolesCache + Clone + Send + 'static> UserRolesService for UserRolesServi
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Database(format!("Connection error {}", e)))
+                .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = SystemACL::new();
                     let user_roles_repo = UserRolesRepoImpl::new(&conn, &acl);

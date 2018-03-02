@@ -27,27 +27,6 @@ pub struct ProdAttr {
     pub value_type: AttributeType,
 }
 
-impl Serialize for ProdAttr {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("ProdAttr", 4)?;
-        state.serialize_field("id", &self.id)?;
-        state.serialize_field("prod_id", &self.prod_id)?;
-        state.serialize_field("attr_id", &self.attr_id)?;
-        match &self.value_type {
-            &AttributeType::Float => {
-                let f = self.value.parse::<f32>().map_err(|e| e.to_string());
-                state.serialize_field("float_val", &f)
-            }
-            &AttributeType::Str => state.serialize_field("str_val", &self.value),
-        }?;
-
-        state.end()
-    }
-}
-
 /// Payload for creating product attributes
 #[derive(Serialize, Deserialize, Insertable, Clone)]
 #[table_name = "prod_attr_values"]
@@ -68,11 +47,30 @@ pub struct UpdateProdAttr {
     pub value_type: AttributeType,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Deserialize, Clone)]
 pub struct AttrValue {
     pub name: String,
     pub value: String,
     pub value_type: AttributeType,
+}
+
+impl Serialize for AttrValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AttrValue", 2)?;
+        state.serialize_field("name", &self.name)?;
+        match &self.value_type {
+            &AttributeType::Float => {
+                let f = self.value.parse::<f32>().map_err(|e| e.to_string());
+                state.serialize_field("float_val", &f)
+            }
+            &AttributeType::Str => state.serialize_field("str_val", &self.value),
+        }?;
+
+        state.end()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

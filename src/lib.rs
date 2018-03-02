@@ -17,10 +17,13 @@ extern crate elastic_types;
 #[macro_use]
 extern crate elastic_types_derive;
 extern crate env_logger;
+#[macro_use]
+extern crate failure;
 extern crate futures;
 extern crate futures_cpupool;
 extern crate hyper;
 extern crate hyper_tls;
+extern crate isolang;
 extern crate jsonwebtoken;
 #[macro_use]
 extern crate lazy_static;

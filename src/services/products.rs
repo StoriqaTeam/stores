@@ -4,9 +4,9 @@ use future;
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
+use serde_json;
 
-use models::product::{NewProductWithAttributes, Product, UpdateProductWithAttributes};
-use models::{AttrValue, ElasticProduct, NewProdAttr, ProdAttr, SearchProduct, UpdateProdAttr};
+use models::*;
 use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl,
             ProductsSearchRepo, ProductsSearchRepoImpl};
 use super::types::ServiceFuture;
@@ -16,6 +16,7 @@ use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
 use http::client::ClientHandle;
 
 pub trait ProductsService {
+    fn find_full_names_by_name_part(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Find product by search pattern limited by `count` and `offset` parameters
     fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<Product>>;
     /// Returns product by ID
@@ -61,6 +62,37 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsServiceImpl<R> {
 }
 
 impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsServiceImpl<R> {
+    fn find_full_names_by_name_part(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let products_names = {
+            let products_el = ProductsSearchRepoImpl::new(client_handle, address);
+            let name = search_product.name.clone();
+            products_el
+                .search(search_product, count, offset)
+                .map_err(Error::from)
+                .and_then(|el_products| {
+                    el_products
+                        .into_iter()
+                        .map(move |el_product| {
+                            serde_json::from_value::<Vec<Translation>>(el_product.name)
+                                .map_err(|e| Error::Parse(e.to_string()))
+                                .and_then(|translations| {
+                                    translations
+                                        .into_iter()
+                                        .find(|transl| transl.text.contains(&name))
+                                        .ok_or(Error::NotFound)
+                                        .map(|t| t.text)
+                                })
+                        })
+                        .collect::<Result<Vec<String>, Error>>()
+                        .into_future()
+                })
+        };
+
+        Box::new(products_names)
+    }
+
     fn search(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<Product>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();

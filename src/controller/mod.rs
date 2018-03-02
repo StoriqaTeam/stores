@@ -227,6 +227,25 @@ impl Controller {
                 }
             }
 
+            // GET /products/auto_complete
+            (&Get, Some(Route::ProductsAutoComplete)) => {
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future(
+                        parse_body::<models::SearchProduct>(req.body())
+                            .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                            .and_then(move |prod| {
+                                products_service
+                                    .find_full_names_by_name_part(prod, count, offset)
+                                    .map_err(Error::from)
+                            }),
+                    )
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
+
             // POST /products
             (&Post, Some(Route::Products)) => serialize_future(
                 parse_body::<models::NewProductWithAttributes>(req.body())

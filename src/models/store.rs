@@ -127,11 +127,9 @@ pub struct UpdateStore {
     pub slogan: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Validate, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SearchStore {
-    pub name: Option<String>,
-    #[validate(custom = "validate_lang")]
-    pub lang: String,
+    pub name: String,
 }
 
 impl WithScope for Store {

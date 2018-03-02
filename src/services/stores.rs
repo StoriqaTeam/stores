@@ -4,8 +4,9 @@ use future;
 use futures_cpupool::CpuPool;
 use futures::prelude::*;
 use diesel::Connection;
+use serde_json;
 
-use models::{NewStore, SearchStore, Store, UpdateStore};
+use models::{NewStore, SearchStore, Store, Translation, UpdateStore};
 use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
@@ -66,23 +67,32 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
     fn find_full_names_by_name_part(&self, search_store: SearchStore, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
-        let stores = {
+        let stores_names = {
             let stores_el = StoresSearchRepoImpl::new(client_handle, address);
-            let lang = search_store.lang.clone();
+            let name = search_store.name.clone();
             stores_el
                 .find_by_name(search_store, count, offset)
                 .map_err(Error::from)
                 .and_then(|el_stores| {
-                    future::ok(
-                        el_stores
-                            .into_iter()
-                            .map(move |el_store| el_store.name[lang.clone()].to_string())
-                            .collect(),
-                    )
+                    el_stores
+                        .into_iter()
+                        .map(move |el_store| {
+                            serde_json::from_value::<Vec<Translation>>(el_store.name)
+                                .map_err(|e| Error::Parse(e.to_string()))
+                                .and_then(|translations| {
+                                    translations
+                                        .into_iter()
+                                        .find(|transl| transl.text.contains(&name))
+                                        .ok_or(Error::NotFound)
+                                        .map(|t| t.text)
+                                })
+                        })
+                        .collect::<Result<Vec<String>, Error>>()
+                        .into_future()
                 })
         };
 
-        Box::new(stores)
+        Box::new(stores_names)
     }
 
     /// Find stores by name

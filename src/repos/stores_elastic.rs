@@ -50,13 +50,14 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
             "query": {
                 "nested" : {
                     "path" : "name",
-                    "filter" : {
-                        "must": {
-                            "match": {
-                                    search_store.lang: search_store.name
+                    "query" : {
+                            "bool": {
+                                "must": {
+                                    "match": {
+                                            "text" : search_store.name
+                                        }
+                                    }
                                 }
-                            }
-
                     }
                 }
             }
@@ -80,8 +81,13 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     fn name_exists(&self, name: String) -> RepoFuture<bool> {
         let query = json!({
             "query": {
-                "term" : {
-                    "name" : name
+                "nested" : {
+                    "path" : "name",
+                    "query": {
+                            "bool": {
+                                "must": {"match": {"text": name}}
+                            }
+                    }  
                 }
             }
         }).to_string();

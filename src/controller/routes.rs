@@ -11,6 +11,7 @@ pub enum Route {
     Products,
     Product(i32),
     ProductsSearch,
+    ProductsAutoComplete,
     UserRoles,
     UserRole(i32),
 }
@@ -136,7 +137,7 @@ pub fn create_route_parser() -> RouteParser {
     // Stores Search route
     router.add_route(r"^/stores/search$", Route::StoresSearch);
 
-    // Stores Search route
+    // Stores auto complete route
     router.add_route(r"^/stores/auto_complete$", Route::StoresAutoComplete);
 
     // Products Routes
@@ -152,6 +153,9 @@ pub fn create_route_parser() -> RouteParser {
 
     // Products Search route
     router.add_route(r"^/products/search$", Route::ProductsSearch);
+
+    // Products auto complete route
+    router.add_route(r"^/stores/auto_complete$", Route::ProductsAutoComplete);
 
     // User_roles Routes
     router.add_route(r"^/user_roles$", Route::UserRoles);

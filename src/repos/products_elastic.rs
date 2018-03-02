@@ -42,18 +42,13 @@ impl ProductsSearchRepoImpl {
 impl ProductsSearchRepo for ProductsSearchRepoImpl {
     /// Find specific products by name limited by `count` parameters
     fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
-        let lang = prod.lang.clone();
-        let name_query = match prod.name {
-            None => json!({
-                "match_all": {}
-            }),
-            Some(name) => json!(
+        let name_query = json!(
                 [
                     {"nested": {
                         "path": "name",
                         "query": {
                             "bool": {
-                                "must": [{"match": {lang.clone(): {"query": name}}}]
+                                "must": {"match": {"text": prod.name}}
                             }  
                         }
                     }},
@@ -61,7 +56,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         "path": "short_description",
                         "query": {
                             "bool": {
-                                "must": [{"match": {lang.clone(): {"query": name}}}]
+                                "must": {"match": {"text": prod.name}}
                             }  
                         }
                     }},
@@ -69,13 +64,12 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         "path": "long_description",
                         "query": {
                             "bool": {
-                                "must": [{"match": {lang: {"query": name}}}]
+                                "must": {"match": {"text": prod.name}}
                             }  
                         }
                     }}
                 ]
-            ),
-        };
+            );
 
         let props = match prod.attr_filters {
             None => json!({}),

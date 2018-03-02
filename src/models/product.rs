@@ -129,11 +129,9 @@ impl ElasticProduct {
     }
 }
 
-#[derive(Serialize, Deserialize, Validate, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SearchProduct {
-    pub name: Option<String>,
-    #[validate(custom = "validate_lang")]
-    pub lang: String,
+    pub name: String,
     pub attr_filters: Option<Vec<AttributeFilter>>,
 }
 

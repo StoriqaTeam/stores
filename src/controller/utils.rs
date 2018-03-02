@@ -7,7 +7,7 @@ use futures::{future, Stream};
 use serde_json;
 use serde::de::Deserialize;
 
-use super::error;
+use super::error as errors;
 
 /// Splits query string to key-value pairs. See `macros::parse_query` for more sophisticated parsing.
 // TODO: Cover more complex cases, e.g. `from=count=10`
@@ -18,6 +18,8 @@ pub fn query_params(query: &str) -> HashMap<&str, &str> {
     }))
 }
 
+pub type ControllerFuture = Box<Future<Item = String, Error = errors::ControllerError>>;
+
 /// Transforms request body with the following pipeline:
 ///
 ///   1. Parse request body into entity of type T (T must implement `serde::de::Deserialize` trait)
@@ -27,16 +29,14 @@ pub fn query_params(query: &str) -> HashMap<&str, &str> {
 /// Fails with `error::Error::UnprocessableEntity` if step 1 fails.
 ///
 /// Fails with `error::Error::BadRequest` with message if step 2 fails.
-pub fn parse_body<T>(body: hyper::Body) -> Box<Future<Item = T, Error = error::Error>>
+pub fn parse_body<T>(body: hyper::Body) -> Box<Future<Item = T, Error = errors::ControllerError>>
 where
     T: for<'a> Deserialize<'a> + 'static,
 {
     Box::new(
         read_body(body)
-            .map_err(|err| error::Error::BadRequest(format!("{}", err)))
-            .and_then(|body| {
-                serde_json::from_str::<T>(&body).map_err(|_| error::Error::UnprocessableEntity("Error parsing request body".to_string()))
-            }),
+            .map_err(|err| errors::ControllerError::Parse(format!("{}", err)))
+            .and_then(|body| serde_json::from_str::<T>(&body).map_err(|e| errors::ControllerError::UnprocessableEntity(e.into()))),
     )
 }
 

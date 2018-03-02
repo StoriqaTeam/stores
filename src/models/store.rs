@@ -1,29 +1,12 @@
 //! Module containg store model for query, insert, update
 use std::time::SystemTime;
 
-use validator::{Validate, ValidationError};
-use regex::Regex;
-use std::borrow::Cow;
-use std::collections::HashMap;
+use validator::Validate;
+use serde_json;
 
 use super::authorization::*;
 use repos::types::DbConnection;
-
-pub fn validate_phone(phone: &String) -> Result<(), ValidationError> {
-    lazy_static! {
-        static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^\+?\d{7}\d*$").unwrap();
-    }
-
-    if PHONE_VALIDATION_RE.is_match(phone) {
-        Ok(())
-    } else {
-        Err(ValidationError {
-            code: Cow::from("phone"),
-            message: Some(Cow::from("Incorrect phone format")),
-            params: HashMap::new(),
-        })
-    }
-}
+use models::validation_rules::*;
 
 /// diesel table for stores
 table! {
@@ -31,10 +14,10 @@ table! {
         id -> Integer,
         user_id -> Integer,
         is_active -> Bool,
-        name -> VarChar,
+        name -> Jsonb,
         currency_id -> Integer,
-        short_description -> VarChar,
-        long_description -> Nullable<VarChar>,
+        short_description -> Jsonb,
+        long_description -> Nullable<Jsonb>,
         slug -> VarChar,
         cover -> Nullable<VarChar>,
         logo -> Nullable<VarChar>,
@@ -46,7 +29,7 @@ table! {
         instagram_url -> Nullable<VarChar>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        language_id -> Integer,
+        default_language -> VarChar,
         slogan -> Nullable<VarChar>,
     }
 }
@@ -57,10 +40,10 @@ pub struct Store {
     pub id: i32,
     pub user_id: i32,
     pub is_active: bool,
-    pub name: String,
+    pub name: serde_json::Value,
     pub currency_id: i32,
-    pub short_description: String,
-    pub long_description: Option<String>,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
@@ -72,7 +55,7 @@ pub struct Store {
     pub instagram_url: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
-    pub language_id: i32,
+    pub default_language: String,
     pub slogan: Option<String>,
 }
 
@@ -80,7 +63,7 @@ pub struct Store {
 pub struct ElasticStore {
     pub id: i32,
     pub user_id: i32,
-    pub name: String,
+    pub name: serde_json::Value,
 }
 
 impl From<Store> for ElasticStore {
@@ -97,13 +80,11 @@ impl From<Store> for ElasticStore {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
 #[table_name = "stores"]
 pub struct NewStore {
-    pub name: String,
+    pub name: serde_json::Value,
     pub user_id: i32,
     pub currency_id: i32,
-    #[validate(length(min = "1", message = "Short description must not be empty"))]
-    pub short_description: String,
-    #[validate(length(min = "1", message = "Long description must not be empty"))]
-    pub long_description: Option<String>,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: String,
     pub cover: Option<String>,
@@ -116,7 +97,8 @@ pub struct NewStore {
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
-    pub language_id: i32,
+    #[validate(custom = "validate_lang")]
+    pub default_language: String,
     pub slogan: Option<String>,
 }
 
@@ -124,12 +106,10 @@ pub struct NewStore {
 #[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
 #[table_name = "stores"]
 pub struct UpdateStore {
-    pub name: Option<String>,
+    pub name: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
-    #[validate(length(min = "1", message = "Short description must not be empty"))]
-    pub short_description: Option<String>,
-    #[validate(length(min = "1", message = "Long description must not be empty"))]
-    pub long_description: Option<String>,
+    pub short_description: Option<serde_json::Value>,
+    pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: Option<String>,
     pub cover: Option<Option<String>>,
@@ -142,8 +122,14 @@ pub struct UpdateStore {
     pub facebook_url: Option<String>,
     pub twitter_url: Option<String>,
     pub instagram_url: Option<String>,
-    pub language_id: Option<i32>,
+    #[validate(custom = "validate_lang")]
+    pub default_language: Option<String>,
     pub slogan: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SearchStore {
+    pub name: String,
 }
 
 impl WithScope for Store {

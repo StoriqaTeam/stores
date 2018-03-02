@@ -6,7 +6,8 @@ use diesel::query_dsl::RunQueryDsl;
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use models::attribute::attributes::dsl::*;
-use super::error::Error;
+use repos::error::RepoError as Error;
+
 use super::types::{DbConnection, RepoResult};
 use repos::acl::Acl;
 use models::authorization::*;

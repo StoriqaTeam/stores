@@ -1,28 +1,16 @@
 //! Module containg product model for query, insert, update
 use std::time::SystemTime;
 
-use validator::{Validate, ValidationError};
-use std::borrow::Cow;
-use std::collections::HashMap;
+use validator::Validate;
 use diesel::prelude::*;
+use serde_json;
 
 use super::Store;
 use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
 use models::{AttrValue, AttributeFilter};
-
-pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError> {
-    if val.into() > 0f64 {
-        Ok(())
-    } else {
-        Err(ValidationError {
-            code: Cow::from("value"),
-            message: Some(Cow::from("Value must be non negative.")),
-            params: HashMap::new(),
-        })
-    }
-}
+use models::validation_rules::*;
 
 /// diesel table for products
 table! {
@@ -30,16 +18,15 @@ table! {
         id -> Integer,
         store_id -> Integer,
         is_active -> Bool,
-        name -> VarChar,
-        short_description -> VarChar,
-        long_description -> Nullable<VarChar>,
+        name -> Jsonb,
+        short_description -> Jsonb,
+        long_description -> Nullable<Jsonb>,
         price -> Double,
         currency_id -> Integer,
         discount -> Nullable<Float>,
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Float>,
-        language_id -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -52,16 +39,15 @@ pub struct Product {
     pub id: i32,
     pub store_id: i32,
     pub is_active: bool,
-    pub name: String,
-    pub short_description: String,
-    pub long_description: Option<String>,
+    pub name: serde_json::Value,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
     pub price: f64,
     pub currency_id: i32,
     pub discount: Option<f32>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
-    pub language_id: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -70,13 +56,14 @@ pub struct Product {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
 #[table_name = "products"]
 pub struct NewProduct {
-    pub name: String,
+    #[validate(custom = "validate_translation")]
+    pub name: serde_json::Value,
     pub store_id: i32,
     pub currency_id: i32,
-    #[validate(length(min = "1", message = "Short description must not be empty"))]
-    pub short_description: String,
-    #[validate(length(min = "1", message = "Long description must not be empty"))]
-    pub long_description: Option<String>,
+    #[validate(custom = "validate_translation")]
+    pub short_description: serde_json::Value,
+    #[validate(custom = "validate_translation")]
+    pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_non_negative")]
     pub price: f64,
     #[validate(custom = "validate_non_negative")]
@@ -85,7 +72,6 @@ pub struct NewProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
-    pub language_id: i32,
 }
 
 /// Payload for creating products and attributes
@@ -96,15 +82,16 @@ pub struct NewProductWithAttributes {
 }
 
 /// Payload for updating products
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone)]
 #[table_name = "products"]
 pub struct UpdateProduct {
-    pub name: Option<String>,
+    #[validate(custom = "validate_translation")]
+    pub name: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
-    #[validate(length(min = "1", message = "Short description must not be empty"))]
-    pub short_description: Option<String>,
-    #[validate(length(min = "1", message = "Long description must not be empty"))]
-    pub long_description: Option<String>,
+    #[validate(custom = "validate_translation")]
+    pub short_description: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
+    pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_non_negative")]
     pub price: Option<f64>,
     #[validate(custom = "validate_non_negative")]
@@ -113,31 +100,38 @@ pub struct UpdateProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
-    pub language_id: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UpdateProductWithAttributes {
+    pub product: UpdateProduct,
+    pub attributes: Vec<AttrValue>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ElasticProduct {
     pub id: i32,
-    pub name: String,
-    pub short_description: String,
-    pub long_description: Option<String>,
+    pub name: serde_json::Value,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
+    pub properties: Vec<AttrValue>,
 }
 
-impl From<Product> for ElasticProduct {
-    fn from(product: Product) -> Self {
+impl ElasticProduct {
+    pub fn new(product: Product, attrs: Vec<AttrValue>) -> Self {
         Self {
             id: product.id,
             name: product.name,
             short_description: product.short_description,
             long_description: product.long_description,
+            properties: attrs,
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SearchProduct {
-    pub name: Option<String>,
+    pub name: String,
     pub attr_filters: Option<Vec<AttributeFilter>>,
 }
 

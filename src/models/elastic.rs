@@ -36,7 +36,6 @@ pub enum ElasticIndex {
     Store,
     Product,
     Attribute,
-    ProductAttributeValue,
 }
 
 impl fmt::Display for ElasticIndex {
@@ -45,7 +44,6 @@ impl fmt::Display for ElasticIndex {
             &ElasticIndex::Store => write!(f, "store"),
             &ElasticIndex::Product => write!(f, "product"),
             &ElasticIndex::Attribute => write!(f, "attribute"),
-            &ElasticIndex::ProductAttributeValue => write!(f, "product_attribute_value"),
         }
     }
 }

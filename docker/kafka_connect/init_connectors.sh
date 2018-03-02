@@ -58,3 +58,86 @@ cat << EOF > prod_attr_values-connector.json
 }
 EOF
 curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d @prod_attr_values-connector.json $KAFKA_CONNECT_ADDR/connectors
+
+sleep 5
+echo "Initializing Elastic indices"
+
+curl -XPUT 'stores-es:9200/stores?pretty' -H 'Content-Type: application/json' -d'
+{
+      "mappings": {
+         "_doc": {
+            "properties": {
+               "name": {
+                  "type": "nested",
+                  "properties": {
+                     "lang": {
+                        "type": "text"
+                     },
+                     "text": {
+                        "type": "text"
+                     }
+                  }
+               },
+               "user_id": {
+                  "type": "integer"
+               },
+               "id": {
+                  "type": "integer"
+               }
+            }
+         }
+      }
+}
+'
+
+sleep 5
+
+curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' -d'
+{
+      "mappings": {
+         "_doc": {
+            "properties": {
+               "name": {
+                  "type": "nested",
+                  "properties": {
+                     "lang": {
+                        "type": "text"
+                     },
+                     "text": {
+                        "type": "text"
+                     }
+                  }
+               },
+               "short_description": {
+                  "type": "nested",
+                  "properties": {
+                     "lang": {
+                        "type": "text"
+                     },
+                     "text": {
+                        "type": "text"
+                     }
+                  }
+               },
+               "long_description": {
+                  "type": "nested",
+                  "properties": {
+                     "lang": {
+                        "type": "text"
+                     },
+                     "text": {
+                        "type": "text"
+                     }
+                  }
+               },
+               "id": {
+                  "type": "integer"
+               },
+               "attrs": {
+                  "type": "nested"
+               }
+            }
+         }
+      }
+}
+'

@@ -34,8 +34,8 @@ services:
         ZOO_PORT: 2181
         ZOO_SERVERS: server.1=zoo1:2888:3888
     volumes:
-      - ./connect-data/zoo1/data:/data
-      - ./connect-data/zoo1/datalog:/datalog
+      - ./kafka_connect/data/zoo1/data:/data
+      - ./kafka_connect/data/zoo1/datalog:/datalog
 
   kafka1:
     image: confluentinc/cp-kafka:4.0.0
@@ -50,7 +50,7 @@ services:
       KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
-      - ./connect-data/kafka1/data:/var/lib/kafka/data
+      - ./kafka_connect/data/kafka1/data:/var/lib/kafka/data
     depends_on:
       - zoo1
 
@@ -136,12 +136,20 @@ services:
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_PLUGIN_PATH: /etc/kafka-connect/plugins
     volumes:
-      - "./kc-plugins:/etc/kafka-connect/plugins"
+      - "./kafka_connect/kc-plugins:/etc/kafka-connect/plugins"
     depends_on:
       - zoo1
       - kafka1
       - kafka-schema-registry
       - kafka-rest-proxy
+
+  kafka-connect-init:
+    build:
+      context: ./kafka_connect_init
+      dockerfile: Dockerfile.kafka_connect_init
+    command: ["sh", "-c", "/utils/init_connectors.sh kafka-connect:8083"]
+    depends_on:
+      - kafka-connect
 
   kafka-connect-ui:
     image: landoop/kafka-connect-ui:0.9.3

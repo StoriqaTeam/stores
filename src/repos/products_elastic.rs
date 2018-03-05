@@ -47,24 +47,24 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                     {"nested": {
                         "path": "name",
                         "query": {
-                            "bool": {
-                                "must": {"match": {"text": prod.name}}
+                            "match": {
+                                "name.text": prod.name
                             }
                         }
                     }},
                     {"nested": {
                         "path": "short_description",
                         "query": {
-                            "bool": {
-                                "must": {"match": {"text": prod.name}}
+                            "match": {
+                                "short_description.text": prod.name
                             }
                         }
                     }},
                     {"nested": {
                         "path": "long_description",
                         "query": {
-                            "bool": {
-                                "must": {"match": {"text": prod.name}}
+                            "match": {
+                                "long_description.text": prod.name
                             }
                         }
                     }}

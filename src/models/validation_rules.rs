@@ -46,7 +46,7 @@ pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError
 }
 
 pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
-    let map = serde_json::from_value::<HashMap<String, String>>(text.clone()).map_err(|_| ValidationError {
+    serde_json::from_value::<Vec<Translation>>(text.clone()).map_err(|_| ValidationError {
         code: Cow::from("text"),
         message: Some(Cow::from(
             "Invalid json format of text with translation. Must be \"en\":\"text\" ",
@@ -54,16 +54,5 @@ pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationEr
         params: HashMap::new(),
     })?;
 
-    for (k, _) in map {
-        if Language::from_639_1(&k).is_none() {
-            return Err(ValidationError {
-                code: Cow::from("text"),
-                message: Some(Cow::from(
-                    "Invalid json format of text with translation. Lang name must be ISO 639-1 format.",
-                )),
-                params: HashMap::new(),
-            });
-        }
-    }
     Ok(())
 }

@@ -81,10 +81,13 @@ impl From<Store> for ElasticStore {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
 #[table_name = "stores"]
 pub struct NewStore {
+    #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub user_id: i32,
     pub currency_id: i32,
+    #[validate(custom = "validate_translation")]
     pub short_description: serde_json::Value,
+    #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: String,

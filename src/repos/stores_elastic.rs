@@ -51,13 +51,9 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
                 "nested" : {
                     "path" : "name",
                     "query" : {
-                            "bool": {
-                                "must": {
-                                    "match": {
-                                            "text" : search_store.name
-                                        }
-                                    }
-                                }
+                        "match": {
+                            "name.text" : search_store.name
+                        }
                     }
                 }
             }

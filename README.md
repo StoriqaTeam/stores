@@ -1,4 +1,4 @@
-# users
+# stores
 
 Microservice for managing store profiles.
 
@@ -7,6 +7,8 @@ Microservice for managing store profiles.
 ```
 cd docker && docker-compose up
 ```
+
+For ElasticSearch to work it's necessary to put kc-plugins folder from https://github.com/StoriqaTeam/kafka-elastic-sink-connector/tree/master repo under docker/kafka_connect in this repo
 
 ## Request Flow
 

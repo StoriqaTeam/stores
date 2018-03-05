@@ -45,7 +45,7 @@ impl<R: RolesCache> ApplicationAcl<R> {
                 permission!(Resource::Products),
                 permission!(Resource::UserRoles),
                 permission!(Resource::ProductAttrs),
-                permission!(Resource::Attributes)
+                permission!(Resource::Attributes),
             ],
         );
         hash.insert(

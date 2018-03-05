@@ -99,7 +99,6 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
                 .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| future::ok(res.into_documents().next().is_some())),
-
         )
     }
 

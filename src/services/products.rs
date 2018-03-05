@@ -1,6 +1,5 @@
 //! Products Services, presents CRUD operations with product
 
-use future;
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
@@ -197,53 +196,50 @@ impl ProductsService for ProductsServiceImpl {
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| Error::Connection(e.into()))
-                        .and_then(move |conn| {
-                            let acl = acl_for_id(roles_cache.clone(), user_id);
-                            let products_repo = ProductsRepoImpl::new(&conn, acl);
-                            let acl = acl_for_id(roles_cache.clone(), user_id);
-                            let attr_repo = AttributesRepoImpl::new(&conn, acl);
-                            let acl = acl_for_id(roles_cache.clone(), user_id);
-                            let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
-                            let product = payload.product;
-                            let attributes_with_values = payload.attributes;
-                            conn.transaction::<(Product), Error, _>(move || {
-                                products_repo
-                                    .create(product)
-                                    .map_err(Error::from)
-                                    .map(move |product| (product, attributes_with_values))
-                                    .and_then(move |(product, attributes_with_values)| {
-                                        let product_id = product.id;
-                                        let res: Result<Vec<ProdAttr>, Error> = attributes_with_values
-                                            .clone()
-                                            .into_iter()
-                                            .map(|attr_value| {
-                                                attr_repo
-                                                    .find(attr_value.name.clone())
-                                                    .map_err(Error::from)
-                                                    .map(|atr| (atr.id, attr_value))
-                                                    .and_then(|(atr_id, attr_value)| {
-                                                        let new_attr = NewProdAttr {
-                                                            prod_id: product_id,
-                                                            attr_id: atr_id,
-                                                            value: attr_value.value,
-                                                            value_type: attr_value.value_type,
-                                                        };
-                                                        attr_prod_repo.create(new_attr).map_err(Error::from)
-                                                    })
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| Error::Connection(e.into()))
+                .and_then(move |conn| {
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let attr_repo = AttributesRepoImpl::new(&conn, acl);
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                    let product = payload.product;
+                    let attributes_with_values = payload.attributes;
+                    conn.transaction::<(Product), Error, _>(move || {
+                        products_repo
+                            .create(product)
+                            .map_err(Error::from)
+                            .map(move |product| (product, attributes_with_values))
+                            .and_then(move |(product, attributes_with_values)| {
+                                let product_id = product.id;
+                                let res: Result<Vec<ProdAttr>, Error> = attributes_with_values
+                                    .clone()
+                                    .into_iter()
+                                    .map(|attr_value| {
+                                        attr_repo
+                                            .find(attr_value.name.clone())
+                                            .map_err(Error::from)
+                                            .map(|atr| (atr.id, attr_value))
+                                            .and_then(|(atr_id, attr_value)| {
+                                                let new_attr = NewProdAttr {
+                                                    prod_id: product_id,
+                                                    attr_id: atr_id,
+                                                    value: attr_value.value,
+                                                    value_type: attr_value.value_type,
+                                                };
+                                                attr_prod_repo.create(new_attr).map_err(Error::from)
                                             })
-                                            .collect();
-                                        res.and_then(|_| Ok(product))
                                     })
+                                    .collect();
+                                res.and_then(|_| Ok(product))
                             })
-                        })
-                }),
-        )
+                    })
+                })
+        }))
     }
 
     /// Updates specific product
@@ -252,52 +248,49 @@ impl ProductsService for ProductsServiceImpl {
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| Error::Connection(e.into()))
-                        .and_then(move |conn| {
-                            let acl = acl_for_id(roles_cache.clone(), user_id);
-                            let products_repo = ProductsRepoImpl::new(&conn, acl);
-                            let acl = acl_for_id(roles_cache.clone(), user_id);
-                            let attr_repo = AttributesRepoImpl::new(&conn, acl);
-                            let acl = acl_for_id(roles_cache.clone(), user_id);
-                            let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
-                            let product = payload.product;
-                            let attributes_with_values = payload.attributes;
-                            conn.transaction::<(Product), Error, _>(move || {
-                                products_repo
-                                    .update(product_id, product)
-                                    .map_err(Error::from)
-                                    .map(move |product| (product, attributes_with_values))
-                                    .and_then(move |(product, attributes_with_values)| {
-                                        let product_id = product.id;
-                                        let res: Result<Vec<ProdAttr>, Error> = attributes_with_values
-                                            .clone()
-                                            .into_iter()
-                                            .map(|attr_value| {
-                                                attr_repo
-                                                    .find(attr_value.name.clone())
-                                                    .map_err(Error::from)
-                                                    .map(|atr| (atr.id, attr_value))
-                                                    .and_then(|(atr_id, attr_value)| {
-                                                        let update_attr = UpdateProdAttr {
-                                                            prod_id: product_id,
-                                                            attr_id: atr_id,
-                                                            value: attr_value.value,
-                                                            value_type: attr_value.value_type,
-                                                        };
-                                                        attr_prod_repo.update(update_attr).map_err(Error::from)
-                                                    })
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| Error::Connection(e.into()))
+                .and_then(move |conn| {
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let attr_repo = AttributesRepoImpl::new(&conn, acl);
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                    let product = payload.product;
+                    let attributes_with_values = payload.attributes;
+                    conn.transaction::<(Product), Error, _>(move || {
+                        products_repo
+                            .update(product_id, product)
+                            .map_err(Error::from)
+                            .map(move |product| (product, attributes_with_values))
+                            .and_then(move |(product, attributes_with_values)| {
+                                let product_id = product.id;
+                                let res: Result<Vec<ProdAttr>, Error> = attributes_with_values
+                                    .clone()
+                                    .into_iter()
+                                    .map(|attr_value| {
+                                        attr_repo
+                                            .find(attr_value.name.clone())
+                                            .map_err(Error::from)
+                                            .map(|atr| (atr.id, attr_value))
+                                            .and_then(|(atr_id, attr_value)| {
+                                                let update_attr = UpdateProdAttr {
+                                                    prod_id: product_id,
+                                                    attr_id: atr_id,
+                                                    value: attr_value.value,
+                                                    value_type: attr_value.value_type,
+                                                };
+                                                attr_prod_repo.update(update_attr).map_err(Error::from)
                                             })
-                                            .collect();
-                                        res.and_then(|_| Ok(product))
                                     })
+                                    .collect();
+                                res.and_then(|_| Ok(product))
                             })
-                        })
-                }),
-        )
+                    })
+                })
+        }))
     }
 }

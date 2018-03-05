@@ -66,6 +66,7 @@ impl FromStr for Language {
     }
 }
 
+#[derive(Deserialize)]
 pub struct Translation {
     pub lang: Language,
     pub text: String,
@@ -74,72 +75,5 @@ pub struct Translation {
 impl Translation {
     pub fn new(lang: Language, text: String) -> Self {
         Self { lang, text }
-    }
-}
-
-impl<'de> Deserialize<'de> for Translation {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(field_identifier, rename_all = "lowercase")]
-        enum Field {
-            Lang,
-            Text,
-        }
-
-        struct TranslationVisitor;
-
-        impl<'de> Visitor<'de> for TranslationVisitor {
-            type Value = Translation;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("struct Translation")
-            }
-
-            fn visit_seq<V>(self, mut seq: V) -> Result<Translation, V::Error>
-            where
-                V: SeqAccess<'de>,
-            {
-                let lang = seq.next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                let text = seq.next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
-                Ok(Translation::new(lang, text))
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<Translation, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut lang = None;
-                let mut text = None;
-                while let Some(key) = map.next_key()? {
-                    match key {
-                        Field::Lang => {
-                            if lang.is_some() {
-                                return Err(de::Error::duplicate_field("lang"));
-                            }
-                            let val = map.next_value()?;
-                            let language = Language::from_str(val).map_err(|_| de::Error::missing_field("lang"))?;
-                            lang = Some(language);
-                        }
-                        Field::Text => {
-                            if text.is_some() {
-                                return Err(de::Error::duplicate_field("text"));
-                            }
-                            text = Some(map.next_value()?);
-                        }
-                    }
-                }
-                let lang = lang.ok_or_else(|| de::Error::missing_field("lang"))?;
-                let text = text.ok_or_else(|| de::Error::missing_field("text"))?;
-                Ok(Translation::new(lang, text))
-            }
-        }
-
-        const FIELDS: &'static [&'static str] = &["lang", "text"];
-        deserializer.deserialize_struct("Translation", FIELDS, TranslationVisitor)
     }
 }

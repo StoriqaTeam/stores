@@ -41,9 +41,9 @@ pub enum ElasticIndex {
 impl fmt::Display for ElasticIndex {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &ElasticIndex::Store => write!(f, "store"),
-            &ElasticIndex::Product => write!(f, "product"),
-            &ElasticIndex::Attribute => write!(f, "attribute"),
+            &ElasticIndex::Store => write!(f, "stores"),
+            &ElasticIndex::Product => write!(f, "products"),
+            &ElasticIndex::Attribute => write!(f, "attributes"),
         }
     }
 }

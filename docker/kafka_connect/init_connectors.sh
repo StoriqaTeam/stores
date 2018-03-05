@@ -16,7 +16,7 @@ cat << EOF > stores-connector.json
     "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
     "topics": "stores-pg.public.stores",
     "tasks.max": "1",
-    "type.name": "stores-pg",
+    "type.name": "_doc",
     "elastic.url": "stores-es",
     "index.name": "stores",
     "elastic.port": "9200"
@@ -33,7 +33,7 @@ cat << EOF > products-connector.json
     "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
     "topics": "stores-pg.public.products",
     "tasks.max": "1",
-    "type.name": "stores-pg",
+    "type.name": "_doc",
     "elastic.url": "stores-es",
     "index.name": "products",
     "elastic.port": "9200"
@@ -50,7 +50,7 @@ cat << EOF > prod_attr_values-connector.json
     "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
     "topics": "stores-pg.public.prod_attr_values",
     "tasks.max": "1",
-    "type.name": "stores-pg",
+    "type.name": "_doc",
     "elastic.url": "stores-es",
     "index.name": "products",
     "elastic.port": "9200"

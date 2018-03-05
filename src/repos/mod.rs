@@ -8,6 +8,7 @@ pub mod products;
 pub mod products_elastic;
 pub mod product_attrs;
 pub mod attributes;
+pub mod attributes_elastic;
 pub mod error;
 pub mod types;
 
@@ -17,5 +18,6 @@ pub use self::product_attrs::*;
 pub use self::attributes::*;
 pub use self::stores::*;
 pub use self::stores_elastic::*;
+pub use self::attributes_elastic::*;
 pub use self::types::*;
 pub use self::acl::*;

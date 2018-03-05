@@ -1,39 +1,40 @@
-//! StoresSearch repo, presents CRUD operations with db for users
+//! AttributesSearch repo, presents CRUD operations with db for users
 use std::convert::From;
 
 use hyper::header::{ContentType, Headers};
 use hyper::Method;
 use future;
 use futures::Future;
+use futures::IntoFuture;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
-
-use models::{ElasticIndex, ElasticStore, IndexResponse, SearchStore};
-use repos::error::RepoError as Error;
-use super::types::RepoFuture;
 use stq_http::client::ClientHandle;
 
-/// StoresSearch repository, responsible for handling stores
-pub struct StoresSearchRepoImpl {
+use models::{ElasticAttribute, ElasticIndex, IndexResponse, SearchAttribute};
+use repos::error::RepoError as Error;
+use super::types::RepoFuture;
+
+/// AttributesSearch repository, responsible for handling attributes
+pub struct AttributesSearchRepoImpl {
     pub client_handle: ClientHandle,
     pub elastic_address: String,
 }
 
-pub trait StoresSearchRepo {
-    /// Find specific store by name limited by `count` parameters
-    fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>>;
+pub trait AttributesSearchRepo {
+    /// Find specific attribute by name
+    fn find_by_name(&self, search_attribute: SearchAttribute) -> RepoFuture<ElasticAttribute>;
 
     /// Checks name exists
     fn name_exists(&self, name: String) -> RepoFuture<bool>;
 
-    /// Creates new store
-    fn create(&self, store: ElasticStore) -> RepoFuture<()>;
+    /// Creates new attribute
+    fn create(&self, attribute: ElasticAttribute) -> RepoFuture<()>;
 
-    /// Updates specific store
-    fn update(&self, store: ElasticStore) -> RepoFuture<()>;
+    /// Updates specific attribute
+    fn update(&self, attribute: ElasticAttribute) -> RepoFuture<()>;
 }
 
-impl StoresSearchRepoImpl {
+impl AttributesSearchRepoImpl {
     pub fn new(client_handle: ClientHandle, elastic_address: String) -> Self {
         Self {
             client_handle,
@@ -42,38 +43,35 @@ impl StoresSearchRepoImpl {
     }
 }
 
-impl StoresSearchRepo for StoresSearchRepoImpl {
-    /// Find specific stores by name limited by `count` parameters
-    fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
+impl AttributesSearchRepo for AttributesSearchRepoImpl {
+    /// Find specific attributes by name
+    fn find_by_name(&self, search_attribute: SearchAttribute) -> RepoFuture<ElasticAttribute> {
         let query = json!({
-            "from" : offset, "size" : count,
             "query": {
-                "nested" : {
-                    "path" : "name",
-                    "query" : {
-                            "bool": {
-                                "must": {
-                                    "match": {
-                                            "text" : search_store.name
-                                        }
-                                    }
-                                }
+                "must": {
+                    "term": {
+                            "name" : search_attribute.name
+                        }
                     }
                 }
-            }
         }).to_string();
         let url = format!(
             "http://{}/{}/_doc/_search",
             self.elastic_address,
-            ElasticIndex::Store
+            ElasticIndex::Attribute
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         Box::new(
             self.client_handle
-                .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
+                .request::<SearchResponse<ElasticAttribute>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
-                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>())),
+                .and_then(|res| {
+                    res.into_documents()
+                        .next()
+                        .ok_or(Error::NotFound)
+                        .into_future()
+                }),
         )
     }
 
@@ -81,40 +79,36 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     fn name_exists(&self, name: String) -> RepoFuture<bool> {
         let query = json!({
             "query": {
-                "nested" : {
-                    "path" : "name",
-                    "query": {
-                            "bool": {
-                                "must": {"term": {"text": name}}
-                            }
+                "must": {
+                    "term": {
+                            "name" : name
+                        }
                     }
                 }
-            }
         }).to_string();
         let url = format!(
             "http://{}/{}/_doc/_search",
             self.elastic_address,
-            ElasticIndex::Store
+            ElasticIndex::Attribute
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         Box::new(
             self.client_handle
-                .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
+                .request::<SearchResponse<ElasticAttribute>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| future::ok(res.into_documents().next().is_some())),
-
         )
     }
 
-    /// Creates new store
-    fn create(&self, store: ElasticStore) -> RepoFuture<()> {
-        let body = serde_json::to_string(&store).unwrap();
+    /// Creates new attribute
+    fn create(&self, attribute: ElasticAttribute) -> RepoFuture<()> {
+        let body = serde_json::to_string(&attribute).unwrap();
         let url = format!(
             "http://{}/{}/_doc/{}/_create",
             self.elastic_address,
-            ElasticIndex::Store,
-            store.id
+            ElasticIndex::Attribute,
+            attribute.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -133,16 +127,16 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
         )
     }
 
-    /// Updates specific store
-    fn update(&self, store: ElasticStore) -> RepoFuture<()> {
+    /// Updates specific attribute
+    fn update(&self, attribute: ElasticAttribute) -> RepoFuture<()> {
         let body = json!({
-            "doc": store,
+            "doc": attribute,
         }).to_string();
         let url = format!(
             "http://{}/{}/_doc/{}/_update",
             self.elastic_address,
-            ElasticIndex::Store,
-            store.id
+            ElasticIndex::Attribute,
+            attribute.id
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());

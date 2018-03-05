@@ -133,7 +133,7 @@ impl ElasticProduct {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SearchProduct {
     pub name: String,
-    pub attr_filters: Option<Vec<AttributeFilter>>,
+    pub attr_filters: Vec<AttributeFilter>,
 }
 
 impl WithScope<Scope> for Product {

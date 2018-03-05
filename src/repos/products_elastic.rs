@@ -49,7 +49,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         "query": {
                             "bool": {
                                 "must": {"match": {"text": prod.name}}
-                            }  
+                            }
                         }
                     }},
                     {"nested": {
@@ -57,7 +57,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         "query": {
                             "bool": {
                                 "must": {"match": {"text": prod.name}}
-                            }  
+                            }
                         }
                     }},
                     {"nested": {
@@ -65,39 +65,36 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         "query": {
                             "bool": {
                                 "must": {"match": {"text": prod.name}}
-                            }  
+                            }
                         }
                     }}
                 ]
             );
 
-        let props = match prod.attr_filters {
-            None => json!({}),
-            Some(filters) => {
-                let filters: Vec<serde_json::Value> = filters
-                    .into_iter()
-                    .map(|attr| {
-                        let attribute_name = attr.name.clone();
-                        match attr.filter {
-                            Filter::Equal(val) => {
-                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}},{"term": {"str_val": val}}]}})
-                            }
-                            Filter::Lte(val) => {
-                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"lte": val }}}]}})
-                            }
-                            Filter::Le(val) => {
-                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"le": val }}}]}})
-                            }
-                            Filter::Ge(val) => {
-                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"ge": val }}}]}})
-                            }
-                            Filter::Gte(val) => {
-                                json!({ "bool" : {"must": [{"term": {"name": attribute_name}}, { "range": { "float_val": {"gte": val }}}]}})
-                            }
-                        }
-                    })
-                    .collect();
-                json!({
+        let filters = prod.attr_filters
+            .into_iter()
+            .map(|attr| {
+                let attribute_id = attr.name.clone();
+                // find attr id in attr index!!!!
+
+                match attr.filter {
+                    Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"id": attribute_id}},{"term": {"str_val": val}}]}}),
+                    Filter::Lte(val) => {
+                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"lte": val }}}]}})
+                    }
+                    Filter::Le(val) => {
+                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"le": val }}}]}})
+                    }
+                    Filter::Ge(val) => {
+                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"ge": val }}}]}})
+                    }
+                    Filter::Gte(val) => {
+                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"gte": val }}}]}})
+                    }
+                }
+            })
+            .collect::<Vec<serde_json::Value>>();
+        let props = json!({
                         "nested" : {
                             "path" : "properties",
                             "filter" : {
@@ -106,9 +103,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                                 }
                             }
                         }
-                })
-            }
-        };
+                });
 
         let query = json!({
             "from" : offset, "size" : count,

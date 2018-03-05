@@ -34,7 +34,7 @@ use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 
 use models;
-use self::routes::{Route};
+use self::routes::Route;
 use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
@@ -61,7 +61,6 @@ impl ControllerImpl {
         }
     }
 }
-
 
 impl Controller for ControllerImpl {
     /// Handle a request and get future response

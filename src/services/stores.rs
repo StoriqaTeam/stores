@@ -1,6 +1,5 @@
 //! Stores Services, presents CRUD operations with stores
 
-use future;
 use futures_cpupool::CpuPool;
 use futures::prelude::*;
 use diesel::Connection;
@@ -220,17 +219,16 @@ impl StoresService for StoresServiceImpl {
             let user_id = self.user_id;
             let roles_cache = self.roles_cache.clone();
             move |new_store| {
-                cpu_pool
-                    .spawn_fn(move || {
-                        db_pool
-                            .get()
-                            .map_err(|e| Error::Connection(e.into()))
-                            .and_then(move |conn| {
-                                let acl = acl_for_id(roles_cache, user_id);
-                                let stores_repo = StoresRepoImpl::new(&conn, acl);
-                                conn.transaction::<Store, Error, _>(move || stores_repo.create(new_store).map_err(Error::from))
-                            })
-                    })
+                cpu_pool.spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| Error::Connection(e.into()))
+                        .and_then(move |conn| {
+                            let acl = acl_for_id(roles_cache, user_id);
+                            let stores_repo = StoresRepoImpl::new(&conn, acl);
+                            conn.transaction::<Store, Error, _>(move || stores_repo.create(new_store).map_err(Error::from))
+                        })
+                })
             }
         }))
     }
@@ -241,22 +239,19 @@ impl StoresService for StoresServiceImpl {
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| Error::Connection(e.into()))
-                        .and_then(move |conn| {
-                            let acl = acl_for_id(roles_cache, user_id);
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| Error::Connection(e.into()))
+                .and_then(move |conn| {
+                    let acl = acl_for_id(roles_cache, user_id);
 
-                            let stores_repo = StoresRepoImpl::new(&conn, acl);
-                            stores_repo
-                                .find(store_id.clone())
-                                .and_then(move |_user| stores_repo.update(store_id, payload))
-                                .map_err(Error::from)
-                        })
-                }),
-        )
+                    let stores_repo = StoresRepoImpl::new(&conn, acl);
+                    stores_repo
+                        .find(store_id.clone())
+                        .and_then(move |_user| stores_repo.update(store_id, payload))
+                        .map_err(Error::from)
+                })
+        }))
     }
 }

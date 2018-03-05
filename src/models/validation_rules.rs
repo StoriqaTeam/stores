@@ -5,6 +5,7 @@ use serde_json;
 use validator::ValidationError;
 use regex::Regex;
 use isolang::Language;
+use super::Translation;
 
 pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {
@@ -48,9 +49,7 @@ pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError
 pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
     serde_json::from_value::<Vec<Translation>>(text.clone()).map_err(|_| ValidationError {
         code: Cow::from("text"),
-        message: Some(Cow::from(
-            "Invalid json format of text with translation. Must be \"en\":\"text\" ",
-        )),
+        message: Some(Cow::from("Invalid json format of text with translation.")),
         params: HashMap::new(),
     })?;
 

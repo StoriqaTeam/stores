@@ -211,7 +211,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                             let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, &*acl);
                             let product = payload.product;
                             let attributes_with_values = payload.attributes;
-                            conn.transaction::<(Product, Vec<AttrValue>), Error, _>(move || {
+                            conn.transaction::<(Product), Error, _>(move || {
                                 products_repo
                                     .create(product)
                                     .map_err(Error::from)
@@ -237,22 +237,10 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                                                     })
                                             })
                                             .collect();
-                                        res.and_then(|_| Ok((product, attributes_with_values)))
+                                        res.and_then(|_| Ok(product))
                                     })
                             })
                         })
-                })
-                .and_then({
-                    let client_handle = self.client_handle.clone();
-                    let address = self.elastic_address.clone();
-                    move |(product, attrs)| {
-                        let products_el = ProductsSearchRepoImpl::new(client_handle, address);
-                        let el_product = ElasticProduct::new(product.clone(), attrs);
-                        products_el
-                            .create(el_product)
-                            .map_err(Error::from)
-                            .and_then(|_| future::ok(product))
-                    }
                 }),
         )
     }
@@ -278,7 +266,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                             let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, &*acl);
                             let product = payload.product;
                             let attributes_with_values = payload.attributes;
-                            conn.transaction::<(Product, Vec<AttrValue>), Error, _>(move || {
+                            conn.transaction::<(Product), Error, _>(move || {
                                 products_repo
                                     .update(product_id, product)
                                     .map_err(Error::from)
@@ -304,22 +292,10 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                                                     })
                                             })
                                             .collect();
-                                        res.and_then(|_| Ok((product, attributes_with_values)))
+                                        res.and_then(|_| Ok(product))
                                     })
                             })
                         })
-                })
-                .and_then({
-                    let client_handle = self.client_handle.clone();
-                    let address = self.elastic_address.clone();
-                    move |(product, attrs)| {
-                        let products_el = ProductsSearchRepoImpl::new(client_handle, address);
-                        let el_product = ElasticProduct::new(product.clone(), attrs);
-                        products_el
-                            .update(el_product)
-                            .map_err(Error::from)
-                            .and_then(|_| future::ok(product))
-                    }
                 }),
         )
     }

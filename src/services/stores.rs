@@ -216,8 +216,6 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id.clone();
             let roles_cache = self.roles_cache.clone();
-            let client_handle = self.client_handle.clone();
-            let address = self.elastic_address.clone();
             move |new_store| {
                 cpu_pool
                     .spawn_fn(move || {
@@ -231,18 +229,6 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                                 let stores_repo = StoresRepoImpl::new(&conn, &*acl);
                                 conn.transaction::<Store, Error, _>(move || stores_repo.create(new_store).map_err(Error::from))
                             })
-                    })
-                    .and_then({
-                        move |store| {
-                            let fut = {
-                                let stores_el = StoresSearchRepoImpl::new(client_handle, address);
-                                stores_el
-                                    .create(store.clone().into())
-                                    .map_err(Error::from)
-                                    .and_then(|_| future::ok(store))
-                            };
-                            cpu_pool.spawn(fut)
-                        }
                     })
             }
         }))
@@ -270,21 +256,6 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                                 .and_then(move |_user| stores_repo.update(store_id, payload))
                                 .map_err(Error::from)
                         })
-                })
-                .and_then({
-                    let cpu_pool = self.cpu_pool.clone();
-                    let client_handle = self.client_handle.clone();
-                    let address = self.elastic_address.clone();
-                    move |store| {
-                        let fut = {
-                            let stores_el = StoresSearchRepoImpl::new(client_handle, address);
-                            stores_el
-                                .update(store.clone().into())
-                                .map_err(Error::from)
-                                .and_then(|_| future::ok(store))
-                        };
-                        cpu_pool.spawn(fut)
-                    }
                 }),
         )
     }

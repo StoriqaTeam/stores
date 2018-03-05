@@ -6,18 +6,20 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
 use diesel::pg::PgConnection;
+use stq_acl::*;
 
 use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
 use super::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
-use repos::acl::Acl;
 use models::authorization::*;
+use super::acl;
+use super::acl::BoxedAcl;
 
 /// Stores repository, responsible for handling stores
 pub struct StoresRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: &'a Acl,
+    pub acl: BoxedAcl,
 }
 
 pub trait StoresRepo {
@@ -38,7 +40,7 @@ pub trait StoresRepo {
 }
 
 impl<'a> StoresRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
         Self { db_conn, acl }
     }
 
@@ -52,24 +54,24 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     fn find(&self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
-                acl!(
-                    [store],
-                    self.acl,
-                    Resource::Stores,
-                    Action::Read,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Stores,
+                    &Action::Read,
+                    &[&store],
+                    Some(self.db_conn),
                 ).and_then(|_| Ok(store))
             })
     }
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store> {
-        acl!(
-            [payload],
-            self.acl,
-            Resource::Stores,
-            Action::Create,
-            Some(self.db_conn)
+        acl::check(
+            &*self.acl,
+            &Resource::Stores,
+            &Action::Create,
+            &[&payload],
+            Some(self.db_conn),
         ).and_then(|_| {
             let query_store = diesel::insert_into(stores).values(&payload);
             query_store
@@ -92,14 +94,14 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
             .and_then(|stores_res: Vec<Store>| {
                 let resources = stores_res
                     .iter()
-                    .map(|store| (store as &WithScope))
-                    .collect();
-                acl!(
-                    resources,
-                    self.acl,
-                    Resource::Stores,
-                    Action::Read,
-                    Some(self.db_conn)
+                    .map(|store| (store as &WithScope<Scope>))
+                    .collect::<Vec<&WithScope<Scope>>>();
+                acl::check(
+                    &*self.acl,
+                    &Resource::Stores,
+                    &Action::Read,
+                    &resources,
+                    Some(self.db_conn),
                 ).and_then(|_| Ok(stores_res.clone()))
             })
     }
@@ -108,12 +110,12 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
-                acl!(
-                    [store],
-                    self.acl,
-                    Resource::Stores,
-                    Action::Update,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Stores,
+                    &Action::Update,
+                    &[&store],
+                    Some(self.db_conn),
                 )
             })
             .and_then(|_| {
@@ -132,12 +134,12 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
-                acl!(
-                    [store],
-                    self.acl,
-                    Resource::Stores,
-                    Action::Delete,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Stores,
+                    &Action::Delete,
+                    &[&store],
+                    Some(self.db_conn),
                 )
             })
             .and_then(|_| {

@@ -11,7 +11,7 @@ use elastic_responses::{SearchResponse, UpdateResponse};
 use models::{ElasticIndex, ElasticStore, IndexResponse, SearchStore};
 use repos::error::RepoError as Error;
 use super::types::RepoFuture;
-use http::client::ClientHandle;
+use stq_http::client::ClientHandle;
 
 /// StoresSearch repository, responsible for handling stores
 pub struct StoresSearchRepoImpl {
@@ -102,7 +102,13 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
-                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>().len() != 0)),
+                .and_then(|res| {
+                    future::ok(
+                        res.into_documents()
+                            .collect::<Vec<ElasticStore>>()
+                            .is_empty(),
+                    )
+                }),
         )
     }
 

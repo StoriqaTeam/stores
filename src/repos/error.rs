@@ -1,6 +1,6 @@
 use diesel::result::Error as DieselError;
 use models::authorization::*;
-use http::client::Error as HttpError;
+use stq_http::client::Error as HttpError;
 
 use failure::Error;
 

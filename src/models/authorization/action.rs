@@ -3,8 +3,10 @@ use std::fmt;
 
 // All gives all permissions.
 // Read - read resource with id,
-// Write - Update or delete resource with id.
-#[derive(PartialEq, Eq, Debug)]
+// Create - create resource with id.
+// Update - update resource with id.
+// Delete - delete resource with id.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Action {
     All,
     Read,

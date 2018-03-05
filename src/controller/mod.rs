@@ -3,12 +3,9 @@
 //! Basically it provides inputs to `Service` layer and converts outputs
 //! of `Service` layer to http responses
 
-pub mod error;
 pub mod routes;
-pub mod types;
 pub mod utils;
 
-use std;
 use std::sync::Arc;
 use std::str::FromStr;
 
@@ -18,12 +15,17 @@ use futures::IntoFuture;
 use hyper::{Delete, Get, Post, Put};
 use hyper::header::Authorization;
 use hyper::server::Request;
-use serde_json;
-use serde::ser::Serialize;
 use futures_cpupool::CpuPool;
 use validator::Validate;
 
-use self::error::ControllerError as Error;
+use stq_http::controller::Controller;
+use stq_http::request_util::serialize_future;
+use stq_http::errors::ControllerError as Error;
+use stq_http::request_util::ControllerFuture;
+use stq_http::request_util::parse_body;
+use stq_router::RouteParser;
+use stq_http::client::ClientHandle;
+
 use services::system::{SystemService, SystemServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
@@ -32,37 +34,20 @@ use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 
 use models;
-use self::utils::parse_body;
-use self::types::ControllerFuture;
-use self::routes::{Route, RouteParser};
-use http::client::ClientHandle;
+use self::routes::{Route};
 use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
-pub struct Controller {
+pub struct ControllerImpl {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub route_parser: Arc<RouteParser>,
+    pub route_parser: Arc<RouteParser<Route>>,
     pub config: Config,
     pub client_handle: ClientHandle,
     pub roles_cache: RolesCacheImpl,
 }
 
-pub fn serialize_future<T, E, F>(f: F) -> ControllerFuture
-where
-    F: IntoFuture<Item = T, Error = E> + 'static,
-    E: 'static,
-    error::ControllerError: std::convert::From<E>,
-    T: Serialize,
-{
-    Box::new(
-        f.into_future()
-            .map_err(error::ControllerError::from)
-            .and_then(|resp| serde_json::to_string(&resp).map_err(|e| e.into())),
-    )
-}
-
-impl Controller {
+impl ControllerImpl {
     /// Create a new controller based on services
     pub fn new(db_pool: DbPool, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, roles_cache: RolesCacheImpl) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
@@ -75,9 +60,12 @@ impl Controller {
             roles_cache,
         }
     }
+}
 
+
+impl Controller for ControllerImpl {
     /// Handle a request and get future response
-    pub fn call(&self, req: Request) -> ControllerFuture {
+    fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();
         let auth_header = headers.get::<Authorization<String>>();
         let user_id = auth_header
@@ -103,7 +91,7 @@ impl Controller {
             self.config.server.elastic.clone(),
         );
 
-        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), cached_roles);
+        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck

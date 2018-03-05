@@ -1,9 +1,10 @@
 use models::product::products::dsl as Products;
 use models::Product;
-use models::authorization::*;
 use repos::types::DbConnection;
 use diesel::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use stq_acl::WithScope;
+use models::Scope;
 
 /// diesel table for product attributes
 table! {
@@ -61,12 +62,12 @@ impl Serialize for AttrValue {
     {
         let mut state = serializer.serialize_struct("AttrValue", 2)?;
         state.serialize_field("name", &self.name)?;
-        match &self.value_type {
-            &AttributeType::Float => {
+        match self.value_type {
+            AttributeType::Float => {
                 let f = self.value.parse::<f32>().map_err(|e| e.to_string());
                 state.serialize_field("float_val", &f)
             }
-            &AttributeType::Str => state.serialize_field("str_val", &self.value),
+            AttributeType::Str => state.serialize_field("str_val", &self.value),
         }?;
 
         state.end()
@@ -80,7 +81,7 @@ pub enum AttributeType {
     Float,
 }
 
-impl WithScope for ProdAttr {
+impl WithScope<Scope> for ProdAttr {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
@@ -89,7 +90,7 @@ impl WithScope for ProdAttr {
                     Products::products
                         .find(self.prod_id)
                         .get_result::<Product>(&**conn)
-                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(&conn))))
+                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
                         .ok()
                         .unwrap_or(false)
                 } else {
@@ -100,7 +101,7 @@ impl WithScope for ProdAttr {
     }
 }
 
-impl WithScope for NewProdAttr {
+impl WithScope<Scope> for NewProdAttr {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
@@ -109,7 +110,7 @@ impl WithScope for NewProdAttr {
                     Products::products
                         .find(self.prod_id)
                         .get_result::<Product>(&**conn)
-                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(&conn))))
+                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
                         .ok()
                         .unwrap_or(false)
                 } else {

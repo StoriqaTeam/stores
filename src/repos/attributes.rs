@@ -9,13 +9,14 @@ use models::attribute::attributes::dsl::*;
 use repos::error::RepoError as Error;
 
 use super::types::{DbConnection, RepoResult};
-use repos::acl::Acl;
 use models::authorization::*;
+use super::acl;
+use super::acl::BoxedAcl;
 
 /// Attributes repository, responsible for handling attribute_values
 pub struct AttributesRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: &'a Acl,
+    pub acl: BoxedAcl,
 }
 
 pub trait AttributesRepo {
@@ -30,7 +31,7 @@ pub trait AttributesRepo {
 }
 
 impl<'a> AttributesRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -44,24 +45,24 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
             .first::<Attribute>(&**self.db_conn)
             .map_err(Error::from)
             .and_then(|attribute: Attribute| {
-                acl!(
-                    [],
-                    self.acl,
-                    Resource::Products,
-                    Action::Read,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Attributes,
+                    &Action::Read,
+                    &[],
+                    Some(self.db_conn),
                 ).and_then(|_| Ok(attribute))
             })
     }
 
     /// Creates new attribute
     fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
-        acl!(
-            [],
-            self.acl,
-            Resource::Attributes,
-            Action::Create,
-            Some(self.db_conn)
+        acl::check(
+            &*self.acl,
+            &Resource::Attributes,
+            &Action::Create,
+            &[],
+            Some(self.db_conn),
         ).and_then(|_| {
             let query_attribute = diesel::insert_into(attributes).values(&payload);
             query_attribute
@@ -78,12 +79,12 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
             .first::<Attribute>(&**self.db_conn)
             .map_err(Error::from)
             .and_then(|_| {
-                acl!(
-                    [],
-                    self.acl,
-                    Resource::Attributes,
-                    Action::Update,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Attributes,
+                    &Action::Update,
+                    &[],
+                    Some(self.db_conn),
                 )
             })
             .and_then(|_| {

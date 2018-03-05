@@ -5,18 +5,20 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
 use diesel::pg::PgConnection;
+use stq_acl::*;
 
 use models::{NewProduct, Product, UpdateProduct};
 use models::product::products::dsl::*;
 use repos::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
-use repos::acl::Acl;
 use models::authorization::*;
+use super::acl;
+use super::acl::BoxedAcl;
 
 /// Products repository, responsible for handling products
 pub struct ProductsRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: &'a Acl,
+    pub acl: BoxedAcl,
 }
 
 pub trait ProductsRepo {
@@ -37,7 +39,7 @@ pub trait ProductsRepo {
 }
 
 impl<'a> ProductsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
         Self { db_conn, acl }
     }
 
@@ -51,24 +53,24 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     fn find(&self, product_id_arg: i32) -> RepoResult<Product> {
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                acl!(
-                    [product],
-                    self.acl,
-                    Resource::Products,
-                    Action::Read,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Products,
+                    &Action::Read,
+                    &[&product],
+                    Some(self.db_conn),
                 ).and_then(|_| Ok(product))
             })
     }
 
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<Product> {
-        acl!(
-            [payload],
-            self.acl,
-            Resource::Products,
-            Action::Create,
-            Some(self.db_conn)
+        acl::check(
+            &*self.acl,
+            &Resource::Products,
+            &Action::Create,
+            &[&payload],
+            Some(self.db_conn),
         ).and_then(|_| {
             let query_product = diesel::insert_into(products).values(&payload);
             query_product
@@ -91,14 +93,14 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .and_then(|products_res: Vec<Product>| {
                 let resources = products_res
                     .iter()
-                    .map(|product| (product as &WithScope))
-                    .collect();
-                acl!(
-                    resources,
-                    self.acl,
-                    Resource::Products,
-                    Action::Read,
-                    Some(self.db_conn)
+                    .map(|product| (product as &WithScope<Scope>))
+                    .collect::<Vec<&WithScope<Scope>>>();
+                acl::check(
+                    &*self.acl,
+                    &Resource::Products,
+                    &Action::Read,
+                    &resources,
+                    Some(self.db_conn),
                 ).and_then(|_| Ok(products_res.clone()))
             })
     }
@@ -107,12 +109,12 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     fn update(&self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                acl!(
-                    [product],
-                    self.acl,
-                    Resource::Products,
-                    Action::Update,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Products,
+                    &Action::Update,
+                    &[&product],
+                    Some(self.db_conn),
                 )
             })
             .and_then(|_| {
@@ -131,12 +133,12 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     fn deactivate(&self, product_id_arg: i32) -> RepoResult<Product> {
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
-                acl!(
-                    [product],
-                    self.acl,
-                    Resource::Products,
-                    Action::Delete,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::Products,
+                    &Action::Delete,
+                    &[&product],
+                    Some(self.db_conn),
                 )
             })
             .and_then(|_| {

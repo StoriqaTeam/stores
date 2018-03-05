@@ -5,6 +5,7 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
 use serde_json;
+use stq_acl::UnauthorizedACL;
 
 use models::*;
 use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl,
@@ -12,8 +13,9 @@ use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRe
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
-use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
-use http::client::ClientHandle;
+use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
+
+use stq_http::client::ClientHandle;
 
 pub trait ProductsService {
     fn find_full_names_by_name_part(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
@@ -32,20 +34,20 @@ pub trait ProductsService {
 }
 
 /// Products services, responsible for Product-related CRUD operations
-pub struct ProductsServiceImpl<R: RolesCache + Clone + Send + 'static> {
+pub struct ProductsServiceImpl {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub roles_cache: R,
+    pub roles_cache: RolesCacheImpl,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
 }
 
-impl<R: RolesCache + Clone + Send + 'static> ProductsServiceImpl<R> {
+impl ProductsServiceImpl {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
-        roles_cache: R,
+        roles_cache: RolesCacheImpl,
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
@@ -61,7 +63,13 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsServiceImpl<R> {
     }
 }
 
-impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsServiceImpl<R> {
+fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
+    user_id.map_or((Box::new(UnauthorizedACL::default()) as BoxedAcl), |id| {
+        (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
+    })
+}
+
+impl ProductsService for ProductsServiceImpl {
     fn find_full_names_by_name_part(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
@@ -106,7 +114,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
         Box::new(products.and_then({
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
-            let user_id = self.user_id.clone();
+            let user_id = self.user_id;
             let roles_cache = self.roles_cache.clone();
             move |el_products| {
                 cpu_pool.spawn_fn(move || {
@@ -117,10 +125,8 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
-                                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                                    });
-                                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let products_repo = ProductsRepoImpl::new(&conn, acl);
                                     products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -133,7 +139,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -141,10 +147,8 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                    });
-                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                    let acl = acl_for_id(roles_cache, user_id);
+                    let products_repo = ProductsRepoImpl::new(&conn, acl);
                     products_repo.find(product_id).map_err(Error::from)
                 })
         }))
@@ -153,7 +157,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -161,10 +165,9 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                    });
-                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                    let acl = acl_for_id(roles_cache, user_id);
+
+                    let products_repo = ProductsRepoImpl::new(&conn, acl);
                     products_repo.deactivate(product_id).map_err(Error::from)
                 })
         }))
@@ -173,7 +176,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
     /// Lists users limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -181,10 +184,8 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                    });
-                    let products_repo = ProductsRepoImpl::new(&conn, &*acl);
+                    let acl = acl_for_id(roles_cache, user_id);
+                    let products_repo = ProductsRepoImpl::new(&conn, acl);
                     products_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -193,7 +194,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
     /// Creates new product
     fn create(&self, payload: NewProductWithAttributes) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(
@@ -203,12 +204,12 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                         .get()
                         .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
-                            let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                                (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                            });
-                            let products_repo = ProductsRepoImpl::new(&conn, &*acl);
-                            let attr_repo = AttributesRepoImpl::new(&conn, &*acl);
-                            let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, &*acl);
+                            let acl = acl_for_id(roles_cache.clone(), user_id);
+                            let products_repo = ProductsRepoImpl::new(&conn, acl);
+                            let acl = acl_for_id(roles_cache.clone(), user_id);
+                            let attr_repo = AttributesRepoImpl::new(&conn, acl);
+                            let acl = acl_for_id(roles_cache.clone(), user_id);
+                            let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
                             let product = payload.product;
                             let attributes_with_values = payload.attributes;
                             conn.transaction::<(Product, Vec<AttrValue>), Error, _>(move || {
@@ -260,7 +261,7 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
     /// Updates specific product
     fn update(&self, product_id: i32, payload: UpdateProductWithAttributes) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(
@@ -270,12 +271,12 @@ impl<R: RolesCache + Clone + Send + 'static> ProductsService for ProductsService
                         .get()
                         .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
-                            let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                                (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                            });
-                            let products_repo = ProductsRepoImpl::new(&conn, &*acl);
-                            let attr_repo = AttributesRepoImpl::new(&conn, &*acl);
-                            let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, &*acl);
+                            let acl = acl_for_id(roles_cache.clone(), user_id);
+                            let products_repo = ProductsRepoImpl::new(&conn, acl);
+                            let acl = acl_for_id(roles_cache.clone(), user_id);
+                            let attr_repo = AttributesRepoImpl::new(&conn, acl);
+                            let acl = acl_for_id(roles_cache.clone(), user_id);
+                            let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
                             let product = payload.product;
                             let attributes_with_values = payload.attributes;
                             conn.transaction::<(Product, Vec<AttrValue>), Error, _>(move || {

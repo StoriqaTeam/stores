@@ -6,11 +6,12 @@ use diesel::prelude::*;
 use serde_json;
 
 use super::Store;
-use super::authorization::*;
 use repos::types::DbConnection;
 use models::store::stores::dsl as Stores;
 use models::{AttrValue, AttributeFilter};
 use models::validation_rules::*;
+use stq_acl::WithScope;
+use models::Scope;
 
 /// diesel table for products
 table! {
@@ -135,7 +136,7 @@ pub struct SearchProduct {
     pub attr_filters: Option<Vec<AttributeFilter>>,
 }
 
-impl WithScope for Product {
+impl WithScope<Scope> for Product {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
@@ -155,7 +156,7 @@ impl WithScope for Product {
     }
 }
 
-impl WithScope for NewProduct {
+impl WithScope<Scope> for NewProduct {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,

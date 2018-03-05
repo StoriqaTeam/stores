@@ -2,72 +2,29 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 
+use stq_acl::{Acl, RolesCache, WithScope};
 use models::authorization::*;
-use super::RolesCache;
-use repos::types::{DbConnection, RepoResult};
+use repos::error::RepoError;
+use repos::types::DbConnection;
 
-/// Access control layer for repos. It tells if a user can do a certain action with
-/// certain resource. All logic for roles and permissions should be hardcoded into implementation
-/// of this trait.
-pub trait Acl {
-    /// Tells if a user with id `user_id` can do `action` on `resource`.
-    /// `resource_with_scope` can tell if this resource is in some scope, which is also a part of `acl` for some
-    /// permissions. E.g. You can say that a user can do `Create` (`Action`) on `Store` (`Resource`) only if he's the
-    /// `Owner` (`Scope`) of the store.
-    fn can(
-        &self,
-        resource: Resource,
-        action: Action,
-        resources_with_scope: Vec<&WithScope>,
-        conn: Option<&DbConnection>,
-    ) -> RepoResult<bool>;
+pub fn check(
+    acl: &Acl<Resource, Action, Scope, RepoError>,
+    resource: &Resource,
+    action: &Action,
+    resources_with_scope: &[&WithScope<Scope>],
+    conn: Option<&DbConnection>,
+) -> Result<(), RepoError> {
+    acl.allows(resource, action, resources_with_scope, conn)
+        .and_then(|allowed| {
+            if allowed {
+                Ok(())
+            } else {
+                Err(RepoError::Unauthorized(*resource, *action))
+            }
+        })
 }
 
-/// SystemACL allows all manipulation with recources for all
-#[derive(Clone)]
-pub struct SystemACL {}
-
-#[allow(unused)]
-impl Acl for SystemACL {
-    fn can(
-        &self,
-        resource: Resource,
-        action: Action,
-        resources_with_scope: Vec<&WithScope>,
-        conn: Option<&DbConnection>,
-    ) -> RepoResult<bool> {
-        Ok(true)
-    }
-}
-
-impl SystemACL {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-/// UnauthorizedACL denies all manipulation with recources for all. It is used for unauthorized users.
-#[derive(Clone)]
-pub struct UnauthorizedACL {}
-
-#[allow(unused)]
-impl Acl for UnauthorizedACL {
-    fn can(
-        &self,
-        resource: Resource,
-        action: Action,
-        resources_with_scope: Vec<&WithScope>,
-        conn: Option<&DbConnection>,
-    ) -> RepoResult<bool> {
-        Ok(false)
-    }
-}
-
-impl UnauthorizedACL {
-    pub fn new() -> Self {
-        UnauthorizedACL {}
-    }
-}
+pub type BoxedAcl = Box<Acl<Resource, Action, Scope, RepoError>>;
 
 /// ApplicationAcl contains main logic for manipulation with recources
 // TODO: remove info about deleted user from cache
@@ -108,14 +65,14 @@ impl<R: RolesCache> ApplicationAcl<R> {
     }
 }
 
-impl<R: RolesCache> Acl for ApplicationAcl<R> {
-    fn can(
+impl<R: RolesCache<Role = Role, Error = RepoError>> Acl<Resource, Action, Scope, RepoError> for ApplicationAcl<R> {
+    fn allows(
         &self,
-        resource: Resource,
-        action: Action,
-        resources_with_scope: Vec<&WithScope>,
+        resource: &Resource,
+        action: &Action,
+        resources_with_scope: &[&WithScope<Scope>],
         conn: Option<&DbConnection>,
-    ) -> RepoResult<bool> {
+    ) -> Result<bool, RepoError> {
         let empty: Vec<Permission> = Vec::new();
         let user_id = &self.user_id;
         let hashed_acls = self.acls.clone();
@@ -123,11 +80,11 @@ impl<R: RolesCache> Acl for ApplicationAcl<R> {
             let acls = vec.into_iter()
                 .flat_map(|role| hashed_acls.get(&role).unwrap_or(&empty))
                 .filter(|permission| {
-                    (permission.resource == resource) && ((permission.action == action) || (permission.action == Action::All))
+                    (permission.resource == *resource) && ((permission.action == *action) || (permission.action == Action::All))
                 })
                 .filter(|permission| {
                     resources_with_scope
-                        .iter()
+                        .into_iter()
                         .all(|res| res.is_in_scope(&permission.scope, *user_id, conn))
                 });
 

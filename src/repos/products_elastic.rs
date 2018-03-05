@@ -11,7 +11,7 @@ use elastic_responses::{SearchResponse, UpdateResponse};
 use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProduct};
 use repos::error::RepoError as Error;
 use super::types::RepoFuture;
-use http::client::ClientHandle;
+use stq_http::client::ClientHandle;
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsSearchRepoImpl {

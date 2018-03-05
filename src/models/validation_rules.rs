@@ -6,7 +6,7 @@ use validator::ValidationError;
 use regex::Regex;
 use isolang::Language;
 
-pub fn validate_phone(phone: &String) -> Result<(), ValidationError> {
+pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {
         static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^\+?\d{7}\d*$").unwrap();
     }
@@ -55,7 +55,7 @@ pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationEr
     })?;
 
     for (k, _) in map {
-        if let None = Language::from_639_1(&k) {
+        if Language::from_639_1(&k).is_none() {
             return Err(ValidationError {
                 code: Cow::from("text"),
                 message: Some(Cow::from(

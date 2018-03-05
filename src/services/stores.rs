@@ -5,6 +5,7 @@ use futures_cpupool::CpuPool;
 use futures::prelude::*;
 use diesel::Connection;
 use serde_json;
+use stq_acl::UnauthorizedACL;
 
 use models::{NewStore, SearchStore, Store, Translation, UpdateStore};
 use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
@@ -12,9 +13,9 @@ use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 
 use repos::types::DbPool;
-use http::client::ClientHandle;
+use stq_http::client::ClientHandle;
 
-use repos::acl::{Acl, ApplicationAcl, RolesCache, UnauthorizedACL};
+use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -34,20 +35,20 @@ pub trait StoresService {
 }
 
 /// Stores services, responsible for Store-related CRUD operations
-pub struct StoresServiceImpl<R: RolesCache + Clone + Send + 'static> {
+pub struct StoresServiceImpl {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub roles_cache: R,
+    pub roles_cache: RolesCacheImpl,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
 }
 
-impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
+impl StoresServiceImpl {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
-        roles_cache: R,
+        roles_cache: RolesCacheImpl,
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
@@ -63,7 +64,13 @@ impl<R: RolesCache + Clone + Send + 'static> StoresServiceImpl<R> {
     }
 }
 
-impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl<R> {
+fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
+    user_id.map_or((Box::new(UnauthorizedACL::default()) as BoxedAcl), |id| {
+        (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
+    })
+}
+
+impl StoresService for StoresServiceImpl {
     fn find_full_names_by_name_part(&self, search_store: SearchStore, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
@@ -109,7 +116,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
         Box::new(stores.and_then({
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
-            let user_id = self.user_id.clone();
+            let user_id = self.user_id;
             let roles_cache = self.roles_cache.clone();
             move |el_stores| {
                 cpu_pool.spawn_fn(move || {
@@ -120,10 +127,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                             el_stores
                                 .into_iter()
                                 .map(|el_store| {
-                                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                                    });
-                                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let stores_repo = StoresRepoImpl::new(&conn, acl);
                                     stores_repo.find(el_store.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -136,7 +141,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -144,10 +149,9 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                    });
-                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
+                    let acl = acl_for_id(roles_cache, user_id);
+
+                    let stores_repo = StoresRepoImpl::new(&conn, acl);
                     stores_repo.find(store_id).map_err(Error::from)
                 })
         }))
@@ -156,7 +160,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
     /// Deactivates specific store
     fn deactivate(&self, store_id: i32) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -164,10 +168,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                    });
-                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
+                    let acl = acl_for_id(roles_cache, user_id);
+                    let stores_repo = StoresRepoImpl::new(&conn, acl);
                     stores_repo.deactivate(store_id).map_err(Error::from)
                 })
         }))
@@ -176,7 +178,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
     /// Lists users limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Store>> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -184,10 +186,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                        (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                    });
-                    let stores_repo = StoresRepoImpl::new(&conn, &*acl);
+                    let acl = acl_for_id(roles_cache, user_id);
+                    let stores_repo = StoresRepoImpl::new(&conn, acl);
                     stores_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -203,18 +203,21 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                 .name_exists(payload.name.to_string())
                 .map(move |exists| (payload, exists))
                 .map_err(Error::from)
-                .and_then(|(payload, exists)| match exists {
-                    false => Ok(payload),
-                    true => Err(Error::Validate(
-                        validation_errors!({"name": ["name" => "Store with this name already exists"]}),
-                    )),
+                .and_then(|(payload, exists)| {
+                    if exists {
+                        Err(Error::Validate(
+                            validation_errors!({"name": ["name" => "Store with this name already exists"]}),
+                        ))
+                    } else {
+                        Ok(payload)
+                    }
                 })
         };
 
         Box::new(check_store_name_exists.and_then({
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
-            let user_id = self.user_id.clone();
+            let user_id = self.user_id;
             let roles_cache = self.roles_cache.clone();
             move |new_store| {
                 cpu_pool
@@ -223,10 +226,8 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                             .get()
                             .map_err(|e| Error::Connection(e.into()))
                             .and_then(move |conn| {
-                                let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                                    (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                                });
-                                let stores_repo = StoresRepoImpl::new(&conn, &*acl);
+                                let acl = acl_for_id(roles_cache, user_id);
+                                let stores_repo = StoresRepoImpl::new(&conn, acl);
                                 conn.transaction::<Store, Error, _>(move || stores_repo.create(new_store).map_err(Error::from))
                             })
                     })
@@ -237,7 +238,7 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
     /// Updates specific store
     fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
-        let user_id = self.user_id.clone();
+        let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
 
         Box::new(
@@ -247,10 +248,9 @@ impl<R: RolesCache + Clone + Send + 'static> StoresService for StoresServiceImpl
                         .get()
                         .map_err(|e| Error::Connection(e.into()))
                         .and_then(move |conn| {
-                            let acl = user_id.map_or((Box::new(UnauthorizedACL::new()) as Box<Acl>), |id| {
-                                (Box::new(ApplicationAcl::new(roles_cache.clone(), id)) as Box<Acl>)
-                            });
-                            let stores_repo = StoresRepoImpl::new(&conn, &*acl);
+                            let acl = acl_for_id(roles_cache, user_id);
+
+                            let stores_repo = StoresRepoImpl::new(&conn, acl);
                             stores_repo
                                 .find(store_id.clone())
                                 .and_then(move |_user| stores_repo.update(store_id, payload))

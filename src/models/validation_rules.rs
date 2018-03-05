@@ -6,9 +6,7 @@ use validator::ValidationError;
 use regex::Regex;
 use isolang::Language;
 
-use super::Translation;
-
-pub fn validate_phone(phone: &String) -> Result<(), ValidationError> {
+pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {
         static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^\+?\d{7}\d*$").unwrap();
     }

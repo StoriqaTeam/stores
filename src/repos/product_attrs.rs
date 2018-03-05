@@ -3,18 +3,20 @@ use std::convert::From;
 use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use stq_acl::*;
 
 use models::{NewProdAttr, ProdAttr, UpdateProdAttr};
 use models::attribute_product::prod_attr_values::dsl::*;
 use repos::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
-use repos::acl::Acl;
 use models::authorization::*;
+use super::acl;
+use super::acl::BoxedAcl;
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: &'a Acl,
+    pub acl: BoxedAcl,
 }
 
 pub trait ProductAttrsRepo {
@@ -29,7 +31,7 @@ pub trait ProductAttrsRepo {
 }
 
 impl<'a> ProductAttrsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -47,26 +49,26 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 let resources = prod_attrs_res
                     .iter()
-                    .map(|prod_attr| (prod_attr as &WithScope))
-                    .collect();
-                acl!(
-                    resources,
-                    self.acl,
-                    Resource::ProductAttrs,
-                    Action::Read,
-                    Some(self.db_conn)
+                    .map(|prod_attr| (prod_attr as &WithScope<Scope>))
+                    .collect::<Vec<&WithScope<Scope>>>();
+                acl::check(
+                    &*self.acl,
+                    &Resource::ProductAttrs,
+                    &Action::Read,
+                    &resources,
+                    Some(self.db_conn),
                 ).and_then(|_| Ok(prod_attrs_res.clone()))
             })
     }
 
     /// Creates new product_attribute
     fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
-        acl!(
-            [payload],
-            self.acl,
-            Resource::ProductAttrs,
-            Action::Create,
-            Some(self.db_conn)
+        acl::check(
+            &*self.acl,
+            &Resource::ProductAttrs,
+            &Action::Create,
+            &[&payload],
+            Some(self.db_conn),
         ).and_then(|_| {
             let query_product_attribute = diesel::insert_into(prod_attr_values).values(&payload);
             query_product_attribute
@@ -84,12 +86,12 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
             .first::<ProdAttr>(&**self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attr: ProdAttr| {
-                acl!(
-                    [prod_attr],
-                    self.acl,
-                    Resource::ProductAttrs,
-                    Action::Update,
-                    Some(self.db_conn)
+                acl::check(
+                    &*self.acl,
+                    &Resource::ProductAttrs,
+                    &Action::Update,
+                    &[&prod_attr],
+                    Some(self.db_conn),
                 )
             })
             .and_then(|_| {

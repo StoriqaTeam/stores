@@ -2,7 +2,7 @@ use diesel::result::Error as DieselError;
 
 use failure::Error;
 
-use controller::error::ControllerError;
+use stq_http::errors::ControllerError;
 
 use validator::ValidationErrors;
 use repos::error::RepoError;

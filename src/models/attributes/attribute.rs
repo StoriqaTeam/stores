@@ -39,6 +39,17 @@ pub enum WidgetType {
     TextBox,
 }
 
+#[derive(Serialize, Deserialize, Clone, ElasticType)]
+pub struct ElasticAttribute {
+    pub id: i32,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, ElasticType)]
+pub struct SearchAttribute {
+    pub name: String,
+}
+
 mod diesel_impl {
     use std::error::Error;
     use std::io::Write;

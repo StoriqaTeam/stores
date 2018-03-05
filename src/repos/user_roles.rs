@@ -8,7 +8,7 @@ use diesel::query_dsl::RunQueryDsl;
 
 use models::user_role::user_roles::dsl::*;
 use models::{NewUserRole, OldUserRole, UserRole};
-use repos::acl::Acl;
+use super::acl::BoxedAcl;
 use super::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
 
@@ -21,17 +21,17 @@ pub trait UserRolesRepo {
     fn create(&self, payload: NewUserRole) -> RepoResult<UserRole>;
 
     /// Delete role of a user
-    fn delete(&self, payload: OldUserRole) -> RepoResult<()>;
+    fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole>;
 }
 
 /// Implementation of UserRoles trait
 pub struct UserRolesRepoImpl<'a> {
     pub db_conn: &'a DbConnection,
-    pub acl: &'a Acl,
+    pub acl: BoxedAcl,
 }
 
 impl<'a> UserRolesRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: &'a Acl) -> Self {
+    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -39,7 +39,9 @@ impl<'a> UserRolesRepoImpl<'a> {
 impl<'a> UserRolesRepo for UserRolesRepoImpl<'a> {
     fn list_for_user(&self, user_id_value: i32) -> RepoResult<Vec<UserRole>> {
         let query = user_roles.filter(user_id.eq(user_id_value));
-        query.get_results(&**self.db_conn).map_err(Error::from)
+        query
+            .get_results(&**self.db_conn)
+            .map_err(|e| Error::from(e))
     }
 
     fn create(&self, payload: NewUserRole) -> RepoResult<UserRole> {
@@ -47,14 +49,11 @@ impl<'a> UserRolesRepo for UserRolesRepoImpl<'a> {
         query.get_result(&**self.db_conn).map_err(Error::from)
     }
 
-    fn delete(&self, payload: OldUserRole) -> RepoResult<()> {
+    fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
         let filtered = user_roles
             .filter(user_id.eq(payload.user_id))
             .filter(role.eq(payload.role));
         let query = diesel::delete(filtered);
-        query
-            .execute(&**self.db_conn)
-            .map_err(Error::from)
-            .and_then(|_| Ok(()))
+        query.get_result(&**self.db_conn).map_err(Error::from)
     }
 }

@@ -4,9 +4,10 @@ use std::time::SystemTime;
 use validator::Validate;
 use serde_json;
 
-use super::authorization::*;
 use repos::types::DbConnection;
 use models::validation_rules::*;
+use stq_acl::WithScope;
+use models::Scope;
 
 /// diesel table for stores
 table! {
@@ -115,8 +116,8 @@ pub struct UpdateStore {
     pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: Option<String>,
-    pub cover: Option<Option<String>>,
-    pub logo: Option<Option<String>>,
+    pub cover: Option<String>,
+    pub logo: Option<String>,
     #[validate(custom = "validate_phone")]
     pub phone: Option<String>,
     #[validate(email(message = "Invalid email format"))]
@@ -135,7 +136,7 @@ pub struct SearchStore {
     pub name: String,
 }
 
-impl WithScope for Store {
+impl WithScope<Scope> for Store {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,
@@ -144,7 +145,7 @@ impl WithScope for Store {
     }
 }
 
-impl WithScope for NewStore {
+impl WithScope<Scope> for NewStore {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
         match *scope {
             Scope::All => true,

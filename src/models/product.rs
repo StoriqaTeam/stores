@@ -136,6 +136,14 @@ pub struct SearchProduct {
     pub attr_filters: Vec<AttributeFilter>,
 }
 
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SearchProductElastic {
+    pub name: String,
+    pub attr_filters: Vec<(i32, AttributeFilter)>,
+}
+
+
 impl WithScope<Scope> for Product {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {

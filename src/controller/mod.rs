@@ -30,6 +30,7 @@ use services::system::{SystemService, SystemServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
+use services::attributes::{AttributesService, AttributesServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 
@@ -91,6 +92,12 @@ impl Controller for ControllerImpl {
         );
 
         let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
+        let attributes_service = AttributesServiceImpl::new(
+            self.db_pool.clone(),
+            self.cpu_pool.clone(),
+            cached_roles.clone(),
+            user_id,
+        );
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
@@ -283,6 +290,31 @@ impl Controller for ControllerImpl {
                 parse_body::<models::OldUserRole>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                     .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from)),
+            ),
+
+            // GET /attributes/<attribute_id>
+            (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(attributes_service.get(attribute_id)),
+
+            // POST /attributes
+            (&Post, Some(Route::Attributes)) => serialize_future(
+                parse_body::<models::NewAttribute>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |new_attribute| {
+                        attributes_service
+                            .create(new_attribute)
+                            .map_err(Error::from)
+                    }),
+            ),
+
+            // PUT /attributes/<attribute_id>
+            (&Put, Some(Route::Attribute(attribute_id))) => serialize_future(
+                parse_body::<models::UpdateAttribute>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |update_attribute| {
+                        attributes_service
+                            .update(attribute_id, update_attribute)
+                            .map_err(Error::from)
+                    }),
             ),
 
             // Fallback

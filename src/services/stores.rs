@@ -63,7 +63,7 @@ impl StoresServiceImpl {
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or((Box::new(UnauthorizedACL::default()) as BoxedAcl), |id| {
+    user_id.map_or(Box::new(UnauthorizedACL::default()) as BoxedAcl, |id| {
         (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
     })
 }

@@ -5,10 +5,11 @@ use hyper::header::{ContentType, Headers};
 use hyper::Method;
 use future;
 use futures::Future;
+use futures::future::*;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
 
-use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProduct};
+use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProductElastic, SearchProduct};
 use repos::error::RepoError as Error;
 use super::types::RepoFuture;
 use stq_http::client::ClientHandle;
@@ -21,7 +22,10 @@ pub struct ProductsSearchRepoImpl {
 
 pub trait ProductsSearchRepo {
     /// Find specific product by name limited by `count` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn auto_complete(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<String>>;
+
+    /// Find specific product by name limited by `count` parameters
+    fn search(&self, prod: SearchProductElastic, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Creates new product
     fn create(&self, product: ElasticProduct) -> RepoFuture<()>;
@@ -41,7 +45,7 @@ impl ProductsSearchRepoImpl {
 
 impl ProductsSearchRepo for ProductsSearchRepoImpl {
     /// Find specific products by name limited by `count` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+    fn search(&self, prod: SearchProductElastic, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
         let name_query = json!(
                 [
                     {"nested": {
@@ -73,10 +77,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
 
         let filters = prod.attr_filters
             .into_iter()
-            .map(|attr| {
-                let attribute_id = attr.name.clone();
-                // find attr id in attr index!!!!
-
+            .map(|(attribute_id, attr)| {
                 match attr.filter {
                     Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"id": attribute_id}},{"term": {"str_val": val}}]}}),
                     Filter::Lte(val) => {
@@ -127,6 +128,75 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                 .request::<SearchResponse<ElasticProduct>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
+        )
+    }
+
+    fn auto_complete(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<String>>{
+        let name_query = json!(
+                [
+                    {"nested": {
+                        "path": "name",
+                        "query": {
+                            "match": {
+                                "name.text": prod.name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "short_description",
+                        "query": {
+                            "match": {
+                                "short_description.text": prod.name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "long_description",
+                        "query": {
+                            "match": {
+                                "long_description.text": prod.name
+                            }
+                        }
+                    }}
+                ]
+            );
+
+        let query = json!({
+            "from" : offset, "size" : count,
+            "query": {
+                "bool" : {
+                    "must" : name_query,
+                }
+            }
+        }).to_string();
+
+        let url = format!(
+            "http://{}/{}/_doc/_search",
+            self.elastic_address,
+            ElasticIndex::Product
+        );
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        Box::new(
+            self.client_handle
+                .request::<SearchResponse<ElasticProduct>>(Method::Get, url, Some(query), Some(headers))
+                .map_err(Error::from)
+                .and_then(|res| 
+                    res.into_documents()
+                        .map(move |el_product| {
+                            serde_json::from_value::<Vec<Translation>>(el_product.name)
+                                .map_err(|_| Error::Unknown)
+                                .and_then(|translations| {
+                                    let text = translations
+                                        .into_iter()
+                                        .find(|transl| transl.text.contains(&prod.name))
+                                        .ok_or(Error::NotFound)
+                                        .map(|t| t.text);
+                                })
+                        })
+                        .collect::<Result<Vec<String>, Error>>()
+                        .into_future()
+                    ),
         )
     }
 

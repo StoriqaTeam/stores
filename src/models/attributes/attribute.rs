@@ -1,9 +1,10 @@
 //! EAV model attributes
+use serde_json;
 
 table! {
     attributes {
         id -> Integer,
-        name -> VarChar,
+        name -> Jsonb,
         meta_field -> Nullable<VarChar>,
     }
 }
@@ -12,7 +13,7 @@ table! {
 #[table_name = "attributes"]
 pub struct Attribute {
     pub id: i32,
-    pub name: String,
+    pub name: serde_json::Value,
     pub meta_field: Option<String>,
 }
 
@@ -20,7 +21,7 @@ pub struct Attribute {
 #[derive(Serialize, Deserialize, Insertable, Clone)]
 #[table_name = "attributes"]
 pub struct NewAttribute {
-    pub name: String,
+    pub name: serde_json::Value,
     pub meta_field: Option<String>,
 }
 
@@ -28,14 +29,14 @@ pub struct NewAttribute {
 #[derive(Serialize, Deserialize, Insertable, AsChangeset)]
 #[table_name = "attributes"]
 pub struct UpdateAttribute {
-    pub name: Option<String>,
+    pub name: Option<serde_json::Value>,
     pub meta_field: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, ElasticType)]
 pub struct ElasticAttribute {
     pub id: i32,
-    pub name: String,
+    pub name: serde_json::Value,
 }
 
 #[derive(Serialize, Deserialize, Clone, ElasticType)]

@@ -14,6 +14,8 @@ pub enum Route {
     ProductsAutoComplete,
     UserRoles,
     UserRole(i32),
+    Attributes,
+    Attribute(i32),
 }
 
 pub fn create_route_parser() -> RouteParser<Route> {
@@ -47,7 +49,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|store_id| Route::Product(store_id))
+            .map(|product_id| Route::Product(product_id))
     });
 
     // Products Search route
@@ -64,7 +66,18 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|user_id| Route::UserRole(user_id))
+            .map(|user_role_id| Route::UserRole(user_role_id))
+    });
+
+    // Attributes Routes
+    router.add_route(r"^/attributes$", || Route::Attributes);
+
+    // User_roles/:id route
+    router.add_route_with_params(r"^/attributes/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|attribute_id| Route::Attribute(attribute_id))
     });
 
     router

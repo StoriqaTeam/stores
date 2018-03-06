@@ -7,6 +7,7 @@ use serde_json;
 use stq_acl::UnauthorizedACL;
 
 use models::*;
+use stq_static_resources::Translation;
 use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl,
             ProductsSearchRepo, ProductsSearchRepoImpl};
 use super::types::ServiceFuture;

@@ -5,7 +5,7 @@ use serde_json;
 use validator::ValidationError;
 use regex::Regex;
 use isolang::Language;
-use super::Translation;
+use stq_static_resources::Translation;
 
 pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {

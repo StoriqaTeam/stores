@@ -42,4 +42,3 @@ pub struct ElasticAttribute {
 pub struct SearchAttribute {
     pub name: String,
 }
-

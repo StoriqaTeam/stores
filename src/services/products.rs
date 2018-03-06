@@ -7,6 +7,7 @@ use serde_json;
 use stq_acl::UnauthorizedACL;
 
 use models::*;
+use stq_static_resources::Translation;
 use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl,
             ProductsSearchRepo, ProductsSearchRepoImpl};
 use super::types::ServiceFuture;
@@ -230,7 +231,7 @@ impl ProductsService for ProductsServiceImpl {
                                                     attr_id: atr_id,
                                                     value: attr_value.value,
                                                     value_type: attr_value.value_type,
-                                                    meta_field: attr_value.meta_field
+                                                    meta_field: attr_value.meta_field,
                                                 };
                                                 attr_prod_repo.create(new_attr).map_err(Error::from)
                                             })
@@ -283,7 +284,7 @@ impl ProductsService for ProductsServiceImpl {
                                                     attr_id: atr_id,
                                                     value: attr_value.value,
                                                     value_type: attr_value.value_type,
-                                                    meta_field: attr_value.meta_field
+                                                    meta_field: attr_value.meta_field,
                                                 };
                                                 attr_prod_repo.update(update_attr).map_err(Error::from)
                                             })

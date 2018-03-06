@@ -5,15 +5,14 @@ use futures::prelude::*;
 use diesel::Connection;
 use serde_json;
 use stq_acl::UnauthorizedACL;
+use stq_static_resources::Translation;
+use stq_http::client::ClientHandle;
 
-use models::{NewStore, SearchStore, Store, Translation, UpdateStore};
+use models::{NewStore, SearchStore, Store, UpdateStore};
 use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
-
 use repos::types::DbPool;
-use stq_http::client::ClientHandle;
-
 use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
 
 pub trait StoresService {

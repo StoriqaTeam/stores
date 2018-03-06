@@ -14,6 +14,7 @@ table! {
         attr_id -> Integer,
         value -> VarChar,
         value_type -> VarChar,
+        meta_field -> Nullable<VarChar>,
     }
 }
 
@@ -26,6 +27,7 @@ pub struct ProdAttr {
     pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,
+    pub meta_field: Option<String>,
 }
 
 /// Payload for creating product attributes
@@ -36,6 +38,7 @@ pub struct NewProdAttr {
     pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,
+    pub meta_field: Option<String>,
 }
 
 /// Payload for updating product attributes
@@ -46,6 +49,7 @@ pub struct UpdateProdAttr {
     pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,
+    pub meta_field: Option<String>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -53,6 +57,7 @@ pub struct AttrValue {
     pub name: String,
     pub value: String,
     pub value_type: AttributeType,
+    pub meta_field: Option<String>,
 }
 
 impl Serialize for AttrValue {

@@ -1,0 +1,1 @@
+ALTER TABLE prod_attr_values ADD COLUMN meta_field VARCHAR;

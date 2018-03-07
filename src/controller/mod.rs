@@ -31,6 +31,7 @@ use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
+use services::categories::{CategoriesService, CategoriesServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 
@@ -93,6 +94,13 @@ impl Controller for ControllerImpl {
 
         let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
         let attributes_service = AttributesServiceImpl::new(
+            self.db_pool.clone(),
+            self.cpu_pool.clone(),
+            cached_roles.clone(),
+            user_id,
+        );
+
+        let categories_service = CategoriesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles.clone(),
@@ -313,6 +321,31 @@ impl Controller for ControllerImpl {
                     .and_then(move |update_attribute| {
                         attributes_service
                             .update(attribute_id, update_attribute)
+                            .map_err(Error::from)
+                    }),
+            ),
+
+            // GET /categories/<category_id>
+            (&Get, Some(Route::Category(category_id))) => serialize_future(categories_service.get(category_id)),
+
+            // POST /categories
+            (&Post, Some(Route::Categories)) => serialize_future(
+                parse_body::<models::NewCategory>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |new_category| {
+                        categories_service
+                            .create(new_category)
+                            .map_err(Error::from)
+                    }),
+            ),
+
+            // PUT /categories/<category_id>
+            (&Put, Some(Route::Category(category_id))) => serialize_future(
+                parse_body::<models::UpdateCategory>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |update_category| {
+                        categories_service
+                            .update(category_id, update_category)
                             .map_err(Error::from)
                     }),
             ),

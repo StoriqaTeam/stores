@@ -101,12 +101,26 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         }
                 });
 
+        
+        let category = if let Some(category_id) = prod.category_id {
+            json!({
+                "query" : {
+                        "bool" : {
+                            "must" : {"term": {"category_id": category_id}}
+                        }
+                    }
+            })
+        } else {
+            json!({})
+        };
+
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
                 "bool" : {
                     "must" : name_query,
                     "filter" : props,
+                    "filter" : category,
                 }
             }
         }).to_string();

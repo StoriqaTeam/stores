@@ -58,6 +58,7 @@ impl<R: RolesCache> ApplicationAcl<R> {
                 permission!(Resource::UserRoles, Action::Read, Scope::Owned),
                 permission!(Resource::ProductAttrs, Action::Read),
                 permission!(Resource::ProductAttrs, Action::All, Scope::Owned),
+                permission!(Resource::Attributes, Action::Read),
             ],
         );
 

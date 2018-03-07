@@ -9,7 +9,8 @@ use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
 
 use models::{NewStore, SearchStore, Store, UpdateStore};
-use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
+use repos::{StoresRepo, StoresRepoImpl};
+use elastic::{StoresSearchRepo, StoresSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
@@ -63,7 +64,7 @@ impl StoresServiceImpl {
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or((Box::new(UnauthorizedACL::default()) as BoxedAcl), |id| {
+    user_id.map_or(Box::new(UnauthorizedACL::default()) as BoxedAcl, |id| {
         (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
     })
 }

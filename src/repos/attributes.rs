@@ -20,8 +20,8 @@ pub struct AttributesRepoImpl<'a> {
 }
 
 pub trait AttributesRepo {
-    /// Find specific attribute by name
-    fn find(&self, name: String) -> RepoResult<Attribute>;
+    /// Find specific attribute by id
+    fn find(&self, id_arg: i32) -> RepoResult<Attribute>;
 
     /// Creates new attribute
     fn create(&self, payload: NewAttribute) -> RepoResult<Attribute>;
@@ -37,9 +37,9 @@ impl<'a> AttributesRepoImpl<'a> {
 }
 
 impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
-    /// Find specific attribute by name
-    fn find(&self, name_arg: String) -> RepoResult<Attribute> {
-        let query = attributes.filter(name.eq(name_arg));
+    /// Find specific attribute by id
+    fn find(&self, id_arg: i32) -> RepoResult<Attribute> {
+        let query = attributes.filter(id.eq(id_arg));
 
         query
             .first::<Attribute>(&**self.db_conn)

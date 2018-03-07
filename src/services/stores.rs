@@ -225,7 +225,19 @@ impl StoresService for StoresServiceImpl {
                         .and_then(move |conn| {
                             let acl = acl_for_id(roles_cache, user_id);
                             let stores_repo = StoresRepoImpl::new(&conn, acl);
-                            conn.transaction::<Store, Error, _>(move || stores_repo.create(new_store).map_err(Error::from))
+                            conn.transaction::<Store, Error, _>(move || {
+                                stores_repo
+                                    .slug_exists(new_store.slug.to_string())
+                                    .map(move |exists| (new_store, exists))
+                                    .map_err(Error::from)
+                                    .and_then(|(new_store, exists)| match exists {
+                                        false => Ok(new_store),
+                                        true => Err(Error::Validate(
+                                            validation_errors!({"slug": ["slug" => "Slug already exists"]}),
+                                        )),
+                                    })
+                                    .and_then(move |new_store| stores_repo.create(new_store).map_err(Error::from))
+                            })
                         })
                 })
             }

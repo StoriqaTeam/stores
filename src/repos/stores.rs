@@ -6,6 +6,7 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
 use diesel::pg::PgConnection;
+use diesel::dsl::exists;
 use stq_acl::*;
 
 use models::{NewStore, Store, UpdateStore};
@@ -37,6 +38,9 @@ pub trait StoresRepo {
 
     /// Deactivates specific store
     fn deactivate(&self, store_id: i32) -> RepoResult<Store>;
+
+    /// Checks that slug already exists
+    fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
 }
 
 impl<'a> StoresRepoImpl<'a> {
@@ -148,6 +152,23 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     .filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
+            })
+    }
+
+    fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
+        let query = diesel::select(exists(stores.filter(slug.eq(slug_arg))));
+
+        query
+            .get_result(&**self.db_conn)
+            .map_err(Error::from)
+            .and_then(|exists| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::Stores,
+                    &Action::Read,
+                    &[],
+                    Some(self.db_conn),
+                ).and_then(|_| Ok(exists))
             })
     }
 }

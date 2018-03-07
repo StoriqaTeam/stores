@@ -12,7 +12,7 @@ use stq_http::client::ClientHandle;
 
 use models::{ElasticAttribute, ElasticIndex, IndexResponse, SearchAttribute};
 use repos::error::RepoError as Error;
-use super::types::RepoFuture;
+use repos::types::RepoFuture;
 
 /// AttributesSearch repository, responsible for handling attributes
 pub struct AttributesSearchRepoImpl {
@@ -48,13 +48,22 @@ impl AttributesSearchRepo for AttributesSearchRepoImpl {
     fn find_by_name(&self, search_attribute: SearchAttribute) -> RepoFuture<ElasticAttribute> {
         let query = json!({
             "query": {
-                "must": {
-                    "term": {
-                            "name" : search_attribute.name
+                "bool": {
+                    "must": {
+                        "nested": {
+                            "path": "name",
+                            "query": {
+                                "term": {
+                                    "name.text": search_attribute.name
+                                }
+                            }
                         }
                     }
                 }
+            }
         }).to_string();
+
+
         let url = format!(
             "http://{}/{}/_doc/_search",
             self.elastic_address,
@@ -78,13 +87,20 @@ impl AttributesSearchRepo for AttributesSearchRepoImpl {
     /// Checks name exists
     fn name_exists(&self, name: String) -> RepoFuture<bool> {
         let query = json!({
-            "query": {
-                "must": {
-                    "term": {
-                            "name" : name
+             "query": {
+                "bool": {
+                    "must": {
+                        "nested": {
+                            "path": "name",
+                            "query": {
+                                "term": {
+                                    "name.text": name
+                                }
+                            }
                         }
                     }
                 }
+             }
         }).to_string();
         let url = format!(
             "http://{}/{}/_doc/_search",

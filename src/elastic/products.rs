@@ -13,7 +13,7 @@ use stq_static_resources::Translation;
 
 use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProduct, SearchProductElastic};
 use repos::error::RepoError as Error;
-use super::types::RepoFuture;
+use repos::types::RepoFuture;
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsSearchRepoImpl {

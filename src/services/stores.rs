@@ -9,7 +9,8 @@ use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
 
 use models::{NewStore, SearchStore, Store, UpdateStore};
-use repos::{StoresRepo, StoresRepoImpl, StoresSearchRepo, StoresSearchRepoImpl};
+use repos::{StoresRepo, StoresRepoImpl};
+use elastic::{StoresSearchRepo, StoresSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;

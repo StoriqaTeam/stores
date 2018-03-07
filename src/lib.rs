@@ -51,6 +51,7 @@ pub mod macros;
 pub mod controller;
 pub mod models;
 pub mod repos;
+pub mod elastic;
 pub mod services;
 pub mod config;
 pub mod types;

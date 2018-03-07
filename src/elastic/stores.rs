@@ -10,7 +10,7 @@ use elastic_responses::{SearchResponse, UpdateResponse};
 
 use models::{ElasticIndex, ElasticStore, IndexResponse, SearchStore};
 use repos::error::RepoError as Error;
-use super::types::RepoFuture;
+use repos::types::RepoFuture;
 use stq_http::client::ClientHandle;
 
 /// StoresSearch repository, responsible for handling stores

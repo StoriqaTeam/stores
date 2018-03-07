@@ -7,8 +7,8 @@ use diesel::Connection;
 use stq_acl::UnauthorizedACL;
 
 use models::*;
-use repos::{AttributesSearchRepo, AttributesSearchRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl,
-            ProductsSearchRepo, ProductsSearchRepoImpl};
+use repos::{ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
+use elastic::{AttributesSearchRepo, AttributesSearchRepoImpl, ProductsSearchRepo, ProductsSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;

@@ -8,11 +8,12 @@ use futures::Future;
 use futures::future::*;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
+use stq_http::client::ClientHandle;
+use stq_static_resources::Translation;
 
-use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProductElastic, SearchProduct};
+use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProduct, SearchProductElastic};
 use repos::error::RepoError as Error;
 use super::types::RepoFuture;
-use stq_http::client::ClientHandle;
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsSearchRepoImpl {
@@ -77,21 +78,15 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
 
         let filters = prod.attr_filters
             .into_iter()
-            .map(|(attribute_id, attr)| {
-                match attr.filter {
-                    Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"id": attribute_id}},{"term": {"str_val": val}}]}}),
-                    Filter::Lte(val) => {
-                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"lte": val }}}]}})
-                    }
-                    Filter::Le(val) => {
-                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"le": val }}}]}})
-                    }
-                    Filter::Ge(val) => {
-                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"ge": val }}}]}})
-                    }
-                    Filter::Gte(val) => {
-                        json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"gte": val }}}]}})
-                    }
+            .map(|(attribute_id, attr)| match attr.filter {
+                Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"id": attribute_id}},{"term": {"str_val": val}}]}}),
+                Filter::Lte(val) => {
+                    json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"lte": val }}}]}})
+                }
+                Filter::Le(val) => json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"le": val }}}]}}),
+                Filter::Ge(val) => json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"ge": val }}}]}}),
+                Filter::Gte(val) => {
+                    json!({ "bool" : {"must": [{"term": {"id": attribute_id}}, { "range": { "float_val": {"gte": val }}}]}})
                 }
             })
             .collect::<Vec<serde_json::Value>>();
@@ -131,7 +126,7 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
         )
     }
 
-    fn auto_complete(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<String>>{
+    fn auto_complete(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<String>> {
         let name_query = json!(
                 [
                     {"nested": {
@@ -181,22 +176,22 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
-                .and_then(|res| 
+                .and_then(|res| {
                     res.into_documents()
                         .map(move |el_product| {
                             serde_json::from_value::<Vec<Translation>>(el_product.name)
-                                .map_err(|_| Error::Unknown)
+                                .map_err(|e| Error::Unknown(e.into()))
                                 .and_then(|translations| {
-                                    let text = translations
+                                    translations
                                         .into_iter()
                                         .find(|transl| transl.text.contains(&prod.name))
                                         .ok_or(Error::NotFound)
-                                        .map(|t| t.text);
+                                        .map(|t| t.text)
                                 })
                         })
                         .collect::<Result<Vec<String>, Error>>()
                         .into_future()
-                    ),
+                }),
         )
     }
 

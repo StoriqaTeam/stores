@@ -120,7 +120,7 @@ pub struct ElasticProduct {
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub properties: Vec<AttrValue>,
-    pub category_id: i32
+    pub category_id: i32,
 }
 
 impl ElasticProduct {
@@ -131,7 +131,7 @@ impl ElasticProduct {
             short_description: product.short_description,
             long_description: product.long_description,
             properties: attrs,
-            category_id: product.category_id
+            category_id: product.category_id,
         }
     }
 }
@@ -152,7 +152,11 @@ pub struct SearchProductElastic {
 
 impl SearchProductElastic {
     pub fn new(name: String, attr_filters: Vec<(i32, AttributeFilter)>, category_id: Option<i32>) -> Self {
-        Self { name, attr_filters, category_id }
+        Self {
+            name,
+            attr_filters,
+            category_id,
+        }
     }
 }
 

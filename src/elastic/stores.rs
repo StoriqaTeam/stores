@@ -7,11 +7,13 @@ use future;
 use futures::Future;
 use serde_json;
 use elastic_responses::{SearchResponse, UpdateResponse};
+use elastic_responses::search::Hit;
+use stq_http::client::ClientHandle;
+use stq_static_resources::Translation;
 
 use models::{ElasticIndex, ElasticStore, IndexResponse, SearchStore};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
-use stq_http::client::ClientHandle;
 
 /// StoresSearch repository, responsible for handling stores
 pub struct StoresSearchRepoImpl {
@@ -24,7 +26,7 @@ pub trait StoresSearchRepo {
     fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>>;
 
     /// Checks name exists
-    fn name_exists(&self, name: String) -> RepoFuture<bool>;
+    fn name_exists(&self, name: Vec<Translation>) -> RepoFuture<bool>;
 
     /// Creates new store
     fn create(&self, store: ElasticStore) -> RepoFuture<()>;
@@ -74,31 +76,43 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     }
 
     /// Checks name exists
-    fn name_exists(&self, name: String) -> RepoFuture<bool> {
+    fn name_exists(&self, translations: Vec<Translation>) -> RepoFuture<bool> {
+        let queries = translations
+            .into_iter()
+            .map(|trans| json!({ "bool" : {"must": [{"term": {"name.lang": trans.lang}}, { "term": { "name.text": trans.text}}]}}))
+            .collect::<Vec<serde_json::Value>>();
+
         let query = json!({
-            "query": {
-                "nested" : {
-                    "path" : "name",
                     "query": {
-                            "bool": {
-                                "must": {"term": {"text": name}}
+                        "nested" : {
+                            "path" : "name",
+                            "query": {
+                                    "bool": {
+                                        "should": queries
+                                    }
                             }
+                        }
                     }
-                }
-            }
-        }).to_string();
+                }).to_string();
+
         let url = format!(
             "http://{}/{}/_doc/_search",
             self.elastic_address,
             ElasticIndex::Store
         );
+        println!("{:?}", query);
+        
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
-                .and_then(|res| future::ok(res.into_documents().next().is_some())),
+                .and_then(|res| {
+                    let hits = res.into_hits().into_iter().collect::<Vec<Hit<ElasticStore>>>();
+                    println!("{:?}", hits);
+                    future::ok(!hits.is_empty())
+                }) 
         )
     }
 

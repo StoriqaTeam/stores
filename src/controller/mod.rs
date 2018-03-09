@@ -332,11 +332,7 @@ impl Controller for ControllerImpl {
             (&Post, Some(Route::Categories)) => serialize_future(
                 parse_body::<models::NewCategory>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |new_category| {
-                        categories_service
-                            .create(new_category)
-                            .map_err(Error::from)
-                    }),
+                    .and_then(move |new_category| categories_service.create(new_category).map_err(Error::from)),
             ),
 
             // PUT /categories/<category_id>

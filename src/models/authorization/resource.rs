@@ -9,7 +9,7 @@ pub enum Resource {
     Stores,
     UserRoles,
     Categories,
-    CategoryAttrs
+    CategoryAttrs,
 }
 
 impl fmt::Display for Resource {

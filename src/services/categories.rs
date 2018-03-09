@@ -60,9 +60,7 @@ impl CategoriesService for CategoriesServiceImpl {
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let categorys_repo = CategoriesRepoImpl::new(&conn, acl);
-                    categorys_repo
-                        .find(category_id)
-                        .map_err(ServiceError::from)
+                    categorys_repo.find(category_id).map_err(ServiceError::from)
                 })
         }))
     }

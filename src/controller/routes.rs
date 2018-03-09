@@ -82,7 +82,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(|attribute_id| Route::Attribute(attribute_id))
     });
 
-     // Categories Routes
+    // Categories Routes
     router.add_route(r"^/categories$", || Route::Categories);
 
     // User_roles/:id route

@@ -101,7 +101,6 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         }
                 });
 
-        
         let category = if let Some(category_id) = prod.category_id {
             json!({
                 "query" : {

@@ -101,7 +101,11 @@ impl ProductsService for ProductsServiceImpl {
                 let address = self.elastic_address.clone();
                 move |attributes_with_values| {
                     let products_el = ProductsSearchRepoImpl::new(client_handle, address);
-                    let search_product_elastic = SearchProductElastic::new(search_product.name, attributes_with_values, search_product.category_id);
+                    let search_product_elastic = SearchProductElastic::new(
+                        search_product.name,
+                        attributes_with_values,
+                        search_product.category_id,
+                    );
                     products_el
                         .search(search_product_elastic, count, offset)
                         .map_err(Error::from)

@@ -63,7 +63,6 @@ impl AttributesSearchRepo for AttributesSearchRepoImpl {
             }
         }).to_string();
 
-
         let url = format!(
             "http://{}/{}/_doc/_search",
             self.elastic_address,

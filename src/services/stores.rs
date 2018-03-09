@@ -197,19 +197,24 @@ impl StoresService for StoresServiceImpl {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let check_store_name_exists = {
-            let stores_el = StoresSearchRepoImpl::new(client_handle, address);
-            stores_el
-                .name_exists(payload.name.to_string())
-                .map(move |exists| (payload, exists))
-                .map_err(Error::from)
-                .and_then(|(payload, exists)| {
-                    if exists {
-                        Err(Error::Validate(
-                            validation_errors!({"name": ["name" => "Store with this name already exists"]}),
-                        ))
-                    } else {
-                        Ok(payload)
-                    }
+            serde_json::from_value::<Vec<Translation>>(payload.name.clone())
+                .map_err(|e| Error::Parse(e.to_string()))
+                .into_future()
+                .and_then(|translations| {
+                    let stores_el = StoresSearchRepoImpl::new(client_handle, address);
+                    stores_el
+                        .name_exists(translations)
+                        .map(move |exists| (payload, exists))
+                        .map_err(Error::from)
+                        .and_then(|(payload, exists)| {
+                            if exists {
+                                Err(Error::Validate(
+                                    validation_errors!({"name": ["name" => "Store with this name already exists"]}),
+                                ))
+                            } else {
+                                Ok(payload)
+                            }
+                        })
                 })
         };
 

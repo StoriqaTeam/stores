@@ -4,7 +4,7 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 
-use models::{NewCatAttr, CatAttr, OldCatAttr};
+use models::{CatAttr, NewCatAttr, OldCatAttr};
 use models::category_attribute::cat_attr_values::dsl::*;
 use repos::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
@@ -25,7 +25,7 @@ pub trait CategoryAttrsRepo {
     /// Creates new category_attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<CatAttr>;
 
-   /// Delete attr from category
+    /// Delete attr from category
     fn delete(&self, payload: OldCatAttr) -> RepoResult<CatAttr>;
 }
 
@@ -38,9 +38,7 @@ impl<'a> CategoryAttrsRepoImpl<'a> {
 impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
     /// Find specific category_attributes by category ID
     fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
-        let query = cat_attr_values
-            .filter(cat_id.eq(category_id_arg))
-            .order(id);
+        let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
 
         query
             .get_results(&**self.db_conn)
@@ -73,12 +71,11 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
     }
 
     /// Delete category attribute
-    fn delete(&self, payload: OldCatAttr) -> RepoResult<CatAttr>{
+    fn delete(&self, payload: OldCatAttr) -> RepoResult<CatAttr> {
         let filtered = cat_attr_values
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));
         let query = diesel::delete(filtered);
         query.get_result(&**self.db_conn).map_err(Error::from)
     }
-
 }

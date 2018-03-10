@@ -1,7 +1,7 @@
 //! StoresSearch repo, presents CRUD operations with db for users
 use std::convert::From;
 
-use hyper::header::{ContentType, Headers};
+use hyper::header::{ContentType, Headers, ContentLength};
 use hyper::Method;
 use future;
 use futures::Future;
@@ -67,6 +67,7 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
@@ -76,8 +77,8 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
     }
 
     /// Checks name exists
-    fn name_exists(&self, translations: Vec<Translation>) -> RepoFuture<bool> {
-        let queries = translations
+    fn name_exists(&self, name: Vec<Translation>) -> RepoFuture<bool> {
+        let queries = name
             .into_iter()
             .map(|trans| json!({ "bool" : {"must": [{"term": {"name.lang": trans.lang}}, { "term": { "name.text": trans.text}}]}}))
             .collect::<Vec<serde_json::Value>>();
@@ -100,17 +101,16 @@ impl StoresSearchRepo for StoresSearchRepoImpl {
             self.elastic_address,
             ElasticIndex::Store
         );
-        println!("{:?}", query);
         
         let mut headers = Headers::new();
         headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| {
                     let hits = res.into_hits().into_iter().collect::<Vec<Hit<ElasticStore>>>();
-                    println!("{:?}", hits);
                     future::ok(!hits.is_empty())
                 }) 
         )

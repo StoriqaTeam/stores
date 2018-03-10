@@ -46,3 +46,22 @@ pub struct UpdateCategory {
     pub meta_field: Option<String>,
     pub parent_id: Option<i32>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CategoryTree {
+    pub id: i32,
+    pub name: serde_json::Value,
+    pub meta_field: Option<String>,
+    pub childs: Vec<CategoryTree>,
+}
+
+impl<'a> From<&'a Category> for CategoryTree {
+    fn from(cat: &'a Category) -> Self {
+        Self {
+            id: cat.id,
+            name: cat.name.clone(),
+            meta_field: cat.meta_field.clone(),
+            childs: vec![]
+        }
+    }
+}

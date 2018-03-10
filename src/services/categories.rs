@@ -4,7 +4,7 @@ use futures_cpupool::CpuPool;
 
 use stq_acl::UnauthorizedACL;
 
-use models::{Category, NewCategory, UpdateCategory};
+use models::{Category, NewCategory, UpdateCategory, CategoryTree};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::DbPool;
@@ -19,6 +19,8 @@ pub trait CategoriesService {
     fn create(&self, payload: NewCategory) -> ServiceFuture<Category>;
     /// Updates specific category
     fn update(&self, category_id: i32, payload: UpdateCategory) -> ServiceFuture<Category>;
+    /// Returns all categories as a tree
+    fn get_all(&self) -> ServiceFuture<Vec<CategoryTree>>;
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
@@ -101,6 +103,24 @@ impl CategoriesService for CategoriesServiceImpl {
                     categorys_repo
                         .update(category_id, payload)
                         .map_err(ServiceError::from)
+                })
+        }))
+    }
+
+     /// Returns category by ID
+    fn get_all(&self) -> ServiceFuture<Vec<CategoryTree>>{
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let roles_cache = self.roles_cache.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| ServiceError::Connection(e.into()))
+                .and_then(move |conn| {
+                    let acl = acl_for_id(roles_cache, user_id);
+                    let categorys_repo = CategoriesRepoImpl::new(&conn, acl);
+                    categorys_repo.get_all().map_err(ServiceError::from)
                 })
         }))
     }

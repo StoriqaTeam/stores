@@ -4,7 +4,7 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 
-use models::{Category, NewCategory, UpdateCategory};
+use models::{Category, NewCategory, UpdateCategory, CategoryTree};
 use models::category::categories::dsl::*;
 use repos::error::RepoError as Error;
 
@@ -28,6 +28,9 @@ pub trait CategoriesRepo {
 
     /// Updates specific category
     fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category>;
+
+    /// Returns all categories as a tree
+    fn get_all(&self) -> RepoResult<Vec<CategoryTree>>;
 }
 
 impl<'a> CategoriesRepoImpl<'a> {
@@ -96,4 +99,35 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
                     .map_err(Error::from)
             })
     }
+
+    fn get_all(&self) -> RepoResult<Vec<CategoryTree>> {
+        acl::check(
+            &*self.acl,
+            &Resource::Categories,
+            &Action::Read,
+            &[],
+            Some(self.db_conn),
+        )
+        .and_then(|_| {
+                categories.load::<Category>(&**self.db_conn)
+                .map_err(Error::from)
+        }).and_then(|cats| {
+            let result = create_tree(&cats, None);
+            Ok(result)
+        })
+    }
+    
+}
+
+fn create_tree(cats: &[Category], parent_id_arg: Option<i32>) -> Vec<CategoryTree> {
+    let mut branch = vec![];
+    for cat in cats {
+        if cat.parent_id == parent_id_arg {
+            let childs = create_tree(cats, Some(cat.id));
+            let mut cat_tree : CategoryTree = cat.into();
+            cat_tree.childs = childs;
+            branch.push(cat_tree);
+        }
+    }
+    branch
 }

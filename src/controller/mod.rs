@@ -346,6 +346,9 @@ impl Controller for ControllerImpl {
                     }),
             ),
 
+            // GET /categories
+            (&Get, Some(Route::Categories)) => serialize_future(categories_service.get_all()),
+
             // Fallback
             _ => Box::new(future::err(Error::NotFound)),
         }

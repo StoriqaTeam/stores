@@ -285,6 +285,18 @@ impl Controller for ControllerImpl {
                     .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from)),
             ),
 
+            // POST /roles/default/<user_id>
+            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(
+                user_roles_service
+                    .create_default(user_id),
+            ),
+
+            // DELETE /roles/default/<user_id>
+            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(
+                user_roles_service
+                    .delete_default(user_id),
+            ),
+
             // Fallback
             _ => Box::new(future::err(Error::NotFound)),
         }

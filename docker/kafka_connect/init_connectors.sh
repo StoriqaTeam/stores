@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "Waiting for kafka-connect"
-sleep 60
+sleep 120
 
 echo "Initializing connectors"
 KAFKA_CONNECT_ADDR=$1

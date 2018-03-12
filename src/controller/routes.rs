@@ -14,6 +14,7 @@ pub enum Route {
     ProductsAutoComplete,
     UserRoles,
     UserRole(i32),
+    DefaultRole(i32),
 }
 
 pub fn create_route_parser() -> RouteParser<Route> {
@@ -65,6 +66,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|user_id| Route::UserRole(user_id))
+    });
+
+    // roles/default/:id route
+    router.add_route_with_params(r"^/roles/default/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|user_id| Route::DefaultRole(user_id))
     });
 
     router

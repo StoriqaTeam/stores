@@ -140,22 +140,22 @@ impl ElasticProduct {
 pub struct SearchProduct {
     pub name: String,
     pub attr_filters: Vec<AttributeFilter>,
-    pub category_id: Option<i32>,
+    pub categories_ids: Vec<i32>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SearchProductElastic {
     pub name: String,
     pub attr_filters: Vec<(i32, AttributeFilter)>,
-    pub category_id: Option<i32>,
+    pub categories_ids: Vec<i32>,
 }
 
 impl SearchProductElastic {
-    pub fn new(name: String, attr_filters: Vec<(i32, AttributeFilter)>, category_id: Option<i32>) -> Self {
+    pub fn new(name: String, attr_filters: Vec<(i32, AttributeFilter)>, categories_ids: Vec<i32>) -> Self {
         Self {
             name,
             attr_filters,
-            category_id,
+            categories_ids,
         }
     }
 }

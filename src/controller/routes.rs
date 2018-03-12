@@ -74,7 +74,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Attributes Routes
     router.add_route(r"^/attributes$", || Route::Attributes);
 
-    // User_roles/:id route
+    // Attributes/:id route
     router.add_route_with_params(r"^/attributes/(\d+)$", |params| {
         params
             .get(0)
@@ -85,7 +85,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Categories Routes
     router.add_route(r"^/categories$", || Route::Categories);
 
-    // User_roles/:id route
+    // Categories/:id route
     router.add_route_with_params(r"^/categories/(\d+)$", |params| {
         params
             .get(0)

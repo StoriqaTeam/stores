@@ -4,7 +4,7 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 
-use models::{Category, NewCategory, UpdateCategory, CategoryTree};
+use models::{RawCategory, Category, NewCategory, UpdateCategory};
 use models::category::categories::dsl::*;
 use repos::error::RepoError as Error;
 
@@ -21,16 +21,16 @@ pub struct CategoriesRepoImpl<'a> {
 
 pub trait CategoriesRepo {
     /// Find specific category by id
-    fn find(&self, id_arg: i32) -> RepoResult<Category>;
+    fn find(&self, id_arg: i32) -> RepoResult<RawCategory>;
 
     /// Creates new category
-    fn create(&self, payload: NewCategory) -> RepoResult<Category>;
+    fn create(&self, payload: NewCategory) -> RepoResult<RawCategory>;
 
     /// Updates specific category
-    fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category>;
+    fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<RawCategory>;
 
     /// Returns all categories as a tree
-    fn get_all(&self) -> RepoResult<Vec<CategoryTree>>;
+    fn get_all(&self) -> RepoResult<Vec<Category>>;
 }
 
 impl<'a> CategoriesRepoImpl<'a> {
@@ -41,13 +41,13 @@ impl<'a> CategoriesRepoImpl<'a> {
 
 impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
     /// Find specific category by id
-    fn find(&self, id_arg: i32) -> RepoResult<Category> {
+    fn find(&self, id_arg: i32) -> RepoResult<RawCategory> {
         let query = categories.filter(id.eq(id_arg));
 
         query
-            .first::<Category>(&**self.db_conn)
+            .first::<RawCategory>(&**self.db_conn)
             .map_err(Error::from)
-            .and_then(|category: Category| {
+            .and_then(|category: RawCategory| {
                 acl::check(
                     &*self.acl,
                     &Resource::Categories,
@@ -59,7 +59,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
     }
 
     /// Creates new category
-    fn create(&self, payload: NewCategory) -> RepoResult<Category> {
+    fn create(&self, payload: NewCategory) -> RepoResult<RawCategory> {
         acl::check(
             &*self.acl,
             &Resource::Categories,
@@ -69,17 +69,17 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
         ).and_then(|_| {
             let query_categorie = diesel::insert_into(categories).values(&payload);
             query_categorie
-                .get_result::<Category>(&**self.db_conn)
+                .get_result::<RawCategory>(&**self.db_conn)
                 .map_err(Error::from)
         })
     }
 
     /// Updates specific category
-    fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category> {
+    fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<RawCategory> {
         let query = categories.find(category_id_arg);
 
         query
-            .first::<Category>(&**self.db_conn)
+            .first::<RawCategory>(&**self.db_conn)
             .map_err(Error::from)
             .and_then(|_| {
                 acl::check(
@@ -95,37 +95,37 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<Category>(&**self.db_conn)
+                    .get_result::<RawCategory>(&**self.db_conn)
                     .map_err(Error::from)
             })
     }
 
-    fn get_all(&self) -> RepoResult<Vec<CategoryTree>> {
+    fn get_all(&self) -> RepoResult<Vec<Category>> {
         acl::check(
             &*self.acl,
             &Resource::Categories,
             &Action::Read,
             &[],
             Some(self.db_conn),
-        )
-        .and_then(|_| {
-                categories.load::<Category>(&**self.db_conn)
+        ).and_then(|_| {
+            categories
+                .load::<RawCategory>(&**self.db_conn)
                 .map_err(Error::from)
-        }).and_then(|cats| {
-            let result = create_tree(&cats, None);
-            Ok(result)
         })
+            .and_then(|cats| {
+                let result = create_tree(&cats, None);
+                Ok(result)
+            })
     }
-    
 }
 
-fn create_tree(cats: &[Category], parent_id_arg: Option<i32>) -> Vec<CategoryTree> {
+fn create_tree(cats: &[RawCategory], parent_id_arg: Option<i32>) -> Vec<Category> {
     let mut branch = vec![];
     for cat in cats {
         if cat.parent_id == parent_id_arg {
             let childs = create_tree(cats, Some(cat.id));
-            let mut cat_tree : CategoryTree = cat.into();
-            cat_tree.childs = childs;
+            let mut cat_tree: Category = cat.into();
+            cat_tree.children = childs;
             branch.push(cat_tree);
         }
     }

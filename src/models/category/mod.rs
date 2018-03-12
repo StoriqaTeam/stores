@@ -13,17 +13,17 @@ table! {
     categories {
         id -> Integer,
         name -> Jsonb,
-        meta_field -> Nullable<VarChar>,
+        meta_field -> Nullable<Jsonb>,
         parent_id -> Nullable<Integer>,
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "categories"]
-pub struct Category {
+pub struct RawCategory {
     pub id: i32,
     pub name: serde_json::Value,
-    pub meta_field: Option<String>,
+    pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
 }
 
@@ -33,7 +33,7 @@ pub struct Category {
 pub struct NewCategory {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
-    pub meta_field: Option<String>,
+    pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
 }
 
@@ -43,25 +43,25 @@ pub struct NewCategory {
 pub struct UpdateCategory {
     #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
-    pub meta_field: Option<String>,
+    pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CategoryTree {
+pub struct Category {
     pub id: i32,
     pub name: serde_json::Value,
-    pub meta_field: Option<String>,
-    pub childs: Vec<CategoryTree>,
+    pub meta_field: Option<serde_json::Value>,
+    pub children: Vec<Category>,
 }
 
-impl<'a> From<&'a Category> for CategoryTree {
-    fn from(cat: &'a Category) -> Self {
+impl<'a> From<&'a RawCategory> for Category {
+    fn from(cat: &'a RawCategory) -> Self {
         Self {
             id: cat.id,
             name: cat.name.clone(),
             meta_field: cat.meta_field.clone(),
-            childs: vec![]
+            children: vec![],
         }
     }
 }

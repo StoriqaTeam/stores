@@ -18,6 +18,7 @@ table! {
     }
 }
 
+/// RawCategory is an object stored in PG, used only for Category tree creation, 
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "categories"]
 pub struct RawCategory {
@@ -55,8 +56,30 @@ pub struct Category {
     pub children: Vec<Category>,
 }
 
+impl Default for Category {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            name: serde_json::from_str("[{\"lang\" : \"en\", \"text\" : \"root\"}]").unwrap(),
+            meta_field: None,
+            children: vec![],
+        }
+    }
+}
+
 impl<'a> From<&'a RawCategory> for Category {
     fn from(cat: &'a RawCategory) -> Self {
+        Self {
+            id: cat.id,
+            name: cat.name.clone(),
+            meta_field: cat.meta_field.clone(),
+            children: vec![],
+        }
+    }
+}
+
+impl From<RawCategory> for Category {
+    fn from(cat: RawCategory) -> Self {
         Self {
             id: cat.id,
             name: cat.name.clone(),

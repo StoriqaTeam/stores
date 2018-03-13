@@ -4,7 +4,7 @@ use futures_cpupool::CpuPool;
 
 use stq_acl::UnauthorizedACL;
 
-use models::{RawCategory, Category, NewCategory, UpdateCategory};
+use models::{Category, NewCategory, UpdateCategory};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::DbPool;
@@ -14,13 +14,13 @@ use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
 
 pub trait CategoriesService {
     /// Returns category by ID
-    fn get(&self, category_id: i32) -> ServiceFuture<RawCategory>;
+    fn get(&self, category_id: i32) -> ServiceFuture<Category>;
     /// Creates new category
-    fn create(&self, payload: NewCategory) -> ServiceFuture<RawCategory>;
+    fn create(&self, payload: NewCategory) -> ServiceFuture<Category>;
     /// Updates specific category
-    fn update(&self, category_id: i32, payload: UpdateCategory) -> ServiceFuture<RawCategory>;
+    fn update(&self, category_id: i32, payload: UpdateCategory) -> ServiceFuture<Category>;
     /// Returns all categories as a tree
-    fn get_all(&self) -> ServiceFuture<Vec<Category>>;
+    fn get_all(&self) -> ServiceFuture<Category>;
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
@@ -50,7 +50,7 @@ impl CategoriesServiceImpl {
 
 impl CategoriesService for CategoriesServiceImpl {
     /// Returns category by ID
-    fn get(&self, category_id: i32) -> ServiceFuture<RawCategory> {
+    fn get(&self, category_id: i32) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
@@ -62,13 +62,15 @@ impl CategoriesService for CategoriesServiceImpl {
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let categories_repo = CategoriesRepoImpl::new(&conn, acl);
-                    categories_repo.find(category_id).map_err(ServiceError::from)
+                    categories_repo
+                        .find(category_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
 
     /// Creates new category
-    fn create(&self, new_category: NewCategory) -> ServiceFuture<RawCategory> {
+    fn create(&self, new_category: NewCategory) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
@@ -88,7 +90,7 @@ impl CategoriesService for CategoriesServiceImpl {
     }
 
     /// Updates specific category
-    fn update(&self, category_id: i32, payload: UpdateCategory) -> ServiceFuture<RawCategory> {
+    fn update(&self, category_id: i32, payload: UpdateCategory) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
@@ -108,7 +110,7 @@ impl CategoriesService for CategoriesServiceImpl {
     }
 
     /// Returns category by ID
-    fn get_all(&self) -> ServiceFuture<Vec<Category>> {
+    fn get_all(&self) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();

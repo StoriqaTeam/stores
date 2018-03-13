@@ -22,7 +22,7 @@ use stq_http::controller::Controller;
 use stq_http::request_util::serialize_future;
 use stq_http::errors::ControllerError as Error;
 use stq_http::request_util::ControllerFuture;
-use stq_http::request_util::parse_body;
+use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
 use stq_http::client::ClientHandle;
 
@@ -148,11 +148,11 @@ impl Controller for ControllerImpl {
             (&Get, Some(Route::StoresAutoComplete)) => {
                 if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
                     serialize_future(
-                        parse_body::<models::SearchStore>(req.body())
+                        read_body(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                            .and_then(move |store_search| {
+                            .and_then(move |name| {
                                 stores_service
-                                    .find_full_names_by_name_part(store_search, count, offset)
+                                    .auto_complete(name, count, offset)
                                     .map_err(Error::from)
                             }),
                     )

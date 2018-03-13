@@ -19,8 +19,8 @@ use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
     fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> ServiceFuture<Vec<Store>>;
-    /// Find stores full name by name part limited by `count` parameters
-    fn find_full_names_by_name_part(&self, search_store: SearchStore, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
+    /// Find stores auto complete limited by `count` parameters
+    fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store>;
     /// Deactivates specific store
@@ -70,32 +70,14 @@ fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
 }
 
 impl StoresService for StoresServiceImpl {
-    fn find_full_names_by_name_part(&self, search_store: SearchStore, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
+    fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let stores_names = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            let name = search_store.name.clone();
             stores_el
-                .find_by_name(search_store, count, offset)
+                .auto_complete(name, count, offset)
                 .map_err(Error::from)
-                .and_then(|el_stores| {
-                    el_stores
-                        .into_iter()
-                        .map(move |el_store| {
-                            serde_json::from_value::<Vec<Translation>>(el_store.name)
-                                .map_err(|e| Error::Parse(e.to_string()))
-                                .and_then(|translations| {
-                                    translations
-                                        .into_iter()
-                                        .find(|transl| transl.text.contains(&name))
-                                        .ok_or(Error::NotFound)
-                                        .map(|t| t.text)
-                                })
-                        })
-                        .collect::<Result<Vec<String>, Error>>()
-                        .into_future()
-                })
         };
 
         Box::new(stores_names)

@@ -5,7 +5,7 @@ CREATE TABLE base_products (
     name JSONB NOT NULL,
     short_description JSONB NOT NULL,
     long_description JSONB,
-    currency_id INTEGER NOT NULL REFERENCES currencies (id),
+    currency_id INTEGER NOT NULL DEFAULT '1',
     category_id INTEGER NOT NULL REFERENCES categories (id),
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp

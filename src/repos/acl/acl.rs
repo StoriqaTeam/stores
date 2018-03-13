@@ -43,6 +43,7 @@ impl<R: RolesCache> ApplicationAcl<R> {
             vec![
                 permission!(Resource::Stores),
                 permission!(Resource::Products),
+                permission!(Resource::BaseProducts),
                 permission!(Resource::UserRoles),
                 permission!(Resource::ProductAttrs),
                 permission!(Resource::Attributes),
@@ -57,6 +58,8 @@ impl<R: RolesCache> ApplicationAcl<R> {
                 permission!(Resource::Stores, Action::All, Scope::Owned),
                 permission!(Resource::Products, Action::Read),
                 permission!(Resource::Products, Action::All, Scope::Owned),
+                permission!(Resource::BaseProducts, Action::Read),
+                permission!(Resource::BaseProducts, Action::All, Scope::Owned),
                 permission!(Resource::UserRoles, Action::Read, Scope::Owned),
                 permission!(Resource::ProductAttrs, Action::Read),
                 permission!(Resource::ProductAttrs, Action::All, Scope::Owned),

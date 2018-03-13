@@ -16,10 +16,10 @@ table! {
         id -> Integer,
         base_product_id -> Integer,
         is_active -> Bool,
-        discount -> Nullable<Float>,
+        discount -> Nullable<Double>,
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
-        cashback -> Nullable<Float>,
+        cashback -> Nullable<Double>,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -32,10 +32,10 @@ pub struct Product {
     pub id: i32,
     pub base_product_id: i32,
     pub is_active: bool,
-    pub discount: Option<f32>,
+    pub discount: Option<f64>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
-    pub cashback: Option<f32>,
+    pub cashback: Option<f64>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -46,11 +46,11 @@ pub struct Product {
 pub struct NewProduct {
     pub base_product_id: i32,
     #[validate(custom = "validate_non_negative")]
-    pub discount: Option<f32>,
+    pub discount: Option<f64>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
-    pub cashback: Option<f32>,
+    pub cashback: Option<f64>,
 }
 
 /// Payload for creating products and attributes
@@ -65,11 +65,11 @@ pub struct NewProductWithAttributes {
 #[table_name = "products"]
 pub struct UpdateProduct {
     #[validate(custom = "validate_non_negative")]
-    pub discount: Option<f32>,
+    pub discount: Option<f64>,
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
-    pub cashback: Option<f32>,
+    pub cashback: Option<f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

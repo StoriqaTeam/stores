@@ -8,7 +8,7 @@ use stq_acl::UnauthorizedACL;
 
 use models::*;
 use repos::{ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
-use elastic::{AttributesSearchRepo, AttributesSearchRepoImpl, ProductsSearchRepo, ProductsSearchRepoImpl};
+use elastic::{AttributesSearchRepo, AttributesSearchRepoImpl, ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
@@ -73,7 +73,7 @@ impl ProductsService for ProductsServiceImpl {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products_names = {
-            let products_el = ProductsSearchRepoImpl::new(client_handle, address);
+            let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .auto_complete(search_product, count, offset)
                 .map_err(Error::from)
@@ -100,8 +100,12 @@ impl ProductsService for ProductsServiceImpl {
                 let client_handle = self.client_handle.clone();
                 let address = self.elastic_address.clone();
                 move |attributes_with_values| {
-                    let products_el = ProductsSearchRepoImpl::new(client_handle, address);
-                    let search_product_elastic = SearchProductElastic::new(search_product.name, attributes_with_values);
+                    let products_el = ProductsElasticImpl::new(client_handle, address);
+                    let search_product_elastic = SearchProductElastic::new(
+                        search_product.name,
+                        attributes_with_values,
+                        search_product.categories_ids,
+                    );
                     products_el
                         .search(search_product_elastic, count, offset)
                         .map_err(Error::from)

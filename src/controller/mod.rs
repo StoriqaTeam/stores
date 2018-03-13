@@ -22,7 +22,7 @@ use stq_http::controller::Controller;
 use stq_http::request_util::serialize_future;
 use stq_http::errors::ControllerError as Error;
 use stq_http::request_util::ControllerFuture;
-use stq_http::request_util::parse_body;
+use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
 use stq_http::client::ClientHandle;
 
@@ -31,6 +31,7 @@ use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
+use services::categories::{CategoriesService, CategoriesServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 
@@ -99,6 +100,13 @@ impl Controller for ControllerImpl {
             user_id,
         );
 
+        let categories_service = CategoriesServiceImpl::new(
+            self.db_pool.clone(),
+            self.cpu_pool.clone(),
+            cached_roles.clone(),
+            user_id,
+        );
+
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
             (&Get, Some(Route::Healthcheck)) => serialize_future(system_service.healthcheck().map_err(Error::from)),
@@ -140,11 +148,11 @@ impl Controller for ControllerImpl {
             (&Get, Some(Route::StoresAutoComplete)) => {
                 if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
                     serialize_future(
-                        parse_body::<models::SearchStore>(req.body())
+                        read_body(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                            .and_then(move |store_search| {
+                            .and_then(move |name| {
                                 stores_service
-                                    .find_full_names_by_name_part(store_search, count, offset)
+                                    .auto_complete(name, count, offset)
                                     .map_err(Error::from)
                             }),
                     )
@@ -316,6 +324,30 @@ impl Controller for ControllerImpl {
                             .map_err(Error::from)
                     }),
             ),
+
+            // GET /categories/<category_id>
+            (&Get, Some(Route::Category(category_id))) => serialize_future(categories_service.get(category_id)),
+
+            // POST /categories
+            (&Post, Some(Route::Categories)) => serialize_future(
+                parse_body::<models::NewCategory>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |new_category| categories_service.create(new_category).map_err(Error::from)),
+            ),
+
+            // PUT /categories/<category_id>
+            (&Put, Some(Route::Category(category_id))) => serialize_future(
+                parse_body::<models::UpdateCategory>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |update_category| {
+                        categories_service
+                            .update(category_id, update_category)
+                            .map_err(Error::from)
+                    }),
+            ),
+
+            // GET /categories
+            (&Get, Some(Route::Categories)) => serialize_future(categories_service.get_all()),
 
             // Fallback
             _ => Box::new(future::err(Error::NotFound)),

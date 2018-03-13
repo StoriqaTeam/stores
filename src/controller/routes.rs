@@ -16,6 +16,8 @@ pub enum Route {
     UserRole(i32),
     Attributes,
     Attribute(i32),
+    Categories,
+    Category(i32),
 }
 
 pub fn create_route_parser() -> RouteParser<Route> {
@@ -72,12 +74,23 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Attributes Routes
     router.add_route(r"^/attributes$", || Route::Attributes);
 
-    // User_roles/:id route
+    // Attributes/:id route
     router.add_route_with_params(r"^/attributes/(\d+)$", |params| {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|attribute_id| Route::Attribute(attribute_id))
+    });
+
+    // Categories Routes
+    router.add_route(r"^/categories$", || Route::Categories);
+
+    // Categories/:id route
+    router.add_route_with_params(r"^/categories/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|category_id| Route::Category(category_id))
     });
 
     router

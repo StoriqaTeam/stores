@@ -7,7 +7,9 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
 use diesel::pg::PgConnection;
 use diesel::dsl::exists;
+
 use stq_acl::*;
+use stq_static_resources::Translation;
 
 use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
@@ -41,6 +43,9 @@ pub trait StoresRepo {
 
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
+
+    /// Checks name exists
+    fn name_exists(&self, name: Vec<Translation>) -> RepoResult<bool>;
 }
 
 impl<'a> StoresRepoImpl<'a> {
@@ -170,5 +175,23 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     Some(self.db_conn),
                 ).and_then(|_| Ok(exists))
             })
+    }
+
+    /// Checks name exists
+    fn name_exists(&self, name_arg: Vec<Translation>) -> RepoResult<bool> {
+        let res = name_arg
+            .into_iter()
+            .map(|trans| {
+                let query_str = format!(
+                    "SELECT EXISTS ( SELECT 1 FROM stores WHERE name @> '[{{\"lang\": \"{}\", \"text\": \"{}\"}}]');",
+                    trans.lang, trans.text
+                );
+                diesel::dsl::sql::<(diesel::sql_types::Bool)>(&query_str)
+                    .get_result(&**self.db_conn)
+                    .map_err(Error::from)
+            })
+            .collect::<RepoResult<Vec<bool>>>();
+
+        res.and_then(|res| Ok(res.into_iter().all(|t| t)))
     }
 }

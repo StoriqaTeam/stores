@@ -7,35 +7,29 @@ use future;
 use futures::Future;
 use futures::future::*;
 use serde_json;
-use elastic_responses::{SearchResponse, UpdateResponse};
+use elastic_responses::SearchResponse;
 use stq_http::client::ClientHandle;
 use stq_static_resources::Translation;
 
-use models::{ElasticIndex, ElasticProduct, Filter, IndexResponse, SearchProduct, SearchProductElastic};
+use models::{ElasticIndex, ElasticProduct, Filter, SearchProduct, SearchProductElastic};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 
 /// ProductsSearch repository, responsible for handling products
-pub struct ProductsSearchRepoImpl {
+pub struct ProductsElasticImpl {
     pub client_handle: ClientHandle,
     pub elastic_address: String,
 }
 
-pub trait ProductsSearchRepo {
+pub trait ProductsElastic {
     /// Find specific product by name limited by `count` parameters
     fn auto_complete(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<String>>;
 
     /// Find specific product by name limited by `count` parameters
     fn search(&self, prod: SearchProductElastic, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
-
-    /// Creates new product
-    fn create(&self, product: ElasticProduct) -> RepoFuture<()>;
-
-    /// Updates specific product
-    fn update(&self, product: ElasticProduct) -> RepoFuture<()>;
 }
 
-impl ProductsSearchRepoImpl {
+impl ProductsElasticImpl {
     pub fn new(client_handle: ClientHandle, elastic_address: String) -> Self {
         Self {
             client_handle,
@@ -44,7 +38,7 @@ impl ProductsSearchRepoImpl {
     }
 }
 
-impl ProductsSearchRepo for ProductsSearchRepoImpl {
+impl ProductsElastic for ProductsElasticImpl {
     /// Find specific products by name limited by `count` parameters
     fn search(&self, prod: SearchProductElastic, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
         let name_query = json!(
@@ -101,12 +95,25 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         }
                 });
 
+        let category = if !prod.categories_ids.is_empty() {
+            json!({
+                "query" : {
+                        "bool" : {
+                            "must" : {"term": {"category_id": prod.categories_ids}}
+                        }
+                    }
+            })
+        } else {
+            json!({})
+        };
+
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
                 "bool" : {
                     "must" : name_query,
                     "filter" : props,
+                    "filter" : category,
                 }
             }
         }).to_string();
@@ -191,60 +198,6 @@ impl ProductsSearchRepo for ProductsSearchRepoImpl {
                         })
                         .collect::<Result<Vec<String>, Error>>()
                         .into_future()
-                }),
-        )
-    }
-
-    /// Creates new product
-    fn create(&self, product: ElasticProduct) -> RepoFuture<()> {
-        let body = serde_json::to_string(&product).unwrap();
-        let url = format!(
-            "http://{}/{}/_doc/{}/_create",
-            self.elastic_address,
-            ElasticIndex::Product,
-            product.id
-        );
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-
-        Box::new(
-            self.client_handle
-                .request::<IndexResponse>(Method::Post, url, Some(body), Some(headers))
-                .map_err(Error::from)
-                .and_then(|res| {
-                    if res.is_created() {
-                        future::ok(())
-                    } else {
-                        future::err(Error::NotFound)
-                    }
-                }),
-        )
-    }
-
-    /// Updates specific product
-    fn update(&self, product: ElasticProduct) -> RepoFuture<()> {
-        let body = json!({
-            "doc": product,
-        }).to_string();
-        let url = format!(
-            "http://{}/{}/_doc/{}/_update",
-            self.elastic_address,
-            ElasticIndex::Product,
-            product.id
-        );
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-
-        Box::new(
-            self.client_handle
-                .request::<UpdateResponse>(Method::Post, url, Some(body), Some(headers))
-                .map_err(Error::from)
-                .and_then(|res| {
-                    if res.updated() {
-                        future::ok(())
-                    } else {
-                        future::err(Error::NotFound)
-                    }
                 }),
         )
     }

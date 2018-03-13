@@ -313,7 +313,7 @@ impl Controller for ControllerImpl {
                         parse_body::<models::SearchProduct>(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                             .and_then(move |prod| {
-                                products_service
+                                base_products_service
                                     .search(prod, count, offset)
                                     .map_err(Error::from)
                             }),

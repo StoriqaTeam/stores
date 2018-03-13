@@ -60,13 +60,6 @@ pub struct NewBaseProduct {
     pub category_id: i32,
 }
 
-/// Payload for creating base_products and attributes
-#[derive(Serialize, Deserialize, Clone)]
-pub struct NewBaseProductWithAttributes {
-    pub base_product: NewBaseProduct,
-    pub attributes: Vec<AttrValue>,
-}
-
 /// Payload for updating base_products
 #[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone)]
 #[table_name = "base_products"]
@@ -79,12 +72,6 @@ pub struct UpdateBaseProduct {
     pub long_description: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
     pub category_id: Option<i32>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct UpdateBaseProductWithAttributes {
-    pub base_product: UpdateBaseProduct,
-    pub attributes: Vec<AttrValue>,
 }
 
 impl WithScope<Scope> for BaseProduct {

@@ -8,7 +8,7 @@ use stq_acl::UnauthorizedACL;
 
 use models::*;
 use repos::{ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
-use elastic::{AttributesSearchRepo, AttributesSearchRepoImpl, ProductsElastic, ProductsElasticImpl};
+use elastic::{AttributesSearchRepo, AttributesSearchRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
@@ -17,8 +17,6 @@ use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
 use stq_http::client::ClientHandle;
 
 pub trait ProductsService {
-    /// Find product by search pattern limited by `count` and `offset` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<Product>>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product>;
     /// Deactivates specific product
@@ -68,62 +66,6 @@ fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
 }
 
 impl ProductsService for ProductsServiceImpl {
-    fn search(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<Product>> {
-        let products = {
-            let client_handle = self.client_handle.clone();
-            let address = self.elastic_address.clone();
-            let attrs = search_product.attr_filters.clone();
-            join_all(attrs.into_iter().map(move |attr| {
-                let attribute_el = AttributesSearchRepoImpl::new(client_handle.clone(), address.clone());
-                let name = attr.name.clone();
-                Box::new(
-                    attribute_el
-                        .find_by_name(SearchAttribute { name: name })
-                        .map_err(Error::from)
-                        .and_then(|el_attribute| future::ok((el_attribute.id, attr))),
-                )
-            })).and_then({
-                let client_handle = self.client_handle.clone();
-                let address = self.elastic_address.clone();
-                move |attributes_with_values| {
-                    let products_el = ProductsElasticImpl::new(client_handle, address);
-                    let search_product_elastic = SearchProductElastic::new(
-                        search_product.name,
-                        attributes_with_values,
-                        search_product.categories_ids,
-                    );
-                    products_el
-                        .search(search_product_elastic, count, offset)
-                        .map_err(Error::from)
-                }
-            })
-        };
-
-        Box::new(products.and_then({
-            let cpu_pool = self.cpu_pool.clone();
-            let db_pool = self.db_pool.clone();
-            let user_id = self.user_id;
-            let roles_cache = self.roles_cache.clone();
-            move |el_products| {
-                cpu_pool.spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| Error::Connection(e.into()))
-                        .and_then(move |conn| {
-                            el_products
-                                .into_iter()
-                                .map(|el_product| {
-                                    let acl = acl_for_id(roles_cache.clone(), user_id);
-                                    let products_repo = ProductsRepoImpl::new(&conn, acl);
-                                    products_repo.find(el_product.id).map_err(Error::from)
-                                })
-                                .collect()
-                        })
-                })
-            }
-        }))
-    }
-
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();

@@ -85,7 +85,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
                 .get_result::<RawCategory>(&**self.db_conn)
                 .map_err(Error::from)
         })
-        .and_then(|created_category| {
+            .and_then(|created_category| {
                 let result: Category = created_category.into();
                 Ok(result)
             })

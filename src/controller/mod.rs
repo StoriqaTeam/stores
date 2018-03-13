@@ -29,6 +29,7 @@ use stq_http::client::ClientHandle;
 use services::system::{SystemService, SystemServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
+use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
@@ -84,6 +85,15 @@ impl Controller for ControllerImpl {
             self.config.server.elastic.clone(),
         );
         let products_service = ProductsServiceImpl::new(
+            self.db_pool.clone(),
+            self.cpu_pool.clone(),
+            cached_roles.clone(),
+            user_id,
+            self.client_handle.clone(),
+            self.config.server.elastic.clone(),
+        );
+
+        let base_products_service = BaseProductsServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles.clone(),
@@ -210,44 +220,6 @@ impl Controller for ControllerImpl {
                 }
             }
 
-            // GET /products/search
-            (&Get, Some(Route::ProductsSearch)) => {
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
-                    serialize_future(
-                        parse_body::<models::SearchProduct>(req.body())
-                            .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                            .and_then(move |prod| {
-                                products_service
-                                    .search(prod, count, offset)
-                                    .map_err(Error::from)
-                            }),
-                    )
-                } else {
-                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
-                        "Error parsing request from gateway body"
-                    ))))
-                }
-            }
-
-            // GET /products/auto_complete
-            (&Get, Some(Route::ProductsAutoComplete)) => {
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
-                    serialize_future(
-                        parse_body::<models::SearchProduct>(req.body())
-                            .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                            .and_then(move |prod| {
-                                products_service
-                                    .find_full_names_by_name_part(prod, count, offset)
-                                    .map_err(Error::from)
-                            }),
-                    )
-                } else {
-                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
-                        "Error parsing request from gateway body"
-                    ))))
-                }
-            }
-
             // POST /products
             (&Post, Some(Route::Products)) => serialize_future(
                 parse_body::<models::NewProductWithAttributes>(req.body())
@@ -282,6 +254,95 @@ impl Controller for ControllerImpl {
 
             // DELETE /products/<product_id>
             (&Delete, Some(Route::Product(product_id))) => serialize_future(products_service.deactivate(product_id)),
+
+            // GET /base_products/<base_product_id>
+            (&Get, Some(Route::BaseProduct(base_product_id))) => serialize_future(base_products_service.get(base_product_id)),
+
+            // GET /base_products
+            (&Get, Some(Route::BaseProducts)) => {
+                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
+                    serialize_future(base_products_service.list(from, count))
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
+
+            // POST /base_products
+            (&Post, Some(Route::BaseProducts)) => serialize_future(
+                parse_body::<models::NewBaseProduct>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |new_base_product| {
+                        new_base_product
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| {
+                                base_products_service
+                                    .create(new_base_product)
+                                    .map_err(Error::from)
+                            })
+                    }),
+            ),
+
+            // PUT /base_products/<base_product_id>
+            (&Put, Some(Route::BaseProduct(base_product_id))) => serialize_future(
+                parse_body::<models::UpdateBaseProduct>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |update_base_product| {
+                        update_base_product
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| {
+                                base_products_service
+                                    .update(base_product_id, update_base_product)
+                                    .map_err(Error::from)
+                            })
+                    }),
+            ),
+
+            // DELETE /base_products/<base_product_id>
+            (&Delete, Some(Route::BaseProduct(base_product_id))) => serialize_future(base_products_service.deactivate(base_product_id)),
+
+            // GET /products/search
+            (&Get, Some(Route::ProductsSearch)) => {
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future(
+                        parse_body::<models::SearchProduct>(req.body())
+                            .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                            .and_then(move |prod| {
+                                products_service
+                                    .search(prod, count, offset)
+                                    .map_err(Error::from)
+                            }),
+                    )
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
+
+            // GET /products/auto_complete
+            (&Get, Some(Route::ProductsAutoComplete)) => {
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future(
+                        read_body(req.body())
+                            .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                            .and_then(move |name| {
+                                base_products_service
+                                    .auto_complete(name, count, offset)
+                                    .map_err(Error::from)
+                            }),
+                    )
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
 
             // GET /user_role/<user_role_id>
             (&Get, Some(Route::UserRole(user_role_id))) => serialize_future(user_roles_service.get(user_role_id)),

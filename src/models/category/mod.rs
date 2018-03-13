@@ -18,7 +18,7 @@ table! {
     }
 }
 
-/// RawCategory is an object stored in PG, used only for Category tree creation, 
+/// RawCategory is an object stored in PG, used only for Category tree creation,
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "categories"]
 pub struct RawCategory {

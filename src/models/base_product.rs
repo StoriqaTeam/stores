@@ -1,0 +1,151 @@
+//! Module containg base_product model for query, insert, update
+use std::time::SystemTime;
+
+use validator::Validate;
+use diesel::prelude::*;
+use serde_json;
+
+use super::Store;
+use repos::types::DbConnection;
+use models::store::stores::dsl as Stores;
+use models::AttrValue;
+use models::validation_rules::*;
+use stq_acl::WithScope;
+use models::Scope;
+
+/// diesel table for base_products
+table! {
+    base_products (id) {
+        id -> Integer,
+        is_active -> Bool,
+        store_id -> Integer,
+        name -> Jsonb,
+        short_description -> Jsonb,
+        long_description -> Nullable<Jsonb>,
+        currency_id -> Integer,
+        category_id -> Integer,
+        created_at -> Timestamp, // UTC 0, generated at db level
+        updated_at -> Timestamp, // UTC 0, generated at db level
+    }
+}
+
+/// Payload for querying base_products
+#[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
+#[belongs_to(Store)]
+pub struct BaseProduct {
+    pub id: i32,
+    pub is_active: bool,
+    pub store_id: i32,
+    pub name: serde_json::Value,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
+    pub currency_id: i32,
+    pub category_id: i32,
+    pub created_at: SystemTime,
+    pub updated_at: SystemTime,
+}
+
+/// Payload for creating base_products
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[table_name = "base_products"]
+pub struct NewBaseProduct {
+    #[validate(custom = "validate_translation")]
+    pub name: serde_json::Value,
+    pub store_id: i32,
+    #[validate(custom = "validate_translation")]
+    pub short_description: serde_json::Value,
+    #[validate(custom = "validate_translation")]
+    pub long_description: Option<serde_json::Value>,
+    pub currency_id: i32,
+    pub category_id: i32,
+}
+
+/// Payload for creating base_products and attributes
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewBaseProductWithAttributes {
+    pub base_product: NewBaseProduct,
+    pub attributes: Vec<AttrValue>,
+}
+
+/// Payload for updating base_products
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone)]
+#[table_name = "base_products"]
+pub struct UpdateBaseProduct {
+    #[validate(custom = "validate_translation")]
+    pub name: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
+    pub short_description: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
+    pub long_description: Option<serde_json::Value>,
+    pub currency_id: Option<i32>,
+    pub category_id: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UpdateBaseProductWithAttributes {
+    pub base_product: UpdateBaseProduct,
+    pub attributes: Vec<AttrValue>,
+}
+
+impl WithScope<Scope> for BaseProduct {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(conn) = conn {
+                    Stores::stores
+                        .find(self.store_id)
+                        .get_result::<Store>(&**conn)
+                        .and_then(|store: Store| Ok(store.user_id == user_id))
+                        .ok()
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+impl WithScope<Scope> for NewBaseProduct {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(conn) = conn {
+                    Stores::stores
+                        .find(self.store_id)
+                        .get_result::<Store>(&**conn)
+                        .and_then(|store: Store| Ok(store.user_id == user_id))
+                        .ok()
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ElasticProduct {
+    pub id: i32,
+    pub name: serde_json::Value,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
+    pub properties: Vec<AttrValue>,
+    pub category_id: i32,
+}
+
+impl ElasticProduct {
+    pub fn new(product: BaseProduct, attrs: Vec<AttrValue>) -> Self {
+        Self {
+            id: product.id,
+            name: product.name,
+            short_description: product.short_description,
+            long_description: product.long_description,
+            properties: attrs,
+            category_id: product.category_id,
+        }
+    }
+}

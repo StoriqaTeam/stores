@@ -17,18 +17,17 @@ use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
 use stq_http::client::ClientHandle;
 
 pub trait ProductsService {
-    fn find_full_names_by_name_part(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Find product by search pattern limited by `count` and `offset` parameters
     fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<Product>>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product>;
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> ServiceFuture<Product>;
-    /// Creates new product
+    /// Creates base product
     fn create(&self, payload: NewProductWithAttributes) -> ServiceFuture<Product>;
-    /// Lists users limited by `from` and `count` parameters
+    /// Lists product variants limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Product>>;
-    /// Updates specific product
+    /// Updates  product
     fn update(&self, product_id: i32, payload: UpdateProductWithAttributes) -> ServiceFuture<Product>;
 }
 
@@ -69,19 +68,6 @@ fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
 }
 
 impl ProductsService for ProductsServiceImpl {
-    fn find_full_names_by_name_part(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
-        let products_names = {
-            let products_el = ProductsElasticImpl::new(client_handle, address);
-            products_el
-                .auto_complete(search_product, count, offset)
-                .map_err(Error::from)
-        };
-
-        Box::new(products_names)
-    }
-
     fn search(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<Product>> {
         let products = {
             let client_handle = self.client_handle.clone();

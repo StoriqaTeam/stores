@@ -10,6 +10,8 @@ pub enum Route {
     StoresAutoComplete,
     Products,
     Product(i32),
+    BaseProducts,
+    BaseProduct(i32),
     ProductsSearch,
     ProductsAutoComplete,
     UserRoles,
@@ -52,6 +54,17 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|product_id| Route::Product(product_id))
+    });
+
+    // Base products routes
+    router.add_route(r"^/base_products$", || Route::BaseProducts);
+
+    // Base products/:id route
+    router.add_route_with_params(r"^/base_products/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|product_id| Route::BaseProduct(product_id))
     });
 
     // Products Search route

@@ -11,7 +11,7 @@ use elastic_responses::SearchResponse;
 use stq_http::client::ClientHandle;
 use stq_static_resources::Translation;
 
-use models::{ElasticIndex, ElasticProduct, Filter, SearchProduct, SearchProductElastic};
+use models::{ElasticIndex, ElasticProduct, Filter, SearchProductElastic};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 
@@ -23,7 +23,7 @@ pub struct ProductsElasticImpl {
 
 pub trait ProductsElastic {
     /// Find specific product by name limited by `count` parameters
-    fn auto_complete(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<String>>;
+    fn auto_complete(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<String>>;
 
     /// Find specific product by name limited by `count` parameters
     fn search(&self, prod: SearchProductElastic, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
@@ -133,14 +133,14 @@ impl ProductsElastic for ProductsElasticImpl {
         )
     }
 
-    fn auto_complete(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<String>> {
+    fn auto_complete(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<String>> {
         let name_query = json!(
                 [
                     {"nested": {
                         "path": "name",
                         "query": {
                             "match": {
-                                "name.text": prod.name
+                                "name.text": name
                             }
                         }
                     }},
@@ -148,7 +148,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "short_description",
                         "query": {
                             "match": {
-                                "short_description.text": prod.name
+                                "short_description.text": name
                             }
                         }
                     }},
@@ -156,7 +156,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "long_description",
                         "query": {
                             "match": {
-                                "long_description.text": prod.name
+                                "long_description.text": name
                             }
                         }
                     }}
@@ -191,7 +191,7 @@ impl ProductsElastic for ProductsElasticImpl {
                                 .and_then(|translations| {
                                     translations
                                         .into_iter()
-                                        .find(|transl| transl.text.contains(&prod.name))
+                                        .find(|transl| transl.text.contains(&name))
                                         .ok_or(Error::NotFound)
                                         .map(|t| t.text)
                                 })

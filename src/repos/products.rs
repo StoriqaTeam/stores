@@ -28,6 +28,9 @@ pub trait ProductsRepo {
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Product>>;
 
+    /// Returns list of products with base id
+    fn find_with_base_id(&self, base_id: i32) -> RepoResult<Vec<Product>>;
+
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<Product>;
 
@@ -86,6 +89,30 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .filter(id.ge(from))
             .order(id)
             .limit(count);
+
+        query
+            .get_results(&**self.db_conn)
+            .map_err(Error::from)
+            .and_then(|products_res: Vec<Product>| {
+                let resources = products_res
+                    .iter()
+                    .map(|product| (product as &WithScope<Scope>))
+                    .collect::<Vec<&WithScope<Scope>>>();
+                acl::check(
+                    &*self.acl,
+                    &Resource::Products,
+                    &Action::Read,
+                    &resources,
+                    Some(self.db_conn),
+                ).and_then(|_| Ok(products_res.clone()))
+            })
+    }
+
+    /// Returns list of products with base id
+    fn find_with_base_id(&self, base_id_arg: i32) -> RepoResult<Vec<Product>> {
+        let query = products
+            .filter(is_active.eq(true))
+            .filter(base_product_id.ge(base_id_arg));
 
         query
             .get_results(&**self.db_conn)

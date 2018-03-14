@@ -7,11 +7,11 @@ use diesel::Connection;
 use stq_acl::UnauthorizedACL;
 
 use models::*;
-use repos::{BaseProductsRepo, BaseProductsRepoImpl};
+use repos::{BaseProductsRepo, BaseProductsRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
 use elastic::{AttributesSearchRepo, AttributesSearchRepoImpl, ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
-use repos::types::DbPool;
+use repos::types::{DbPool, RepoResult};
 use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
 
 use stq_http::client::ClientHandle;
@@ -23,6 +23,8 @@ pub trait BaseProductsService {
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
+    /// Returns product by ID
+    fn get_with_variants(&self, product_id: i32) -> ServiceFuture<BaseProductWithVariants>;
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
     /// Creates base product
@@ -153,6 +155,53 @@ impl BaseProductsService for BaseProductsServiceImpl {
                     let acl = acl_for_id(roles_cache, user_id);
                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
                     products_repo.find(product_id).map_err(Error::from)
+                })
+        }))
+    }
+
+    /// Returns product by ID
+    fn get_with_variants(&self, base_product_id: i32) -> ServiceFuture<BaseProductWithVariants> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let roles_cache = self.roles_cache.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| Error::Connection(e.into()))
+                .and_then(move |conn| {
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let base_products_repo = BaseProductsRepoImpl::new(&conn, acl);
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                    base_products_repo
+                        .find(base_product_id)
+                        .map(|base_product| base_product)
+                        .and_then(move |base_product| {
+                            products_repo
+                                .find_with_base_id(base_product.id)
+                                .map(|products| (base_product, products))
+                                .and_then(move |(base_product, products)| {
+                                    products
+                                        .into_iter()
+                                        .map(|product| {
+                                            attr_prod_repo
+                                                .find_all_attributes(product.id)
+                                                .map(|attrs| {
+                                                    attrs
+                                                        .into_iter()
+                                                        .map(|attr| attr.into())
+                                                        .collect::<Vec<AttrValue>>()
+                                                })
+                                                .map(|attrs| VariantsWithAttributes::new(product, attrs))
+                                        })
+                                        .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
+                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
+                                })
+                        })
+                        .map_err(Error::from)
                 })
         }))
     }

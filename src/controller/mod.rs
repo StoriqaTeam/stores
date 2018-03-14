@@ -258,6 +258,11 @@ impl Controller for ControllerImpl {
             // GET /base_products/<base_product_id>
             (&Get, Some(Route::BaseProduct(base_product_id))) => serialize_future(base_products_service.get(base_product_id)),
 
+            // GET /base_products/<base_product_id>/with_variants
+            (&Get, Some(Route::BaseProductWithVariants(base_product_id))) => {
+                serialize_future(base_products_service.get_with_variants(base_product_id))
+            }
+
             // GET /base_products
             (&Get, Some(Route::BaseProducts)) => {
                 if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {

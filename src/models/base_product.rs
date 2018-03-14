@@ -4,14 +4,13 @@ use std::time::SystemTime;
 use validator::Validate;
 use diesel::prelude::*;
 use serde_json;
+use stq_acl::WithScope;
 
 use super::Store;
 use repos::types::DbConnection;
+use models::{AttrValue, Product, Scope};
 use models::store::stores::dsl as Stores;
-use models::AttrValue;
 use models::validation_rules::*;
-use stq_acl::WithScope;
-use models::Scope;
 
 /// diesel table for base_products
 table! {
@@ -134,5 +133,32 @@ impl ElasticProduct {
             properties: attrs,
             category_id: product.category_id,
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BaseProductWithVariants {
+    pub base_product: BaseProduct,
+    pub variants: Vec<VariantsWithAttributes>,
+}
+
+impl BaseProductWithVariants {
+    pub fn new(base_product: BaseProduct, variants: Vec<VariantsWithAttributes>) -> Self {
+        Self {
+            base_product,
+            variants,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VariantsWithAttributes {
+    pub product: Product,
+    pub attrs: Vec<AttrValue>,
+}
+
+impl VariantsWithAttributes {
+    pub fn new(product: Product, attrs: Vec<AttrValue>) -> Self {
+        Self { product, attrs }
     }
 }

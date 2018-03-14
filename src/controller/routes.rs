@@ -14,14 +14,11 @@ pub enum Route {
     ProductsAutoComplete,
     UserRoles,
     UserRole(i32),
-<<<<<<< HEAD
     DefaultRole(i32),
-=======
     Attributes,
     Attribute(i32),
     Categories,
     Category(i32),
->>>>>>> origin/master
 }
 
 pub fn create_route_parser() -> RouteParser<Route> {

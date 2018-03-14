@@ -300,7 +300,6 @@ impl Controller for ControllerImpl {
                     .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from)),
             ),
 
-<<<<<<< HEAD
             // POST /roles/default/<user_id>
             (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(
                 user_roles_service
@@ -313,7 +312,6 @@ impl Controller for ControllerImpl {
                     .delete_default(user_id),
             ),
 
-=======
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(attributes_service.get(attribute_id)),
 
@@ -363,7 +361,6 @@ impl Controller for ControllerImpl {
             // GET /categories
             (&Get, Some(Route::Categories)) => serialize_future(categories_service.get_all()),
 
->>>>>>> origin/master
             // Fallback
             _ => Box::new(future::err(Error::NotFound)),
         }

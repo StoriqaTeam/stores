@@ -144,11 +144,13 @@ impl ProductsService for ProductsServiceImpl {
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
+                                let base_product_id = product.base_product_id;
                                 let res: Result<Vec<ProdAttr>, Error> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
                                         let new_attr = NewProdAttr {
                                             prod_id: product_id,
+                                            base_prod_id: base_product_id,
                                             attr_id: attr_value.attr_id,
                                             value: attr_value.value,
                                             value_type: attr_value.value_type,
@@ -190,11 +192,13 @@ impl ProductsService for ProductsServiceImpl {
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
+                                let base_product_id = product.base_product_id;
                                 let res: Result<Vec<ProdAttr>, Error> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
                                         let update_attr = UpdateProdAttr {
                                             prod_id: product_id,
+                                            base_prod_id: base_product_id,
                                             attr_id: attr_value.attr_id,
                                             value: attr_value.value,
                                             value_type: attr_value.value_type,

@@ -10,6 +10,7 @@ table! {
     prod_attr_values (id) {
         id -> Integer,
         prod_id -> Integer,
+        base_prod_id -> Integer,
         attr_id -> Integer,
         value -> VarChar,
         value_type -> VarChar,
@@ -23,6 +24,7 @@ table! {
 pub struct ProdAttr {
     pub id: i32,
     pub prod_id: i32,
+    pub base_prod_id: i32,
     pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,
@@ -34,6 +36,7 @@ pub struct ProdAttr {
 #[table_name = "prod_attr_values"]
 pub struct NewProdAttr {
     pub prod_id: i32,
+    pub base_prod_id: i32,
     pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,
@@ -45,6 +48,7 @@ pub struct NewProdAttr {
 #[table_name = "prod_attr_values"]
 pub struct UpdateProdAttr {
     pub prod_id: i32,
+    pub base_prod_id: i32,
     pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,

@@ -427,17 +427,17 @@ impl Controller for ControllerImpl {
             // GET /categories
             (&Get, Some(Route::Categories)) => serialize_future(categories_service.get_all()),
 
-            // GET /category_attrs/<category_id>
+            // GET /categories/<category_id>/attributes
             (&Get, Some(Route::CategoryAttr(category_id))) => serialize_future(categories_service.find_all_attributes(category_id)),
 
-            // POST /category_attrs
+            // POST /categories/attributes
             (&Post, Some(Route::CategoryAttrs)) => serialize_future(
                 parse_body::<models::NewCatAttr>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                     .and_then(move |new_category_attr| categories_service.add_attribute_to_category(new_category_attr).map_err(Error::from)),
             ),
 
-            // DELETE /category_attrs
+            // DELETE /categories/attributes
             (&Delete, Some(Route::CategoryAttrs)) => serialize_future(
                 parse_body::<models::OldCatAttr>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))

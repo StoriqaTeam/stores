@@ -127,10 +127,10 @@ pub fn create_route_parser() -> RouteParser<Route> {
     });
 
     // Categories Attributes Routes
-    router.add_route(r"^/category_attrs$", || Route::CategoryAttrs);
+    router.add_route(r"^/categories/attributes$", || Route::CategoryAttrs);
 
     // Categories Attributes/:id route
-    router.add_route_with_params(r"^/category_attrs/(\d+)$", |params| {
+    router.add_route_with_params(r"^/categories/(\d+)/attributes$", |params| {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())

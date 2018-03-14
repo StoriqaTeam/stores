@@ -13,3 +13,6 @@ Cargo.lock
 
 # Mac OS
 .DS_Store
+
+# IntelliJ
+.idea

@@ -31,7 +31,7 @@ cat << EOF > products-connector.json
   "name": "products-connector",
   "config": {
     "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
-    "topics": "stores-pg.public.products",
+    "topics": "stores-pg.public.base_products",
     "tasks.max": "1",
     "type.name": "_doc",
     "elastic.url": "stores-es",
@@ -133,7 +133,7 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                "id": {
                   "type": "integer"
                },
-               "attrs": {
+               "variants": {
                   "type": "nested"
                }
             }

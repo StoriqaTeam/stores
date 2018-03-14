@@ -28,6 +28,7 @@ table! {
         photo_main -> Nullable<VarChar>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Float>,
+        category_id -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -49,6 +50,7 @@ pub struct Product {
     pub photo_main: Option<String>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f32>,
+    pub category_id: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -73,6 +75,7 @@ pub struct NewProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
+    pub category_id: i32,
 }
 
 /// Payload for creating products and attributes
@@ -101,6 +104,7 @@ pub struct UpdateProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f32>,
+    pub category_id: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -116,6 +120,7 @@ pub struct ElasticProduct {
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub properties: Vec<AttrValue>,
+    pub category_id: i32,
 }
 
 impl ElasticProduct {
@@ -126,6 +131,7 @@ impl ElasticProduct {
             short_description: product.short_description,
             long_description: product.long_description,
             properties: attrs,
+            category_id: product.category_id,
         }
     }
 }
@@ -134,6 +140,24 @@ impl ElasticProduct {
 pub struct SearchProduct {
     pub name: String,
     pub attr_filters: Vec<AttributeFilter>,
+    pub categories_ids: Vec<i32>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SearchProductElastic {
+    pub name: String,
+    pub attr_filters: Vec<(i32, AttributeFilter)>,
+    pub categories_ids: Vec<i32>,
+}
+
+impl SearchProductElastic {
+    pub fn new(name: String, attr_filters: Vec<(i32, AttributeFilter)>, categories_ids: Vec<i32>) -> Self {
+        Self {
+            name,
+            attr_filters,
+            categories_ids,
+        }
+    }
 }
 
 impl WithScope<Scope> for Product {

@@ -3,21 +3,19 @@
 pub mod acl;
 pub mod user_roles;
 pub mod stores;
-pub mod stores_elastic;
 pub mod products;
-pub mod products_elastic;
 pub mod product_attrs;
 pub mod attributes;
-pub mod attributes_elastic;
 pub mod error;
 pub mod types;
+pub mod categories;
+pub mod category_attrs;
 
 pub use self::products::*;
-pub use self::products_elastic::*;
 pub use self::product_attrs::*;
 pub use self::attributes::*;
 pub use self::stores::*;
-pub use self::stores_elastic::*;
-pub use self::attributes_elastic::*;
 pub use self::types::*;
 pub use self::acl::*;
+pub use self::categories::*;
+pub use self::category_attrs::*;

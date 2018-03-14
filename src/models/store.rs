@@ -60,7 +60,7 @@ pub struct Store {
     pub slogan: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, ElasticType)]
+#[derive(Serialize, Deserialize, Clone, ElasticType, Debug)]
 pub struct ElasticStore {
     pub id: i32,
     pub user_id: i32,

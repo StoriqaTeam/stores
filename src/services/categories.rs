@@ -147,7 +147,7 @@ impl CategoriesService for CategoriesServiceImpl {
     }
 
     /// Returns all category attributes belonging to category
-    fn find_all_attributes(&self, category_id_arg: i32) -> ServiceFuture<Vec<Attribute>>{
+    fn find_all_attributes(&self, category_id_arg: i32) -> ServiceFuture<Vec<Attribute>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
@@ -195,7 +195,7 @@ impl CategoriesService for CategoriesServiceImpl {
     }
 
     /// Deletes category attribute
-    fn delete_attribute_from_category(&self, payload: OldCatAttr) -> ServiceFuture<()>{
+    fn delete_attribute_from_category(&self, payload: OldCatAttr) -> ServiceFuture<()> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
@@ -207,7 +207,9 @@ impl CategoriesService for CategoriesServiceImpl {
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let category_attrs_repo = CategoryAttrsRepoImpl::new(&conn, acl);
-                    category_attrs_repo.delete(payload).map_err(ServiceError::from)
+                    category_attrs_repo
+                        .delete(payload)
+                        .map_err(ServiceError::from)
                 })
         }))
     }

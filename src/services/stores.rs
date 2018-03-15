@@ -4,7 +4,6 @@ use futures_cpupool::CpuPool;
 use futures::prelude::*;
 use diesel::Connection;
 use serde_json;
-use stq_acl::UnauthorizedACL;
 use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
 
@@ -14,7 +13,7 @@ use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
+use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -64,7 +63,7 @@ impl StoresServiceImpl {
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedACL::default()) as BoxedAcl, |id| {
+    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
         (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
     })
 }

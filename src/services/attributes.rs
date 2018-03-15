@@ -2,15 +2,13 @@
 
 use futures_cpupool::CpuPool;
 
-use stq_acl::UnauthorizedACL;
-
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::DbPool;
 use repos::attributes::{AttributesRepo, AttributesRepoImpl};
 
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
+use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 
 pub trait AttributesService {
     /// Returns attribute by ID
@@ -22,7 +20,7 @@ pub trait AttributesService {
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedACL::default()) as BoxedAcl, |id| {
+    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
         (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
     })
 }

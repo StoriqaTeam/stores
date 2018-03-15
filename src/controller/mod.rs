@@ -258,6 +258,11 @@ impl Controller for ControllerImpl {
             // GET /base_products/<base_product_id>
             (&Get, Some(Route::BaseProduct(base_product_id))) => serialize_future(base_products_service.get(base_product_id)),
 
+            // GET /base_products/<base_product_id>/with_variants
+            (&Get, Some(Route::BaseProductWithVariants(base_product_id))) => {
+                serialize_future(base_products_service.get_with_variants(base_product_id))
+            }
+
             // GET /base_products
             (&Get, Some(Route::BaseProducts)) => {
                 if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
@@ -361,6 +366,18 @@ impl Controller for ControllerImpl {
                     .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from)),
             ),
 
+            // POST /roles/default/<user_id>
+            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(
+                user_roles_service
+                    .create_default(user_id),
+            ),
+
+            // DELETE /roles/default/<user_id>
+            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(
+                user_roles_service
+                    .delete_default(user_id),
+            ),
+
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(attributes_service.get(attribute_id)),
 
@@ -409,6 +426,23 @@ impl Controller for ControllerImpl {
 
             // GET /categories
             (&Get, Some(Route::Categories)) => serialize_future(categories_service.get_all()),
+
+            // GET /categories/<category_id>/attributes
+            (&Get, Some(Route::CategoryAttr(category_id))) => serialize_future(categories_service.find_all_attributes(category_id)),
+
+            // POST /categories/attributes
+            (&Post, Some(Route::CategoryAttrs)) => serialize_future(
+                parse_body::<models::NewCatAttr>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |new_category_attr| categories_service.add_attribute_to_category(new_category_attr).map_err(Error::from)),
+            ),
+
+            // DELETE /categories/attributes
+            (&Delete, Some(Route::CategoryAttrs)) => serialize_future(
+                parse_body::<models::OldCatAttr>(req.body())
+                    .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                    .and_then(move |old_category_attr| categories_service.delete_attribute_from_category(old_category_attr).map_err(Error::from)),
+                ),
 
             // Fallback
             _ => Box::new(future::err(Error::NotFound)),

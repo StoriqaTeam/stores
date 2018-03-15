@@ -23,10 +23,10 @@ pub trait CategoryAttrsRepo {
     fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>>;
 
     /// Creates new category_attribute
-    fn create(&self, payload: NewCatAttr) -> RepoResult<CatAttr>;
+    fn create(&self, payload: NewCatAttr) -> RepoResult<()>;
 
     /// Delete attr from category
-    fn delete(&self, payload: OldCatAttr) -> RepoResult<CatAttr>;
+    fn delete(&self, payload: OldCatAttr) -> RepoResult<()>;
 }
 
 impl<'a> CategoryAttrsRepoImpl<'a> {
@@ -55,7 +55,7 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
     }
 
     /// Creates new category attribute
-    fn create(&self, payload: NewCatAttr) -> RepoResult<CatAttr> {
+    fn create(&self, payload: NewCatAttr) -> RepoResult<()> {
         acl::check(
             &*self.acl,
             &Resource::CategoryAttrs,
@@ -67,15 +67,16 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
             query_category_attribute
                 .get_result::<CatAttr>(&**self.db_conn)
                 .map_err(Error::from)
+                .map(|_| ())
         })
     }
 
     /// Delete category attribute
-    fn delete(&self, payload: OldCatAttr) -> RepoResult<CatAttr> {
+    fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
         let filtered = cat_attr_values
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));
         let query = diesel::delete(filtered);
-        query.get_result(&**self.db_conn).map_err(Error::from)
+        query.get_result::<CatAttr>(&**self.db_conn).map_err(Error::from).map(|_| ())
     }
 }

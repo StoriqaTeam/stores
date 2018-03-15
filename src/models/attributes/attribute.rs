@@ -1,6 +1,7 @@
 //! EAV model attributes
 use serde_json;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+
+use models::*;
 
 table! {
     attributes {
@@ -45,30 +46,22 @@ pub struct SearchAttribute {
     pub name: String,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AttrValue {
-    pub name: String,
+    pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,
     pub meta_field: Option<String>,
 }
 
-impl Serialize for AttrValue {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("AttrValue", 2)?;
-        state.serialize_field("name", &self.name)?;
-        match self.value_type {
-            AttributeType::Float => {
-                let f = self.value.parse::<f32>().map_err(|e| e.to_string());
-                state.serialize_field("float_val", &f)
-            }
-            AttributeType::Str => state.serialize_field("str_val", &self.value),
-        }?;
-
-        state.end()
+impl From<ProdAttr> for AttrValue {
+    fn from(pr: ProdAttr) -> Self {
+        Self {
+            attr_id: pr.attr_id,
+            value: pr.value,
+            value_type: pr.value_type,
+            meta_field: pr.meta_field,
+        }
     }
 }
 

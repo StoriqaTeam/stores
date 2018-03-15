@@ -12,14 +12,18 @@ pub enum Route {
     Product(i32),
     BaseProducts,
     BaseProduct(i32),
+    BaseProductWithVariants(i32),
     ProductsSearch,
     ProductsAutoComplete,
     UserRoles,
     UserRole(i32),
+    DefaultRole(i32),
     Attributes,
     Attribute(i32),
     Categories,
     Category(i32),
+    CategoryAttrs,
+    CategoryAttr(i32),
 }
 
 pub fn create_route_parser() -> RouteParser<Route> {
@@ -67,6 +71,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(|product_id| Route::BaseProduct(product_id))
     });
 
+    // Base products/:id/with_variants route
+    router.add_route_with_params(r"^/base_products/(\d+)/with_variants$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|product_id| Route::BaseProductWithVariants(product_id))
+    });
+
     // Products Search route
     router.add_route(r"^/products/search$", || Route::ProductsSearch);
 
@@ -104,6 +116,25 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|category_id| Route::Category(category_id))
+    });
+
+    // roles/default/:id route
+    router.add_route_with_params(r"^/roles/default/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|user_id| Route::DefaultRole(user_id))
+    });
+
+    // Categories Attributes Routes
+    router.add_route(r"^/categories/attributes$", || Route::CategoryAttrs);
+
+    // Categories Attributes/:id route
+    router.add_route_with_params(r"^/categories/(\d+)/attributes$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|category_id| Route::CategoryAttr(category_id))
     });
 
     router

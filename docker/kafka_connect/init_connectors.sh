@@ -42,22 +42,6 @@ cat << EOF > products-connector.json
 EOF
 curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d @products-connector.json $KAFKA_CONNECT_ADDR/connectors
 
-#sleep 5
-#cat << EOF > prod_attr_values-connector.json
-#{
-#  "name": "prod_attr_values-connector",
-#  "config": {
-#    "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
-#    "topics": "stores-pg.public.prod_attr_values",
-#    "tasks.max": "1",
-#    "type.name": "_doc",
-#    "elastic.url": "stores-es",
-#    "index.name": "products",
-#    "elastic.port": "9200"
-#  }
-#}
-#EOF
-#curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d @prod_attr_values-connector.json $KAFKA_CONNECT_ADDR/connectors
 
 sleep 5
 echo "Initializing Elastic indices"

@@ -2,8 +2,6 @@
 
 use futures_cpupool::CpuPool;
 
-use stq_acl::UnauthorizedACL;
-
 use models::{Category, NewCategory, UpdateCategory};
 use models::{Attribute, NewCatAttr, OldCatAttr};
 use super::types::ServiceFuture;
@@ -12,7 +10,7 @@ use repos::types::{DbPool, RepoResult};
 use repos::categories::{CategoriesRepo, CategoriesRepoImpl};
 use repos::category_attrs::{CategoryAttrsRepo, CategoryAttrsRepoImpl};
 use repos::attributes::{AttributesRepo, AttributesRepoImpl};
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
+use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 use repos::categories::CategoryCacheImpl;
 
 pub trait CategoriesService {
@@ -33,7 +31,7 @@ pub trait CategoriesService {
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedACL::default()) as BoxedAcl, |id| {
+    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
         (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
     })
 }

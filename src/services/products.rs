@@ -2,14 +2,13 @@
 
 use futures_cpupool::CpuPool;
 use diesel::Connection;
-use stq_acl::UnauthorizedACL;
 
 use models::*;
 use repos::{ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
+use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 
 use stq_http::client::ClientHandle;
 
@@ -57,7 +56,7 @@ impl ProductsServiceImpl {
 }
 
 fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedACL::default()) as BoxedAcl, |id| {
+    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
         (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
     })
 }

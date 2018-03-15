@@ -85,23 +85,6 @@ pub struct SearchProduct {
     pub categories_ids: Vec<i32>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SearchProductElastic {
-    pub name: String,
-    pub attr_filters: Vec<(i32, AttributeFilter)>,
-    pub categories_ids: Vec<i32>,
-}
-
-impl SearchProductElastic {
-    pub fn new(name: String, attr_filters: Vec<(i32, AttributeFilter)>, categories_ids: Vec<i32>) -> Self {
-        Self {
-            name,
-            attr_filters,
-            categories_ids,
-        }
-    }
-}
-
 impl WithScope<Scope> for Product {
     fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
         match *scope {

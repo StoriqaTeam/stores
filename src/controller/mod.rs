@@ -380,10 +380,16 @@ impl Controller for ControllerImpl {
             ),
 
             // POST /roles/default/<user_id>
-            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.create_default(user_id)),
+            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(
+                user_roles_service
+                    .create_default(user_id),
+            ),
 
             // DELETE /roles/default/<user_id>
-            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.delete_default(user_id)),
+            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(
+                user_roles_service
+                    .delete_default(user_id),
+            ),
 
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(attributes_service.get(attribute_id)),

@@ -164,10 +164,10 @@ impl CategoriesService for CategoriesServiceImpl {
                     category_attrs_repo
                         .find_all_attributes(category_id_arg)
                         .and_then(|cat_attrs| {
-                            cat_attrs
-                                .into_iter()
-                                .map(|cat_attr| attrs_repo.find(cat_attr.attr_id))
-                                .collect::<RepoResult<Vec<Attribute>>>()
+                            cat_attrs.into_iter().map(|cat_attr| {
+                                attrs_repo
+                                    .find(cat_attr.attr_id)
+                            }).collect::<RepoResult<Vec<Attribute>>>()
                         })
                         .map_err(ServiceError::from)
                 })

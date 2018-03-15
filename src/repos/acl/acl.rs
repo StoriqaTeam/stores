@@ -27,7 +27,6 @@ pub fn check(
 pub type BoxedAcl = Box<Acl<Resource, Action, Scope, RepoError>>;
 
 /// ApplicationAcl contains main logic for manipulation with recources
-// TODO: remove info about deleted user from cache
 #[derive(Clone)]
 pub struct ApplicationAcl<R: RolesCache> {
     acls: Rc<HashMap<Role, Vec<Permission>>>,
@@ -102,6 +101,29 @@ impl<R: RolesCache<Role = Role, Error = RepoError>> Acl<Resource, Action, Scope,
 
             Ok(acls.count() > 0)
         })
+    }
+}
+
+/// UnauthorizedAcl contains main logic for manipulation with recources
+#[derive(Clone, Default)]
+pub struct UnauthorizedAcl;
+
+impl Acl<Resource, Action, Scope, RepoError> for UnauthorizedAcl {
+    fn allows(&self, resource: &Resource, action: &Action, _: &[&WithScope<Scope>], _: Option<&DbConnection>) -> Result<bool, RepoError> {
+        if *action == Action::Read {
+            match *resource {
+                Resource::Categories
+                | Resource::Stores
+                | Resource::Products
+                | Resource::BaseProducts
+                | Resource::ProductAttrs
+                | Resource::Attributes
+                | Resource::CategoryAttrs => Ok(true),
+                _ => Ok(false),
+            }
+        } else {
+            Ok(false)
+        }
     }
 }
 

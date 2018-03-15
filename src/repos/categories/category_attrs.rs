@@ -6,11 +6,10 @@ use diesel::query_dsl::RunQueryDsl;
 
 use models::{CatAttr, NewCatAttr, OldCatAttr};
 use models::category_attribute::cat_attr_values::dsl::*;
-use repos::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
 use models::authorization::*;
-use super::acl;
-use super::acl::BoxedAcl;
+use repos::error::RepoError as Error;
+use repos::types::{DbConnection, RepoResult};
+use repos::acl::{self, BoxedAcl};
 
 /// CatAttr repository, responsible for handling cat_attr_values
 pub struct CategoryAttrsRepoImpl<'a> {
@@ -77,6 +76,9 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));
         let query = diesel::delete(filtered);
-        query.get_result::<CatAttr>(&**self.db_conn).map_err(Error::from).map(|_| ())
+        query
+            .get_result::<CatAttr>(&**self.db_conn)
+            .map_err(Error::from)
+            .map(|_| ())
     }
 }

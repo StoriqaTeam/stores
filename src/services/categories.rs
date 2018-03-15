@@ -5,15 +5,15 @@ use futures_cpupool::CpuPool;
 use stq_acl::UnauthorizedACL;
 
 use models::{Category, NewCategory, UpdateCategory};
-use models::{NewCatAttr, OldCatAttr, Attribute};
+use models::{Attribute, NewCatAttr, OldCatAttr};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::{DbPool, RepoResult};
 use repos::categories::{CategoriesRepo, CategoriesRepoImpl};
 use repos::category_attrs::{CategoryAttrsRepo, CategoryAttrsRepoImpl};
 use repos::attributes::{AttributesRepo, AttributesRepoImpl};
-
 use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl};
+use repos::categories::CategoryCacheImpl;
 
 pub trait CategoriesService {
     /// Returns category by ID
@@ -43,15 +43,23 @@ pub struct CategoriesServiceImpl {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub roles_cache: RolesCacheImpl,
+    pub categories_cache: CategoryCacheImpl,
     pub user_id: Option<i32>,
 }
 
 impl CategoriesServiceImpl {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: RolesCacheImpl, user_id: Option<i32>) -> Self {
+    pub fn new(
+        db_pool: DbPool,
+        cpu_pool: CpuPool,
+        roles_cache: RolesCacheImpl,
+        categories_cache: CategoryCacheImpl,
+        user_id: Option<i32>,
+    ) -> Self {
         Self {
             db_pool,
             cpu_pool,
             roles_cache,
+            categories_cache,
             user_id,
         }
     }
@@ -83,6 +91,7 @@ impl CategoriesService for CategoriesServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let categories_cache = self.categories_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -93,6 +102,7 @@ impl CategoriesService for CategoriesServiceImpl {
                     let categories_repo = CategoriesRepoImpl::new(&conn, acl);
                     categories_repo
                         .create(new_category)
+                        .and_then(|category| categories_cache.clear().map(|_| category))
                         .map_err(ServiceError::from)
                 })
         }))
@@ -103,6 +113,7 @@ impl CategoriesService for CategoriesServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let categories_cache = self.categories_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -113,6 +124,7 @@ impl CategoriesService for CategoriesServiceImpl {
                     let categories_repo = CategoriesRepoImpl::new(&conn, acl);
                     categories_repo
                         .update(category_id, payload)
+                        .and_then(|category| categories_cache.clear().map(|_| category))
                         .map_err(ServiceError::from)
                 })
         }))
@@ -123,6 +135,7 @@ impl CategoriesService for CategoriesServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let categories_cache = self.categories_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -130,14 +143,13 @@ impl CategoriesService for CategoriesServiceImpl {
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
-                    let categories_repo = CategoriesRepoImpl::new(&conn, acl);
-                    categories_repo.get_all().map_err(ServiceError::from)
+                    categories_cache.get(&conn, acl).map_err(ServiceError::from)
                 })
         }))
     }
 
     /// Returns all category attributes belonging to category
-    fn find_all_attributes(&self, category_id_arg: i32) -> ServiceFuture<Vec<Attribute>>{
+    fn find_all_attributes(&self, category_id_arg: i32) -> ServiceFuture<Vec<Attribute>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
@@ -154,10 +166,10 @@ impl CategoriesService for CategoriesServiceImpl {
                     category_attrs_repo
                         .find_all_attributes(category_id_arg)
                         .and_then(|cat_attrs| {
-                            cat_attrs.into_iter().map(|cat_attr| {
-                                attrs_repo
-                                    .find(cat_attr.attr_id)
-                            }).collect::<RepoResult<Vec<Attribute>>>()
+                            cat_attrs
+                                .into_iter()
+                                .map(|cat_attr| attrs_repo.find(cat_attr.attr_id))
+                                .collect::<RepoResult<Vec<Attribute>>>()
                         })
                         .map_err(ServiceError::from)
                 })
@@ -185,7 +197,7 @@ impl CategoriesService for CategoriesServiceImpl {
     }
 
     /// Deletes category attribute
-    fn delete_attribute_from_category(&self, payload: OldCatAttr) -> ServiceFuture<()>{
+    fn delete_attribute_from_category(&self, payload: OldCatAttr) -> ServiceFuture<()> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
@@ -197,7 +209,9 @@ impl CategoriesService for CategoriesServiceImpl {
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let category_attrs_repo = CategoryAttrsRepoImpl::new(&conn, acl);
-                    category_attrs_repo.delete(payload).map_err(ServiceError::from)
+                    category_attrs_repo
+                        .delete(payload)
+                        .map_err(ServiceError::from)
                 })
         }))
     }

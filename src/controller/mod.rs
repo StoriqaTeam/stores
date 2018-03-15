@@ -35,12 +35,14 @@ use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
+use repos::categories::CategoryCacheImpl;
 
 use models;
 use self::routes::Route;
 use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
+#[derive(Clone)]
 pub struct ControllerImpl {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
@@ -48,11 +50,19 @@ pub struct ControllerImpl {
     pub config: Config,
     pub client_handle: ClientHandle,
     pub roles_cache: RolesCacheImpl,
+    pub categories_cache: CategoryCacheImpl,
 }
 
 impl ControllerImpl {
     /// Create a new controller based on services
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, roles_cache: RolesCacheImpl) -> Self {
+    pub fn new(
+        db_pool: DbPool,
+        cpu_pool: CpuPool,
+        client_handle: ClientHandle,
+        config: Config,
+        roles_cache: RolesCacheImpl,
+        categories_cache: CategoryCacheImpl,
+    ) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
             route_parser,
@@ -61,6 +71,7 @@ impl ControllerImpl {
             client_handle,
             config,
             roles_cache,
+            categories_cache,
         }
     }
 }
@@ -75,6 +86,7 @@ impl Controller for ControllerImpl {
             .and_then(|id| i32::from_str(&id).ok());
 
         let cached_roles = self.roles_cache.clone();
+        let cached_categories = self.categories_cache.clone();
         let system_service = SystemServiceImpl::new();
         let stores_service = StoresServiceImpl::new(
             self.db_pool.clone(),
@@ -114,6 +126,7 @@ impl Controller for ControllerImpl {
             self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles.clone(),
+            cached_categories,
             user_id,
         );
 
@@ -367,16 +380,10 @@ impl Controller for ControllerImpl {
             ),
 
             // POST /roles/default/<user_id>
-            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(
-                user_roles_service
-                    .create_default(user_id),
-            ),
+            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.create_default(user_id)),
 
             // DELETE /roles/default/<user_id>
-            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(
-                user_roles_service
-                    .delete_default(user_id),
-            ),
+            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.delete_default(user_id)),
 
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(attributes_service.get(attribute_id)),
@@ -434,15 +441,23 @@ impl Controller for ControllerImpl {
             (&Post, Some(Route::CategoryAttrs)) => serialize_future(
                 parse_body::<models::NewCatAttr>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |new_category_attr| categories_service.add_attribute_to_category(new_category_attr).map_err(Error::from)),
+                    .and_then(move |new_category_attr| {
+                        categories_service
+                            .add_attribute_to_category(new_category_attr)
+                            .map_err(Error::from)
+                    }),
             ),
 
             // DELETE /categories/attributes
             (&Delete, Some(Route::CategoryAttrs)) => serialize_future(
                 parse_body::<models::OldCatAttr>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |old_category_attr| categories_service.delete_attribute_from_category(old_category_attr).map_err(Error::from)),
-                ),
+                    .and_then(move |old_category_attr| {
+                        categories_service
+                            .delete_attribute_from_category(old_category_attr)
+                            .map_err(Error::from)
+                    }),
+            ),
 
             // Fallback
             _ => Box::new(future::err(Error::NotFound)),

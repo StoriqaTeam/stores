@@ -1,3 +1,4 @@
+//! Repos contains all info about working with categories
 use std::convert::From;
 
 use diesel;
@@ -6,12 +7,16 @@ use diesel::query_dsl::RunQueryDsl;
 
 use models::{Category, NewCategory, RawCategory, UpdateCategory};
 use models::category::categories::dsl::*;
-use repos::error::RepoError as Error;
-
-use super::types::{DbConnection, RepoResult};
 use models::authorization::*;
-use super::acl;
-use super::acl::BoxedAcl;
+use repos::types::{DbConnection, RepoResult};
+use repos::error::RepoError as Error;
+use repos::acl::{self, BoxedAcl};
+
+pub mod category_attrs;
+pub mod category_cache;
+
+pub use self::category_attrs::*;
+pub use self::category_cache::*;
 
 /// Categories repository, responsible for handling categorie_values
 pub struct CategoriesRepoImpl<'a> {

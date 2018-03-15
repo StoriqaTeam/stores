@@ -10,7 +10,6 @@ pub mod attributes;
 pub mod error;
 pub mod types;
 pub mod categories;
-pub mod category_attrs;
 
 pub use self::products::*;
 pub use self::base_products::*;
@@ -20,4 +19,3 @@ pub use self::stores::*;
 pub use self::types::*;
 pub use self::acl::*;
 pub use self::categories::*;
-pub use self::category_attrs::*;

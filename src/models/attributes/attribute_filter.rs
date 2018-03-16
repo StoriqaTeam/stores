@@ -9,6 +9,6 @@ pub enum Filter {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AttributeFilter {
-    pub name: String,
+    pub id: i32,
     pub filter: Filter,
 }

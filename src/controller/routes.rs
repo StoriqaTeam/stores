@@ -83,7 +83,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/products/search$", || Route::ProductsSearch);
 
     // Products auto complete route
-    router.add_route(r"^/stores/auto_complete$", || Route::ProductsAutoComplete);
+    router.add_route(r"^/products/auto_complete$", || Route::ProductsAutoComplete);
 
     // User_roles Routes
     router.add_route(r"^/user_roles$", || Route::UserRoles);

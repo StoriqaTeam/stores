@@ -36,6 +36,7 @@ use services::categories::{CategoriesService, CategoriesServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCacheImpl;
+use repos::attributes::AttributeCacheImpl;
 
 use models;
 use self::routes::Route;
@@ -51,6 +52,7 @@ pub struct ControllerImpl {
     pub client_handle: ClientHandle,
     pub roles_cache: RolesCacheImpl,
     pub categories_cache: CategoryCacheImpl,
+    pub attributes_cache: AttributeCacheImpl,
 }
 
 impl ControllerImpl {
@@ -62,6 +64,7 @@ impl ControllerImpl {
         config: Config,
         roles_cache: RolesCacheImpl,
         categories_cache: CategoryCacheImpl,
+        attributes_cache: AttributeCacheImpl,
     ) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
@@ -72,6 +75,7 @@ impl ControllerImpl {
             config,
             roles_cache,
             categories_cache,
+            attributes_cache,
         }
     }
 }
@@ -87,6 +91,7 @@ impl Controller for ControllerImpl {
 
         let cached_roles = self.roles_cache.clone();
         let cached_categories = self.categories_cache.clone();
+        let cached_attributes = self.attributes_cache.clone();
         let system_service = SystemServiceImpl::new();
         let stores_service = StoresServiceImpl::new(
             self.db_pool.clone(),
@@ -119,6 +124,7 @@ impl Controller for ControllerImpl {
             self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles.clone(),
+            cached_attributes,
             user_id,
         );
 
@@ -380,16 +386,10 @@ impl Controller for ControllerImpl {
             ),
 
             // POST /roles/default/<user_id>
-            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(
-                user_roles_service
-                    .create_default(user_id),
-            ),
+            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.create_default(user_id)),
 
             // DELETE /roles/default/<user_id>
-            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(
-                user_roles_service
-                    .delete_default(user_id),
-            ),
+            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.delete_default(user_id)),
 
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(attributes_service.get(attribute_id)),

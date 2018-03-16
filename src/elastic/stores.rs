@@ -7,7 +7,7 @@ use future;
 use futures::Future;
 use stq_http::client::ClientHandle;
 
-use models::{ElasticIndex, SearchResponse, ElasticStore, SearchStore};
+use models::{ElasticIndex, ElasticStore, SearchResponse, SearchStore};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 
@@ -67,7 +67,7 @@ impl StoresElastic for StoresElasticImpl {
     }
 
     /// Auto Complete
-    fn auto_complete(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<String>> {
+    fn auto_complete(&self, name: String, count: i64, _offset: i64) -> RepoFuture<Vec<String>> {
         let query = json!({
             "suggest": {
                 "name-suggest" : {
@@ -91,9 +91,7 @@ impl StoresElastic for StoresElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
-                .and_then(|res| {
-                    future::ok(res.suggested_texts())
-                }),
+                .and_then(|res| future::ok(res.suggested_texts())),
         )
     }
 }

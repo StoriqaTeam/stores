@@ -1,6 +1,5 @@
 use models::elastic::Shards;
 
-
 #[derive(Deserialize, Debug)]
 pub struct IndexResponse {
     #[serde(rename = "_shards")]

@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use stq_http::client::ClientHandle;
 
-use models::{ElasticIndex, SearchResponse, ElasticProduct, Filter, SearchProduct};
+use models::{ElasticIndex, ElasticProduct, Filter, SearchProduct, SearchResponse};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 
@@ -71,14 +71,10 @@ impl ProductsElastic for ProductsElasticImpl {
             .into_iter()
             .map(|attr| match attr.filter {
                 Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}},{"term": {"str_val": val}}]}}),
-                Filter::Lte(val) => {
-                    json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"lte": val }}}]}})
-                }
+                Filter::Lte(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"lte": val }}}]}}),
                 Filter::Le(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"le": val }}}]}}),
                 Filter::Ge(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"ge": val }}}]}}),
-                Filter::Gte(val) => {
-                    json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"gte": val }}}]}})
-                }
+                Filter::Gte(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"gte": val }}}]}}),
             })
             .collect::<Vec<serde_json::Value>>();
         let props = json!({
@@ -130,7 +126,7 @@ impl ProductsElastic for ProductsElasticImpl {
         )
     }
 
-    fn auto_complete(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<String>> {
+    fn auto_complete(&self, name: String, count: i64, _offset: i64) -> RepoFuture<Vec<String>> {
         let query = json!({
             "suggest": {
                 "name-suggest" : {
@@ -154,9 +150,7 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Get, url, Some(query), Some(headers))
                 .map_err(Error::from)
-                .and_then(|res| {
-                    future::ok(res.suggested_texts())
-                }),
+                .and_then(|res| future::ok(res.suggested_texts())),
         )
     }
 }

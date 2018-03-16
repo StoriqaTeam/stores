@@ -73,6 +73,7 @@ use stq_http::client::Config as HttpConfig;
 use config::Config;
 use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCacheImpl;
+use repos::attributes::AttributeCacheImpl;
 
 /// Starts new web service from provided `Config`
 pub fn start_server(config: Config) {
@@ -121,6 +122,10 @@ pub fn start_server(config: Config) {
     // Categories cache
     let category_cache = CategoryCacheImpl::default();
 
+    // Attributes cache
+    let attributes_cache = AttributeCacheImpl::default();
+
+    // Controller
     let controller = controller::ControllerImpl::new(
         r2d2_pool,
         cpu_pool,
@@ -128,6 +133,7 @@ pub fn start_server(config: Config) {
         config,
         roles_cache,
         category_cache,
+        attributes_cache,
     );
 
     let serve = Http::new()

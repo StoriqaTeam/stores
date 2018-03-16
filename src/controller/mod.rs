@@ -114,7 +114,11 @@ impl Controller for ControllerImpl {
             self.config.server.elastic.clone(),
         );
 
-        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone());
+        let user_roles_service = UserRolesServiceImpl::new(
+            self.db_pool.clone(),
+            self.cpu_pool.clone(),
+            cached_roles.clone(),
+        );
         let attributes_service = AttributesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
@@ -362,14 +366,14 @@ impl Controller for ControllerImpl {
                 }
             }
 
-            // GET /user_role/<user_role_id>
-            (&Get, Some(Route::UserRole(user_role_id))) => serialize_future(user_roles_service.get(user_role_id)),
+            // GET /user_role/<user_id>
+            (&Get, Some(Route::UserRole(user_id))) => serialize_future(user_roles_service.get_roles(user_id)),
 
             // POST /user_roles
             (&Post, Some(Route::UserRoles)) => serialize_future(
                 parse_body::<models::NewUserRole>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |new_store| user_roles_service.create(new_store).map_err(Error::from)),
+                    .and_then(move |new_role| user_roles_service.create(new_role).map_err(Error::from)),
             ),
 
             // DELETE /user_roles/<user_role_id>
@@ -380,16 +384,10 @@ impl Controller for ControllerImpl {
             ),
 
             // POST /roles/default/<user_id>
-            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(
-                user_roles_service
-                    .create_default(user_id),
-            ),
+            (&Post, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.create_default(user_id)),
 
             // DELETE /roles/default/<user_id>
-            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(
-                user_roles_service
-                    .delete_default(user_id),
-            ),
+            (&Delete, Some(Route::DefaultRole(user_id))) => serialize_future(user_roles_service.delete_default(user_id)),
 
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(attributes_service.get(attribute_id)),

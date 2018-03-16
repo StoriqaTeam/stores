@@ -5,10 +5,8 @@ use hyper::header::{ContentType, Headers};
 use hyper::Method;
 use future;
 use futures::Future;
-use futures::future::*;
 use serde_json;
 use stq_http::client::ClientHandle;
-use stq_static_resources::Translation;
 
 use models::{ElasticIndex, SearchResponse, ElasticProduct, Filter, SearchProduct};
 use repos::error::RepoError as Error;
@@ -162,3 +160,20 @@ impl ProductsElastic for ProductsElasticImpl {
         )
     }
 }
+
+
+// curl -XPOST 'http://stores-es:9200/products/_search?pretty' -H 'Content-Type: application/json' -d'
+// {
+//     "suggest": {
+//         "song-suggest" : {
+//             "prefix" : "то",
+//             "completion" : {
+//                 "field" : "suggest"
+//             }
+//         }
+//     }
+// }
+// '
+
+// curl -XGET 'stores-es:9200/stores?pretty'
+

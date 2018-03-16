@@ -5,11 +5,9 @@ pub mod shards;
 pub mod index_response;
 pub mod search_response;
 
-
 pub use self::shards::*;
 pub use self::index_response::*;
 pub use self::search_response::*;
-
 
 pub enum ElasticIndex {
     Store,

@@ -1,4 +1,3 @@
-
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
@@ -71,12 +70,12 @@ fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
 impl BaseProductsService for BaseProductsServiceImpl {
     fn search(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
-                let client_handle = self.client_handle.clone();
-                let address = self.elastic_address.clone();
-                let products_el = ProductsElasticImpl::new(client_handle, address);
-                products_el
-                    .search(search_product, count, offset)
-                    .map_err(Error::from)
+            let client_handle = self.client_handle.clone();
+            let address = self.elastic_address.clone();
+            let products_el = ProductsElasticImpl::new(client_handle, address);
+            products_el
+                .search(search_product, count, offset)
+                .map_err(Error::from)
         };
 
         Box::new(products.and_then({

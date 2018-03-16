@@ -1,4 +1,3 @@
-
 use std::str::FromStr;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -12,11 +11,12 @@ use models::elastic::Shards;
 pub struct SearchResponse<T> {
     took: u64,
     timed_out: bool,
-    #[serde(rename = "_shards")] shards: Shards,
+    #[serde(rename = "_shards")]
+    shards: Shards,
     hits: HitsWrapper<T>,
     aggregations: Option<AggsWrapper>,
     status: Option<u16>,
-    suggest: Option<Suggest<T>>
+    suggest: Option<Suggest<T>>,
 }
 
 /** Struct to hold the search's Hits, serializable to type `T` or `serde_json::Value`. */
@@ -24,7 +24,8 @@ pub struct SearchResponse<T> {
 struct HitsWrapper<T> {
     total: u64,
     max_score: Option<f32>,
-    #[serde(rename = "hits")] inner: Vec<Hit<T>>,
+    #[serde(rename = "hits")]
+    inner: Vec<Hit<T>>,
 }
 
 impl<T> SearchResponse<T> {
@@ -104,7 +105,7 @@ impl<T> SearchResponse<T> {
     pub fn suggested_texts(&self) -> Vec<String> {
         match &self.suggest {
             &None => vec![],
-            &Some(ref sug) => sug.into_suggested_text()
+            &Some(ref sug) => sug.into_suggested_text(),
         }
     }
 
@@ -114,11 +115,10 @@ impl<T> SearchResponse<T> {
     pub fn suggested_documents(&self) -> Vec<&T> {
         match &self.suggest {
             &None => vec![],
-            &Some(ref sug) => sug.into_documents()
+            &Some(ref sug) => sug.into_documents(),
         }
     }
 }
-
 
 /** A borrowing iterator over search query hits. */
 pub struct Hits<'a, T: 'a> {
@@ -207,12 +207,18 @@ impl<T> Iterator for IntoDocuments<T> {
 /** Full metadata and source for a single hit. */
 #[derive(Deserialize, Debug)]
 pub struct Hit<T> {
-    #[serde(rename = "_index")] index: String,
-    #[serde(rename = "_type")] ty: String,
-    #[serde(rename = "_version")] version: Option<u32>,
-    #[serde(rename = "_score")] score: Option<f32>,
-    #[serde(rename = "_source")] source: Option<T>,
-    #[serde(rename = "_routing")] routing: Option<String>,
+    #[serde(rename = "_index")]
+    index: String,
+    #[serde(rename = "_type")]
+    ty: String,
+    #[serde(rename = "_version")]
+    version: Option<u32>,
+    #[serde(rename = "_score")]
+    score: Option<f32>,
+    #[serde(rename = "_source")]
+    source: Option<T>,
+    #[serde(rename = "_routing")]
+    routing: Option<String>,
 }
 
 impl<T> Hit<T> {
@@ -386,27 +392,31 @@ impl<'a> Iterator for Aggs<'a> {
 /** Full metadata and source for suggest fields. */
 #[derive(Deserialize, Debug)]
 pub struct Suggest<T> {
-    #[serde(rename = "name-suggest")] inner: Vec<SuggestWrapper<T>>,
+    #[serde(rename = "name-suggest")]
+    inner: Vec<SuggestWrapper<T>>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct SuggestWrapper<T> {
-    text : String,
-    offset : i32,
-    length : i32,
-    options : Vec<SuggestOption<T>>,
+    text: String,
+    offset: i32,
+    length: i32,
+    options: Vec<SuggestOption<T>>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct SuggestOption<T> {
-    text : String,
-    #[serde(rename = "_index")]  index : Option<String>,
-    _type : String,
-    #[serde(rename = "_id")]  id : String,
-    #[serde(rename = "_score")]  score : Option<f32>,
-    #[serde(rename = "_source")]  source : Option<T>
+    text: String,
+    #[serde(rename = "_index")]
+    index: Option<String>,
+    _type: String,
+    #[serde(rename = "_id")]
+    id: String,
+    #[serde(rename = "_score")]
+    score: Option<f32>,
+    #[serde(rename = "_source")]
+    source: Option<T>,
 }
-
 
 impl<T> SuggestOption<T> {
     /** Get source document. */
@@ -421,37 +431,47 @@ impl<T> SuggestOption<T> {
 
     /** Id of the document. */
     pub fn id(&self) -> Option<i32> {
-        i32::from_str(&self.id.clone()).ok() 
+        i32::from_str(&self.id.clone()).ok()
     }
 
     /** The score of the hit. */
     pub fn score(&self) -> Option<f32> {
         self.score.clone()
     }
-
-
 }
 
 impl<T> SuggestWrapper<T> {
     /** Get vector of source document. */
     pub fn into_documents(&self) -> Vec<&T> {
-        self.options.iter().filter_map(|op| op.document()).collect::<Vec<&T>>()
+        self.options
+            .iter()
+            .filter_map(|op| op.document())
+            .collect::<Vec<&T>>()
     }
 
     /** Get vector of source document. */
     pub fn into_suggested_text(&self) -> Vec<String> {
-        self.options.iter().map(|op| op.text()).collect::<Vec<String>>()
+        self.options
+            .iter()
+            .map(|op| op.text())
+            .collect::<Vec<String>>()
     }
 }
 
 impl<T> Suggest<T> {
     /** Get vector of source document. */
     pub fn into_documents(&self) -> Vec<&T> {
-        self.inner.iter().flat_map(|wrapper| wrapper.into_documents()).collect::<Vec<&T>>()
+        self.inner
+            .iter()
+            .flat_map(|wrapper| wrapper.into_documents())
+            .collect::<Vec<&T>>()
     }
 
     /** Get vector of source document. */
     pub fn into_suggested_text(&self) -> Vec<String> {
-        self.inner.iter().flat_map(|wrapper| wrapper.into_suggested_text()).collect::<Vec<String>>()
+        self.inner
+            .iter()
+            .flat_map(|wrapper| wrapper.into_suggested_text())
+            .collect::<Vec<String>>()
     }
 }

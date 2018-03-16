@@ -1,3 +1,4 @@
+//! Attributes module responsible for CRUD operations
 use std::convert::From;
 
 use diesel;
@@ -6,12 +7,14 @@ use diesel::query_dsl::RunQueryDsl;
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use models::attribute::attributes::dsl::*;
-use repos::error::RepoError as Error;
-
-use super::types::{DbConnection, RepoResult};
 use models::authorization::*;
-use super::acl;
-use super::acl::BoxedAcl;
+use repos::error::RepoError as Error;
+use repos::types::{DbConnection, RepoResult};
+use repos::acl::{self, BoxedAcl};
+
+pub mod attributes_cache;
+
+pub use self::attributes_cache::*;
 
 /// Attributes repository, responsible for handling attribute_values
 pub struct AttributesRepoImpl<'a> {

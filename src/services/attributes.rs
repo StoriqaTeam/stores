@@ -3,11 +3,10 @@
 use futures_cpupool::CpuPool;
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
-use super::types::ServiceFuture;
-use super::error::ServiceError;
+use services::types::ServiceFuture;
+use services::error::ServiceError;
 use repos::types::DbPool;
-use repos::attributes::{AttributesRepo, AttributesRepoImpl};
-
+use repos::attributes::{AttributeCacheImpl, AttributesRepo, AttributesRepoImpl};
 use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 
 pub trait AttributesService {
@@ -30,15 +29,23 @@ pub struct AttributesServiceImpl {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub roles_cache: RolesCacheImpl,
+    pub attributes_cache: AttributeCacheImpl,
     pub user_id: Option<i32>,
 }
 
 impl AttributesServiceImpl {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: RolesCacheImpl, user_id: Option<i32>) -> Self {
+    pub fn new(
+        db_pool: DbPool,
+        cpu_pool: CpuPool,
+        roles_cache: RolesCacheImpl,
+        attributes_cache: AttributeCacheImpl,
+        user_id: Option<i32>,
+    ) -> Self {
         Self {
             db_pool,
             cpu_pool,
             roles_cache,
+            attributes_cache,
             user_id,
         }
     }
@@ -50,6 +57,7 @@ impl AttributesService for AttributesServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let attributes_cache = self.attributes_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -57,9 +65,8 @@ impl AttributesService for AttributesServiceImpl {
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
-                    let attributes_repo = AttributesRepoImpl::new(&conn, acl);
-                    attributes_repo
-                        .find(attribute_id)
+                    attributes_cache
+                        .get(attribute_id, &conn, acl)
                         .map_err(ServiceError::from)
                 })
         }))
@@ -90,6 +97,7 @@ impl AttributesService for AttributesServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let attributes_cache = self.attributes_cache.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -100,6 +108,7 @@ impl AttributesService for AttributesServiceImpl {
                     let attributes_repo = AttributesRepoImpl::new(&conn, acl);
                     attributes_repo
                         .update(attribute_id, payload)
+                        .and_then(|attribute| attributes_cache.remove(attribute_id).map(|_| attribute))
                         .map_err(ServiceError::from)
                 })
         }))

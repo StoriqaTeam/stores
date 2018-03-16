@@ -113,27 +113,20 @@ impl WithScope<Scope> for NewBaseProduct {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticProduct {
     pub id: i32,
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
-    pub properties: Vec<AttrValue>,
+    pub variants: Vec<ElasticVariant>,
     pub category_id: i32,
 }
 
-impl ElasticProduct {
-    pub fn new(product: BaseProduct, attrs: Vec<AttrValue>) -> Self {
-        Self {
-            id: product.id,
-            name: product.name,
-            short_description: product.short_description,
-            long_description: product.long_description,
-            properties: attrs,
-            category_id: product.category_id,
-        }
-    }
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ElasticVariant {
+    pub id: i32,
+    pub attrs: Vec<AttrValue>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

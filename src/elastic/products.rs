@@ -1,7 +1,7 @@
 //! ProductsSearch repo, presents CRUD operations with db for users
 use std::convert::From;
 
-use hyper::header::{ContentType, Headers};
+use hyper::header::{ContentLength, ContentType, Headers};
 use hyper::Method;
 use future;
 use futures::Future;
@@ -112,15 +112,16 @@ impl ProductsElastic for ProductsElasticImpl {
         }).to_string();
 
         let url = format!(
-            "http://{}/{}/_doc/_search",
+            "http://{}/{}/_search",
             self.elastic_address,
             ElasticIndex::Product
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
         Box::new(
             self.client_handle
-                .request::<SearchResponse<ElasticProduct>>(Method::Get, url, Some(query), Some(headers))
+                .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
         )
@@ -140,15 +141,16 @@ impl ProductsElastic for ProductsElasticImpl {
         }).to_string();
 
         let url = format!(
-            "http://{}/{}/_doc/_search",
+            "http://{}/{}/_search",
             self.elastic_address,
             ElasticIndex::Product
         );
         let mut headers = Headers::new();
         headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
         Box::new(
             self.client_handle
-                .request::<SearchResponse<ElasticProduct>>(Method::Get, url, Some(query), Some(headers))
+                .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .and_then(|res| future::ok(res.suggested_texts())),
         )

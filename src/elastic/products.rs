@@ -160,20 +160,3 @@ impl ProductsElastic for ProductsElasticImpl {
         )
     }
 }
-
-
-// curl -XPOST 'http://stores-es:9200/products/_search?pretty' -H 'Content-Type: application/json' -d'
-// {
-//     "suggest": {
-//         "song-suggest" : {
-//             "prefix" : "то",
-//             "completion" : {
-//                 "field" : "suggest"
-//             }
-//         }
-//     }
-// }
-// '
-
-// curl -XGET 'stores-es:9200/stores?pretty'
-

@@ -3,7 +3,16 @@ FROM debian:stable-slim
 RUN mkdir -p /app/config
 WORKDIR /app
 
+RUN wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add - && \
+    sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list' && \
+    apt-get update && \
+    apt-get install -y libpq5
+
+RUN apt-get clean
+RUN rm -rf /var/lib/apt/lists/
+
 COPY stores /app
+COPY diesel /usr/local/cargo/bin/diesel
 COPY config /app/config
 EXPOSE 8001
 

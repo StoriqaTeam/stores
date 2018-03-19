@@ -13,8 +13,9 @@ node {
         sh 'rm -f Dockerfile'
     }
 
-    stage('Get binary') {
+    stage('Get binaries') {
         sh "docker run -i --rm --volume ${env.WORKSPACE}:/mnt/ storiqateam/stq-stores-interm:${env.BRANCH_NAME} cp -f /app/target/release/stores /mnt/"
+        sh "docker run -i --rm --volume ${env.WORKSPACE}:/mnt/ storiqateam/stq-stores-interm:${env.BRANCH_NAME} cp -f /usr/local/cargo/bin/diesel /mnt/"
     }
 
     stage('Build app image') {

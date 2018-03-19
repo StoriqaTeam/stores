@@ -1,0 +1,10 @@
+FROM debian:stable-slim
+
+RUN mkdir -p /app/config
+WORKDIR /app
+
+COPY stores /app
+COPY config /app/config
+EXPOSE 8001
+
+ENTRYPOINT ["diesel migration run && /app/stores"]

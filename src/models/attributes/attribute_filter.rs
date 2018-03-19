@@ -2,8 +2,6 @@
 pub enum Filter {
     Equal(String),
     Lte(f32),
-    Le(f32),
-    Ge(f32),
     Gte(f32),
 }
 

@@ -38,8 +38,9 @@ impl ProductsElasticImpl {
 impl ProductsElastic for ProductsElasticImpl {
     /// Find specific products by name limited by `count` parameters
     fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
-        let name_query = json!(
-                [
+        let name_query = json!({
+            "bool" : {
+                "should" : [
                     {"nested": {
                         "path": "name",
                         "query": {
@@ -65,51 +66,62 @@ impl ProductsElastic for ProductsElasticImpl {
                         }
                     }}
                 ]
-            );
+            }
+        });
 
-        let filters = prod.attr_filters
+        let attr_filters = prod.attr_filters
             .into_iter()
             .map(|attr| match attr.filter {
-                Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}},{"term": {"str_val": val}}]}}),
-                Filter::Lte(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"lte": val }}}]}}),
-                Filter::Le(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"le": val }}}]}}),
-                Filter::Ge(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"ge": val }}}]}}),
-                Filter::Gte(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"gte": val }}}]}}),
+                Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"term": {"variants.attrs.str_val": val}}]}}),
+                Filter::Lte(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"lte": val }}}]}}),
+                Filter::Gte(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"gte": val }}}]}}),
             })
             .collect::<Vec<serde_json::Value>>();
-        let props = json!({
-                        "nested" : {
-                            "path" : "properties",
-                            "filter" : {
-                                "bool" : {
-                                    "must" : filters
-                                }
-                            }
-                        }
-                });
 
-        let category = if !prod.categories_ids.is_empty() {
+        let attr_filter = json!({
+                "nested" : {
+                            "path" : "variants",
+                            "query" : {
+                                "bool" : {
+                                    "must" : {
+											"nested": {
+ 						                       "path": "variants.attrs",
+                        						"query": {
+                            						"bool" : {
+                                    					"must" : attr_filters 
+                                                            }
+                        							    }
+                    						        }	
+                                            }
+                                        }
+                                    }
+                            }        
+        });
+
+        let category = 
             json!({
-                "query" : {
-                        "bool" : {
-                            "must" : {"term": {"category_id": prod.categories_ids}}
-                        }
-                    }
-            })
-        } else {
-            json!({})
-        };
+                "terms": {"category_id": prod.categories_ids}
+            });
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        if !prod.name.is_empty() {
+            query_map.insert("must".to_string(), name_query);
+        }
+        if !attr_filters.is_empty() {
+            query_map.insert("filter".to_string(), attr_filter); 
+        }
+        if !prod.categories_ids.is_empty() {
+            query_map.insert("filter".to_string(), category); 
+        } 
 
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
-                "bool" : {
-                    "must" : name_query,
-                    "filter" : props,
-                    "filter" : category,
-                }
+                "bool" : query_map
             }
         }).to_string();
+
+        println!("{}", query);
 
         let url = format!(
             "http://{}/{}/_search",

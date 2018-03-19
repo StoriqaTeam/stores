@@ -125,8 +125,15 @@ pub struct ElasticProduct {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticVariant {
-    pub id: i32,
-    pub attrs: Vec<AttrValue>,
+    pub prod_id: i32,
+    pub attrs: Vec<ElasticAttrValue>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ElasticAttrValue {
+    pub attr_id: i32,
+    pub str_val: Option<String>,
+    pub float_val: Option<f32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

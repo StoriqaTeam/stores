@@ -124,7 +124,15 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                   "type": "integer"
                },
                "variants": {
-                  "type": "nested"
+                  "type": "nested",
+                  "properties": {
+                     "prod_id": {
+                        "type": "integer"
+                     },
+                     "attrs": {
+                        "type": "nested"
+                     }
+                  }
                },
                "suggest" : {
                    "type" : "completion"

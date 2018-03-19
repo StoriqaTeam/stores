@@ -1,7 +1,9 @@
 //! EAV model attributes
 use serde_json;
+use validator::Validate;
 
 use models::*;
+use models::validation_rules::*;
 
 table! {
     attributes {
@@ -20,17 +22,19 @@ pub struct Attribute {
 }
 
 /// Payload for creating attributes
-#[derive(Serialize, Deserialize, Insertable, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Validate)]
 #[table_name = "attributes"]
 pub struct NewAttribute {
+    #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub meta_field: Option<String>,
 }
 
 /// Payload for updating attributes
-#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate)]
 #[table_name = "attributes"]
 pub struct UpdateAttribute {
+    #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
     pub meta_field: Option<String>,
 }

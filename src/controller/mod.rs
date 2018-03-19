@@ -403,9 +403,15 @@ impl Controller for ControllerImpl {
                 parse_body::<models::NewAttribute>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                     .and_then(move |new_attribute| {
-                        attributes_service
-                            .create(new_attribute)
-                            .map_err(Error::from)
+                        new_attribute
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| {
+                                attributes_service
+                                    .create(new_attribute)
+                                    .map_err(Error::from)
+                            })
                     }),
             ),
 
@@ -414,9 +420,15 @@ impl Controller for ControllerImpl {
                 parse_body::<models::UpdateAttribute>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                     .and_then(move |update_attribute| {
-                        attributes_service
-                            .update(attribute_id, update_attribute)
-                            .map_err(Error::from)
+                        update_attribute
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| {
+                                attributes_service
+                                    .update(attribute_id, update_attribute)
+                                    .map_err(Error::from)
+                            })
                     }),
             ),
 
@@ -427,7 +439,13 @@ impl Controller for ControllerImpl {
             (&Post, Some(Route::Categories)) => serialize_future(
                 parse_body::<models::NewCategory>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
-                    .and_then(move |new_category| categories_service.create(new_category).map_err(Error::from)),
+                    .and_then(move |new_category| {
+                        new_category
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| categories_service.create(new_category).map_err(Error::from))
+                    }),
             ),
 
             // PUT /categories/<category_id>
@@ -435,9 +453,15 @@ impl Controller for ControllerImpl {
                 parse_body::<models::UpdateCategory>(req.body())
                     .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                     .and_then(move |update_category| {
-                        categories_service
-                            .update(category_id, update_category)
-                            .map_err(Error::from)
+                        update_category
+                            .validate()
+                            .map_err(Error::Validate)
+                            .into_future()
+                            .and_then(move |_| {
+                                categories_service
+                                    .update(category_id, update_category)
+                                    .map_err(Error::from)
+                            })
                     }),
             ),
 

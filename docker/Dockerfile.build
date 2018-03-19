@@ -12,4 +12,4 @@ WORKDIR /app
 # Install diesel client
 RUN cargo install diesel_cli
 
-RUN cargo build --release --locked
+RUN cargo build --release

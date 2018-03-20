@@ -1,6 +1,7 @@
 FROM debian:stable-slim
 
 RUN mkdir -p /app/config
+RUN mkdir -p /app/migrations
 RUN mkdir -p /usr/local/cargo/bin/
 WORKDIR /app
 
@@ -20,6 +21,7 @@ RUN rm -rf /var/lib/apt/lists/
 COPY stores /app
 COPY diesel /usr/local/cargo/bin/diesel
 COPY config /app/config
+COPY migrations /app/migrations
 
 ENV PATH=$PATH:/usr/local/cargo/bin/
 EXPOSE 8001

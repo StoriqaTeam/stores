@@ -14,8 +14,9 @@ node {
     }
 
     stage('Get binaries') {
-        sh "docker run -i --rm --volume ${env.WORKSPACE}:/mnt/ storiqateam/stq-stores-interm:${env.BRANCH_NAME} cp -f /app/target/release/stores /mnt/"
-        sh "docker run -i --rm --volume ${env.WORKSPACE}:/mnt/ storiqateam/stq-stores-interm:${env.BRANCH_NAME} cp -f /usr/local/cargo/bin/diesel /mnt/"
+        sh "docker run -i --rm --volume ${env.WORKSPACE}:/mnt/ storiqateam/stq-stores-interm:${env.BRANCH_NAME} cp -pf /app/target/release/stores /mnt/"
+        sh "docker run -i --rm --volume ${env.WORKSPACE}:/mnt/ storiqateam/stq-stores-interm:${env.BRANCH_NAME} cp -pf /usr/local/cargo/bin/diesel /mnt/"
+        sh "docker run -i --rm --volume ${env.WORKSPACE}:/mnt/ storiqateam/stq-stores-interm:${env.BRANCH_NAME} cp -rpf /app/migrations /mnt/ || mkdir migrations"
     }
 
     stage('Build app image') {

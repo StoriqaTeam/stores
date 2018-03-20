@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use stq_http::client::ClientHandle;
 
-use models::{ElasticIndex, ElasticProduct, Filter, SearchProduct, SearchResponse};
+use models::{ElasticIndex, ElasticProduct, Filter, SearchProductsByName, SearchResponse};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 
@@ -23,7 +23,7 @@ pub trait ProductsElastic {
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<String>>;
 
     /// Find specific product by name limited by `count` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn search(&self, prod: SearchProductsByName, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
 }
 
 impl ProductsElasticImpl {
@@ -37,7 +37,7 @@ impl ProductsElasticImpl {
 
 impl ProductsElastic for ProductsElasticImpl {
     /// Find specific products by name limited by `count` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+    fn search(&self, prod: SearchProductsByName, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
         let name_query = json!({
             "bool" : {
                 "should" : [
@@ -68,15 +68,32 @@ impl ProductsElastic for ProductsElasticImpl {
                 ]
             }
         });
+        
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        if !prod.name.is_empty() {
+            query_map.insert("must".to_string(), name_query);
+        }
 
-        let attr_filters = prod.attr_filters
-            .into_iter()
-            .map(|attr| match attr.filter {
-                Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"term": {"variants.attrs.str_val": val}}]}}),
-                Filter::Lte(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"lte": val }}}]}}),
-                Filter::Gte(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"gte": val }}}]}}),
-            })
-            .collect::<Vec<serde_json::Value>>();
+        let (attr_filters, categories_ids) = if let Some(options) = prod.options {
+            let filters = options
+                .attr_filters
+                .into_iter()
+                .map(|attr| match attr.filter {
+                    Filter::Equal(val) => {
+                        json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"term": {"variants.attrs.str_val": val}}]}})
+                    }
+                    Filter::Lte(val) => {
+                        json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"lte": val }}}]}})
+                    }
+                    Filter::Gte(val) => {
+                        json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"gte": val }}}]}})
+                    }
+                })
+                .collect::<Vec<serde_json::Value>>();
+            (Some(filters), Some(options.categories_ids))
+        } else {
+            (None, None)
+        };
 
         let attr_filter = json!({
                 "nested" : {
@@ -98,21 +115,21 @@ impl ProductsElastic for ProductsElasticImpl {
                             }        
         });
 
-        let category = 
-            json!({
-                "terms": {"category_id": prod.categories_ids}
+        let category = json!({
+                "terms": {"category_id": categories_ids}
             });
 
-        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
-        if !prod.name.is_empty() {
-            query_map.insert("must".to_string(), name_query);
+        if let Some(filters) = attr_filters {
+            if !filters.is_empty() {
+                query_map.insert("filter".to_string(), attr_filter);
+            }
         }
-        if !attr_filters.is_empty() {
-            query_map.insert("filter".to_string(), attr_filter); 
+
+        if let Some(ids) = categories_ids {
+            if !ids.is_empty() {
+                query_map.insert("filter".to_string(), category);
+            }
         }
-        if !prod.categories_ids.is_empty() {
-            query_map.insert("filter".to_string(), category); 
-        } 
 
         let query = json!({
             "from" : offset, "size" : count,
@@ -120,8 +137,6 @@ impl ProductsElastic for ProductsElasticImpl {
                 "bool" : query_map
             }
         }).to_string();
-
-        println!("{}", query);
 
         let url = format!(
             "http://{}/{}/_search",

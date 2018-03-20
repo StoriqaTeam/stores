@@ -78,9 +78,14 @@ pub struct UpdateProductWithAttributes {
     pub attributes: Vec<AttrValue>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SearchProduct {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SearchProductsByName {
     pub name: String,
+    pub options: Option<SearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SearchOptions {
     pub attr_filters: Vec<AttributeFilter>,
     pub categories_ids: Vec<i32>,
 }

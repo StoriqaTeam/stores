@@ -338,7 +338,7 @@ impl Controller for ControllerImpl {
             (&Get, Some(Route::ProductsSearch)) => {
                 if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
                     serialize_future(
-                        parse_body::<models::SearchProduct>(req.body())
+                        parse_body::<models::SearchProductsByName>(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                             .and_then(move |prod| {
                                 base_products_service

@@ -14,7 +14,7 @@ use stq_http::client::ClientHandle;
 
 pub trait BaseProductsService {
     /// Find product by search pattern limited by `count` and `offset` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Returns product by ID
@@ -68,7 +68,7 @@ fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
 }
 
 impl BaseProductsService for BaseProductsServiceImpl {
-    fn search(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();

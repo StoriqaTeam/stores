@@ -15,6 +15,8 @@ pub enum Route {
     BaseProductWithVariants(i32),
     ProductsSearch,
     ProductsAutoComplete,
+    ProductsMostViewed,
+    ProductsMostDiscount,
     UserRoles,
     UserRole(i32),
     DefaultRole(i32),
@@ -84,6 +86,12 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Products auto complete route
     router.add_route(r"^/products/auto_complete$", || Route::ProductsAutoComplete);
+
+    // Products with most discount
+    router.add_route(r"^/products/most_discount$", || Route::ProductsMostDiscount);
+
+    // Products with most viewed
+    router.add_route(r"^/products/most_viewed$", || Route::ProductsMostViewed);
 
     // User_roles Routes
     router.add_route(r"^/user_roles$", || Route::UserRoles);

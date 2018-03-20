@@ -24,4 +24,4 @@ COPY config /app/config
 ENV PATH=$PATH:/usr/local/cargo/bin/
 EXPOSE 8001
 
-ENTRYPOINT ["diesel migration run && /app/stores"]
+ENTRYPOINT ["sh", "-c", "diesel migration run && /app/stores"]

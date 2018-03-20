@@ -72,9 +72,15 @@ impl ProductsElastic for ProductsElasticImpl {
         let attr_filters = prod.attr_filters
             .into_iter()
             .map(|attr| match attr.filter {
-                Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"term": {"variants.attrs.str_val": val}}]}}),
-                Filter::Lte(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"lte": val }}}]}}),
-                Filter::Gte(val) => json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"gte": val }}}]}}),
+                Filter::Equal(val) => {
+                    json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"term": {"variants.attrs.str_val": val}}]}})
+                }
+                Filter::Lte(val) => {
+                    json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"lte": val }}}]}})
+                }
+                Filter::Gte(val) => {
+                    json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": {"gte": val }}}]}})
+                }
             })
             .collect::<Vec<serde_json::Value>>();
 
@@ -98,8 +104,7 @@ impl ProductsElastic for ProductsElasticImpl {
                             }        
         });
 
-        let category = 
-            json!({
+        let category = json!({
                 "terms": {"category_id": prod.categories_ids}
             });
 
@@ -108,11 +113,11 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
         if !attr_filters.is_empty() {
-            query_map.insert("filter".to_string(), attr_filter); 
+            query_map.insert("filter".to_string(), attr_filter);
         }
         if !prod.categories_ids.is_empty() {
-            query_map.insert("filter".to_string(), category); 
-        } 
+            query_map.insert("filter".to_string(), category);
+        }
 
         let query = json!({
             "from" : offset, "size" : count,

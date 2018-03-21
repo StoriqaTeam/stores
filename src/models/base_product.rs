@@ -144,6 +144,7 @@ pub struct ElasticProduct {
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
+    pub views: i32,
     pub variants: Vec<ElasticVariant>,
     pub category_id: i32,
 }
@@ -151,6 +152,7 @@ pub struct ElasticProduct {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticVariant {
     pub prod_id: i32,
+    pub discount: Option<f64>,
     pub attrs: Vec<ElasticAttrValue>,
 }
 

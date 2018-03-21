@@ -103,22 +103,22 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let attr_filter = json!({
                 "nested" : {
-                            "path" : "variants",
-                            "query" : {
-                                "bool" : {
-                                    "must" : {
-											"nested": {
- 						                       "path": "variants.attrs",
-                        						"query": {
-                            						"bool" : {
-                                    					"must" : attr_filters 
-                                                            }
-                        							    }
-                    						        }	
-                                            }
-                                        }
+                    "path" : "variants",
+                    "query" : {
+                        "bool" : {
+                            "must" : {
+                                    "nested": {
+                                        "path": "variants.attrs",
+                                        "query": {
+                                            "bool" : {
+                                                "must" : attr_filters 
+                                                    }
+                                                }
+                                            }	
                                     }
-                            }        
+                                }
+                            }
+                    }        
         });
 
         let category = json!({
@@ -192,22 +192,22 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let attr_filter = json!({
                 "nested" : {
-                            "path" : "variants",
-                            "query" : {
-                                "bool" : {
-                                    "must" : {
-											"nested": {
- 						                       "path": "variants.attrs",
-                        						"query": {
-                            						"bool" : {
-                                    					"must" : attr_filters 
-                                                            }
-                        							    }
-                    						        }	
-                                            }
-                                        }
+                    "path" : "variants",
+                    "query" : {
+                        "bool" : {
+                            "must" : {
+                                    "nested": {
+                                        "path": "variants.attrs",
+                                        "query": {
+                                            "bool" : {
+                                                "must" : attr_filters 
+                                                    }
+                                                }
+                                            }	
                                     }
-                            }        
+                                }
+                            }
+                    }        
         });
 
         let category = json!({
@@ -288,22 +288,22 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let attr_filter = json!({
                 "nested" : {
-                            "path" : "variants",
-                            "query" : {
-                                "bool" : {
-                                    "must" : {
-											"nested": {
- 						                       "path": "variants.attrs",
-                        						"query": {
-                            						"bool" : {
-                                    					"must" : attr_filters 
-                                                            }
-                        							    }
-                    						        }	
-                                            }
-                                        }
+                    "path" : "variants",
+                    "query" : {
+                        "bool" : {
+                            "must" : {
+                                    "nested": {
+                                        "path": "variants.attrs",
+                                        "query": {
+                                            "bool" : {
+                                                "must" : attr_filters 
+                                                    }
+                                                }
+                                            }	
                                     }
-                            }        
+                                }
+                            }
+                    }        
         });
 
         let category = json!({

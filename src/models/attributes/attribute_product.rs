@@ -43,6 +43,26 @@ pub struct NewProdAttr {
     pub meta_field: Option<String>,
 }
 
+impl NewProdAttr {
+    pub fn new(
+        prod_id: i32,
+        base_prod_id: i32,
+        attr_id: i32,
+        value: String,
+        value_type: AttributeType,
+        meta_field: Option<String>,
+    ) -> Self {
+        Self {
+            prod_id,
+            base_prod_id,
+            attr_id,
+            value,
+            value_type,
+            meta_field,
+        }
+    }
+}
+
 /// Payload for updating product attributes
 #[derive(Serialize, Deserialize, Insertable, AsChangeset)]
 #[table_name = "prod_attr_values"]
@@ -51,8 +71,19 @@ pub struct UpdateProdAttr {
     pub base_prod_id: i32,
     pub attr_id: i32,
     pub value: String,
-    pub value_type: AttributeType,
     pub meta_field: Option<String>,
+}
+
+impl UpdateProdAttr {
+    pub fn new(prod_id: i32, base_prod_id: i32, attr_id: i32, value: String, meta_field: Option<String>) -> Self {
+        Self {
+            prod_id,
+            base_prod_id,
+            attr_id,
+            value,
+            meta_field,
+        }
+    }
 }
 
 impl WithScope<Scope> for ProdAttr {

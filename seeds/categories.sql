@@ -1,16 +1,9 @@
 DELETE FROM prod_attr_values;
 DELETE FROM products;
 DELETE FROM base_products;
-DROP TABLE categories CASCADE;
+DELETE FROM categories;
 
-CREATE TABLE categories (
-    id SERIAL PRIMARY KEY,
-    name JSONB NOT NULL,
-    meta_field VARCHAR,
-    parent_id INTEGER
-);
-
-CREATE UNIQUE INDEX stores_categories_id_idx ON categories (id);
+ALTER SEQUENCE categories_id_seq RESTART WITH 1;
 
 INSERT INTO categories (name, meta_field, parent_id) VALUES
 ('[{"lang": "en", "text": "Jewelry & Accessories"}, {"lang": "ru", "text": "Ювелирные изделия и аксессуары"}]' ,NULL	,NULL),

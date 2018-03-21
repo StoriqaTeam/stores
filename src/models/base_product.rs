@@ -21,6 +21,8 @@ table! {
         name -> Jsonb,
         short_description -> Jsonb,
         long_description -> Nullable<Jsonb>,
+        seo_title -> Nullable<Jsonb>,
+        seo_description -> Nullable<Jsonb>,
         currency_id -> Integer,
         category_id -> Integer,
         views -> Integer,
@@ -39,6 +41,8 @@ pub struct BaseProduct {
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
+    pub seo_title: Option<serde_json::Value>,
+    pub seo_description: Option<serde_json::Value>,
     pub currency_id: i32,
     pub category_id: i32,
     pub views: i32,
@@ -57,6 +61,10 @@ pub struct NewBaseProduct {
     pub short_description: serde_json::Value,
     #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
+    pub seo_title: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
+    pub seo_description: Option<serde_json::Value>,
     pub currency_id: i32,
     pub category_id: i32,
 }
@@ -71,6 +79,10 @@ pub struct UpdateBaseProduct {
     pub short_description: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
+    pub seo_title: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
+    pub seo_description: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
     pub category_id: Option<i32>,
 }

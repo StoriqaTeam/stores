@@ -123,11 +123,17 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                "category_id": {
                   "type": "integer"
                },
+               "views": {
+                  "type": "integer"
+               },
                "variants": {
                   "type": "nested",
                   "properties": {
                      "prod_id": {
                         "type": "integer"
+                     },
+                     "discount": {
+                        "type": "double"
                      },
                      "attrs": {
                         "type": "nested"

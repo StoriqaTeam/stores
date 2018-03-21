@@ -7,7 +7,7 @@ use diesel::query_dsl::LoadQuery;
 use diesel::pg::PgConnection;
 use stq_acl::*;
 
-use models::{BaseProduct, NewBaseProduct, UpdateBaseProduct};
+use models::{BaseProduct, NewBaseProduct, UpdateBaseProduct, UpdateBaseProductViews};
 use models::base_product::base_products::dsl::*;
 use repos::error::RepoError as Error;
 use super::types::{DbConnection, RepoResult};
@@ -59,7 +59,15 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
                     &Action::Read,
                     &[&base_product],
                     Some(self.db_conn),
-                ).and_then(|_| Ok(base_product))
+                ).and_then(|_| {
+                    let filter = base_products.filter(id.eq(base_product.id));
+                    let payload: UpdateBaseProductViews = base_product.into();
+
+                    let query = diesel::update(filter).set(&payload);
+                    query
+                        .get_result::<BaseProduct>(&**self.db_conn)
+                        .map_err(Error::from)
+                })
             })
     }
 
@@ -101,7 +109,20 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
                     &Action::Read,
                     &resources,
                     Some(self.db_conn),
-                ).and_then(|_| Ok(base_products_res.clone()))
+                ).and_then(|_| {
+                    base_products_res
+                        .iter()
+                        .map(|base_product| {
+                            let filter = base_products.filter(id.eq(base_product.id));
+                            let payload: UpdateBaseProductViews = base_product.into();
+
+                            let query = diesel::update(filter).set(&payload);
+                            query
+                                .get_result::<BaseProduct>(&**self.db_conn)
+                                .map_err(Error::from)
+                        })
+                        .collect::<RepoResult<Vec<BaseProduct>>>()
+                })
             })
     }
 

@@ -13,8 +13,12 @@ use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 use stq_http::client::ClientHandle;
 
 pub trait BaseProductsService {
-    /// Find product by search pattern limited by `count` and `offset` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    /// Find product by name limited by `count` and `offset` parameters
+    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    /// Find product by views limited by `count` and `offset` parameters
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    /// Find product by dicount pattern limited by `count` and `offset` parameters
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Returns product by ID
@@ -68,13 +72,85 @@ fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
 }
 
 impl BaseProductsService for BaseProductsServiceImpl {
-    fn search(&self, search_product: SearchProduct, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
-                .search(search_product, count, offset)
+                .search_by_name(search_product, count, offset)
+                .map_err(Error::from)
+        };
+
+        Box::new(products.and_then({
+            let cpu_pool = self.cpu_pool.clone();
+            let db_pool = self.db_pool.clone();
+            let user_id = self.user_id;
+            let roles_cache = self.roles_cache.clone();
+            move |el_products| {
+                cpu_pool.spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| Error::Connection(e.into()))
+                        .and_then(move |conn| {
+                            el_products
+                                .into_iter()
+                                .map(|el_product| {
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let products_repo = BaseProductsRepoImpl::new(&conn, acl);
+                                    products_repo.find(el_product.id).map_err(Error::from)
+                                })
+                                .collect()
+                        })
+                })
+            }
+        }))
+    }
+
+    /// Find product by views limited by `count` and `offset` parameters
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+        let products = {
+            let client_handle = self.client_handle.clone();
+            let address = self.elastic_address.clone();
+            let products_el = ProductsElasticImpl::new(client_handle, address);
+            products_el
+                .search_most_viewed(prod, count, offset)
+                .map_err(Error::from)
+        };
+
+        Box::new(products.and_then({
+            let cpu_pool = self.cpu_pool.clone();
+            let db_pool = self.db_pool.clone();
+            let user_id = self.user_id;
+            let roles_cache = self.roles_cache.clone();
+            move |el_products| {
+                cpu_pool.spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| Error::Connection(e.into()))
+                        .and_then(move |conn| {
+                            el_products
+                                .into_iter()
+                                .map(|el_product| {
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let products_repo = BaseProductsRepoImpl::new(&conn, acl);
+                                    products_repo.find(el_product.id).map_err(Error::from)
+                                })
+                                .collect()
+                        })
+                })
+            }
+        }))
+    }
+
+    /// Find product by dicount pattern limited by `count` and `offset` parameters
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+        let products = {
+            let client_handle = self.client_handle.clone();
+            let address = self.elastic_address.clone();
+            let products_el = ProductsElasticImpl::new(client_handle, address);
+            products_el
+                .search_most_discount(prod, count, offset)
                 .map_err(Error::from)
         };
 

@@ -23,6 +23,7 @@ table! {
         long_description -> Nullable<Jsonb>,
         currency_id -> Integer,
         category_id -> Integer,
+        views -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -40,6 +41,7 @@ pub struct BaseProduct {
     pub long_description: Option<serde_json::Value>,
     pub currency_id: i32,
     pub category_id: i32,
+    pub views: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -71,6 +73,29 @@ pub struct UpdateBaseProduct {
     pub long_description: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
     pub category_id: Option<i32>,
+}
+
+/// Payload for updating views on base product
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Clone)]
+#[table_name = "base_products"]
+pub struct UpdateBaseProductViews {
+    pub views: i32,
+}
+
+impl From<BaseProduct> for UpdateBaseProductViews {
+    fn from(base_product: BaseProduct) -> Self {
+        Self {
+            views: base_product.views + 1,
+        }
+    }
+}
+
+impl<'a> From<&'a BaseProduct> for UpdateBaseProductViews {
+    fn from(base_product: &'a BaseProduct) -> Self {
+        Self {
+            views: base_product.views + 1,
+        }
+    }
 }
 
 impl WithScope<Scope> for BaseProduct {
@@ -119,6 +144,7 @@ pub struct ElasticProduct {
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
+    pub views: i32,
     pub variants: Vec<ElasticVariant>,
     pub category_id: i32,
 }
@@ -126,6 +152,7 @@ pub struct ElasticProduct {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticVariant {
     pub prod_id: i32,
+    pub discount: Option<f64>,
     pub attrs: Vec<ElasticAttrValue>,
 }
 

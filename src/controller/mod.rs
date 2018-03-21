@@ -338,11 +338,11 @@ impl Controller for ControllerImpl {
             (&Get, Some(Route::ProductsSearch)) => {
                 if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
                     serialize_future(
-                        parse_body::<models::SearchProduct>(req.body())
+                        parse_body::<models::SearchProductsByName>(req.body())
                             .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
                             .and_then(move |prod| {
                                 base_products_service
-                                    .search(prod, count, offset)
+                                    .search_by_name(prod, count, offset)
                                     .map_err(Error::from)
                             }),
                     )
@@ -362,6 +362,44 @@ impl Controller for ControllerImpl {
                             .and_then(move |name| {
                                 base_products_service
                                     .auto_complete(name, count, offset)
+                                    .map_err(Error::from)
+                            }),
+                    )
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
+
+            // GET /products/most_discount
+            (&Get, Some(Route::ProductsMostDiscount)) => {
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future(
+                        parse_body::<models::MostDiscountProducts>(req.body())
+                            .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                            .and_then(move |prod| {
+                                base_products_service
+                                    .search_most_discount(prod, count, offset)
+                                    .map_err(Error::from)
+                            }),
+                    )
+                } else {
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
+
+            // GET /products/most_viewed
+            (&Get, Some(Route::ProductsMostViewed)) => {
+                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                    serialize_future(
+                        parse_body::<models::MostViewedProducts>(req.body())
+                            .map_err(|_| Error::UnprocessableEntity(format_err!("Error parsing request from gateway body")))
+                            .and_then(move |prod| {
+                                base_products_service
+                                    .search_most_viewed(prod, count, offset)
                                     .map_err(Error::from)
                             }),
                     )

@@ -78,11 +78,26 @@ pub struct UpdateProductWithAttributes {
     pub attributes: Vec<AttrValue>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SearchProduct {
-    pub name: String,
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SearchOptions {
     pub attr_filters: Vec<AttributeFilter>,
     pub categories_ids: Vec<i32>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SearchProductsByName {
+    pub name: String,
+    pub options: Option<SearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MostViewedProducts {
+    pub options: Option<SearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MostDiscountProducts {
+    pub options: Option<SearchOptions>,
 }
 
 impl WithScope<Scope> for Product {

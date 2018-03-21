@@ -110,9 +110,12 @@ pub struct NewStore {
 #[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
 #[table_name = "stores"]
 pub struct UpdateStore {
+    #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
+    #[validate(custom = "validate_translation")]
     pub short_description: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: Option<String>,

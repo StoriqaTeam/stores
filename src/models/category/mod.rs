@@ -3,6 +3,7 @@
 //! EAV model categories
 use serde_json;
 use validator::Validate;
+
 use models::validation_rules::*;
 
 pub mod category_attribute;

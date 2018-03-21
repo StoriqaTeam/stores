@@ -4,7 +4,7 @@ use futures_cpupool::CpuPool;
 use diesel::Connection;
 
 use models::*;
-use repos::{ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
+use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
@@ -132,7 +132,9 @@ impl ProductsService for ProductsServiceImpl {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let products_repo = ProductsRepoImpl::new(&conn, acl);
                     let acl = acl_for_id(roles_cache.clone(), user_id);
-                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                    let prod_attr_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                    let attr_repo = AttributesRepoImpl::new(&conn, acl);
                     let product = payload.product;
                     let attributes = payload.attributes;
 
@@ -147,15 +149,20 @@ impl ProductsService for ProductsServiceImpl {
                                 let res: Result<Vec<ProdAttr>, Error> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
-                                        let new_attr = NewProdAttr {
-                                            prod_id: product_id,
-                                            base_prod_id: base_product_id,
-                                            attr_id: attr_value.attr_id,
-                                            value: attr_value.value,
-                                            value_type: attr_value.value_type,
-                                            meta_field: attr_value.meta_field,
-                                        };
-                                        attr_prod_repo.create(new_attr).map_err(Error::from)
+                                        attr_repo
+                                            .find(attr_value.attr_id)
+                                            .and_then(|attr| {
+                                                let new_prod_attr = NewProdAttr::new(
+                                                    product_id,
+                                                    base_product_id,
+                                                    attr_value.attr_id,
+                                                    attr_value.value,
+                                                    attr.value_type,
+                                                    attr_value.meta_field,
+                                                );
+                                                prod_attr_repo.create(new_prod_attr)
+                                            })
+                                            .map_err(Error::from)
                                     })
                                     .collect();
                                 res.and_then(|_| Ok(product))
@@ -180,7 +187,7 @@ impl ProductsService for ProductsServiceImpl {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let products_repo = ProductsRepoImpl::new(&conn, acl);
                     let acl = acl_for_id(roles_cache.clone(), user_id);
-                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                    let prod_attr_repo = ProductAttrsRepoImpl::new(&conn, acl);
                     let product = payload.product;
                     let attributes = payload.attributes;
 
@@ -195,15 +202,14 @@ impl ProductsService for ProductsServiceImpl {
                                 let res: Result<Vec<ProdAttr>, Error> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
-                                        let update_attr = UpdateProdAttr {
-                                            prod_id: product_id,
-                                            base_prod_id: base_product_id,
-                                            attr_id: attr_value.attr_id,
-                                            value: attr_value.value,
-                                            value_type: attr_value.value_type,
-                                            meta_field: attr_value.meta_field,
-                                        };
-                                        attr_prod_repo.update(update_attr).map_err(Error::from)
+                                        let update_attr = UpdateProdAttr::new(
+                                            product_id,
+                                            base_product_id,
+                                            attr_value.attr_id,
+                                            attr_value.value,
+                                            attr_value.meta_field,
+                                        );
+                                        prod_attr_repo.update(update_attr).map_err(Error::from)
                                     })
                                     .collect();
                                 res.and_then(|_| Ok(product))

@@ -16,7 +16,6 @@ table! {
         user_id -> Integer,
         is_active -> Bool,
         name -> Jsonb,
-        currency_id -> Integer,
         short_description -> Jsonb,
         long_description -> Nullable<Jsonb>,
         slug -> VarChar,
@@ -42,7 +41,6 @@ pub struct Store {
     pub user_id: i32,
     pub is_active: bool,
     pub name: serde_json::Value,
-    pub currency_id: i32,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub slug: String,
@@ -84,7 +82,6 @@ pub struct NewStore {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub user_id: i32,
-    pub currency_id: i32,
     #[validate(custom = "validate_translation")]
     pub short_description: serde_json::Value,
     #[validate(custom = "validate_translation")]
@@ -112,7 +109,6 @@ pub struct NewStore {
 pub struct UpdateStore {
     #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
-    pub currency_id: Option<i32>,
     #[validate(custom = "validate_translation")]
     pub short_description: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]

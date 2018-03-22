@@ -78,7 +78,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
     /// Creates new base_product
     fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct> {
-        debug!("Create base products {:?}.", payload);
+        debug!("Create base product {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::BaseProducts,

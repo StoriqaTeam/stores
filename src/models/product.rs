@@ -108,7 +108,7 @@ impl WithScope<Scope> for Product {
                 if let Some(conn) = conn {
                     BaseProducts::base_products
                         .find(self.base_product_id)
-                        .get_result::<BaseProduct>(&**conn)
+                        .get_result::<BaseProduct>(conn)
                         .and_then(|base_product: BaseProduct| Ok(base_product.is_in_scope(scope, user_id, Some(conn))))
                         .ok()
                         .unwrap_or(false)
@@ -128,7 +128,7 @@ impl WithScope<Scope> for NewProduct {
                 if let Some(conn) = conn {
                     BaseProducts::base_products
                         .find(self.base_product_id)
-                        .get_result::<BaseProduct>(&**conn)
+                        .get_result::<BaseProduct>(conn)
                         .and_then(|base_product: BaseProduct| Ok(base_product.is_in_scope(scope, user_id, Some(conn))))
                         .ok()
                         .unwrap_or(false)

@@ -94,7 +94,7 @@ impl WithScope<Scope> for ProdAttr {
                 if let Some(conn) = conn {
                     Products::products
                         .find(self.prod_id)
-                        .get_result::<Product>(&**conn)
+                        .get_result::<Product>(conn)
                         .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
                         .ok()
                         .unwrap_or(false)
@@ -114,7 +114,7 @@ impl WithScope<Scope> for NewProdAttr {
                 if let Some(conn) = conn {
                     Products::products
                         .find(self.prod_id)
-                        .get_result::<Product>(&**conn)
+                        .get_result::<Product>(conn)
                         .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
                         .ok()
                         .unwrap_or(false)

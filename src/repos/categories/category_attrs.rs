@@ -40,7 +40,7 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(
@@ -64,7 +64,7 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
         ).and_then(|_| {
             let query_category_attribute = diesel::insert_into(cat_attr_values).values(&payload);
             query_category_attribute
-                .get_result::<CatAttr>(&**self.db_conn)
+                .get_result::<CatAttr>(self.db_conn)
                 .map_err(Error::from)
                 .map(|_| ())
         })
@@ -77,7 +77,7 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
             .filter(attr_id.eq(payload.attr_id));
         let query = diesel::delete(filtered);
         query
-            .get_result::<CatAttr>(&**self.db_conn)
+            .get_result::<CatAttr>(self.db_conn)
             .map_err(Error::from)
             .map(|_| ())
     }

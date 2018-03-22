@@ -44,7 +44,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
             .order(id);
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 let resources = prod_attrs_res
@@ -72,7 +72,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
         ).and_then(|_| {
             let query_product_attribute = diesel::insert_into(prod_attr_values).values(&payload);
             query_product_attribute
-                .get_result::<ProdAttr>(&**self.db_conn)
+                .get_result::<ProdAttr>(self.db_conn)
                 .map_err(Error::from)
         })
     }
@@ -83,7 +83,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
             .filter(attr_id.eq(payload.attr_id));
 
         query
-            .first::<ProdAttr>(&**self.db_conn)
+            .first::<ProdAttr>(self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attr: ProdAttr| {
                 acl::check(
@@ -101,7 +101,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<ProdAttr>(&**self.db_conn)
+                    .get_result::<ProdAttr>(self.db_conn)
                     .map_err(Error::from)
             })
     }

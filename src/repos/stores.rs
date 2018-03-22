@@ -5,7 +5,6 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
-use diesel::pg::PgConnection;
 use diesel::dsl::exists;
 
 use stq_acl::*;
@@ -14,7 +13,7 @@ use stq_static_resources::Translation;
 use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
 use super::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
+use super::types::{RepoResult, DbConnection};
 use models::authorization::*;
 use super::acl;
 use super::acl::BoxedAcl;
@@ -53,8 +52,8 @@ impl<'a> StoresRepoImpl<'a> {
         Self { db_conn, acl }
     }
 
-    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> Result<T, Error> {
-        query.get_result::<T>(&**self.db_conn).map_err(Error::from)
+    fn execute_query<T: Send + 'static, U: LoadQuery<DbConnection, T> + Send + 'static>(&self, query: U) -> Result<T, Error> {
+        query.get_result::<T>(self.db_conn).map_err(Error::from)
     }
 }
 
@@ -84,7 +83,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
         ).and_then(|_| {
             let query_store = diesel::insert_into(stores).values(&payload);
             query_store
-                .get_result::<Store>(&**self.db_conn)
+                .get_result::<Store>(self.db_conn)
                 .map_err(Error::from)
         })
     }
@@ -98,7 +97,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
             .limit(count);
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|stores_res: Vec<Store>| {
                 let resources = stores_res
@@ -134,7 +133,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<Store>(&**self.db_conn)
+                    .get_result::<Store>(self.db_conn)
                     .map_err(Error::from)
             })
     }
@@ -164,7 +163,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
         let query = diesel::select(exists(stores.filter(slug.eq(slug_arg))));
 
         query
-            .get_result(&**self.db_conn)
+            .get_result(self.db_conn)
             .map_err(Error::from)
             .and_then(|exists| {
                 acl::check(
@@ -187,7 +186,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     trans.lang, trans.text
                 );
                 diesel::dsl::sql::<(diesel::sql_types::Bool)>(&query_str)
-                    .get_result(&**self.db_conn)
+                    .get_result(self.db_conn)
                     .map_err(Error::from)
             })
             .collect::<RepoResult<Vec<bool>>>();

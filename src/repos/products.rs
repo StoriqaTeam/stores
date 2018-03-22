@@ -47,7 +47,7 @@ impl<'a> ProductsRepoImpl<'a> {
     }
 
     fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> RepoResult<T> {
-        query.get_result::<T>(&**self.db_conn).map_err(Error::from)
+        query.get_result::<T>(self.db_conn).map_err(Error::from)
     }
 }
 
@@ -77,7 +77,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
         ).and_then(|_| {
             let query_product = diesel::insert_into(products).values(&payload);
             query_product
-                .get_result::<Product>(&**self.db_conn)
+                .get_result::<Product>(self.db_conn)
                 .map_err(Error::from)
         })
     }
@@ -91,7 +91,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .limit(count);
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|products_res: Vec<Product>| {
                 let resources = products_res
@@ -115,7 +115,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
             .filter(base_product_id.ge(base_id_arg));
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|products_res: Vec<Product>| {
                 let resources = products_res
@@ -151,7 +151,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<Product>(&**self.db_conn)
+                    .get_result::<Product>(self.db_conn)
                     .map_err(Error::from)
             })
     }

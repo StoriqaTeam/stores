@@ -45,7 +45,7 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
         let query = attributes.filter(id.eq(id_arg));
 
         query
-            .first::<Attribute>(&**self.db_conn)
+            .first::<Attribute>(self.db_conn)
             .map_err(Error::from)
             .and_then(|attribute: Attribute| {
                 acl::check(
@@ -69,7 +69,7 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
         ).and_then(|_| {
             let query_attribute = diesel::insert_into(attributes).values(&payload);
             query_attribute
-                .get_result::<Attribute>(&**self.db_conn)
+                .get_result::<Attribute>(self.db_conn)
                 .map_err(Error::from)
         })
     }
@@ -79,7 +79,7 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
         let query = attributes.find(attribute_id_arg);
 
         query
-            .first::<Attribute>(&**self.db_conn)
+            .first::<Attribute>(self.db_conn)
             .map_err(Error::from)
             .and_then(|_| {
                 acl::check(
@@ -95,7 +95,7 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<Attribute>(&**self.db_conn)
+                    .get_result::<Attribute>(self.db_conn)
                     .map_err(Error::from)
             })
     }

@@ -118,7 +118,7 @@ impl WithScope<Scope> for BaseProduct {
                 if let Some(conn) = conn {
                     Stores::stores
                         .find(self.store_id)
-                        .get_result::<Store>(&**conn)
+                        .get_result::<Store>(conn)
                         .and_then(|store: Store| Ok(store.user_id == user_id))
                         .ok()
                         .unwrap_or(false)
@@ -138,7 +138,7 @@ impl WithScope<Scope> for NewBaseProduct {
                 if let Some(conn) = conn {
                     Stores::stores
                         .find(self.store_id)
-                        .get_result::<Store>(&**conn)
+                        .get_result::<Store>(conn)
                         .and_then(|store: Store| Ok(store.user_id == user_id))
                         .ok()
                         .unwrap_or(false)

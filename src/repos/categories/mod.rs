@@ -50,7 +50,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
         let query = categories.filter(id.eq(id_arg));
 
         query
-            .first::<RawCategory>(&**self.db_conn)
+            .first::<RawCategory>(self.db_conn)
             .map_err(Error::from)
             .and_then(|category: RawCategory| {
                 acl::check(
@@ -63,7 +63,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
             })
             .and_then(|found_category| {
                 categories
-                    .load::<RawCategory>(&**self.db_conn)
+                    .load::<RawCategory>(self.db_conn)
                     .map_err(Error::from)
                     .map(|cats| (found_category, cats))
             })
@@ -87,7 +87,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
         ).and_then(|_| {
             let query_categorie = diesel::insert_into(categories).values(&payload);
             query_categorie
-                .get_result::<RawCategory>(&**self.db_conn)
+                .get_result::<RawCategory>(self.db_conn)
                 .map_err(Error::from)
         })
             .and_then(|created_category| {
@@ -101,7 +101,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
         let query = categories.find(category_id_arg);
 
         query
-            .first::<RawCategory>(&**self.db_conn)
+            .first::<RawCategory>(self.db_conn)
             .map_err(Error::from)
             .and_then(|_| {
                 acl::check(
@@ -117,12 +117,12 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<RawCategory>(&**self.db_conn)
+                    .get_result::<RawCategory>(self.db_conn)
                     .map_err(Error::from)
             })
             .and_then(|updated_category| {
                 categories
-                    .load::<RawCategory>(&**self.db_conn)
+                    .load::<RawCategory>(self.db_conn)
                     .map_err(Error::from)
                     .map(|cats| (updated_category, cats))
             })
@@ -144,7 +144,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
             Some(self.db_conn),
         ).and_then(|_| {
             categories
-                .load::<RawCategory>(&**self.db_conn)
+                .load::<RawCategory>(self.db_conn)
                 .map_err(Error::from)
         })
             .and_then(|cats| {

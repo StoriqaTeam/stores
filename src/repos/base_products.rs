@@ -44,7 +44,7 @@ impl<'a> BaseProductsRepoImpl<'a> {
     }
 
     fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> RepoResult<T> {
-        query.get_result::<T>(&**self.db_conn).map_err(Error::from)
+        query.get_result::<T>(self.db_conn).map_err(Error::from)
     }
 }
 
@@ -65,7 +65,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
                     let query = diesel::update(filter).set(&payload);
                     query
-                        .get_result::<BaseProduct>(&**self.db_conn)
+                        .get_result::<BaseProduct>(self.db_conn)
                         .map_err(Error::from)
                 })
             })
@@ -82,7 +82,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
         ).and_then(|_| {
             let query_base_product = diesel::insert_into(base_products).values(&payload);
             query_base_product
-                .get_result::<BaseProduct>(&**self.db_conn)
+                .get_result::<BaseProduct>(self.db_conn)
                 .map_err(Error::from)
         })
     }
@@ -96,7 +96,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
             .limit(count);
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 let resources = base_products_res
@@ -118,7 +118,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
                             let query = diesel::update(filter).set(&payload);
                             query
-                                .get_result::<BaseProduct>(&**self.db_conn)
+                                .get_result::<BaseProduct>(self.db_conn)
                                 .map_err(Error::from)
                         })
                         .collect::<RepoResult<Vec<BaseProduct>>>()
@@ -145,7 +145,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<BaseProduct>(&**self.db_conn)
+                    .get_result::<BaseProduct>(self.db_conn)
                     .map_err(Error::from)
             })
     }

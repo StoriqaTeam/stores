@@ -61,6 +61,7 @@ impl<'a> StoresRepoImpl<'a> {
 impl<'a> StoresRepo for StoresRepoImpl<'a> {
     /// Find specific store by ID
     fn find(&self, store_id_arg: i32) -> RepoResult<Store> {
+        debug!("Find in stores with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl::check(
@@ -75,6 +76,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store> {
+        debug!("Create store {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::Stores,
@@ -91,6 +93,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Returns list of stores, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
+        debug!("Find in stores with ids from {} count {}.", from, count);
         let query = stores
             .filter(is_active.eq(true))
             .filter(id.gt(from))
@@ -117,6 +120,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Updates specific store
     fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
+        debug!("Updating store with id {} and payload {:?}.", store_id_arg, payload);
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl::check(
@@ -141,6 +145,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Deactivates specific store
     fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
+        debug!("Deactivate store with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl::check(
@@ -161,8 +166,8 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     }
 
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
+        debug!("Check if store slug {} exists.", slug_arg);
         let query = diesel::select(exists(stores.filter(slug.eq(slug_arg))));
-
         query
             .get_result(&**self.db_conn)
             .map_err(Error::from)
@@ -179,6 +184,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Checks name exists
     fn name_exists(&self, name_arg: Vec<Translation>) -> RepoResult<bool> {
+        debug!("Check if store name {:?} exists.", name_arg);
         let res = name_arg
             .into_iter()
             .map(|trans| {

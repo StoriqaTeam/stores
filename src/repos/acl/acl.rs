@@ -19,6 +19,7 @@ pub fn check(
             if allowed {
                 Ok(())
             } else {
+                info!("Received authorized request to {} on {}!", resource, action);
                 Err(RepoError::Unauthorized(*resource, *action))
             }
         })
@@ -122,6 +123,10 @@ impl Acl<Resource, Action, Scope, RepoError> for UnauthorizedAcl {
                 _ => Ok(false),
             }
         } else {
+            info!(
+                "Received unauthorized request to {} on {}!",
+                resource, action
+            );
             Ok(false)
         }
     }

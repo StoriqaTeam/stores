@@ -62,7 +62,13 @@ impl AttributesService for AttributesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     attributes_cache
@@ -81,7 +87,13 @@ impl AttributesService for AttributesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let attributes_repo = AttributesRepoImpl::new(&conn, acl);
@@ -102,7 +114,13 @@ impl AttributesService for AttributesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let attributes_repo = AttributesRepoImpl::new(&conn, acl);

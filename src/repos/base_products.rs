@@ -51,6 +51,7 @@ impl<'a> BaseProductsRepoImpl<'a> {
 impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
     /// Find specific base_product by ID
     fn find(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
+        debug!("Find in base products with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {
                 acl::check(
@@ -60,6 +61,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
                     &[&base_product],
                     Some(self.db_conn),
                 ).and_then(|_| {
+                    debug!("Updating views of base product with id {}.", base_product_id_arg);
                     let filter = base_products.filter(id.eq(base_product.id));
                     let payload: UpdateBaseProductViews = base_product.into();
 
@@ -73,6 +75,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
     /// Creates new base_product
     fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct> {
+        debug!("Create base products {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::BaseProducts,
@@ -89,6 +92,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
     /// Returns list of base_products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Find in base products with ids from {} count {}.", from, count);
         let query = base_products
             .filter(is_active.eq(true))
             .filter(id.ge(from))
@@ -113,6 +117,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
                     base_products_res
                         .iter()
                         .map(|base_product| {
+                            debug!("Updating views of base product with id {}.", base_product.id);
                             let filter = base_products.filter(id.eq(base_product.id));
                             let payload: UpdateBaseProductViews = base_product.into();
 
@@ -128,6 +133,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
     /// Updates specific base_product
     fn update(&self, base_product_id_arg: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
+        debug!("Updating base product with id {} and payload {:?}.", base_product_id_arg, payload);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {
                 acl::check(
@@ -152,6 +158,7 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
 
     /// Deactivates specific base_product
     fn deactivate(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
+        debug!("Deactivate base product with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {
                 acl::check(

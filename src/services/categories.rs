@@ -73,7 +73,13 @@ impl CategoriesService for CategoriesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let categories_repo = CategoriesRepoImpl::new(&conn, acl);
@@ -94,7 +100,13 @@ impl CategoriesService for CategoriesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let categories_repo = CategoriesRepoImpl::new(&conn, acl);
@@ -116,7 +128,13 @@ impl CategoriesService for CategoriesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let categories_repo = CategoriesRepoImpl::new(&conn, acl);
@@ -138,7 +156,13 @@ impl CategoriesService for CategoriesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     categories_cache.get(&conn, acl).map_err(ServiceError::from)
@@ -155,7 +179,13 @@ impl CategoriesService for CategoriesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let category_attrs_repo = CategoryAttrsRepoImpl::new(&conn, acl);
@@ -183,7 +213,13 @@ impl CategoriesService for CategoriesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let category_attrs_repo = CategoryAttrsRepoImpl::new(&conn, acl);
@@ -203,7 +239,13 @@ impl CategoriesService for CategoriesServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let category_attrs_repo = CategoryAttrsRepoImpl::new(&conn, acl);

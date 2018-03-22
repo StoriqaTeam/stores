@@ -6,7 +6,7 @@ use diesel::Connection;
 use models::*;
 use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
 use super::types::ServiceFuture;
-use super::error::ServiceError as Error;
+use super::error::ServiceError;
 use repos::types::DbPool;
 use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 
@@ -71,11 +71,17 @@ impl ProductsService for ProductsServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let products_repo = ProductsRepoImpl::new(&conn, acl);
-                    products_repo.find(product_id).map_err(Error::from)
+                    products_repo.find(product_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -89,12 +95,20 @@ impl ProductsService for ProductsServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
 
                     let products_repo = ProductsRepoImpl::new(&conn, acl);
-                    products_repo.deactivate(product_id).map_err(Error::from)
+                    products_repo
+                        .deactivate(product_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -108,11 +122,17 @@ impl ProductsService for ProductsServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let products_repo = ProductsRepoImpl::new(&conn, acl);
-                    products_repo.list(from, count).map_err(Error::from)
+                    products_repo.list(from, count).map_err(ServiceError::from)
                 })
         }))
     }
@@ -127,7 +147,13 @@ impl ProductsService for ProductsServiceImpl {
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let products_repo = ProductsRepoImpl::new(&conn, acl);
@@ -138,15 +164,15 @@ impl ProductsService for ProductsServiceImpl {
                     let product = payload.product;
                     let attributes = payload.attributes;
 
-                    conn.transaction::<(Product), Error, _>(move || {
+                    conn.transaction::<(Product), ServiceError, _>(move || {
                         products_repo
                             .create(product)
-                            .map_err(Error::from)
+                            .map_err(ServiceError::from)
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
                                 let base_product_id = product.base_product_id;
-                                let res: Result<Vec<ProdAttr>, Error> = attributes
+                                let res: Result<Vec<ProdAttr>, ServiceError> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
                                         attr_repo
@@ -162,7 +188,7 @@ impl ProductsService for ProductsServiceImpl {
                                                 );
                                                 prod_attr_repo.create(new_prod_attr)
                                             })
-                                            .map_err(Error::from)
+                                            .map_err(ServiceError::from)
                                     })
                                     .collect();
                                 res.and_then(|_| Ok(product))
@@ -182,7 +208,13 @@ impl ProductsService for ProductsServiceImpl {
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let products_repo = ProductsRepoImpl::new(&conn, acl);
@@ -191,15 +223,15 @@ impl ProductsService for ProductsServiceImpl {
                     let product = payload.product;
                     let attributes = payload.attributes;
 
-                    conn.transaction::<(Product), Error, _>(move || {
+                    conn.transaction::<(Product), ServiceError, _>(move || {
                         products_repo
                             .update(product_id, product)
-                            .map_err(Error::from)
+                            .map_err(ServiceError::from)
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
                                 let base_product_id = product.base_product_id;
-                                let res: Result<Vec<ProdAttr>, Error> = attributes
+                                let res: Result<Vec<ProdAttr>, ServiceError> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
                                         let update_attr = UpdateProdAttr::new(
@@ -209,7 +241,9 @@ impl ProductsService for ProductsServiceImpl {
                                             attr_value.value,
                                             attr_value.meta_field,
                                         );
-                                        prod_attr_repo.update(update_attr).map_err(Error::from)
+                                        prod_attr_repo
+                                            .update(update_attr)
+                                            .map_err(ServiceError::from)
                                     })
                                     .collect();
                                 res.and_then(|_| Ok(product))

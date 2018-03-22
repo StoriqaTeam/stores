@@ -32,7 +32,7 @@ pub struct ProdAttr {
 }
 
 /// Payload for creating product attributes
-#[derive(Serialize, Deserialize, Insertable, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[table_name = "prod_attr_values"]
 pub struct NewProdAttr {
     pub prod_id: i32,
@@ -64,7 +64,7 @@ impl NewProdAttr {
 }
 
 /// Payload for updating product attributes
-#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Debug)]
 #[table_name = "prod_attr_values"]
 pub struct UpdateProdAttr {
     pub prod_id: i32,

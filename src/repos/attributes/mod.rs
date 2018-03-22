@@ -78,7 +78,10 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
 
     /// Updates specific attribute
     fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
-        debug!("Updating attribute with id {} and payload {:?}.", attribute_id_arg, payload);
+        debug!(
+            "Updating attribute with id {} and payload {:?}.",
+            attribute_id_arg, payload
+        );
         let query = attributes.find(attribute_id_arg);
 
         query

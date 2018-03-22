@@ -100,7 +100,10 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
 
     /// Updates specific category
     fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category> {
-        debug!("Updating category with id {} and payload {:?}.", category_id_arg, payload);
+        debug!(
+            "Updating category with id {} and payload {:?}.",
+            category_id_arg, payload
+        );
         let query = categories.find(category_id_arg);
         query
             .first::<RawCategory>(&**self.db_conn)

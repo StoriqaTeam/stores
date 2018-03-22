@@ -37,7 +37,10 @@ impl<'a> CategoryAttrsRepoImpl<'a> {
 impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
     /// Find specific category_attributes by category ID
     fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
-        debug!("Find all attributes for category with id {}.", category_id_arg);
+        debug!(
+            "Find all attributes for category with id {}.",
+            category_id_arg
+        );
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
         query
             .get_results(&**self.db_conn)

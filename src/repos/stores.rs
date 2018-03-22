@@ -120,7 +120,10 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
 
     /// Updates specific store
     fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
-        debug!("Updating store with id {} and payload {:?}.", store_id_arg, payload);
+        debug!(
+            "Updating store with id {} and payload {:?}.",
+            store_id_arg, payload
+        );
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl::check(

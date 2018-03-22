@@ -138,7 +138,10 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Updates specific product
     fn update(&self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
-        debug!("Updating base product with id {} and payload {:?}.", product_id_arg, payload);
+        debug!(
+            "Updating base product with id {} and payload {:?}.",
+            product_id_arg, payload
+        );
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
                 acl::check(

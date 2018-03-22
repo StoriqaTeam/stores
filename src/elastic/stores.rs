@@ -65,7 +65,8 @@ impl StoresElastic for StoresElasticImpl {
                 .map_err(Error::from)
                 .and_then(|res| {
                     debug!("Result of searching in elastic {:?}.", res);
-                    future::ok(res.into_documents().collect::<Vec<ElasticStore>>())}),
+                    future::ok(res.into_documents().collect::<Vec<ElasticStore>>())
+                }),
         )
     }
 
@@ -98,7 +99,8 @@ impl StoresElastic for StoresElasticImpl {
                 .map_err(Error::from)
                 .and_then(|res| {
                     debug!("Result of searching in elastic {:?}.", res);
-                    future::ok(res.suggested_texts())}),
+                    future::ok(res.suggested_texts())
+                }),
         )
     }
 }

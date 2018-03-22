@@ -24,7 +24,7 @@ services:
       - stores-pg
 
   zoo1:
-    image: zookeeper:3.4.9
+    image: zookeeper
     restart: unless-stopped
     hostname: zoo1
     ports:

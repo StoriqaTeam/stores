@@ -31,7 +31,7 @@ cat << EOF > products-connector.json
   "name": "products-connector",
   "config": {
     "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
-    "topics": "stores-pg.public.base_products,stores-pg.public.prod_attr_values",
+    "topics": "stores-pg.public.base_products,stores-pg.public.products,stores-pg.public.prod_attr_values",
     "tasks.max": "1",
     "type.name": "_doc",
     "elastic.url": "stores-es",

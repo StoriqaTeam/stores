@@ -131,18 +131,32 @@ impl Acl<Resource, Action, Scope, RepoError> for UnauthorizedAcl {
 mod tests {
     use std::time::SystemTime;
 
-    use models::authorization::*;
+    use stq_acl::{Acl, RolesCache, WithScope};
+    use serde_json;
+
+    use repos::error::RepoError as Error;
     use repos::*;
     use models::*;
 
     struct CacheRolesMock {}
 
     impl RolesCache for CacheRolesMock {
-        fn get(&mut self, id: i32, _con: Option<&DbConnection>) -> RepoResult<Vec<Role>> {
-            match id {
-                1 => Ok(vec![Role::Superuser]),
-                _ => Ok(vec![Role::User]),
-            }
+        type Role = Role;
+        type Error = Error;
+
+        fn get(&self, user_id: i32, _db_conn: Option<&DbConnection>) -> Result<Vec<Self::Role>, Self::Error> {
+            match user_id {
+                    1 => Ok(vec![Role::Superuser]),
+                    _ => Ok(vec![Role::User]),
+                }
+        }
+
+        fn clear(&self) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        fn remove(&self, _id: i32) -> Result<(), Self::Error> {
+            Ok(())
         }
     }
 
@@ -152,17 +166,18 @@ mod tests {
         Store {
             id: 1,
             user_id: 1,
-            name: "name".to_string(),
+            name: serde_json::from_str("{}").unwrap(),
             is_active: true,
-            currency_id: 1,
-            short_description: "short description".to_string(),
+            short_description: serde_json::from_str("{}").unwrap(),
             long_description: None,
             slug: "myname".to_string(),
             cover: None,
             logo: None,
-            phone: "1234567".to_string(),
-            email: "example@mail.com".to_string(),
-            address: "town city street".to_string(),
+            phone: Some("1234567".to_string()),
+            email: Some("example@mail.com".to_string()),
+            address: Some("town city street".to_string()),
+            default_language: "en".to_string(),
+            slogan: Some("fdsf".to_string()),
             facebook_url: None,
             twitter_url: None,
             instagram_url: None,
@@ -173,24 +188,24 @@ mod tests {
 
     #[test]
     fn test_super_user_for_users() {
-        let mut acl = ApplicationAcl::new(MOCK_USER_ROLE, 1);
+        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 1);
 
         let resource = create_store();
 
-        let resources = vec![&resource as &WithScope];
+        let resources = vec![&resource as &WithScope<Scope>];
 
         assert_eq!(
-            acl.can(Resource::Products, Action::All, resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::All, &resources.clone(), None)
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.can(Resource::Products, Action::Read, resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Read, &resources.clone(), None)
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.can(Resource::Products, Action::Create, resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Create, &resources.clone(), None)
                 .unwrap(),
             true
         );
@@ -198,23 +213,23 @@ mod tests {
 
     #[test]
     fn test_ordinary_user_for_users() {
-        let mut acl = ApplicationAcl::new(MOCK_USER_ROLE, 2);
+        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 2);
 
         let resource = create_store();
-        let resources = vec![&resource as &WithScope];
+        let resources = vec![&resource as &WithScope<Scope>];
 
         assert_eq!(
-            acl.can(Resource::Products, Action::All, resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::All, &resources.clone(), None)
                 .unwrap(),
             false
         );
         assert_eq!(
-            acl.can(Resource::Products, Action::Read, resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Read, &resources.clone(), None)
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.can(Resource::Products, Action::Create, resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Create, &resources.clone(), None)
                 .unwrap(),
             false
         );
@@ -222,27 +237,27 @@ mod tests {
 
     #[test]
     fn test_super_user_for_user_roles() {
-        let mut acl = ApplicationAcl::new(MOCK_USER_ROLE, 1);
+        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 1);
 
         let resource = UserRole {
             id: 1,
             user_id: 1,
             role: Role::User,
         };
-        let resources = vec![&resource as &WithScope];
+        let resources = vec![&resource as &WithScope<Scope>];
 
         assert_eq!(
-            acl.can(Resource::UserRoles, Action::All, resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::All, &resources.clone(), None)
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.can(Resource::UserRoles, Action::Read, resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::Read, &resources.clone(), None)
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.can(Resource::UserRoles, Action::Create, resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::Create, &resources.clone(), None)
                 .unwrap(),
             true
         );
@@ -250,27 +265,27 @@ mod tests {
 
     #[test]
     fn test_user_for_user_roles() {
-        let mut acl = ApplicationAcl::new(MOCK_USER_ROLE, 2);
+        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 2);
 
         let resource = UserRole {
             id: 1,
             user_id: 1,
             role: Role::User,
         };
-        let resources = vec![&resource as &WithScope];
+        let resources = vec![&resource as &WithScope<Scope>];
 
         assert_eq!(
-            acl.can(Resource::UserRoles, Action::All, resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::All, &resources.clone(), None)
                 .unwrap(),
             false
         );
         assert_eq!(
-            acl.can(Resource::UserRoles, Action::Read, resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::Read, &resources.clone(), None)
                 .unwrap(),
             false
         );
         assert_eq!(
-            acl.can(Resource::UserRoles, Action::Create, resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::Create, &resources.clone(), None)
                 .unwrap(),
             false
         );

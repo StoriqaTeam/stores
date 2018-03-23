@@ -5,7 +5,6 @@ use diesel::prelude::*;
 use diesel::sql_query;
 use stores_lib::config::Config;
 
-
 pub type TestConnection = PgConnection;
 
 pub fn connection() -> TestConnection {
@@ -21,28 +20,29 @@ pub fn connection_with_stores_db_with_stores_table() -> TestConnection {
     sql_query("DROP TABLE IF EXISTS stores CASCADE")
         .execute(&connection)
         .unwrap();
-    sql_query("CREATE TABLE stores ( \
-                id SERIAL PRIMARY KEY, \
-                user_id INTEGER NOT NULL, \
-                is_active BOOLEAN NOT NULL DEFAULT 't', \
-                name JSONB NOT NULL, \
-                short_description JSONB NOT NULL, \
-                long_description VARCHAR, \
-                slug VARCHAR UNIQUE NOT NULL, \
-                cover VARCHAR, \
-                logo VARCHAR, \
-                phone VARCHAR, \
-                email VARCHAR , \
-                address VARCHAR , \
-                facebook_url VARCHAR, \
-                twitter_url VARCHAR, \
-                instagram_url VARCHAR, \
-                default_language VARCHAR NOT NULL, \
-                slogan VARCHAR, \
-                created_at TIMESTAMP NOT NULL DEFAULT current_timestamp, \
-                updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp \
-            )")
-        .execute(&connection)
+    sql_query(
+        "CREATE TABLE stores ( \
+         id SERIAL PRIMARY KEY, \
+         user_id INTEGER NOT NULL, \
+         is_active BOOLEAN NOT NULL DEFAULT 't', \
+         name JSONB NOT NULL, \
+         short_description JSONB NOT NULL, \
+         long_description VARCHAR, \
+         slug VARCHAR UNIQUE NOT NULL, \
+         cover VARCHAR, \
+         logo VARCHAR, \
+         phone VARCHAR, \
+         email VARCHAR , \
+         address VARCHAR , \
+         facebook_url VARCHAR, \
+         twitter_url VARCHAR, \
+         instagram_url VARCHAR, \
+         default_language VARCHAR NOT NULL, \
+         slogan VARCHAR, \
+         created_at TIMESTAMP NOT NULL DEFAULT current_timestamp, \
+         updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp \
+         )",
+    ).execute(&connection)
         .unwrap();
     //use schema::users::dsl::*;
     // ::diesel::insert_into(users)

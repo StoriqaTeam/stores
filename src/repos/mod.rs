@@ -10,6 +10,7 @@ pub mod attributes;
 pub mod error;
 pub mod types;
 pub mod categories;
+pub mod repo_factory;
 
 pub use self::products::*;
 pub use self::base_products::*;
@@ -19,3 +20,5 @@ pub use self::stores::*;
 pub use self::types::*;
 pub use self::acl::*;
 pub use self::categories::*;
+pub use self::repo_factory::*;
+pub use self::user_roles::*;

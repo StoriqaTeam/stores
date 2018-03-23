@@ -8,12 +8,12 @@ use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
 
 use models::{NewStore, SearchStore, Store, UpdateStore};
-use repos::{StoresRepo, StoresRepoImpl};
 use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
+use repos::acl::RolesCacheImpl;
+use repos::ReposFactory;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -33,16 +33,17 @@ pub trait StoresService {
 }
 
 /// Stores services, responsible for Store-related CRUD operations
-pub struct StoresServiceImpl {
+pub struct StoresServiceImpl<F: ReposFactory> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub roles_cache: RolesCacheImpl,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
+    pub repo_factory: F,
 }
 
-impl StoresServiceImpl {
+impl<F: ReposFactory> StoresServiceImpl<F> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
@@ -50,6 +51,7 @@ impl StoresServiceImpl {
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
+        repo_factory: F,
     ) -> Self {
         Self {
             db_pool,
@@ -58,17 +60,12 @@ impl StoresServiceImpl {
             user_id,
             client_handle,
             elastic_address,
+            repo_factory,
         }
     }
 }
 
-fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
-        (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
-    })
-}
-
-impl StoresService for StoresServiceImpl {
+impl<F: ReposFactory + Send + 'static> StoresService for StoresServiceImpl<F> {
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
@@ -98,6 +95,7 @@ impl StoresService for StoresServiceImpl {
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
             let roles_cache = self.roles_cache.clone();
+            let repo_factory = self.repo_factory;
             move |el_stores| {
                 cpu_pool.spawn_fn(move || {
                     db_pool
@@ -107,8 +105,7 @@ impl StoresService for StoresServiceImpl {
                             el_stores
                                 .into_iter()
                                 .map(|el_store| {
-                                    let acl = acl_for_id(roles_cache.clone(), user_id);
-                                    let stores_repo = StoresRepoImpl::new(&conn, acl);
+                                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache.clone(), user_id);
                                     stores_repo.find(el_store.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -123,15 +120,14 @@ impl StoresService for StoresServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-
-                    let stores_repo = StoresRepoImpl::new(&conn, acl);
+                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
                     stores_repo.find(store_id).map_err(Error::from)
                 })
         }))
@@ -142,14 +138,14 @@ impl StoresService for StoresServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-                    let stores_repo = StoresRepoImpl::new(&conn, acl);
+                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
                     stores_repo.deactivate(store_id).map_err(Error::from)
                 })
         }))
@@ -160,14 +156,14 @@ impl StoresService for StoresServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-                    let stores_repo = StoresRepoImpl::new(&conn, acl);
+                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
                     stores_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -180,13 +176,13 @@ impl StoresService for StoresServiceImpl {
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
             let roles_cache = self.roles_cache.clone();
+            let repo_factory = self.repo_factory;
             cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
                     .map_err(|e| Error::Connection(e.into()))
                     .and_then(move |conn| {
-                        let acl = acl_for_id(roles_cache, user_id);
-                        let stores_repo = StoresRepoImpl::new(&conn, acl);
+                        let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
                         conn.transaction::<Store, Error, _>(move || {
                             serde_json::from_value::<Vec<Translation>>(payload.name.clone())
                                 .map_err(|e| Error::Parse(e.to_string()))
@@ -232,15 +228,14 @@ impl StoresService for StoresServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-
-                    let stores_repo = StoresRepoImpl::new(&conn, acl);
+                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
                     stores_repo
                         .find(store_id.clone())
                         .and_then(move |_user| stores_repo.update(store_id, payload))

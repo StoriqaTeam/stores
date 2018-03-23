@@ -13,7 +13,7 @@ use stq_static_resources::Translation;
 use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
 use super::error::RepoError as Error;
-use super::types::{RepoResult, DbConnection};
+use super::types::{DbConnection, RepoResult};
 use models::authorization::*;
 use super::acl;
 use super::acl::BoxedAcl;
@@ -132,9 +132,7 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     .filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query
-                    .get_result::<Store>(self.db_conn)
-                    .map_err(Error::from)
+                query.get_result::<Store>(self.db_conn).map_err(Error::from)
             })
     }
 

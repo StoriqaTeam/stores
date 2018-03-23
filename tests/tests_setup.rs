@@ -6,10 +6,10 @@ extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate serde_json;
 extern crate stores_lib;
-extern crate tokio_core;
-extern crate stq_http;
 extern crate stq_acl;
+extern crate stq_http;
 extern crate stq_static_resources;
+extern crate tokio_core;
 
 use std::time::SystemTime;
 use std::sync::Arc;
@@ -28,7 +28,6 @@ use stores_lib::models::*;
 use stores_lib::config::Config;
 use stores_lib::repos::RolesCacheImpl;
 
-
 #[derive(Clone)]
 pub struct StoresRepoMock;
 
@@ -38,7 +37,7 @@ impl StoresRepo for StoresRepoMock {
         Ok(store)
     }
 
-    fn name_exists(&self, name: Vec<Translation>) -> RepoResult<bool>{
+    fn name_exists(&self, name: Vec<Translation>) -> RepoResult<bool> {
         Ok(name.iter().any(|t| t.text == MOCK_STORE_NAME))
     }
 
@@ -176,8 +175,8 @@ impl ProductsRepo for ProductsRepoMock {
         let product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
         Ok(product)
     }
-    
-    fn find_with_base_id(&self, base_id: i32) -> RepoResult<Vec<Product>>{
+
+    fn find_with_base_id(&self, base_id: i32) -> RepoResult<Vec<Product>> {
         let mut products = vec![];
         let product = create_product(MOCK_PRODUCT_ID, base_id);
         products.push(product);
@@ -232,8 +231,8 @@ fn new_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsSer
         cpu_pool: cpu_pool,
         roles_cache: RolesCacheImpl::default(),
         user_id: user_id,
-        client_handle:client_handle,
-        elastic_address: "".to_string()
+        client_handle: client_handle,
+        elastic_address: "".to_string(),
     }
 }
 
@@ -258,7 +257,7 @@ pub fn create_product(id: i32, base_product_id: i32) -> Product {
 pub fn create_new_product_with_attributes(base_product_id: i32) -> NewProductWithAttributes {
     NewProductWithAttributes {
         product: create_new_product(base_product_id),
-        attributes: vec![]
+        attributes: vec![],
     }
 }
 
@@ -284,7 +283,7 @@ pub fn create_update_product() -> UpdateProduct {
 pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
     UpdateProductWithAttributes {
         product: create_update_product(),
-        attributes: vec![]
+        attributes: vec![],
     }
 }
 

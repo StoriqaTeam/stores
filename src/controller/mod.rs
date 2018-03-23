@@ -35,8 +35,9 @@ use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
-use repos::categories::CategoryCacheImpl;
+use repos::categories::CategoryCache;
 use repos::attributes::AttributeCacheImpl;
+use repos::repo_factory::*;
 
 use models;
 use self::routes::Route;
@@ -44,26 +45,28 @@ use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
-pub struct ControllerImpl {
+pub struct ControllerImpl<F: ReposFactory, C: CategoryCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser<Route>>,
     pub config: Config,
+    pub repo_factory: F,
     pub client_handle: ClientHandle,
     pub roles_cache: RolesCacheImpl,
-    pub categories_cache: CategoryCacheImpl,
+    pub categories_cache: C,
     pub attributes_cache: AttributeCacheImpl,
 }
 
-impl ControllerImpl {
+impl<F: ReposFactory, C: CategoryCache> ControllerImpl<F, C> {
     /// Create a new controller based on services
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
         client_handle: ClientHandle,
         config: Config,
+        repo_factory: F,
         roles_cache: RolesCacheImpl,
-        categories_cache: CategoryCacheImpl,
+        categories_cache: C,
         attributes_cache: AttributeCacheImpl,
     ) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
@@ -73,6 +76,7 @@ impl ControllerImpl {
             cpu_pool,
             client_handle,
             config,
+            repo_factory,
             roles_cache,
             categories_cache,
             attributes_cache,
@@ -80,7 +84,7 @@ impl ControllerImpl {
     }
 }
 
-impl Controller for ControllerImpl {
+impl<F: ReposFactory, C: CategoryCache> Controller for ControllerImpl<F, C> {
     /// Handle a request and get future response
     fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();
@@ -100,6 +104,7 @@ impl Controller for ControllerImpl {
             user_id,
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
+            self.repo_factory,
         );
         let products_service = ProductsServiceImpl::new(
             self.db_pool.clone(),
@@ -108,6 +113,7 @@ impl Controller for ControllerImpl {
             user_id,
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
+            self.repo_factory,
         );
 
         let base_products_service = BaseProductsServiceImpl::new(
@@ -117,12 +123,14 @@ impl Controller for ControllerImpl {
             user_id,
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
+            self.repo_factory,
         );
 
         let user_roles_service = UserRolesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
             cached_roles.clone(),
+            self.repo_factory,
         );
         let attributes_service = AttributesServiceImpl::new(
             self.db_pool.clone(),
@@ -130,6 +138,7 @@ impl Controller for ControllerImpl {
             cached_roles.clone(),
             cached_attributes,
             user_id,
+            self.repo_factory,
         );
 
         let categories_service = CategoriesServiceImpl::new(
@@ -138,6 +147,7 @@ impl Controller for ControllerImpl {
             cached_roles.clone(),
             cached_categories,
             user_id,
+            self.repo_factory,
         );
 
         match (req.method(), self.route_parser.test(req.path())) {

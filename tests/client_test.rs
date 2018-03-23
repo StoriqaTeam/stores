@@ -2,8 +2,8 @@ extern crate futures;
 extern crate hyper;
 extern crate serde_json;
 extern crate stores_lib;
-extern crate tokio_core;
 extern crate stq_http;
+extern crate tokio_core;
 
 use std::sync::Arc;
 use std::thread;

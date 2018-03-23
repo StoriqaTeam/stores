@@ -4,11 +4,11 @@ use futures_cpupool::CpuPool;
 use diesel::Connection;
 
 use models::*;
-use repos::{AttributesRepo, AttributesRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
+use repos::acl::RolesCacheImpl;
+use repos::ReposFactory;
 
 use stq_http::client::ClientHandle;
 
@@ -26,16 +26,17 @@ pub trait ProductsService {
 }
 
 /// Products services, responsible for Product-related CRUD operations
-pub struct ProductsServiceImpl {
+pub struct ProductsServiceImpl<F: ReposFactory> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub roles_cache: RolesCacheImpl,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
+    pub repo_factory: F,
 }
 
-impl ProductsServiceImpl {
+impl<F: ReposFactory> ProductsServiceImpl<F> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
@@ -43,6 +44,7 @@ impl ProductsServiceImpl {
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
+        repo_factory: F,
     ) -> Self {
         Self {
             db_pool,
@@ -51,30 +53,25 @@ impl ProductsServiceImpl {
             user_id,
             client_handle,
             elastic_address,
+            repo_factory,
         }
     }
 }
 
-fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
-        (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
-    })
-}
-
-impl ProductsService for ProductsServiceImpl {
+impl<F: ReposFactory + Send + 'static> ProductsService for ProductsServiceImpl<F> {
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let products_repo = repo_factory.create_product_repo(&conn, roles_cache, user_id);
                     products_repo.find(product_id).map_err(Error::from)
                 })
         }))
@@ -85,15 +82,14 @@ impl ProductsService for ProductsServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let products_repo = repo_factory.create_product_repo(&conn, roles_cache, user_id);
                     products_repo.deactivate(product_id).map_err(Error::from)
                 })
         }))
@@ -104,14 +100,14 @@ impl ProductsService for ProductsServiceImpl {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                    let products_repo = repo_factory.create_product_repo(&conn, roles_cache, user_id);
                     products_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -123,18 +119,16 @@ impl ProductsService for ProductsServiceImpl {
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
         let cpu_pool = self.cpu_pool.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache.clone(), user_id);
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
-                    let acl = acl_for_id(roles_cache.clone(), user_id);
-                    let prod_attr_repo = ProductAttrsRepoImpl::new(&conn, acl);
-                    let acl = acl_for_id(roles_cache.clone(), user_id);
-                    let attr_repo = AttributesRepoImpl::new(&conn, acl);
+                    let products_repo = repo_factory.create_product_repo(&conn, roles_cache.clone(), user_id);
+                    let prod_attr_repo = repo_factory.create_product_attrs_repo(&conn, roles_cache.clone(), user_id);
+                    let attr_repo = repo_factory.create_attributes_repo(&conn, roles_cache.clone(), user_id);
                     let product = payload.product;
                     let attributes = payload.attributes;
 
@@ -178,16 +172,15 @@ impl ProductsService for ProductsServiceImpl {
         let user_id = self.user_id;
         let roles_cache = self.roles_cache.clone();
         let cpu_pool = self.cpu_pool.clone();
+        let repo_factory = self.repo_factory;
 
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache.clone(), user_id);
-                    let products_repo = ProductsRepoImpl::new(&conn, acl);
-                    let acl = acl_for_id(roles_cache.clone(), user_id);
-                    let prod_attr_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                    let products_repo = repo_factory.create_product_repo(&conn, roles_cache.clone(), user_id);
+                    let prod_attr_repo = repo_factory.create_product_attrs_repo(&conn, roles_cache.clone(), user_id);
                     let product = payload.product;
                     let attributes = payload.attributes;
 

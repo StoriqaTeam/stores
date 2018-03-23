@@ -74,6 +74,7 @@ use config::Config;
 use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCacheImpl;
 use repos::attributes::AttributeCacheImpl;
+use repos::repo_factory::ReposFactoryImpl;
 
 /// Starts new web service from provided `Config`
 pub fn start_server(config: Config) {
@@ -116,11 +117,14 @@ pub fn start_server(config: Config) {
         .parse()
         .expect("Address must be set in configuration");
 
+    // Repo factory
+    let repo_factory = ReposFactoryImpl::default();
+
     // Roles cache
     let roles_cache = RolesCacheImpl::default();
 
     // Categories cache
-    let category_cache = CategoryCacheImpl::default();
+    let category_cache = CategoryCacheImpl::new(repo_factory);
 
     // Attributes cache
     let attributes_cache = AttributeCacheImpl::default();
@@ -131,6 +135,7 @@ pub fn start_server(config: Config) {
         cpu_pool,
         client_handle,
         config,
+        repo_factory,
         roles_cache,
         category_cache,
         attributes_cache,

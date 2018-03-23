@@ -146,9 +146,9 @@ mod tests {
 
         fn get(&self, user_id: i32, _db_conn: Option<&DbConnection>) -> Result<Vec<Self::Role>, Self::Error> {
             match user_id {
-                    1 => Ok(vec![Role::Superuser]),
-                    _ => Ok(vec![Role::User]),
-                }
+                1 => Ok(vec![Role::Superuser]),
+                _ => Ok(vec![Role::User]),
+            }
         }
 
         fn clear(&self) -> Result<(), Self::Error> {
@@ -252,13 +252,21 @@ mod tests {
             true
         );
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Read, &resources.clone(), None)
-                .unwrap(),
+            acl.allows(
+                &Resource::UserRoles,
+                &Action::Read,
+                &resources.clone(),
+                None
+            ).unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Create, &resources.clone(), None)
-                .unwrap(),
+            acl.allows(
+                &Resource::UserRoles,
+                &Action::Create,
+                &resources.clone(),
+                None
+            ).unwrap(),
             true
         );
     }
@@ -280,13 +288,21 @@ mod tests {
             false
         );
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Read, &resources.clone(), None)
-                .unwrap(),
+            acl.allows(
+                &Resource::UserRoles,
+                &Action::Read,
+                &resources.clone(),
+                None
+            ).unwrap(),
             false
         );
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Create, &resources.clone(), None)
-                .unwrap(),
+            acl.allows(
+                &Resource::UserRoles,
+                &Action::Create,
+                &resources.clone(),
+                None
+            ).unwrap(),
             false
         );
     }

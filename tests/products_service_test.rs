@@ -5,7 +5,7 @@ use tokio_core::reactor::Core;
 #[test]
 #[ignore]
 fn test_get_product() {
-     let mut core = Core::new().unwrap();
+    let mut core = Core::new().unwrap();
     let handle = Arc::new(core.handle());
     let service = create_product_service(Some(MOCK_USER_ID), handle);
     let work = service.get(1);

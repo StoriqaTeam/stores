@@ -121,7 +121,7 @@ pub fn start_server(config: Config) {
     let repo_factory = ReposFactoryImpl::default();
 
     // Roles cache
-    let roles_cache = RolesCacheImpl::default();
+    let roles_cache = RolesCacheImpl::new(repo_factory);
 
     // Categories cache
     let category_cache = CategoryCacheImpl::new(repo_factory);

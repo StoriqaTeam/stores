@@ -6,14 +6,16 @@ use diesel::Connection;
 use serde_json;
 use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
+use stq_acl::RolesCache;
 
 use models::{NewStore, SearchStore, Store, UpdateStore};
+use models::authorization::*;
 use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::DbPool;
-use repos::acl::RolesCacheImpl;
 use repos::ReposFactory;
+use repos::error::RepoError;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -33,21 +35,21 @@ pub trait StoresService {
 }
 
 /// Stores services, responsible for Store-related CRUD operations
-pub struct StoresServiceImpl<F: ReposFactory> {
+pub struct StoresServiceImpl<F: ReposFactory, R: RolesCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub roles_cache: RolesCacheImpl,
+    pub roles_cache: R,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory> StoresServiceImpl<F> {
+impl<F: ReposFactory, R: RolesCache> StoresServiceImpl<F, R> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
-        roles_cache: RolesCacheImpl,
+        roles_cache: R,
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
@@ -65,7 +67,7 @@ impl<F: ReposFactory> StoresServiceImpl<F> {
     }
 }
 
-impl<F: ReposFactory + Send + 'static> StoresService for StoresServiceImpl<F> {
+impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresService for StoresServiceImpl<F, R> {
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();

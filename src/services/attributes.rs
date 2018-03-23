@@ -2,13 +2,16 @@
 
 use futures_cpupool::CpuPool;
 
+use stq_acl::RolesCache;
+
 use models::{Attribute, NewAttribute, UpdateAttribute};
+use models::authorization::*;
 use services::types::ServiceFuture;
 use services::error::ServiceError;
 use repos::types::DbPool;
 use repos::attributes::AttributeCache;
-use repos::acl::RolesCacheImpl;
 use repos::ReposFactory;
+use repos::error::RepoError;
 
 pub trait AttributesService {
     /// Returns attribute by ID
@@ -20,20 +23,20 @@ pub trait AttributesService {
 }
 
 /// Attributes services, responsible for Attribute-related CRUD operations
-pub struct AttributesServiceImpl<F: ReposFactory, A: AttributeCache> {
+pub struct AttributesServiceImpl<F: ReposFactory, A: AttributeCache, R: RolesCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub roles_cache: RolesCacheImpl,
+    pub roles_cache: R,
     pub attributes_cache: A,
     pub user_id: Option<i32>,
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory, A: AttributeCache> AttributesServiceImpl<F, A> {
+impl<F: ReposFactory, A: AttributeCache, R: RolesCache> AttributesServiceImpl<F, A, R> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
-        roles_cache: RolesCacheImpl,
+        roles_cache: R,
         attributes_cache: A,
         user_id: Option<i32>,
         repo_factory: F,
@@ -49,7 +52,7 @@ impl<F: ReposFactory, A: AttributeCache> AttributesServiceImpl<F, A> {
     }
 }
 
-impl<F: ReposFactory, A: AttributeCache> AttributesService for AttributesServiceImpl<F, A> {
+impl<F: ReposFactory, A: AttributeCache,  R: RolesCache<Role = Role, Error = RepoError>> AttributesService for AttributesServiceImpl<F, A, R> {
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();

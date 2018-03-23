@@ -8,8 +8,8 @@ use models::{NewUserRole, OldUserRole, Role, UserRole};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::DbPool;
-use repos::acl::RolesCacheImpl;
 use repos::ReposFactory;
+use repos::error::RepoError;
 
 pub trait UserRolesService {
     /// Returns role by user ID
@@ -25,15 +25,15 @@ pub trait UserRolesService {
 }
 
 /// UserRoles services, responsible for UserRole-related CRUD operations
-pub struct UserRolesServiceImpl<F: ReposFactory> {
+pub struct UserRolesServiceImpl<F: ReposFactory, R: RolesCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub cached_roles: RolesCacheImpl,
+    pub cached_roles: R,
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory> UserRolesServiceImpl<F> {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, cached_roles: RolesCacheImpl, repo_factory: F) -> Self {
+impl<F: ReposFactory, R: RolesCache> UserRolesServiceImpl<F, R> {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, cached_roles: R, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -43,7 +43,7 @@ impl<F: ReposFactory> UserRolesServiceImpl<F> {
     }
 }
 
-impl<F: ReposFactory + Send + 'static> UserRolesService for UserRolesServiceImpl<F> {
+impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> UserRolesService for UserRolesServiceImpl<F, R> {
     /// Returns role by user ID
     fn get_roles(&self, user_id: i32) -> ServiceFuture<Vec<Role>> {
         let db_pool = self.db_pool.clone();

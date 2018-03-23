@@ -1,15 +1,17 @@
 //! Categories Services, presents CRUD operations with categories
 
 use futures_cpupool::CpuPool;
+use stq_acl::RolesCache;
 
 use models::{Category, NewCategory, UpdateCategory};
 use models::{Attribute, NewCatAttr, OldCatAttr};
+use models::authorization::*;
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::{DbPool, RepoResult};
-use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCache;
 use repos::ReposFactory;
+use repos::error::RepoError;
 
 pub trait CategoriesService {
     /// Returns category by ID
@@ -30,20 +32,20 @@ pub trait CategoriesService {
 
 
 /// Categories services, responsible for Category-related CRUD operations
-pub struct CategoriesServiceImpl<F: ReposFactory, C: CategoryCache> {
+pub struct CategoriesServiceImpl<F: ReposFactory, C: CategoryCache, R: RolesCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub roles_cache: RolesCacheImpl,
+    pub roles_cache: R,
     pub categories_cache: C,
     pub user_id: Option<i32>,
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory, C: CategoryCache> CategoriesServiceImpl<F, C> {
+impl<F: ReposFactory, C: CategoryCache, R: RolesCache> CategoriesServiceImpl<F, C, R> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
-        roles_cache: RolesCacheImpl,
+        roles_cache: R,
         categories_cache: C,
         user_id: Option<i32>,
         repo_factory: F,
@@ -59,7 +61,7 @@ impl<F: ReposFactory, C: CategoryCache> CategoriesServiceImpl<F, C> {
     }
 }
 
-impl<F: ReposFactory, C: CategoryCache> CategoriesService for CategoriesServiceImpl<F, C> {
+impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoError>> CategoriesService for CategoriesServiceImpl<F, C, R> {
     /// Returns category by ID
     fn get(&self, category_id: i32) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();

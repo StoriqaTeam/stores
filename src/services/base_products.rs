@@ -2,13 +2,15 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
 
+use stq_acl::RolesCache;
+
 use models::*;
 use elastic::{ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::{DbPool, RepoResult};
-use repos::acl::RolesCacheImpl;
 use repos::ReposFactory;
+use repos::error::RepoError;
 
 use stq_http::client::ClientHandle;
 
@@ -36,21 +38,21 @@ pub trait BaseProductsService {
 }
 
 /// Products services, responsible for Product-related CRUD operations
-pub struct BaseProductsServiceImpl<F: ReposFactory> {
+pub struct BaseProductsServiceImpl<F: ReposFactory, R: RolesCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
-    pub roles_cache: RolesCacheImpl,
+    pub roles_cache: R,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory> BaseProductsServiceImpl<F> {
+impl<F: ReposFactory, R: RolesCache> BaseProductsServiceImpl<F, R> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
-        roles_cache: RolesCacheImpl,
+        roles_cache: R,
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
@@ -68,7 +70,7 @@ impl<F: ReposFactory> BaseProductsServiceImpl<F> {
     }
 }
 
-impl<F: ReposFactory + Send + 'static> BaseProductsService for BaseProductsServiceImpl<F> {
+impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProductsService for BaseProductsServiceImpl<F, R> {
     fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
             let client_handle = self.client_handle.clone();

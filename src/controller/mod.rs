@@ -23,9 +23,12 @@ use stq_http::request_util::serialize_future;
 use stq_http::errors::ControllerError as Error;
 use stq_http::request_util::ControllerFuture;
 use stq_http::request_util::{parse_body, read_body};
-use stq_router::RouteParser;
 use stq_http::client::ClientHandle;
+use stq_router::RouteParser;
+use stq_acl::RolesCache;
 
+use models;
+use models::authorization::*;
 use services::system::{SystemService, SystemServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
@@ -34,30 +37,28 @@ use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
 use repos::types::DbPool;
-use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCache;
 use repos::attributes::AttributeCache;
 use repos::repo_factory::*;
-
-use models;
+use repos::error::RepoError;
 use self::routes::Route;
 use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
-pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache> {
+pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser<Route>>,
     pub config: Config,
     pub repo_factory: F,
     pub client_handle: ClientHandle,
-    pub roles_cache: RolesCacheImpl,
+    pub roles_cache: R,
     pub categories_cache: C,
     pub attributes_cache: A,
 }
 
-impl<F: ReposFactory, C: CategoryCache, A: AttributeCache> ControllerImpl<F, C, A> {
+impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> ControllerImpl<F, C, A, R> {
     /// Create a new controller based on services
     pub fn new(
         db_pool: DbPool,
@@ -65,7 +66,7 @@ impl<F: ReposFactory, C: CategoryCache, A: AttributeCache> ControllerImpl<F, C, 
         client_handle: ClientHandle,
         config: Config,
         repo_factory: F,
-        roles_cache: RolesCacheImpl,
+        roles_cache: R,
         categories_cache: C,
         attributes_cache: A,
     ) -> Self {
@@ -84,7 +85,7 @@ impl<F: ReposFactory, C: CategoryCache, A: AttributeCache> ControllerImpl<F, C, 
     }
 }
 
-impl<F: ReposFactory, C: CategoryCache, A: AttributeCache> Controller for ControllerImpl<F, C, A> {
+impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> Controller for ControllerImpl<F, C, A, R> {
     /// Handle a request and get future response
     fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();

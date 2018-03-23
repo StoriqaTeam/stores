@@ -6,8 +6,8 @@ use models::{Attribute, NewAttribute, UpdateAttribute};
 use services::types::ServiceFuture;
 use services::error::ServiceError;
 use repos::types::DbPool;
-use repos::attributes::AttributeCacheImpl;
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
+use repos::attributes::AttributeCache;
+use repos::acl::RolesCacheImpl;
 use repos::ReposFactory;
 
 pub trait AttributesService {
@@ -19,28 +19,22 @@ pub trait AttributesService {
     fn update(&self, attribute_id: i32, payload: UpdateAttribute) -> ServiceFuture<Attribute>;
 }
 
-fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
-        (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
-    })
-}
-
 /// Attributes services, responsible for Attribute-related CRUD operations
-pub struct AttributesServiceImpl<F: ReposFactory> {
+pub struct AttributesServiceImpl<F: ReposFactory, A: AttributeCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub roles_cache: RolesCacheImpl,
-    pub attributes_cache: AttributeCacheImpl,
+    pub attributes_cache: A,
     pub user_id: Option<i32>,
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory> AttributesServiceImpl<F> {
+impl<F: ReposFactory, A: AttributeCache> AttributesServiceImpl<F, A> {
     pub fn new(
         db_pool: DbPool,
         cpu_pool: CpuPool,
         roles_cache: RolesCacheImpl,
-        attributes_cache: AttributeCacheImpl,
+        attributes_cache: A,
         user_id: Option<i32>,
         repo_factory: F,
     ) -> Self {
@@ -55,7 +49,7 @@ impl<F: ReposFactory> AttributesServiceImpl<F> {
     }
 }
 
-impl<F: ReposFactory + Send + 'static> AttributesService for AttributesServiceImpl<F> {
+impl<F: ReposFactory, A: AttributeCache> AttributesService for AttributesServiceImpl<F, A> {
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();
@@ -68,9 +62,8 @@ impl<F: ReposFactory + Send + 'static> AttributesService for AttributesServiceIm
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
                     attributes_cache
-                        .get(attribute_id, &conn, acl)
+                        .get(attribute_id, &conn, roles_cache, user_id)
                         .map_err(ServiceError::from)
                 })
         }))

@@ -36,7 +36,7 @@ use services::categories::{CategoriesService, CategoriesServiceImpl};
 use repos::types::DbPool;
 use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCache;
-use repos::attributes::AttributeCacheImpl;
+use repos::attributes::AttributeCache;
 use repos::repo_factory::*;
 
 use models;
@@ -45,7 +45,7 @@ use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
-pub struct ControllerImpl<F: ReposFactory, C: CategoryCache> {
+pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser<Route>>,
@@ -54,10 +54,10 @@ pub struct ControllerImpl<F: ReposFactory, C: CategoryCache> {
     pub client_handle: ClientHandle,
     pub roles_cache: RolesCacheImpl,
     pub categories_cache: C,
-    pub attributes_cache: AttributeCacheImpl,
+    pub attributes_cache: A,
 }
 
-impl<F: ReposFactory, C: CategoryCache> ControllerImpl<F, C> {
+impl<F: ReposFactory, C: CategoryCache, A: AttributeCache> ControllerImpl<F, C, A> {
     /// Create a new controller based on services
     pub fn new(
         db_pool: DbPool,
@@ -67,7 +67,7 @@ impl<F: ReposFactory, C: CategoryCache> ControllerImpl<F, C> {
         repo_factory: F,
         roles_cache: RolesCacheImpl,
         categories_cache: C,
-        attributes_cache: AttributeCacheImpl,
+        attributes_cache: A,
     ) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
@@ -84,7 +84,7 @@ impl<F: ReposFactory, C: CategoryCache> ControllerImpl<F, C> {
     }
 }
 
-impl<F: ReposFactory, C: CategoryCache> Controller for ControllerImpl<F, C> {
+impl<F: ReposFactory, C: CategoryCache, A: AttributeCache> Controller for ControllerImpl<F, C, A> {
     /// Handle a request and get future response
     fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();

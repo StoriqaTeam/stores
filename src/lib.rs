@@ -127,7 +127,7 @@ pub fn start_server(config: Config) {
     let category_cache = CategoryCacheImpl::new(repo_factory);
 
     // Attributes cache
-    let attributes_cache = AttributeCacheImpl::default();
+    let attributes_cache = AttributeCacheImpl::new(repo_factory);
 
     // Controller
     let controller = controller::ControllerImpl::new(

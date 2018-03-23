@@ -138,7 +138,8 @@ mod tests {
     use repos::*;
     use models::*;
 
-    struct CacheRolesMock {}
+    #[derive(Clone)]
+    struct CacheRolesMock;
 
     impl RolesCache for CacheRolesMock {
         type Role = Role;

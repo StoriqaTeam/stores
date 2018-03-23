@@ -21,12 +21,111 @@ use r2d2_diesel::ConnectionManager;
 
 use stq_http::client::Config as HttpConfig;
 use stq_static_resources::Translation;
+use stq_acl::RolesCache;
 
 use stores_lib::repos::*;
 use stores_lib::services::*;
 use stores_lib::models::*;
 use stores_lib::config::Config;
-use stores_lib::repos::RolesCacheImpl;
+use stores_lib::repos::error::RepoError;
+
+const MOCK_PRODUCTS: ProductsRepoMock = ProductsRepoMock {};
+const MOCK_USER_ROLE: CacheRolesMock = CacheRolesMock {};
+const MOCK_REPO_FACTORY: ReposFactoryMock = ReposFactoryMock {};
+const MOCK_STORES: StoresRepoMock = StoresRepoMock {};
+static MOCK_USER_ID: i32 = 1;
+static MOCK_BASE_PRODUCT_ID: i32 = 1;
+static MOCK_PRODUCT_ID: i32 = 1;
+static MOCK_STORE_NAME: &'static str = "store name";
+static MOCK_STORE_SLUG: &'static str = "store slug";
+
+#[derive(Clone)]
+struct CacheRolesMock;
+
+impl RolesCache for CacheRolesMock {
+    type Role = Role;
+    type Error = RepoError;
+
+    fn get(&self, user_id: i32, _db_conn: Option<&DbConnection>) -> Result<Vec<Self::Role>, Self::Error> {
+        match user_id {
+            1 => Ok(vec![Role::Superuser]),
+            _ => Ok(vec![Role::User]),
+        }
+    }
+
+    fn clear(&self) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn remove(&self, _id: i32) -> Result<(), Self::Error> {
+        Ok(())
+    }
+}
+
+#[derive(Default, Copy, Clone)]
+pub struct ReposFactoryMock;
+
+impl ReposFactory for ReposFactoryMock {
+    fn create_attributes_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+        &self,
+        _db_conn: &'a DbConnection,
+        _roles_cache: T,
+        _user_id: Option<i32>,
+    ) -> Box<AttributesRepo + 'a> {
+        unimplemented!()
+    }
+    fn create_categories_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+        &self,
+        _db_conn: &'a DbConnection,
+        _roles_cache: T,
+        _user_id: Option<i32>,
+    ) -> Box<CategoriesRepo + 'a> {
+        unimplemented!()
+    }
+    fn create_category_attrs_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+        &self,
+        _db_conn: &'a DbConnection,
+        _roles_cache: T,
+        _user_id: Option<i32>,
+    ) -> Box<CategoryAttrsRepo + 'a> {
+        unimplemented!()
+    }
+    fn create_base_product_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+        &self,
+        _db_conn: &'a DbConnection,
+        _roles_cache: T,
+        _user_id: Option<i32>,
+    ) -> Box<BaseProductsRepo + 'a> {
+        unimplemented!()
+    }
+    fn create_product_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+        &self,
+        _db_conn: &'a DbConnection,
+        _roles_cache: T,
+        _user_id: Option<i32>,
+    ) -> Box<ProductsRepo + 'a> {
+        unimplemented!()
+    }
+    fn create_product_attrs_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+        &self,
+        _db_conn: &'a DbConnection,
+        _roles_cache: T,
+        _user_id: Option<i32>,
+    ) -> Box<ProductAttrsRepo + 'a> {
+        unimplemented!()
+    }
+    fn create_stores_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+        &self,
+        _db_conn: &'a DbConnection,
+        _roles_cache: T,
+        _user_id: Option<i32>,
+    ) -> Box<StoresRepo + 'a> {
+        unimplemented!()
+    }
+    fn create_user_roles_repo<'a>(&self, _db_conn: &'a DbConnection) -> Box<UserRolesRepo + 'a> {
+        unimplemented!()
+    }
+}
 
 #[derive(Clone)]
 pub struct StoresRepoMock;
@@ -73,7 +172,7 @@ impl StoresRepo for StoresRepoMock {
 }
 
 #[allow(unused)]
-fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServiceImpl {
+fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServiceImpl<ReposFactoryMock, CacheRolesMock> {
     let database_url = "127.0.0.1";
     let elastic_address = "127.0.0.1:9200".to_string();
     let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
@@ -93,10 +192,11 @@ fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServ
     StoresServiceImpl {
         db_pool: db_pool,
         cpu_pool: cpu_pool,
-        roles_cache: RolesCacheImpl::default(),
+        roles_cache: MOCK_USER_ROLE,
         user_id: user_id,
         elastic_address: elastic_address,
         client_handle: client_handle,
+        repo_factory: MOCK_REPO_FACTORY,
     }
 }
 
@@ -163,10 +263,6 @@ pub fn create_update_store(name: serde_json::Value) -> UpdateStore {
     }
 }
 
-pub const MOCK_STORES: StoresRepoMock = StoresRepoMock {};
-pub static MOCK_STORE_NAME: &'static str = "store name";
-pub static MOCK_STORE_SLUG: &'static str = "store slug";
-
 #[derive(Clone)]
 pub struct ProductsRepoMock;
 
@@ -210,7 +306,8 @@ impl ProductsRepo for ProductsRepoMock {
     }
 }
 
-fn new_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsServiceImpl {
+#[allow(unused)]
+fn create_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsServiceImpl<ReposFactoryMock, CacheRolesMock> {
     let database_url = "127.0.0.1";
     let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
     let db_pool = r2d2::Pool::builder()
@@ -229,15 +326,12 @@ fn new_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsSer
     ProductsServiceImpl {
         db_pool: db_pool,
         cpu_pool: cpu_pool,
-        roles_cache: RolesCacheImpl::default(),
+        roles_cache: MOCK_USER_ROLE,
         user_id: user_id,
         client_handle: client_handle,
         elastic_address: "".to_string(),
+        repo_factory: MOCK_REPO_FACTORY,
     }
-}
-
-pub fn create_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsServiceImpl {
-    new_product_service(user_id, handle)
 }
 
 pub fn create_product(id: i32, base_product_id: i32) -> Product {
@@ -286,8 +380,3 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
         attributes: vec![],
     }
 }
-
-pub const MOCK_PRODUCTS: ProductsRepoMock = ProductsRepoMock {};
-pub static MOCK_USER_ID: i32 = 1;
-pub static MOCK_BASE_PRODUCT_ID: i32 = 1;
-pub static MOCK_PRODUCT_ID: i32 = 1;

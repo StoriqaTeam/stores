@@ -16,10 +16,10 @@ pub struct RolesCacheImpl<F: ReposFactory> {
 }
 
 impl<F: ReposFactory> RolesCacheImpl<F> {
-    pub fn new (repo_factory: F) -> Self {
+    pub fn new(repo_factory: F) -> Self {
         Self {
             roles_cache: Arc::new(Mutex::new(HashMap::new())),
-            repo_factory
+            repo_factory,
         }
     }
 }
@@ -36,7 +36,9 @@ impl<F: ReposFactory> RolesCache for RolesCacheImpl<F> {
             Entry::Vacant(v) => db_conn
                 .ok_or(Error::Connection(format_err!("No connection to db")))
                 .and_then(|con| {
-                    repo_factory.create_user_roles_repo(con).list_for_user(user_id)
+                    repo_factory
+                        .create_user_roles_repo(con)
+                        .list_for_user(user_id)
                 })
                 .and_then(move |vec: Vec<Role>| {
                     v.insert(vec.clone());

@@ -33,14 +33,7 @@ pub struct AttributesServiceImpl<F: ReposFactory, A: AttributeCache, R: RolesCac
 }
 
 impl<F: ReposFactory, A: AttributeCache, R: RolesCache> AttributesServiceImpl<F, A, R> {
-    pub fn new(
-        db_pool: DbPool,
-        cpu_pool: CpuPool,
-        roles_cache: R,
-        attributes_cache: A,
-        user_id: Option<i32>,
-        repo_factory: F,
-    ) -> Self {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, attributes_cache: A, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -52,7 +45,9 @@ impl<F: ReposFactory, A: AttributeCache, R: RolesCache> AttributesServiceImpl<F,
     }
 }
 
-impl<F: ReposFactory, A: AttributeCache,  R: RolesCache<Role = Role, Error = RepoError>> AttributesService for AttributesServiceImpl<F, A, R> {
+impl<F: ReposFactory, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> AttributesService
+    for AttributesServiceImpl<F, A, R>
+{
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();

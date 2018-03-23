@@ -46,7 +46,7 @@ use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
-pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> {
+pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache> {
     pub db_pool: DbPool,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser<Route>>,
@@ -58,7 +58,7 @@ pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache, 
     pub attributes_cache: A,
 }
 
-impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> ControllerImpl<F, C, A, R> {
+impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache> ControllerImpl<F, C, A, R> {
     /// Create a new controller based on services
     pub fn new(
         db_pool: DbPool,
@@ -85,7 +85,9 @@ impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = 
     }
 }
 
-impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> Controller for ControllerImpl<F, C, A, R> {
+impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> Controller
+    for ControllerImpl<F, C, A, R>
+{
     /// Handle a request and get future response
     fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();

@@ -30,7 +30,6 @@ pub trait CategoriesService {
     fn delete_attribute_from_category(&self, payload: OldCatAttr) -> ServiceFuture<()>;
 }
 
-
 /// Categories services, responsible for Category-related CRUD operations
 pub struct CategoriesServiceImpl<F: ReposFactory, C: CategoryCache, R: RolesCache> {
     pub db_pool: DbPool,
@@ -42,14 +41,7 @@ pub struct CategoriesServiceImpl<F: ReposFactory, C: CategoryCache, R: RolesCach
 }
 
 impl<F: ReposFactory, C: CategoryCache, R: RolesCache> CategoriesServiceImpl<F, C, R> {
-    pub fn new(
-        db_pool: DbPool,
-        cpu_pool: CpuPool,
-        roles_cache: R,
-        categories_cache: C,
-        user_id: Option<i32>,
-        repo_factory: F,
-    ) -> Self {
+    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, categories_cache: C, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -61,7 +53,9 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache> CategoriesServiceImpl<F, 
     }
 }
 
-impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoError>> CategoriesService for CategoriesServiceImpl<F, C, R> {
+impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoError>> CategoriesService
+    for CategoriesServiceImpl<F, C, R>
+{
     /// Returns category by ID
     fn get(&self, category_id: i32) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
@@ -138,7 +132,9 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    categories_cache.get(&conn, roles_cache, user_id).map_err(ServiceError::from)
+                    categories_cache
+                        .get(&conn, roles_cache, user_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }

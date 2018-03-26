@@ -13,10 +13,28 @@ extern crate tokio_core;
 
 use std::time::SystemTime;
 use std::sync::Arc;
+use std::error::Error;
+use std::fmt;
 
 use futures_cpupool::CpuPool;
 use tokio_core::reactor::Handle;
+
+use r2d2::ManageConnection;
+
 use diesel::pg::PgConnection;
+use diesel::Connection;
+use diesel::ConnectionResult;
+use diesel::QueryResult;
+use diesel::query_builder::AsQuery;
+use diesel::query_builder::QueryFragment;
+use diesel::pg::Pg;
+use diesel::query_builder::QueryId;
+use diesel::sql_types::HasSqlType;
+use diesel::Queryable;
+use diesel::deserialize::QueryableByName;
+use diesel::connection::AnsiTransactionManager;
+use diesel::connection::SimpleConnection;
+
 use r2d2_diesel::ConnectionManager;
 
 use stq_http::client::Config as HttpConfig;
@@ -66,7 +84,7 @@ impl RolesCache for CacheRolesMock {
 pub struct ReposFactoryMock;
 
 impl ReposFactory for ReposFactoryMock {
-    fn create_attributes_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn create_attributes_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
         &self,
         _db_conn: &'a DbConnection,
         _roles_cache: T,
@@ -74,7 +92,7 @@ impl ReposFactory for ReposFactoryMock {
     ) -> Box<AttributesRepo + 'a> {
         unimplemented!()
     }
-    fn create_categories_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn create_categories_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
         &self,
         _db_conn: &'a DbConnection,
         _roles_cache: T,
@@ -82,7 +100,7 @@ impl ReposFactory for ReposFactoryMock {
     ) -> Box<CategoriesRepo + 'a> {
         unimplemented!()
     }
-    fn create_category_attrs_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn create_category_attrs_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
         &self,
         _db_conn: &'a DbConnection,
         _roles_cache: T,
@@ -90,7 +108,7 @@ impl ReposFactory for ReposFactoryMock {
     ) -> Box<CategoryAttrsRepo + 'a> {
         unimplemented!()
     }
-    fn create_base_product_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn create_base_product_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
         &self,
         _db_conn: &'a DbConnection,
         _roles_cache: T,
@@ -98,7 +116,7 @@ impl ReposFactory for ReposFactoryMock {
     ) -> Box<BaseProductsRepo + 'a> {
         unimplemented!()
     }
-    fn create_product_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn create_product_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
         &self,
         _db_conn: &'a DbConnection,
         _roles_cache: T,
@@ -106,7 +124,7 @@ impl ReposFactory for ReposFactoryMock {
     ) -> Box<ProductsRepo + 'a> {
         unimplemented!()
     }
-    fn create_product_attrs_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn create_product_attrs_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
         &self,
         _db_conn: &'a DbConnection,
         _roles_cache: T,
@@ -114,7 +132,7 @@ impl ReposFactory for ReposFactoryMock {
     ) -> Box<ProductAttrsRepo + 'a> {
         unimplemented!()
     }
-    fn create_stores_repo<'a, T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn create_stores_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
         &self,
         _db_conn: &'a DbConnection,
         _roles_cache: T,
@@ -378,5 +396,93 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
     UpdateProductWithAttributes {
         product: create_update_product(),
         attributes: vec![],
+    }
+}
+
+struct MockConnection;
+
+impl Connection for MockConnection {
+    type Backend = Pg;
+    type TransactionManager = AnsiTransactionManager;
+
+    fn establish(database_url: &str) -> ConnectionResult<MockConnection> {
+        Ok(MockConnection {})
+    }
+
+    fn execute(&self, query: &str) -> QueryResult<usize> {
+        unimplemented!()
+    }
+
+    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
+    where
+        T: AsQuery,
+        T::Query: QueryFragment<Pg> + QueryId,
+        Pg: HasSqlType<T::SqlType>,
+        U: Queryable<T::SqlType, Pg>,
+    {
+        unimplemented!()
+    }
+
+    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
+    where
+        T: QueryFragment<Pg> + QueryId,
+        U: QueryableByName<Pg>,
+    {
+        unimplemented!()
+    }
+
+    fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
+    where
+        T: QueryFragment<Pg> + QueryId,
+    {
+        unimplemented!()
+    }
+
+    fn transaction_manager(&self) -> &Self::TransactionManager {
+        unimplemented!()
+    }
+}
+
+impl SimpleConnection for MockConnection {
+    fn batch_execute(&self, query: &str) -> QueryResult<()> {
+        Ok(())
+    }
+}
+
+struct MockConnectionManager;
+
+impl ManageConnection for MockConnectionManager {
+    type Connection = MockConnection;
+    type Error = MockError;
+
+    fn connect(&self) -> Result<MockConnection, MockError> {
+        Ok(MockConnection {})
+    }
+
+    fn is_valid(&self, conn: &mut MockConnection) -> Result<(), MockError> {
+        Ok(())
+    }
+
+    fn has_broken(&self, _conn: &mut MockConnection) -> bool {
+        false
+    }
+}
+
+#[derive(Debug)]
+struct MockError {}
+
+impl fmt::Display for MockError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SuperError is here!")
+    }
+}
+
+impl Error for MockError {
+    fn description(&self) -> &str {
+        "I'm the superhero of errors"
+    }
+
+    fn cause(&self) -> Option<&Error> {
+        None
     }
 }

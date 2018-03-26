@@ -9,6 +9,10 @@ pub mod utils;
 use std::sync::Arc;
 use std::str::FromStr;
 
+use diesel::Connection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+
 use futures::Future;
 use futures::future;
 use futures::IntoFuture;
@@ -17,6 +21,7 @@ use hyper::header::Authorization;
 use hyper::server::Request;
 use futures_cpupool::CpuPool;
 use validator::Validate;
+use r2d2::{ManageConnection, Pool};
 
 use stq_http::controller::Controller;
 use stq_http::request_util::serialize_future;
@@ -36,7 +41,6 @@ use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
-use repos::types::DbPool;
 use repos::categories::CategoryCache;
 use repos::attributes::AttributeCache;
 use repos::repo_factory::*;
@@ -46,8 +50,16 @@ use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
-pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache> {
-    pub db_pool: DbPool,
+pub struct ControllerImpl<T, M, F, C, A, R>
+where
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    C: CategoryCache,
+    A: AttributeCache,
+    R: RolesCache<T>,
+{
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser<Route>>,
     pub config: Config,
@@ -58,10 +70,18 @@ pub struct ControllerImpl<F: ReposFactory, C: CategoryCache, A: AttributeCache, 
     pub attributes_cache: A,
 }
 
-impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache> ControllerImpl<F, C, A, R> {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    C: CategoryCache,
+    A: AttributeCache,
+    R: RolesCache<T>,
+> ControllerImpl<T, M, F, C, A, R>
+{
     /// Create a new controller based on services
     pub fn new(
-        db_pool: DbPool,
+        db_pool: Pool<M>,
         cpu_pool: CpuPool,
         client_handle: ClientHandle,
         config: Config,
@@ -85,8 +105,14 @@ impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache> Contro
     }
 }
 
-impl<F: ReposFactory, C: CategoryCache, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> Controller
-    for ControllerImpl<F, C, A, R>
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    C: CategoryCache,
+    A: AttributeCache,
+    R: RolesCache<T, Role = Role, Error = RepoError>,
+> Controller for ControllerImpl<T, M, F, C, A, R>
 {
     /// Handle a request and get future response
     fn call(&self, req: Request) -> ControllerFuture {

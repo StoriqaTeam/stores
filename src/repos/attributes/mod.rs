@@ -4,22 +4,27 @@ use std::convert::From;
 use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
+use stq_acl::Acl;
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use models::attribute::attributes::dsl::*;
 use models::authorization::*;
 use repos::error::RepoError as Error;
-use repos::types::{DbConnection, RepoResult};
-use repos::acl::{self, BoxedAcl};
+use repos::types::RepoResult;
+use repos::acl;
 
 pub mod attributes_cache;
 
 pub use self::attributes_cache::*;
 
 /// Attributes repository, responsible for handling attribute_values
-pub struct AttributesRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct AttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
 }
 
 pub trait AttributesRepo {
@@ -33,13 +38,13 @@ pub trait AttributesRepo {
     fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute>;
 }
 
-impl<'a> AttributesRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
         Self { db_conn, acl }
     }
 }
 
-impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepo for AttributesRepoImpl<'a, T> {
     /// Find specific attribute by id
     fn find(&self, id_arg: i32) -> RepoResult<Attribute> {
         let query = attributes.filter(id.eq(id_arg));

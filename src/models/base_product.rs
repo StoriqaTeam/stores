@@ -3,11 +3,14 @@ use std::time::SystemTime;
 
 use validator::Validate;
 use diesel::prelude::*;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use serde_json;
 use stq_acl::WithScope;
 
 use super::Store;
-use repos::types::DbConnection;
 use models::{AttrValue, Product, Scope};
 use models::store::stores::dsl as Stores;
 use models::validation_rules::*;
@@ -110,8 +113,8 @@ impl<'a> From<&'a BaseProduct> for UpdateBaseProductViews {
     }
 }
 
-impl WithScope<Scope> for BaseProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for BaseProduct {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {
@@ -130,8 +133,8 @@ impl WithScope<Scope> for BaseProduct {
     }
 }
 
-impl WithScope<Scope> for NewBaseProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewBaseProduct {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

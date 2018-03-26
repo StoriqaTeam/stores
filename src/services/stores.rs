@@ -3,6 +3,10 @@
 use futures_cpupool::CpuPool;
 use futures::prelude::*;
 use diesel::Connection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use r2d2::{ManageConnection, Pool};
+
 use serde_json;
 use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
@@ -13,7 +17,6 @@ use models::authorization::*;
 use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
-use repos::types::DbPool;
 use repos::ReposFactory;
 use repos::error::RepoError;
 
@@ -35,8 +38,13 @@ pub trait StoresService {
 }
 
 /// Stores services, responsible for Store-related CRUD operations
-pub struct StoresServiceImpl<F: ReposFactory, R: RolesCache> {
-    pub db_pool: DbPool,
+pub struct StoresServiceImpl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T>,
+> {
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub roles_cache: R,
     pub user_id: Option<i32>,
@@ -45,9 +53,15 @@ pub struct StoresServiceImpl<F: ReposFactory, R: RolesCache> {
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory, R: RolesCache> StoresServiceImpl<F, R> {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T>,
+> StoresServiceImpl<T, M, F, R>
+{
     pub fn new(
-        db_pool: DbPool,
+        db_pool: Pool<M>,
         cpu_pool: CpuPool,
         roles_cache: R,
         user_id: Option<i32>,
@@ -67,7 +81,13 @@ impl<F: ReposFactory, R: RolesCache> StoresServiceImpl<F, R> {
     }
 }
 
-impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresService for StoresServiceImpl<F, R> {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T, Role = Role, Error = RepoError>,
+> StoresService for StoresServiceImpl<T, M, F, R>
+{
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
@@ -107,7 +127,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresServi
                             el_stores
                                 .into_iter()
                                 .map(|el_store| {
-                                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache.clone(), user_id);
+                                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache.clone(), user_id);
                                     stores_repo.find(el_store.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -129,7 +149,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresServi
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
                     stores_repo.find(store_id).map_err(Error::from)
                 })
         }))
@@ -147,7 +167,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresServi
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
                     stores_repo.deactivate(store_id).map_err(Error::from)
                 })
         }))
@@ -165,7 +185,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresServi
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
                     stores_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -184,7 +204,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresServi
                     .get()
                     .map_err(|e| Error::Connection(e.into()))
                     .and_then(move |conn| {
-                        let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
+                        let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
                         conn.transaction::<Store, Error, _>(move || {
                             serde_json::from_value::<Vec<Translation>>(payload.name.clone())
                                 .map_err(|e| Error::Parse(e.to_string()))
@@ -237,7 +257,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> StoresServi
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
                     stores_repo
                         .find(store_id.clone())
                         .and_then(move |_user| stores_repo.update(store_id, payload))

@@ -1,7 +1,9 @@
 //! Models for managing Roles
 use stq_acl::WithScope;
 use models::{Role, Scope};
-use repos::types::DbConnection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
 
 table! {
     user_roles (id) {
@@ -33,8 +35,8 @@ pub struct OldUserRole {
     pub role: Role,
 }
 
-impl WithScope<Scope> for UserRole {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for UserRole {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id,

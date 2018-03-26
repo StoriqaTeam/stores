@@ -4,13 +4,18 @@ use std::convert::From;
 use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
+use stq_acl::Acl;
 
 use models::{Category, NewCategory, RawCategory, UpdateCategory};
 use models::category::categories::dsl::*;
 use models::authorization::*;
-use repos::types::{DbConnection, RepoResult};
+use repos::types::RepoResult;
 use repos::error::RepoError as Error;
-use repos::acl::{self, BoxedAcl};
+use repos::acl;
 
 pub mod category_attrs;
 pub mod category_cache;
@@ -19,9 +24,9 @@ pub use self::category_attrs::*;
 pub use self::category_cache::*;
 
 /// Categories repository, responsible for handling categorie_values
-pub struct CategoriesRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct CategoriesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
 }
 
 pub trait CategoriesRepo {
@@ -38,13 +43,13 @@ pub trait CategoriesRepo {
     fn get_all(&self) -> RepoResult<Category>;
 }
 
-impl<'a> CategoriesRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
         Self { db_conn, acl }
     }
 }
 
-impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepo for CategoriesRepoImpl<'a, T> {
     /// Find specific category by id
     fn find(&self, id_arg: i32) -> RepoResult<Category> {
         let query = categories.filter(id.eq(id_arg));

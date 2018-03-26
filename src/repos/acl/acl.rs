@@ -1,18 +1,22 @@
 //! Authorization module contains authorization logic for the repo layer app
 use std::rc::Rc;
 use std::collections::HashMap;
+use std::marker::PhantomData;
+
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
 
 use stq_acl::{Acl, RolesCache, WithScope};
 use models::authorization::*;
 use repos::error::RepoError;
-use repos::types::DbConnection;
 
-pub fn check(
-    acl: &Acl<Resource, Action, Scope, RepoError>,
+pub fn check<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>(
+    acl: &Acl<Resource, Action, Scope, RepoError, T>,
     resource: &Resource,
     action: &Action,
-    resources_with_scope: &[&WithScope<Scope>],
-    conn: Option<&DbConnection>,
+    resources_with_scope: &[&WithScope<Scope, T>],
+    conn: Option<&T>,
 ) -> Result<(), RepoError> {
     acl.allows(resource, action, resources_with_scope, conn)
         .and_then(|allowed| {
@@ -24,17 +28,16 @@ pub fn check(
         })
 }
 
-pub type BoxedAcl = Box<Acl<Resource, Action, Scope, RepoError>>;
-
 /// ApplicationAcl contains main logic for manipulation with recources
 #[derive(Clone)]
-pub struct ApplicationAcl<R: RolesCache> {
+pub struct ApplicationAcl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static, R: RolesCache<T>> {
     acls: Rc<HashMap<Role, Vec<Permission>>>,
     roles_cache: R,
     user_id: i32,
+    phantom: PhantomData<T>,
 }
 
-impl<R: RolesCache> ApplicationAcl<R> {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static, R: RolesCache<T>> ApplicationAcl<T, R> {
     pub fn new(roles_cache: R, user_id: i32) -> Self {
         let mut hash = ::std::collections::HashMap::new();
         hash.insert(
@@ -72,17 +75,22 @@ impl<R: RolesCache> ApplicationAcl<R> {
             acls: Rc::new(hash),
             roles_cache: roles_cache,
             user_id: user_id,
+            phantom: PhantomData,
         }
     }
 }
 
-impl<R: RolesCache<Role = Role, Error = RepoError>> Acl<Resource, Action, Scope, RepoError> for ApplicationAcl<R> {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    R: RolesCache<T, Role = Role, Error = RepoError>,
+> Acl<Resource, Action, Scope, RepoError, T> for ApplicationAcl<T, R>
+{
     fn allows(
         &self,
         resource: &Resource,
         action: &Action,
-        resources_with_scope: &[&WithScope<Scope>],
-        conn: Option<&DbConnection>,
+        resources_with_scope: &[&WithScope<Scope, T>],
+        conn: Option<&T>,
     ) -> Result<bool, RepoError> {
         let empty: Vec<Permission> = Vec::new();
         let user_id = &self.user_id;
@@ -108,8 +116,10 @@ impl<R: RolesCache<Role = Role, Error = RepoError>> Acl<Resource, Action, Scope,
 #[derive(Clone, Default)]
 pub struct UnauthorizedAcl;
 
-impl Acl<Resource, Action, Scope, RepoError> for UnauthorizedAcl {
-    fn allows(&self, resource: &Resource, action: &Action, _: &[&WithScope<Scope>], _: Option<&DbConnection>) -> Result<bool, RepoError> {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> Acl<Resource, Action, Scope, RepoError, T>
+    for UnauthorizedAcl
+{
+    fn allows(&self, resource: &Resource, action: &Action, _: &[&WithScope<Scope, T>], _: Option<&T>) -> Result<bool, RepoError> {
         if *action == Action::Read {
             match *resource {
                 Resource::Categories

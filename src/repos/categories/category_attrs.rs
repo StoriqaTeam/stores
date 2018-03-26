@@ -3,18 +3,23 @@ use std::convert::From;
 use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
+use stq_acl::Acl;
 
 use models::{CatAttr, NewCatAttr, OldCatAttr};
 use models::category_attribute::cat_attr_values::dsl::*;
 use models::authorization::*;
 use repos::error::RepoError as Error;
-use repos::types::{DbConnection, RepoResult};
-use repos::acl::{self, BoxedAcl};
+use repos::types::RepoResult;
+use repos::acl;
 
 /// CatAttr repository, responsible for handling cat_attr_values
-pub struct CategoryAttrsRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct CategoryAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
 }
 
 pub trait CategoryAttrsRepo {
@@ -28,13 +33,15 @@ pub trait CategoryAttrsRepo {
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()>;
 }
 
-impl<'a> CategoryAttrsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoryAttrsRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
         Self { db_conn, acl }
     }
 }
 
-impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoryAttrsRepo
+    for CategoryAttrsRepoImpl<'a, T>
+{
     /// Find specific category_attributes by category ID
     fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);

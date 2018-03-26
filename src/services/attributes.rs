@@ -4,11 +4,15 @@ use futures_cpupool::CpuPool;
 
 use stq_acl::RolesCache;
 
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use models::authorization::*;
 use services::types::ServiceFuture;
 use services::error::ServiceError;
-use repos::types::DbPool;
+use r2d2::{ManageConnection, Pool};
 use repos::attributes::AttributeCache;
 use repos::ReposFactory;
 use repos::error::RepoError;
@@ -23,8 +27,14 @@ pub trait AttributesService {
 }
 
 /// Attributes services, responsible for Attribute-related CRUD operations
-pub struct AttributesServiceImpl<F: ReposFactory, A: AttributeCache, R: RolesCache> {
-    pub db_pool: DbPool,
+pub struct AttributesServiceImpl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    F: ReposFactory,
+    A: AttributeCache,
+    R: RolesCache<T>,
+    M: ManageConnection<Connection = T>,
+> {
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub roles_cache: R,
     pub attributes_cache: A,
@@ -32,8 +42,15 @@ pub struct AttributesServiceImpl<F: ReposFactory, A: AttributeCache, R: RolesCac
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory, A: AttributeCache, R: RolesCache> AttributesServiceImpl<F, A, R> {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, attributes_cache: A, user_id: Option<i32>, repo_factory: F) -> Self {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    F: ReposFactory,
+    A: AttributeCache,
+    R: RolesCache<T>,
+    M: ManageConnection<Connection = T>,
+> AttributesServiceImpl<T, F, A, R, M>
+{
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, roles_cache: R, attributes_cache: A, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -45,8 +62,13 @@ impl<F: ReposFactory, A: AttributeCache, R: RolesCache> AttributesServiceImpl<F,
     }
 }
 
-impl<F: ReposFactory, A: AttributeCache, R: RolesCache<Role = Role, Error = RepoError>> AttributesService
-    for AttributesServiceImpl<F, A, R>
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    F: ReposFactory,
+    A: AttributeCache,
+    R: RolesCache<T, Role = Role, Error = RepoError>,
+    M: ManageConnection<Connection = T>,
+> AttributesService for AttributesServiceImpl<T, F, A, R, M>
 {
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {
@@ -61,7 +83,7 @@ impl<F: ReposFactory, A: AttributeCache, R: RolesCache<Role = Role, Error = Repo
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
                     attributes_cache
-                        .get(attribute_id, &conn, roles_cache, user_id)
+                        .get(attribute_id, &*conn, roles_cache, user_id)
                         .map_err(ServiceError::from)
                 })
         }))
@@ -79,7 +101,7 @@ impl<F: ReposFactory, A: AttributeCache, R: RolesCache<Role = Role, Error = Repo
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let attributes_repo = repo_factory.create_attributes_repo(&conn, roles_cache, user_id);
+                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, roles_cache, user_id);
                     attributes_repo
                         .create(new_attribute)
                         .map_err(ServiceError::from)
@@ -100,7 +122,7 @@ impl<F: ReposFactory, A: AttributeCache, R: RolesCache<Role = Role, Error = Repo
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let attributes_repo = repo_factory.create_attributes_repo(&conn, roles_cache, user_id);
+                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, roles_cache, user_id);
                     attributes_repo
                         .update(attribute_id, payload)
                         .and_then(|attribute| attributes_cache.remove(attribute_id).map(|_| attribute))

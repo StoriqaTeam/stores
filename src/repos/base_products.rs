@@ -4,21 +4,23 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
-use diesel::pg::PgConnection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use stq_acl::*;
 
 use models::{BaseProduct, NewBaseProduct, UpdateBaseProduct, UpdateBaseProductViews};
 use models::base_product::base_products::dsl::*;
 use repos::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
+use super::types::RepoResult;
 use models::authorization::*;
 use super::acl;
-use super::acl::BoxedAcl;
 
 /// BaseProducts repository, responsible for handling base_products
-pub struct BaseProductsRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
 }
 
 pub trait BaseProductsRepo {
@@ -38,17 +40,19 @@ pub trait BaseProductsRepo {
     fn deactivate(&self, base_product_id: i32) -> RepoResult<BaseProduct>;
 }
 
-impl<'a> BaseProductsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
         Self { db_conn, acl }
     }
 
-    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> RepoResult<T> {
-        query.get_result::<T>(self.db_conn).map_err(Error::from)
+    fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
+        query.get_result::<Ty>(self.db_conn).map_err(Error::from)
     }
 }
 
-impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepo
+    for BaseProductsRepoImpl<'a, T>
+{
     /// Find specific base_product by ID
     fn find(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
         self.execute_query(base_products.find(base_product_id_arg))
@@ -101,8 +105,8 @@ impl<'a> BaseProductsRepo for BaseProductsRepoImpl<'a> {
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 let resources = base_products_res
                     .iter()
-                    .map(|base_product| (base_product as &WithScope<Scope>))
-                    .collect::<Vec<&WithScope<Scope>>>();
+                    .map(|base_product| (base_product as &WithScope<Scope, T>))
+                    .collect::<Vec<&WithScope<Scope, T>>>();
                 acl::check(
                     &*self.acl,
                     &Resource::BaseProducts,

@@ -6,11 +6,16 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+use stq_acl::Acl;
+
+use models::authorization::*;
 use models::user_role::user_roles::dsl::*;
 use models::{NewUserRole, OldUserRole, Role, UserRole};
-use super::acl::BoxedAcl;
 use super::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
+use super::types::RepoResult;
 
 /// UserRoles repository for handling UserRoles
 pub trait UserRolesRepo {
@@ -28,18 +33,18 @@ pub trait UserRolesRepo {
 }
 
 /// Implementation of UserRoles trait
-pub struct UserRolesRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct UserRolesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
 }
 
-impl<'a> UserRolesRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> UserRolesRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
         Self { db_conn, acl }
     }
 }
 
-impl<'a> UserRolesRepo for UserRolesRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> UserRolesRepo for UserRolesRepoImpl<'a, T> {
     fn list_for_user(&self, user_id_value: i32) -> RepoResult<Vec<Role>> {
         let query = user_roles.filter(user_id.eq(user_id_value));
         query

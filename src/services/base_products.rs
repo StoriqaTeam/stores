@@ -1,14 +1,16 @@
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
-
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
 use stq_acl::RolesCache;
+use r2d2::{ManageConnection, Pool};
 
 use models::*;
 use elastic::{ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
-use repos::types::{DbPool, RepoResult};
+use repos::types::RepoResult;
 use repos::ReposFactory;
 use repos::error::RepoError;
 
@@ -38,8 +40,13 @@ pub trait BaseProductsService {
 }
 
 /// Products services, responsible for Product-related CRUD operations
-pub struct BaseProductsServiceImpl<F: ReposFactory, R: RolesCache> {
-    pub db_pool: DbPool,
+pub struct BaseProductsServiceImpl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T>,
+> {
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub roles_cache: R,
     pub user_id: Option<i32>,
@@ -48,9 +55,15 @@ pub struct BaseProductsServiceImpl<F: ReposFactory, R: RolesCache> {
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory, R: RolesCache> BaseProductsServiceImpl<F, R> {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T>,
+> BaseProductsServiceImpl<T, M, F, R>
+{
     pub fn new(
-        db_pool: DbPool,
+        db_pool: Pool<M>,
         cpu_pool: CpuPool,
         roles_cache: R,
         user_id: Option<i32>,
@@ -70,7 +83,13 @@ impl<F: ReposFactory, R: RolesCache> BaseProductsServiceImpl<F, R> {
     }
 }
 
-impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProductsService for BaseProductsServiceImpl<F, R> {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T, Role = Role, Error = RepoError>,
+> BaseProductsService for BaseProductsServiceImpl<T, M, F, R>
+{
     fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
             let client_handle = self.client_handle.clone();
@@ -96,7 +115,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache.clone(), user_id);
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
                                     base_products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -132,7 +151,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache.clone(), user_id);
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
                                     base_products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -168,7 +187,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache.clone(), user_id);
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
                                     base_products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -203,7 +222,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
                     base_products_repo.find(product_id).map_err(Error::from)
                 })
         }))
@@ -221,9 +240,9 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache.clone(), user_id);
-                    let products_repo = repo_factory.create_product_repo(&conn, roles_cache.clone(), user_id);
-                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&conn, roles_cache.clone(), user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
+                    let products_repo = repo_factory.create_product_repo(&*conn, roles_cache.clone(), user_id);
+                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, roles_cache.clone(), user_id);
                     base_products_repo
                         .find(base_product_id)
                         .map(|base_product| base_product)
@@ -266,7 +285,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
                     base_products_repo
                         .deactivate(product_id)
                         .map_err(Error::from)
@@ -286,7 +305,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
                     base_products_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -304,7 +323,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
                     conn.transaction::<(BaseProduct), Error, _>(move || base_products_repo.create(payload).map_err(Error::from))
                 })
         }))
@@ -323,7 +342,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> BaseProduct
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
                     conn.transaction::<(BaseProduct), Error, _>(move || {
                         base_products_repo
                             .update(product_id, payload)

@@ -6,6 +6,9 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
 use diesel::dsl::exists;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
 
 use stq_acl::*;
 use stq_static_resources::Translation;
@@ -13,15 +16,14 @@ use stq_static_resources::Translation;
 use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
 use super::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
+use super::types::RepoResult;
 use models::authorization::*;
 use super::acl;
-use super::acl::BoxedAcl;
 
 /// Stores repository, responsible for handling stores
-pub struct StoresRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
 }
 
 pub trait StoresRepo {
@@ -47,17 +49,17 @@ pub trait StoresRepo {
     fn name_exists(&self, name: Vec<Translation>) -> RepoResult<bool>;
 }
 
-impl<'a> StoresRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
         Self { db_conn, acl }
     }
 
-    fn execute_query<T: Send + 'static, U: LoadQuery<DbConnection, T> + Send + 'static>(&self, query: U) -> Result<T, Error> {
-        query.get_result::<T>(self.db_conn).map_err(Error::from)
+    fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
+        query.get_result::<Ty>(self.db_conn).map_err(Error::from)
     }
 }
 
-impl<'a> StoresRepo for StoresRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepo for StoresRepoImpl<'a, T> {
     /// Find specific store by ID
     fn find(&self, store_id_arg: i32) -> RepoResult<Store> {
         self.execute_query(stores.find(store_id_arg))
@@ -102,8 +104,8 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
             .and_then(|stores_res: Vec<Store>| {
                 let resources = stores_res
                     .iter()
-                    .map(|store| (store as &WithScope<Scope>))
-                    .collect::<Vec<&WithScope<Scope>>>();
+                    .map(|store| (store as &WithScope<Scope, T>))
+                    .collect::<Vec<&WithScope<Scope, T>>>();
                 acl::check(
                     &*self.acl,
                     &Resource::Stores,

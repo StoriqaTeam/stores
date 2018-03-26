@@ -129,21 +129,19 @@ pub fn start_server(config: Config) {
     // Attributes cache
     let attributes_cache = AttributeCacheImpl::new(repo_factory);
 
-    // Controller
-    let controller = controller::ControllerImpl::new(
-        r2d2_pool,
-        cpu_pool,
-        client_handle,
-        config,
-        repo_factory,
-        roles_cache,
-        category_cache,
-        attributes_cache,
-    );
-
     let serve = Http::new()
         .serve_addr_handle(&address, &handle, move || {
-            let controller = Box::new(controller.clone());
+            let controller = controller::ControllerImpl::new(
+                r2d2_pool.clone(),
+                cpu_pool.clone(),
+                client_handle.clone(),
+                config.clone(),
+                repo_factory.clone(),
+                roles_cache.clone(),
+                category_cache.clone(),
+                attributes_cache.clone(),
+            );
+            let controller = Box::new(controller);
 
             // Prepare application
             let app = Application { controller };

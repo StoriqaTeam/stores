@@ -3,7 +3,9 @@ use stq_acl::WithScope;
 
 use models::product::products::dsl as Products;
 use models::{AttributeType, Product, Scope};
-use repos::types::DbConnection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
 
 /// diesel table for product attributes
 table! {
@@ -86,8 +88,8 @@ impl UpdateProdAttr {
     }
 }
 
-impl WithScope<Scope> for ProdAttr {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for ProdAttr {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {
@@ -106,8 +108,8 @@ impl WithScope<Scope> for ProdAttr {
     }
 }
 
-impl WithScope<Scope> for NewProdAttr {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewProdAttr {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

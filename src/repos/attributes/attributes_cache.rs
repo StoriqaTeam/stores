@@ -3,19 +3,26 @@ use std::sync::{Arc, Mutex};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use stq_acl::RolesCache;
 
 use models::Attribute;
 use models::authorization::*;
 use repos::error::RepoError;
 use repos::ReposFactory;
-use repos::types::{DbConnection, RepoResult};
+use repos::types::RepoResult;
 
 pub trait AttributeCache: Clone + Send + 'static {
-    fn get<T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn get<
+        C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        T: RolesCache<C, Role = Role, Error = RepoError> + 'static,
+    >(
         &self,
         id: i32,
-        db_conn: &DbConnection,
+        db_conn: &C,
         roles_cache: T,
         user_id: Option<i32>,
     ) -> RepoResult<Attribute>;
@@ -38,10 +45,13 @@ impl<F: ReposFactory> AttributeCacheImpl<F> {
 }
 
 impl<F: ReposFactory> AttributeCache for AttributeCacheImpl<F> {
-    fn get<T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn get<
+        C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        T: RolesCache<C, Role = Role, Error = RepoError> + 'static,
+    >(
         &self,
         id: i32,
-        db_conn: &DbConnection,
+        db_conn: &C,
         roles_cache: T,
         user_id: Option<i32>,
     ) -> RepoResult<Attribute> {

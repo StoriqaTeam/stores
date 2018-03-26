@@ -2,12 +2,16 @@
 
 use futures_cpupool::CpuPool;
 
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+use r2d2::{ManageConnection, Pool};
+
 use stq_acl::RolesCache;
 
 use models::{NewUserRole, OldUserRole, Role, UserRole};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
-use repos::types::DbPool;
 use repos::ReposFactory;
 use repos::error::RepoError;
 
@@ -25,15 +29,26 @@ pub trait UserRolesService {
 }
 
 /// UserRoles services, responsible for UserRole-related CRUD operations
-pub struct UserRolesServiceImpl<F: ReposFactory, R: RolesCache> {
-    pub db_pool: DbPool,
+pub struct UserRolesServiceImpl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T>,
+> {
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub cached_roles: R,
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory, R: RolesCache> UserRolesServiceImpl<F, R> {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, cached_roles: R, repo_factory: F) -> Self {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T>,
+> UserRolesServiceImpl<T, M, F, R>
+{
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, cached_roles: R, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -43,7 +58,13 @@ impl<F: ReposFactory, R: RolesCache> UserRolesServiceImpl<F, R> {
     }
 }
 
-impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> UserRolesService for UserRolesServiceImpl<F, R> {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    R: RolesCache<T, Role = Role, Error = RepoError>,
+> UserRolesService for UserRolesServiceImpl<T, M, F, R>
+{
     /// Returns role by user ID
     fn get_roles(&self, user_id: i32) -> ServiceFuture<Vec<Role>> {
         let db_pool = self.db_pool.clone();
@@ -55,7 +76,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> UserRolesSe
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
                     cached_roles
-                        .get(user_id, Some(&conn))
+                        .get(user_id, Some(&*conn))
                         .map_err(ServiceError::from)
                 })
         }))
@@ -73,7 +94,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> UserRolesSe
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let user_roles_repo = repo_factory.create_user_roles_repo(&conn);
+                    let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                     user_roles_repo.delete(payload).map_err(ServiceError::from)
                 })
                 .and_then(|user_role| {
@@ -97,7 +118,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> UserRolesSe
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let user_roles_repo = repo_factory.create_user_roles_repo(&conn);
+                    let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                     user_roles_repo
                         .create(new_user_role)
                         .map_err(ServiceError::from)
@@ -122,7 +143,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> UserRolesSe
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let user_roles_repo = repo_factory.create_user_roles_repo(&conn);
+                    let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                     user_roles_repo
                         .delete_by_user_id(user_id_arg)
                         .map_err(ServiceError::from)
@@ -151,7 +172,7 @@ impl<F: ReposFactory, R: RolesCache<Role = Role, Error = RepoError>> UserRolesSe
                         user_id: user_id_arg,
                         role: Role::User,
                     };
-                    let user_roles_repo = repo_factory.create_user_roles_repo(&conn);
+                    let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                     user_roles_repo
                         .create(defaul_role)
                         .map_err(ServiceError::from)

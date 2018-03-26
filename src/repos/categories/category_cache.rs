@@ -1,18 +1,25 @@
 //! CategoryCache is a module that caches received from db information about user and his categories
 use std::sync::{Arc, Mutex};
 
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use stq_acl::RolesCache;
 
-use repos::types::{DbConnection, RepoResult};
+use repos::types::RepoResult;
 use repos::ReposFactory;
 use models::Category;
 use models::authorization::*;
 use repos::error::RepoError;
 
 pub trait CategoryCache: Clone + Send + 'static {
-    fn get<T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn get<
+        C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        T: RolesCache<C, Role = Role, Error = RepoError> + 'static,
+    >(
         &self,
-        db_conn: &DbConnection,
+        db_conn: &C,
         roles_cache: T,
         user_id: Option<i32>,
     ) -> RepoResult<Category>;
@@ -35,9 +42,12 @@ impl<F: ReposFactory> CategoryCacheImpl<F> {
 }
 
 impl<F: ReposFactory> CategoryCache for CategoryCacheImpl<F> {
-    fn get<T: RolesCache<Role = Role, Error = RepoError> + 'static>(
+    fn get<
+        C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        T: RolesCache<C, Role = Role, Error = RepoError> + 'static,
+    >(
         &self,
-        db_conn: &DbConnection,
+        db_conn: &C,
         roles_cache: T,
         user_id: Option<i32>,
     ) -> RepoResult<Category> {

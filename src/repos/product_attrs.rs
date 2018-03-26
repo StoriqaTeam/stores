@@ -3,20 +3,23 @@ use std::convert::From;
 use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use stq_acl::*;
 
 use models::{NewProdAttr, ProdAttr, UpdateProdAttr};
 use models::attribute_product::prod_attr_values::dsl::*;
 use repos::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
+use super::types::RepoResult;
 use models::authorization::*;
 use super::acl;
-use super::acl::BoxedAcl;
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
-pub struct ProductAttrsRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
 }
 
 pub trait ProductAttrsRepo {
@@ -30,13 +33,15 @@ pub trait ProductAttrsRepo {
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
 }
 
-impl<'a> ProductAttrsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
         Self { db_conn, acl }
     }
 }
 
-impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepo
+    for ProductAttrsRepoImpl<'a, T>
+{
     /// Find specific product_attributes by product ID
     fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
         let query = prod_attr_values
@@ -49,8 +54,8 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 let resources = prod_attrs_res
                     .iter()
-                    .map(|prod_attr| (prod_attr as &WithScope<Scope>))
-                    .collect::<Vec<&WithScope<Scope>>>();
+                    .map(|prod_attr| (prod_attr as &WithScope<Scope, T>))
+                    .collect::<Vec<&WithScope<Scope, T>>>();
                 acl::check(
                     &*self.acl,
                     &Resource::ProductAttrs,

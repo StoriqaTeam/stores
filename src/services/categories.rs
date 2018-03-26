@@ -3,12 +3,17 @@
 use futures_cpupool::CpuPool;
 use stq_acl::RolesCache;
 
+use diesel::Connection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use r2d2::{ManageConnection, Pool};
+
 use models::{Category, NewCategory, UpdateCategory};
 use models::{Attribute, NewCatAttr, OldCatAttr};
 use models::authorization::*;
 use super::types::ServiceFuture;
 use super::error::ServiceError;
-use repos::types::{DbPool, RepoResult};
+use repos::types::RepoResult;
 use repos::categories::CategoryCache;
 use repos::ReposFactory;
 use repos::error::RepoError;
@@ -31,8 +36,14 @@ pub trait CategoriesService {
 }
 
 /// Categories services, responsible for Category-related CRUD operations
-pub struct CategoriesServiceImpl<F: ReposFactory, C: CategoryCache, R: RolesCache> {
-    pub db_pool: DbPool,
+pub struct CategoriesServiceImpl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    C: CategoryCache,
+    R: RolesCache<T>,
+> {
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub roles_cache: R,
     pub categories_cache: C,
@@ -40,8 +51,15 @@ pub struct CategoriesServiceImpl<F: ReposFactory, C: CategoryCache, R: RolesCach
     pub repo_factory: F,
 }
 
-impl<F: ReposFactory, C: CategoryCache, R: RolesCache> CategoriesServiceImpl<F, C, R> {
-    pub fn new(db_pool: DbPool, cpu_pool: CpuPool, roles_cache: R, categories_cache: C, user_id: Option<i32>, repo_factory: F) -> Self {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    C: CategoryCache,
+    R: RolesCache<T>,
+> CategoriesServiceImpl<T, M, F, C, R>
+{
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, roles_cache: R, categories_cache: C, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -53,8 +71,13 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache> CategoriesServiceImpl<F, 
     }
 }
 
-impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoError>> CategoriesService
-    for CategoriesServiceImpl<F, C, R>
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory,
+    C: CategoryCache,
+    R: RolesCache<T, Role = Role, Error = RepoError>,
+> CategoriesService for CategoriesServiceImpl<T, M, F, C, R>
 {
     /// Returns category by ID
     fn get(&self, category_id: i32) -> ServiceFuture<Category> {
@@ -68,7 +91,7 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let categories_repo = repo_factory.create_categories_repo(&conn, roles_cache, user_id);
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, roles_cache, user_id);
                     categories_repo
                         .find(category_id)
                         .map_err(ServiceError::from)
@@ -89,7 +112,7 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let categories_repo = repo_factory.create_categories_repo(&conn, roles_cache, user_id);
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, roles_cache, user_id);
                     categories_repo
                         .create(new_category)
                         .and_then(|category| categories_cache.clear().map(|_| category))
@@ -111,7 +134,7 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let categories_repo = repo_factory.create_categories_repo(&conn, roles_cache, user_id);
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, roles_cache, user_id);
                     categories_repo
                         .update(category_id, payload)
                         .and_then(|category| categories_cache.clear().map(|_| category))
@@ -133,7 +156,7 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
                     categories_cache
-                        .get(&conn, roles_cache, user_id)
+                        .get(&*conn, roles_cache, user_id)
                         .map_err(ServiceError::from)
                 })
         }))
@@ -151,8 +174,8 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&conn, roles_cache.clone(), user_id);
-                    let attrs_repo = repo_factory.create_attributes_repo(&conn, roles_cache.clone(), user_id);
+                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, roles_cache.clone(), user_id);
+                    let attrs_repo = repo_factory.create_attributes_repo(&*conn, roles_cache.clone(), user_id);
                     category_attrs_repo
                         .find_all_attributes(category_id_arg)
                         .and_then(|cat_attrs| {
@@ -178,7 +201,7 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&conn, roles_cache, user_id);
+                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, roles_cache, user_id);
                     category_attrs_repo
                         .create(payload)
                         .map_err(ServiceError::from)
@@ -198,7 +221,7 @@ impl<F: ReposFactory, C: CategoryCache, R: RolesCache<Role = Role, Error = RepoE
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&conn, roles_cache, user_id);
+                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, roles_cache, user_id);
                     category_attrs_repo
                         .delete(payload)
                         .map_err(ServiceError::from)

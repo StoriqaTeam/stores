@@ -3,10 +3,13 @@ use std::time::SystemTime;
 
 use validator::Validate;
 use serde_json;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
 
-use repos::types::DbConnection;
-use models::validation_rules::*;
 use stq_acl::WithScope;
+
+use models::validation_rules::*;
 use models::Scope;
 
 /// diesel table for stores
@@ -135,8 +138,8 @@ pub struct SearchStore {
     pub name: String,
 }
 
-impl WithScope<Scope> for Store {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for Store {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id,
@@ -144,8 +147,8 @@ impl WithScope<Scope> for Store {
     }
 }
 
-impl WithScope<Scope> for NewStore {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewStore {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => self.user_id == user_id,

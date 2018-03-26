@@ -3,7 +3,10 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use repos::types::DbConnection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use models::authorization::*;
 use stq_acl::RolesCache;
 use repos::error::RepoError as Error;
@@ -24,11 +27,13 @@ impl<F: ReposFactory> RolesCacheImpl<F> {
     }
 }
 
-impl<F: ReposFactory> RolesCache for RolesCacheImpl<F> {
+impl<F: ReposFactory, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> RolesCache<T>
+    for RolesCacheImpl<F>
+{
     type Role = Role;
     type Error = Error;
 
-    fn get(&self, user_id: i32, db_conn: Option<&DbConnection>) -> Result<Vec<Self::Role>, Self::Error> {
+    fn get(&self, user_id: i32, db_conn: Option<&T>) -> Result<Vec<Self::Role>, Self::Error> {
         let mut hash_map = self.roles_cache.lock().unwrap();
         let repo_factory = self.repo_factory;
         match hash_map.entry(user_id) {

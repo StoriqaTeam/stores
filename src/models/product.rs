@@ -3,12 +3,15 @@ use std::time::SystemTime;
 
 use validator::Validate;
 use diesel::prelude::*;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use stq_acl::WithScope;
 
 use models::base_product::base_products::dsl as BaseProducts;
 use models::{AttrValue, AttributeFilter, BaseProduct, Scope};
 use models::validation_rules::*;
-use repos::types::DbConnection;
 
 /// diesel table for products
 table! {
@@ -100,8 +103,8 @@ pub struct MostDiscountProducts {
     pub options: Option<SearchOptions>,
 }
 
-impl WithScope<Scope> for Product {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for Product {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {
@@ -120,8 +123,8 @@ impl WithScope<Scope> for Product {
     }
 }
 
-impl WithScope<Scope> for NewProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
+impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewProduct {
+    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

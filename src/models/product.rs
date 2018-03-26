@@ -2,6 +2,7 @@
 use std::time::SystemTime;
 
 use validator::Validate;
+use serde_json;
 use diesel::prelude::*;
 use stq_acl::WithScope;
 
@@ -18,6 +19,7 @@ table! {
         is_active -> Bool,
         discount -> Nullable<Double>,
         photo_main -> Nullable<VarChar>,
+        additional_photos -> Nullable<Jsonb>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Double>,
         created_at -> Timestamp, // UTC 0, generated at db level
@@ -34,6 +36,7 @@ pub struct Product {
     pub is_active: bool,
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
+    pub additional_photos: Option<serde_json::Value>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f64>,
     pub created_at: SystemTime,
@@ -48,6 +51,8 @@ pub struct NewProduct {
     #[validate(custom = "validate_non_negative")]
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
+    #[validate(custom = "validate_urls")]
+    pub additional_photos: Option<serde_json::Value>,
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f64>,
@@ -67,6 +72,8 @@ pub struct UpdateProduct {
     #[validate(custom = "validate_non_negative")]
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
+    #[validate(custom = "validate_urls")]
+    pub additional_photos: Option<serde_json::Value>,
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f64>,

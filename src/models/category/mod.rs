@@ -30,7 +30,7 @@ pub struct RawCategory {
 }
 
 /// Payload for creating categories
-#[derive(Serialize, Deserialize, Insertable, Clone, Validate)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Validate, Debug)]
 #[table_name = "categories"]
 pub struct NewCategory {
     #[validate(custom = "validate_translation")]
@@ -40,7 +40,7 @@ pub struct NewCategory {
 }
 
 /// Payload for updating categories
-#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate)]
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
 #[table_name = "categories"]
 pub struct UpdateCategory {
     #[validate(custom = "validate_translation")]

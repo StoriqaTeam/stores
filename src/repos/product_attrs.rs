@@ -39,6 +39,7 @@ impl<'a> ProductAttrsRepoImpl<'a> {
 impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
     /// Find specific product_attributes by product ID
     fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+        debug!("Find all attributes of product id {}.", product_id_arg);
         let query = prod_attr_values
             .filter(prod_id.eq(product_id_arg))
             .order(id);
@@ -63,6 +64,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
 
     /// Creates new product_attribute
     fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
+        debug!("Create new product attribute {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::ProductAttrs,
@@ -78,6 +80,7 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
     }
 
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
+        debug!("Updating product attribute with payload {:?}.", payload);
         let query = prod_attr_values
             .filter(prod_id.eq(payload.prod_id))
             .filter(attr_id.eq(payload.attr_id));

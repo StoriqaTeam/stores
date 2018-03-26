@@ -41,7 +41,7 @@ pub struct Product {
 }
 
 /// Payload for creating products
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone, Debug)]
 #[table_name = "products"]
 pub struct NewProduct {
     pub base_product_id: i32,
@@ -54,14 +54,14 @@ pub struct NewProduct {
 }
 
 /// Payload for creating products and attributes
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NewProductWithAttributes {
     pub product: NewProduct,
     pub attributes: Vec<AttrValue>,
 }
 
 /// Payload for updating products
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone, Debug)]
 #[table_name = "products"]
 pub struct UpdateProduct {
     #[validate(custom = "validate_non_negative")]
@@ -72,7 +72,7 @@ pub struct UpdateProduct {
     pub cashback: Option<f64>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateProductWithAttributes {
     pub product: UpdateProduct,
     pub attributes: Vec<AttrValue>,

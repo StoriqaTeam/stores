@@ -76,7 +76,7 @@ impl From<Store> for ElasticStore {
 }
 
 /// Payload for creating stores
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone, Debug)]
 #[table_name = "stores"]
 pub struct NewStore {
     #[validate(custom = "validate_translation")]
@@ -104,7 +104,7 @@ pub struct NewStore {
 }
 
 /// Payload for updating users
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Debug)]
 #[table_name = "stores"]
 pub struct UpdateStore {
     #[validate(custom = "validate_translation")]
@@ -130,7 +130,7 @@ pub struct UpdateStore {
     pub slogan: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchStore {
     pub name: String,
 }

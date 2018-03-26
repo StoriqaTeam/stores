@@ -42,6 +42,7 @@ impl<'a> AttributesRepoImpl<'a> {
 impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
     /// Find specific attribute by id
     fn find(&self, id_arg: i32) -> RepoResult<Attribute> {
+        debug!("Find in attributes with id {}.", id_arg);
         let query = attributes.filter(id.eq(id_arg));
 
         query
@@ -60,6 +61,7 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
 
     /// Creates new attribute
     fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
+        debug!("Create attribute {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::Attributes,
@@ -76,6 +78,10 @@ impl<'a> AttributesRepo for AttributesRepoImpl<'a> {
 
     /// Updates specific attribute
     fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
+        debug!(
+            "Updating attribute with id {} and payload {:?}.",
+            attribute_id_arg, payload
+        );
         let query = attributes.find(attribute_id_arg);
 
         query

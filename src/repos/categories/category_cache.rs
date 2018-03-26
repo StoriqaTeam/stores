@@ -21,6 +21,7 @@ impl CategoryCacheImpl {
                 .get_all()
                 .and_then(|cat| {
                     *category = Some(cat.clone());
+                    debug!("Added category {:?} to categories cache.", cat);
                     Ok(cat)
                 })
         }

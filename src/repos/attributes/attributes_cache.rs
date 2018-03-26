@@ -22,6 +22,10 @@ impl AttributeCacheImpl {
                 .find(id)
                 .and_then(move |attr| {
                     v.insert(attr.clone());
+                    debug!(
+                        "Added attribute {:?} with id {} to attributes cache.",
+                        attr, id
+                    );
                     Ok(attr)
                 }),
         }

@@ -54,6 +54,7 @@ impl<'a> ProductsRepoImpl<'a> {
 impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
     /// Find specific product by ID
     fn find(&self, product_id_arg: i32) -> RepoResult<Product> {
+        debug!("Find in products with id {}.", product_id_arg);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
                 acl::check(
@@ -68,6 +69,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<Product> {
+        debug!("Create products {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::Products,
@@ -84,6 +86,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Product>> {
+        debug!("Find in products with ids from {} count {}.", from, count);
         let query = products
             .filter(is_active.eq(true))
             .filter(id.ge(from))
@@ -110,6 +113,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Returns list of products with base id
     fn find_with_base_id(&self, base_id_arg: i32) -> RepoResult<Vec<Product>> {
+        debug!("Find in products with id {}.", base_id_arg);
         let query = products
             .filter(is_active.eq(true))
             .filter(base_product_id.ge(base_id_arg));
@@ -134,6 +138,10 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Updates specific product
     fn update(&self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
+        debug!(
+            "Updating base product with id {} and payload {:?}.",
+            product_id_arg, payload
+        );
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
                 acl::check(
@@ -158,6 +166,7 @@ impl<'a> ProductsRepo for ProductsRepoImpl<'a> {
 
     /// Deactivates specific product
     fn deactivate(&self, product_id_arg: i32) -> RepoResult<Product> {
+        debug!("Deactivate base product with id {}.", product_id_arg);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
                 acl::check(

@@ -6,7 +6,7 @@ use models::*;
 use repos::{BaseProductsRepo, BaseProductsRepoImpl, ProductAttrsRepo, ProductAttrsRepoImpl, ProductsRepo, ProductsRepoImpl};
 use elastic::{ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
-use super::error::ServiceError as Error;
+use super::error::ServiceError;
 use repos::types::{DbPool, RepoResult};
 use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 
@@ -79,7 +79,7 @@ impl BaseProductsService for BaseProductsServiceImpl {
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .search_by_name(search_product, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products.and_then({
@@ -91,14 +91,22 @@ impl BaseProductsService for BaseProductsServiceImpl {
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Connection(e.into()))
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
                         .and_then(move |conn| {
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
                                     let acl = acl_for_id(roles_cache.clone(), user_id);
                                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                                    products_repo.find(el_product.id).map_err(Error::from)
+                                    products_repo
+                                        .find(el_product.id)
+                                        .map_err(ServiceError::from)
                                 })
                                 .collect()
                         })
@@ -115,7 +123,7 @@ impl BaseProductsService for BaseProductsServiceImpl {
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .search_most_viewed(prod, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products.and_then({
@@ -127,14 +135,22 @@ impl BaseProductsService for BaseProductsServiceImpl {
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Connection(e.into()))
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
                         .and_then(move |conn| {
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
                                     let acl = acl_for_id(roles_cache.clone(), user_id);
                                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                                    products_repo.find(el_product.id).map_err(Error::from)
+                                    products_repo
+                                        .find(el_product.id)
+                                        .map_err(ServiceError::from)
                                 })
                                 .collect()
                         })
@@ -151,7 +167,7 @@ impl BaseProductsService for BaseProductsServiceImpl {
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .search_most_discount(prod, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products.and_then({
@@ -163,14 +179,22 @@ impl BaseProductsService for BaseProductsServiceImpl {
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Connection(e.into()))
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
                         .and_then(move |conn| {
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
                                     let acl = acl_for_id(roles_cache.clone(), user_id);
                                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                                    products_repo.find(el_product.id).map_err(Error::from)
+                                    products_repo
+                                        .find(el_product.id)
+                                        .map_err(ServiceError::from)
                                 })
                                 .collect()
                         })
@@ -186,7 +210,7 @@ impl BaseProductsService for BaseProductsServiceImpl {
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .auto_complete(name, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products_names)
@@ -201,11 +225,17 @@ impl BaseProductsService for BaseProductsServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                    products_repo.find(product_id).map_err(Error::from)
+                    products_repo.find(product_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -219,7 +249,13 @@ impl BaseProductsService for BaseProductsServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let base_products_repo = BaseProductsRepoImpl::new(&conn, acl);
@@ -252,7 +288,7 @@ impl BaseProductsService for BaseProductsServiceImpl {
                                         .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
                                 })
                         })
-                        .map_err(Error::from)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -266,12 +302,20 @@ impl BaseProductsService for BaseProductsServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
 
                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                    products_repo.deactivate(product_id).map_err(Error::from)
+                    products_repo
+                        .deactivate(product_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -285,11 +329,17 @@ impl BaseProductsService for BaseProductsServiceImpl {
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache, user_id);
                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                    products_repo.list(from, count).map_err(Error::from)
+                    products_repo.list(from, count).map_err(ServiceError::from)
                 })
         }))
     }
@@ -303,11 +353,17 @@ impl BaseProductsService for BaseProductsServiceImpl {
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                    conn.transaction::<(BaseProduct), Error, _>(move || products_repo.create(payload).map_err(Error::from))
+                    conn.transaction::<(BaseProduct), ServiceError, _>(move || products_repo.create(payload).map_err(ServiceError::from))
                 })
         }))
     }
@@ -322,14 +378,20 @@ impl BaseProductsService for BaseProductsServiceImpl {
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let acl = acl_for_id(roles_cache.clone(), user_id);
                     let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                    conn.transaction::<(BaseProduct), Error, _>(move || {
+                    conn.transaction::<(BaseProduct), ServiceError, _>(move || {
                         products_repo
                             .update(product_id, payload)
-                            .map_err(Error::from)
+                            .map_err(ServiceError::from)
                     })
                 })
         }))

@@ -30,6 +30,10 @@ impl RolesCache for RolesCacheImpl {
                 })
                 .and_then(move |vec: Vec<Role>| {
                     v.insert(vec.clone());
+                    debug!(
+                        "Added roles {:?} for user_id {} to roles cache.",
+                        vec, user_id
+                    );
                     Ok(vec)
                 }),
         }

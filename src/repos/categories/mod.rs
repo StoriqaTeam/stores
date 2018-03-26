@@ -47,6 +47,7 @@ impl<'a> CategoriesRepoImpl<'a> {
 impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
     /// Find specific category by id
     fn find(&self, id_arg: i32) -> RepoResult<Category> {
+        debug!("Find in categories with id {}.", id_arg);
         let query = categories.filter(id.eq(id_arg));
 
         query
@@ -78,6 +79,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
 
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category> {
+        debug!("Create new category {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::Categories,
@@ -98,8 +100,11 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
 
     /// Updates specific category
     fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category> {
+        debug!(
+            "Updating category with id {} and payload {:?}.",
+            category_id_arg, payload
+        );
         let query = categories.find(category_id_arg);
-
         query
             .first::<RawCategory>(&**self.db_conn)
             .map_err(Error::from)
@@ -136,6 +141,7 @@ impl<'a> CategoriesRepo for CategoriesRepoImpl<'a> {
     }
 
     fn get_all(&self) -> RepoResult<Category> {
+        debug!("get all categories request.");
         acl::check(
             &*self.acl,
             &Resource::Categories,

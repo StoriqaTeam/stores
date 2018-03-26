@@ -11,6 +11,7 @@ use stq_http::client::ClientHandle;
 use models::{ElasticIndex, ElasticProduct, Filter, MostDiscountProducts, MostViewedProducts, SearchProductsByName, SearchResponse};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
+use super::{log_elastic_req, log_elastic_resp};
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsElasticImpl {
@@ -44,6 +45,7 @@ impl ProductsElasticImpl {
 impl ProductsElastic for ProductsElasticImpl {
     /// Find specific products by name limited by `count` parameters
     fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        log_elastic_req(&prod);
         let name_query = json!({
             "bool" : {
                 "should" : [
@@ -156,12 +158,14 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
         )
     }
 
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        log_elastic_req(&prod);
         let max_views_agg = json!({
             "max_views" : { "max" : { "field" : "views" } }
         });
@@ -245,12 +249,14 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
         )
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
     fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        log_elastic_req(&prod);
         let max_views_agg = json!({
            "resellers" : {
                 "nested" : {
@@ -341,11 +347,13 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
         )
     }
 
     fn auto_complete(&self, name: String, count: i64, _offset: i64) -> RepoFuture<Vec<String>> {
+        log_elastic_req(&name);
         let query = json!({
             "suggest": {
                 "name-suggest" : {
@@ -370,6 +378,7 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.suggested_texts())),
         )
     }

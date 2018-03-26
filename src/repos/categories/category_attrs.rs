@@ -37,8 +37,11 @@ impl<'a> CategoryAttrsRepoImpl<'a> {
 impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
     /// Find specific category_attributes by category ID
     fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
+        debug!(
+            "Find all attributes for category with id {}.",
+            category_id_arg
+        );
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
-
         query
             .get_results(&**self.db_conn)
             .map_err(Error::from)
@@ -55,6 +58,7 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
 
     /// Creates new category attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<()> {
+        debug!("Create new category attribute {:?}.", payload);
         acl::check(
             &*self.acl,
             &Resource::CategoryAttrs,
@@ -72,6 +76,7 @@ impl<'a> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a> {
 
     /// Delete category attribute
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
+        debug!("Delete category attributewith payload {:?}.", payload);
         let filtered = cat_attr_values
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));

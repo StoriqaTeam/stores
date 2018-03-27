@@ -8,7 +8,8 @@ use repos::error::RepoError;
 pub trait CategoryCache: Clone + Send + 'static {
     fn get(&self) -> RepoResult<Category>;
     fn clear(&self);
-    fn contains(&self) -> bool;
+    fn is_some(&self) -> bool;
+    fn set(&self, cat: Category);
 }
 
 #[derive(Clone, Default)]
@@ -39,8 +40,13 @@ impl CategoryCache for CategoryCacheImpl {
         *hash_map = None;
     }
 
-    fn contains(&self) -> bool {
+    fn is_some(&self) -> bool {
         let hash_map = self.inner.lock().unwrap();
         hash_map.is_some()
+    }
+
+    fn set(&self, cat: Category) {
+        let mut hash_map = self.inner.lock().unwrap();
+        *hash_map = Some(cat);
     }
 }

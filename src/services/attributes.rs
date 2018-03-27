@@ -66,16 +66,27 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let attributes_cache = self.attributes_cache.clone();
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    // send to repo request
-                    attributes_cache
-                        .get(attribute_id)
-                        .map_err(ServiceError::from)
+                    if attributes_cache.contains(attribute_id) {
+                        attributes_cache
+                            .get(attribute_id)
+                            .map_err(ServiceError::from)
+                    } else {
+                        let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                        attributes_repo
+                            .find(attribute_id)
+                            .map_err(ServiceError::from)
+                            .and_then(|attr| {
+                                attributes_cache.add_attribute(attribute_id, attr.clone());
+                                Ok(attr)
+                            })
+                    }
                 })
         }))
     }

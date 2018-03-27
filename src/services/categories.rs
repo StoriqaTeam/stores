@@ -111,8 +111,7 @@ impl<
                                 categories_cache.clear();
                                 Ok(category)
                             })
-                        })
-                    
+                    })
                 })
         }))
     }
@@ -146,16 +145,26 @@ impl<
     fn get_all(&self) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-
         let categories_cache = self.categories_cache.clone();
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    //get all with repo
-                    categories_cache.get().map_err(ServiceError::from)
+                    if categories_cache.is_some() {
+                        categories_cache.get().map_err(ServiceError::from)
+                    } else {
+                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                        categories_repo
+                            .get_all()
+                            .map_err(ServiceError::from)
+                            .and_then(|category| {
+                                categories_cache.set(category.clone());
+                                Ok(category)
+                            })
+                    }
                 })
         }))
     }

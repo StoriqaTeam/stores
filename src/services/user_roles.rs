@@ -68,14 +68,26 @@ impl<
     fn get_roles(&self, user_id: i32) -> ServiceFuture<Vec<Role>> {
         let db_pool = self.db_pool.clone();
         let cached_roles = self.cached_roles.clone();
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    // use repo!!
-                    Ok(cached_roles.get(user_id))
+                    if cached_roles.contains(user_id) {
+                        let roles = cached_roles.get(user_id);
+                        Ok(roles)
+                    } else {
+                        let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
+                        user_roles_repo
+                            .list_for_user(user_id)
+                            .map_err(ServiceError::from)
+                            .and_then(|roles| {
+                                cached_roles.add_roles(user_id, &roles);
+                                Ok(roles)
+                            })
+                    }
                 })
         }))
     }

@@ -51,77 +51,49 @@ impl ReposFactoryImpl {
                 .unwrap_or_default()
         }
     }
+
+    fn get_acl<'a, T, C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>(
+        &self,
+        db_conn: &'a C,
+        user_id: Option<i32>,
+    ) -> Box<Acl<Resource, Action, Scope, RepoError, T>> {
+        user_id.map_or(
+            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, T>>,
+            |id| {
+                let roles = self.get_roles(id, db_conn);
+                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, T>>)
+            },
+        )
+    }
 }
 
 impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ReposFactory<C> for ReposFactoryImpl {
     fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<AttributesRepo + 'a> {
-        let acl = user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, Attribute>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, Attribute>>)
-            },
-        );
+        let acl = self.get_acl(db_conn, user_id);
         Box::new(AttributesRepoImpl::new(db_conn, acl)) as Box<AttributesRepo>
     }
     fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoriesRepo + 'a> {
-        let acl = user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, Category>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, Category>>)
-            },
-        );
+        let acl = self.get_acl(db_conn, user_id);
         Box::new(CategoriesRepoImpl::new(db_conn, acl)) as Box<CategoriesRepo>
     }
     fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a> {
-        let acl = user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, CatAttr>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, CatAttr>>)
-            },
-        );
+        let acl = self.get_acl(db_conn, user_id);
         Box::new(CategoryAttrsRepoImpl::new(db_conn, acl)) as Box<CategoryAttrsRepo>
     }
     fn create_base_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<BaseProductsRepo + 'a> {
-        let acl = user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, BaseProduct>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, BaseProduct>>)
-            },
-        );
+        let acl = self.get_acl(db_conn, user_id);
         Box::new(BaseProductsRepoImpl::new(db_conn, acl)) as Box<BaseProductsRepo>
     }
     fn create_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductsRepo + 'a> {
-        let acl = user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, Product>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, Product>>)
-            },
-        );
+        let acl = self.get_acl(db_conn, user_id);
         Box::new(ProductsRepoImpl::new(db_conn, acl)) as Box<ProductsRepo>
     }
     fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a> {
-        let acl = user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, ProdAttr>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, ProdAttr>>)
-            },
-        );
+        let acl = self.get_acl(db_conn, user_id);
         Box::new(ProductAttrsRepoImpl::new(db_conn, acl)) as Box<ProductAttrsRepo>
     }
     fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a> {
-        let acl = user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, RepoError, Store>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, RepoError, Store>>)
-            },
-        );
+        let acl = self.get_acl(db_conn, user_id);
         Box::new(StoresRepoImpl::new(db_conn, acl)) as Box<StoresRepo>
     }
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a> {

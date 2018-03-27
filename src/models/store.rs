@@ -3,14 +3,8 @@ use std::time::SystemTime;
 
 use validator::Validate;
 use serde_json;
-use diesel::connection::AnsiTransactionManager;
-use diesel::pg::Pg;
-use diesel::Connection;
-
-use stq_acl::WithScope;
 
 use models::validation_rules::*;
-use models::Scope;
 
 /// diesel table for stores
 table! {
@@ -138,20 +132,20 @@ pub struct SearchStore {
     pub name: String,
 }
 
-impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for Store {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => self.user_id == user_id,
-        }
-    }
-}
+// impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for Store {
+//     fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
+//         match *scope {
+//             Scope::All => true,
+//             Scope::Owned => self.user_id == user_id,
+//         }
+//     }
+// }
 
-impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewStore {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => self.user_id == user_id,
-        }
-    }
-}
+// impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewStore {
+//     fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
+//         match *scope {
+//             Scope::All => true,
+//             Scope::Owned => self.user_id == user_id,
+//         }
+//     }
+// }

@@ -1,73 +1,46 @@
 //! CategoryCache is a module that caches received from db information about user and his categories
 use std::sync::{Arc, Mutex};
 
-use diesel::connection::AnsiTransactionManager;
-use diesel::pg::Pg;
-use diesel::Connection;
-
-use stq_acl::RolesCache;
-
 use repos::types::RepoResult;
-use repos::ReposFactory;
 use models::Category;
-use models::authorization::*;
 use repos::error::RepoError;
 
 pub trait CategoryCache: Clone + Send + 'static {
-    fn get<
-        C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-        T: RolesCache<C, Role = Role, Error = RepoError> + 'static,
-    >(
-        &self,
-        db_conn: &C,
-        roles_cache: T,
-        user_id: Option<i32>,
-    ) -> RepoResult<Category>;
-    fn clear(&self) -> RepoResult<()>;
+    fn get(&self) -> RepoResult<Category>;
+    fn clear(&self);
+    fn contains(&self) -> bool;
 }
 
-#[derive(Clone)]
-pub struct CategoryCacheImpl<F: ReposFactory> {
-    categories_cache: Arc<Mutex<Option<Category>>>,
-    repo_factory: F,
+#[derive(Clone, Default)]
+pub struct CategoryCacheImpl {
+    inner: Arc<Mutex<Option<Category>>>,
 }
 
-impl<F: ReposFactory> CategoryCacheImpl<F> {
-    pub fn new(repo_factory: F) -> Self {
+impl CategoryCacheImpl {
+    pub fn new() -> Self {
         Self {
-            categories_cache: Arc::new(Mutex::new(None)),
-            repo_factory,
+            inner: Arc::new(Mutex::new(None)),
         }
     }
 }
 
-impl<F: ReposFactory> CategoryCache for CategoryCacheImpl<F> {
-    fn get<
-        C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-        T: RolesCache<C, Role = Role, Error = RepoError> + 'static,
-    >(
-        &self,
-        db_conn: &C,
-        roles_cache: T,
-        user_id: Option<i32>,
-    ) -> RepoResult<Category> {
-        let mut category = self.categories_cache.lock().unwrap();
-        if let Some(c) = category.clone() {
+impl CategoryCache for CategoryCacheImpl {
+    fn get(&self) -> RepoResult<Category> {
+        let hash_map = self.inner.lock().unwrap();
+        if let Some(c) = hash_map.clone() {
             Ok(c)
         } else {
-            self.repo_factory
-                .create_categories_repo(db_conn, roles_cache, user_id)
-                .get_all()
-                .and_then(|cat| {
-                    *category = Some(cat.clone());
-                    Ok(cat)
-                })
+            Err(RepoError::NotFound)
         }
     }
 
-    fn clear(&self) -> RepoResult<()> {
-        let mut category = self.categories_cache.lock().unwrap();
-        *category = None;
-        Ok(())
+    fn clear(&self) {
+        let mut hash_map = self.inner.lock().unwrap();
+        *hash_map = None;
+    }
+
+    fn contains(&self) -> bool {
+        let hash_map = self.inner.lock().unwrap();
+        hash_map.is_some()
     }
 }

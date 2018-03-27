@@ -2,15 +2,7 @@
 use std::time::SystemTime;
 
 use validator::Validate;
-use diesel::prelude::*;
-use diesel::connection::AnsiTransactionManager;
-use diesel::pg::Pg;
-use diesel::Connection;
-
-use stq_acl::WithScope;
-
-use models::base_product::base_products::dsl as BaseProducts;
-use models::{AttrValue, AttributeFilter, BaseProduct, Scope};
+use models::{AttrValue, AttributeFilter};
 use models::validation_rules::*;
 
 /// diesel table for products
@@ -101,44 +93,4 @@ pub struct MostViewedProducts {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MostDiscountProducts {
     pub options: Option<SearchOptions>,
-}
-
-impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for Product {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    BaseProducts::base_products
-                        .find(self.base_product_id)
-                        .get_result::<BaseProduct>(conn)
-                        .and_then(|base_product: BaseProduct| Ok(base_product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
-        }
-    }
-}
-
-impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    BaseProducts::base_products
-                        .find(self.base_product_id)
-                        .get_result::<BaseProduct>(conn)
-                        .and_then(|base_product: BaseProduct| Ok(base_product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
-        }
-    }
 }

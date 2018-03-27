@@ -10,15 +10,12 @@ use r2d2::{ManageConnection, Pool};
 use serde_json;
 use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
-use stq_acl::RolesCache;
 
 use models::{NewStore, SearchStore, Store, UpdateStore};
-use models::authorization::*;
 use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::ReposFactory;
-use repos::error::RepoError;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -41,12 +38,10 @@ pub trait StoresService {
 pub struct StoresServiceImpl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T>,
+    F: ReposFactory<T>,
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub roles_cache: R,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
@@ -56,14 +51,12 @@ pub struct StoresServiceImpl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T>,
-> StoresServiceImpl<T, M, F, R>
+    F: ReposFactory<T>,
+> StoresServiceImpl<T, M, F>
 {
     pub fn new(
         db_pool: Pool<M>,
         cpu_pool: CpuPool,
-        roles_cache: R,
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
@@ -72,7 +65,6 @@ impl<
         Self {
             db_pool,
             cpu_pool,
-            roles_cache,
             user_id,
             client_handle,
             elastic_address,
@@ -84,9 +76,8 @@ impl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T, Role = Role, Error = RepoError>,
-> StoresService for StoresServiceImpl<T, M, F, R>
+    F: ReposFactory<T>,
+> StoresService for StoresServiceImpl<T, M, F>
 {
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
@@ -116,8 +107,8 @@ impl<
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
-            let roles_cache = self.roles_cache.clone();
-            let repo_factory = self.repo_factory;
+
+            let repo_factory = self.repo_factory.clone();
             move |el_stores| {
                 cpu_pool.spawn_fn(move || {
                     db_pool
@@ -127,7 +118,7 @@ impl<
                             el_stores
                                 .into_iter()
                                 .map(|el_store| {
-                                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache.clone(), user_id);
+                                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                                     stores_repo.find(el_store.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -141,15 +132,15 @@ impl<
     fn get(&self, store_id: i32) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo.find(store_id).map_err(Error::from)
                 })
         }))
@@ -159,15 +150,15 @@ impl<
     fn deactivate(&self, store_id: i32) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo.deactivate(store_id).map_err(Error::from)
                 })
         }))
@@ -177,15 +168,15 @@ impl<
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Store>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -197,14 +188,14 @@ impl<
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
-            let roles_cache = self.roles_cache.clone();
-            let repo_factory = self.repo_factory;
+
+            let repo_factory = self.repo_factory.clone();
             cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
                     .map_err(|e| Error::Connection(e.into()))
                     .and_then(move |conn| {
-                        let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
+                        let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                         conn.transaction::<Store, Error, _>(move || {
                             serde_json::from_value::<Vec<Translation>>(payload.name.clone())
                                 .map_err(|e| Error::Parse(e.to_string()))
@@ -249,15 +240,15 @@ impl<
     fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, roles_cache, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo
                         .find(store_id.clone())
                         .and_then(move |_user| stores_repo.update(store_id, payload))

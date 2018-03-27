@@ -10,8 +10,11 @@ use diesel::Connection;
 
 use stq_acl::*;
 
-use models::{NewProduct, Product, UpdateProduct};
+use models::{BaseProduct, NewProduct, Product, Store, UpdateProduct};
 use models::product::products::dsl::*;
+use models::store::stores::dsl as Stores;
+use models::base_product::base_products::dsl as BaseProducts;
+
 use repos::error::RepoError as Error;
 use super::types::RepoResult;
 use models::authorization::*;
@@ -20,7 +23,7 @@ use super::acl;
 /// Products repository, responsible for handling products
 pub struct ProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, Product>>,
 }
 
 pub trait ProductsRepo {
@@ -44,7 +47,7 @@ pub trait ProductsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Product>>) -> Self {
         Self { db_conn, acl }
     }
 
@@ -62,26 +65,27 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Products,
                     &Action::Read,
-                    &[&product],
-                    Some(self.db_conn),
+                    self,
+                    Some(&product),
                 ).and_then(|_| Ok(product))
             })
     }
 
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<Product> {
-        acl::check(
-            &*self.acl,
-            &Resource::Products,
-            &Action::Create,
-            &[&payload],
-            Some(self.db_conn),
-        ).and_then(|_| {
-            let query_product = diesel::insert_into(products).values(&payload);
-            query_product
-                .get_result::<Product>(self.db_conn)
-                .map_err(Error::from)
-        })
+        let query_product = diesel::insert_into(products).values(&payload);
+        query_product
+            .get_result::<Product>(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|prod| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::Products,
+                    &Action::Create,
+                    self,
+                    Some(&prod),
+                ).and_then(|_| Ok(prod))
+            })
     }
 
     /// Returns list of products, limited by `from` and `count` parameters
@@ -96,17 +100,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|products_res: Vec<Product>| {
-                let resources = products_res
-                    .iter()
-                    .map(|product| (product as &WithScope<Scope, T>))
-                    .collect::<Vec<&WithScope<Scope, T>>>();
-                acl::check(
-                    &*self.acl,
-                    &Resource::Products,
-                    &Action::Read,
-                    &resources,
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(products_res.clone()))
+                for product in products_res.iter() {
+                    acl::check(
+                        &*self.acl,
+                        &Resource::Products,
+                        &Action::Read,
+                        self,
+                        Some(&product),
+                    )?;
+                }
+                Ok(products_res.clone())
             })
     }
 
@@ -120,17 +123,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|products_res: Vec<Product>| {
-                let resources = products_res
-                    .iter()
-                    .map(|product| (product as &WithScope<Scope, T>))
-                    .collect::<Vec<&WithScope<Scope, T>>>();
-                acl::check(
-                    &*self.acl,
-                    &Resource::Products,
-                    &Action::Read,
-                    &resources,
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(products_res.clone()))
+                for product in products_res.iter() {
+                    acl::check(
+                        &*self.acl,
+                        &Resource::Products,
+                        &Action::Read,
+                        self,
+                        Some(&product),
+                    )?;
+                }
+                Ok(products_res.clone())
             })
     }
 
@@ -142,8 +144,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Products,
                     &Action::Update,
-                    &[&product],
-                    Some(self.db_conn),
+                    self,
+                    Some(&product),
                 )
             })
             .and_then(|_| {
@@ -166,8 +168,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Products,
                     &Action::Delete,
-                    &[&product],
-                    Some(self.db_conn),
+                    self,
+                    Some(&product),
                 )
             })
             .and_then(|_| {
@@ -177,5 +179,32 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })
+    }
+}
+
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Product>
+    for ProductsRepoImpl<'a, T>
+{
+    fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&Product>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(product) = obj {
+                    BaseProducts::base_products
+                        .find(product.base_product_id)
+                        .get_result::<BaseProduct>(self.db_conn)
+                        .and_then(|base_prod: BaseProduct| {
+                            Stores::stores
+                                .find(base_prod.store_id)
+                                .get_result::<Store>(self.db_conn)
+                                .and_then(|store: Store| Ok(store.user_id == user_id))
+                        })
+                        .ok()
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
+        }
     }
 }

@@ -13,7 +13,6 @@ use models::{NewUserRole, OldUserRole, Role, UserRole};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::ReposFactory;
-use repos::error::RepoError;
 
 pub trait UserRolesService {
     /// Returns role by user ID
@@ -32,8 +31,8 @@ pub trait UserRolesService {
 pub struct UserRolesServiceImpl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T>,
+    F: ReposFactory<T>,
+    R: RolesCache<Role = Role>,
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
@@ -44,8 +43,8 @@ pub struct UserRolesServiceImpl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T>,
+    F: ReposFactory<T>,
+    R: RolesCache<Role = Role>,
 > UserRolesServiceImpl<T, M, F, R>
 {
     pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, cached_roles: R, repo_factory: F) -> Self {
@@ -61,8 +60,8 @@ impl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T, Role = Role, Error = RepoError>,
+    F: ReposFactory<T>,
+    R: RolesCache<Role = Role>,
 > UserRolesService for UserRolesServiceImpl<T, M, F, R>
 {
     /// Returns role by user ID
@@ -75,9 +74,8 @@ impl<
                 .get()
                 .map_err(|e| ServiceError::Connection(e.into()))
                 .and_then(move |conn| {
-                    cached_roles
-                        .get(user_id, Some(&*conn))
-                        .map_err(ServiceError::from)
+                    // use repo!!
+                    Ok(cached_roles.get(user_id))
                 })
         }))
     }
@@ -87,7 +85,7 @@ impl<
         let db_pool = self.db_pool.clone();
         let cached_roles = self.cached_roles.clone();
         let user_id = payload.user_id;
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -98,10 +96,8 @@ impl<
                     user_roles_repo.delete(payload).map_err(ServiceError::from)
                 })
                 .and_then(|user_role| {
-                    cached_roles
-                        .remove(user_id)
-                        .map(|_| user_role)
-                        .map_err(ServiceError::from)
+                    cached_roles.remove(user_id);
+                    Ok(user_role)
                 })
         }))
     }
@@ -111,7 +107,7 @@ impl<
         let db_pool = self.db_pool.clone();
         let cached_roles = self.cached_roles.clone();
         let user_id = new_user_role.user_id;
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -124,10 +120,8 @@ impl<
                         .map_err(ServiceError::from)
                 })
                 .and_then(|user_role| {
-                    cached_roles
-                        .remove(user_id)
-                        .map(|_| user_role)
-                        .map_err(ServiceError::from)
+                    cached_roles.remove(user_id);
+                    Ok(user_role)
                 })
         }))
     }
@@ -136,7 +130,7 @@ impl<
     fn delete_default(&self, user_id_arg: i32) -> ServiceFuture<UserRole> {
         let db_pool = self.db_pool.clone();
         let cached_roles = self.cached_roles.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -149,10 +143,8 @@ impl<
                         .map_err(ServiceError::from)
                 })
                 .and_then(|user_role| {
-                    cached_roles
-                        .remove(user_id_arg)
-                        .map(|_| user_role)
-                        .map_err(ServiceError::from)
+                    cached_roles.remove(user_id_arg);
+                    Ok(user_role)
                 })
         }))
     }
@@ -161,7 +153,7 @@ impl<
     fn create_default(&self, user_id_arg: i32) -> ServiceFuture<UserRole> {
         let db_pool = self.db_pool.clone();
         let cached_roles = self.cached_roles.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
@@ -178,10 +170,8 @@ impl<
                         .map_err(ServiceError::from)
                 })
                 .and_then(|user_role| {
-                    cached_roles
-                        .remove(user_id_arg)
-                        .map(|_| user_role)
-                        .map_err(ServiceError::from)
+                    cached_roles.remove(user_id_arg);
+                    Ok(user_role)
                 })
         }))
     }

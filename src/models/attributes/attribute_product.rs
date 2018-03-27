@@ -1,11 +1,4 @@
-use diesel::prelude::*;
-use stq_acl::WithScope;
-
-use models::product::products::dsl as Products;
-use models::{AttributeType, Product, Scope};
-use diesel::connection::AnsiTransactionManager;
-use diesel::pg::Pg;
-use diesel::Connection;
+use models::AttributeType;
 
 /// diesel table for product attributes
 table! {
@@ -84,46 +77,6 @@ impl UpdateProdAttr {
             attr_id,
             value,
             meta_field,
-        }
-    }
-}
-
-impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for ProdAttr {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    Products::products
-                        .find(self.prod_id)
-                        .get_result::<Product>(conn)
-                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
-        }
-    }
-}
-
-impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewProdAttr {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&T>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    Products::products
-                        .find(self.prod_id)
-                        .get_result::<Product>(conn)
-                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
         }
     }
 }

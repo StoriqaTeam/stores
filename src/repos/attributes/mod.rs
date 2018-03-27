@@ -8,7 +8,7 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
 
-use stq_acl::Acl;
+use stq_acl::{Acl, CheckScope};
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use models::attribute::attributes::dsl::*;
@@ -24,7 +24,7 @@ pub use self::attributes_cache::*;
 /// Attributes repository, responsible for handling attribute_values
 pub struct AttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>,
 }
 
 pub trait AttributesRepo {
@@ -39,7 +39,7 @@ pub trait AttributesRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -57,26 +57,27 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Attributes,
                     &Action::Read,
-                    &[],
-                    Some(self.db_conn),
+                    self,
+                    Some(&attribute),
                 ).and_then(|_| Ok(attribute))
             })
     }
 
     /// Creates new attribute
     fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
-        acl::check(
-            &*self.acl,
-            &Resource::Attributes,
-            &Action::Create,
-            &[],
-            Some(self.db_conn),
-        ).and_then(|_| {
-            let query_attribute = diesel::insert_into(attributes).values(&payload);
-            query_attribute
-                .get_result::<Attribute>(self.db_conn)
-                .map_err(Error::from)
-        })
+        let query_attribute = diesel::insert_into(attributes).values(&payload);
+        query_attribute
+            .get_result::<Attribute>(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|attribute| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::Attributes,
+                    &Action::Create,
+                    self,
+                    Some(&attribute),
+                ).and_then(|_| Ok(attribute))
+            })
     }
 
     /// Updates specific attribute
@@ -86,13 +87,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .first::<Attribute>(self.db_conn)
             .map_err(Error::from)
-            .and_then(|_| {
+            .and_then(|attribute| {
                 acl::check(
                     &*self.acl,
                     &Resource::Attributes,
                     &Action::Update,
-                    &[],
-                    Some(self.db_conn),
+                    self,
+                    Some(&attribute),
                 )
             })
             .and_then(|_| {
@@ -103,5 +104,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .get_result::<Attribute>(self.db_conn)
                     .map_err(Error::from)
             })
+    }
+}
+
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Attribute>
+    for AttributesRepoImpl<'a, T>
+{
+    fn is_in_scope(&self, _user_id: i32, scope: &Scope, _obj: Option<&Attribute>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => false,
+        }
     }
 }

@@ -3,7 +3,6 @@ use futures_cpupool::CpuPool;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use stq_acl::RolesCache;
 use r2d2::{ManageConnection, Pool};
 
 use models::*;
@@ -12,7 +11,6 @@ use super::types::ServiceFuture;
 use super::error::ServiceError as Error;
 use repos::types::RepoResult;
 use repos::ReposFactory;
-use repos::error::RepoError;
 
 use stq_http::client::ClientHandle;
 
@@ -43,12 +41,10 @@ pub trait BaseProductsService {
 pub struct BaseProductsServiceImpl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T>,
+    F: ReposFactory<T>,
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub roles_cache: R,
     pub user_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
@@ -58,14 +54,12 @@ pub struct BaseProductsServiceImpl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T>,
-> BaseProductsServiceImpl<T, M, F, R>
+    F: ReposFactory<T>,
+> BaseProductsServiceImpl<T, M, F>
 {
     pub fn new(
         db_pool: Pool<M>,
         cpu_pool: CpuPool,
-        roles_cache: R,
         user_id: Option<i32>,
         client_handle: ClientHandle,
         elastic_address: String,
@@ -74,7 +68,6 @@ impl<
         Self {
             db_pool,
             cpu_pool,
-            roles_cache,
             user_id,
             client_handle,
             elastic_address,
@@ -86,9 +79,8 @@ impl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
-    F: ReposFactory,
-    R: RolesCache<T, Role = Role, Error = RepoError>,
-> BaseProductsService for BaseProductsServiceImpl<T, M, F, R>
+    F: ReposFactory<T>,
+> BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
     fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
@@ -104,8 +96,7 @@ impl<
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
-            let roles_cache = self.roles_cache.clone();
-            let repo_factory = self.repo_factory;
+            let repo_factory = self.repo_factory.clone();
             move |el_products| {
                 cpu_pool.spawn_fn(move || {
                     db_pool
@@ -115,7 +106,7 @@ impl<
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                     base_products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -140,8 +131,7 @@ impl<
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
-            let roles_cache = self.roles_cache.clone();
-            let repo_factory = self.repo_factory;
+            let repo_factory = self.repo_factory.clone();
             move |el_products| {
                 cpu_pool.spawn_fn(move || {
                     db_pool
@@ -151,7 +141,7 @@ impl<
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                     base_products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -176,8 +166,7 @@ impl<
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
-            let roles_cache = self.roles_cache.clone();
-            let repo_factory = self.repo_factory;
+            let repo_factory = self.repo_factory.clone();
             move |el_products| {
                 cpu_pool.spawn_fn(move || {
                     db_pool
@@ -187,7 +176,7 @@ impl<
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                     base_products_repo.find(el_product.id).map_err(Error::from)
                                 })
                                 .collect()
@@ -214,15 +203,14 @@ impl<
     fn get(&self, product_id: i32) -> ServiceFuture<BaseProduct> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     base_products_repo.find(product_id).map_err(Error::from)
                 })
         }))
@@ -232,17 +220,16 @@ impl<
     fn get_with_variants(&self, base_product_id: i32) -> ServiceFuture<BaseProductWithVariants> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache.clone(), user_id);
-                    let products_repo = repo_factory.create_product_repo(&*conn, roles_cache.clone(), user_id);
-                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, roles_cache.clone(), user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                     base_products_repo
                         .find(base_product_id)
                         .map(|base_product| base_product)
@@ -277,15 +264,14 @@ impl<
     fn deactivate(&self, product_id: i32) -> ServiceFuture<BaseProduct> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     base_products_repo
                         .deactivate(product_id)
                         .map_err(Error::from)
@@ -297,15 +283,14 @@ impl<
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<BaseProduct>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     base_products_repo.list(from, count).map_err(Error::from)
                 })
         }))
@@ -315,15 +300,14 @@ impl<
     fn create(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
         let cpu_pool = self.cpu_pool.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     conn.transaction::<(BaseProduct), Error, _>(move || base_products_repo.create(payload).map_err(Error::from))
                 })
         }))
@@ -333,16 +317,15 @@ impl<
     fn update(&self, product_id: i32, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
         let cpu_pool = self.cpu_pool.clone();
-        let repo_factory = self.repo_factory;
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
                 .map_err(|e| Error::Connection(e.into()))
                 .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, roles_cache, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     conn.transaction::<(BaseProduct), Error, _>(move || {
                         base_products_repo
                             .update(product_id, payload)

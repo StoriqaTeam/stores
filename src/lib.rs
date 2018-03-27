@@ -117,17 +117,17 @@ pub fn start_server(config: Config) {
         .parse()
         .expect("Address must be set in configuration");
 
-    // Repo factory
-    let repo_factory = ReposFactoryImpl::default();
-
     // Roles cache
-    let roles_cache = RolesCacheImpl::new(repo_factory);
+    let roles_cache = RolesCacheImpl::default();
+
+    // Repo factory
+    let repo_factory = ReposFactoryImpl::new(roles_cache.clone());
 
     // Categories cache
-    let category_cache = CategoryCacheImpl::new(repo_factory);
+    let category_cache = CategoryCacheImpl::default();
 
     // Attributes cache
-    let attributes_cache = AttributeCacheImpl::new(repo_factory);
+    let attributes_cache = AttributeCacheImpl::default();
 
     let serve = Http::new()
         .serve_addr_handle(&address, &handle, move || {

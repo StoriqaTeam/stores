@@ -23,7 +23,7 @@ use super::acl;
 /// Stores repository, responsible for handling stores
 pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, Store>>,
 }
 
 pub trait StoresRepo {
@@ -50,7 +50,7 @@ pub trait StoresRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Store>>) -> Self {
         Self { db_conn, acl }
     }
 
@@ -68,26 +68,27 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Stores,
                     &Action::Read,
-                    &[&store],
-                    Some(self.db_conn),
+                    self,
+                    Some(&store),
                 ).and_then(|_| Ok(store))
             })
     }
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store> {
-        acl::check(
-            &*self.acl,
-            &Resource::Stores,
-            &Action::Create,
-            &[&payload],
-            Some(self.db_conn),
-        ).and_then(|_| {
-            let query_store = diesel::insert_into(stores).values(&payload);
-            query_store
-                .get_result::<Store>(self.db_conn)
-                .map_err(Error::from)
-        })
+        let query_store = diesel::insert_into(stores).values(&payload);
+        query_store
+            .get_result::<Store>(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|store| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::Stores,
+                    &Action::Create,
+                    self,
+                    Some(&store),
+                ).and_then(|_| Ok(store))
+            })
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
@@ -102,17 +103,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|stores_res: Vec<Store>| {
-                let resources = stores_res
-                    .iter()
-                    .map(|store| (store as &WithScope<Scope, T>))
-                    .collect::<Vec<&WithScope<Scope, T>>>();
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Read,
-                    &resources,
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(stores_res.clone()))
+                for store in stores_res.iter() {
+                    acl::check(
+                        &*self.acl,
+                        &Resource::Stores,
+                        &Action::Read,
+                        self,
+                        Some(&store),
+                    )?;
+                }
+                Ok(stores_res.clone())
             })
     }
 
@@ -124,8 +124,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Stores,
                     &Action::Update,
-                    &[&store],
-                    Some(self.db_conn),
+                    self,
+                    Some(&store),
                 )
             })
             .and_then(|_| {
@@ -146,8 +146,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Stores,
                     &Action::Delete,
-                    &[&store],
-                    Some(self.db_conn),
+                    self,
+                    Some(&store),
                 )
             })
             .and_then(|_| {
@@ -165,15 +165,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(Error::from)
-            .and_then(|exists| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Read,
-                    &[],
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(exists))
-            })
+            .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
     }
 
     /// Checks name exists
@@ -192,5 +184,23 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .collect::<RepoResult<Vec<bool>>>();
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
+            .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
+    }
+}
+
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Store>
+    for StoresRepoImpl<'a, T>
+{
+    fn is_in_scope(&self, user_id_arg: i32, scope: &Scope, obj: Option<&Store>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(store) = obj {
+                    store.user_id == user_id_arg
+                } else {
+                    false
+                }
+            }
+        }
     }
 }

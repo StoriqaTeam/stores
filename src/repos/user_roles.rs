@@ -9,7 +9,8 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
-use stq_acl::Acl;
+
+use stq_acl::*;
 
 use models::authorization::*;
 use models::user_role::user_roles::dsl::*;
@@ -35,11 +36,11 @@ pub trait UserRolesRepo {
 /// Implementation of UserRoles trait
 pub struct UserRolesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, UserRole>>,
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> UserRolesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, UserRole>>) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -75,5 +76,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let filtered = user_roles.filter(user_id.eq(user_id_arg));
         let query = diesel::delete(filtered);
         query.get_result(self.db_conn).map_err(Error::from)
+    }
+}
+
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, UserRole>
+    for UserRolesRepoImpl<'a, T>
+{
+    fn is_in_scope(&self, user_id_arg: i32, scope: &Scope, obj: Option<&UserRole>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(user_role) = obj {
+                    user_role.user_id == user_id_arg
+                } else {
+                    false
+                }
+            }
+        }
     }
 }

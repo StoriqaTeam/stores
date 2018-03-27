@@ -8,7 +8,7 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
 
-use stq_acl::Acl;
+use stq_acl::{Acl, CheckScope};
 
 use models::{Category, NewCategory, RawCategory, UpdateCategory};
 use models::category::categories::dsl::*;
@@ -26,7 +26,7 @@ pub use self::category_cache::*;
 /// Categories repository, responsible for handling categorie_values
 pub struct CategoriesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, T>>,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, Category>>,
 }
 
 pub trait CategoriesRepo {
@@ -44,7 +44,7 @@ pub trait CategoriesRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, T>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Category>>) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -58,13 +58,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .first::<RawCategory>(self.db_conn)
             .map_err(Error::from)
             .and_then(|category: RawCategory| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Categories,
-                    &Action::Read,
-                    &[],
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(category))
+                acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None).and_then(|_| Ok(category))
             })
             .and_then(|found_category| {
                 categories
@@ -83,21 +77,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category> {
-        acl::check(
-            &*self.acl,
-            &Resource::Categories,
-            &Action::Create,
-            &[],
-            Some(self.db_conn),
-        ).and_then(|_| {
-            let query_categorie = diesel::insert_into(categories).values(&payload);
-            query_categorie
-                .get_result::<RawCategory>(self.db_conn)
-                .map_err(Error::from)
-        })
+        let query_categorie = diesel::insert_into(categories).values(&payload);
+        query_categorie
+            .get_result::<RawCategory>(self.db_conn)
+            .map_err(Error::from)
             .and_then(|created_category| {
                 let result: Category = created_category.into();
                 Ok(result)
+            })
+            .and_then(|category| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::Categories,
+                    &Action::Create,
+                    self,
+                    Some(&category),
+                ).and_then(|_| Ok(category))
             })
     }
 
@@ -113,8 +108,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &*self.acl,
                     &Resource::Categories,
                     &Action::Update,
-                    &[],
-                    Some(self.db_conn),
+                    self,
+                    None,
                 )
             })
             .and_then(|_| {
@@ -141,17 +136,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn get_all(&self) -> RepoResult<Category> {
-        acl::check(
-            &*self.acl,
-            &Resource::Categories,
-            &Action::Read,
-            &[],
-            Some(self.db_conn),
-        ).and_then(|_| {
-            categories
-                .load::<RawCategory>(self.db_conn)
-                .map_err(Error::from)
-        })
+        acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
+            .and_then(|_| {
+                categories
+                    .load::<RawCategory>(self.db_conn)
+                    .map_err(Error::from)
+            })
             .and_then(|cats| {
                 let mut root = Category::default();
                 let children = create_tree(&cats, None);
@@ -172,4 +162,15 @@ fn create_tree(cats: &[RawCategory], parent_id_arg: Option<i32>) -> Vec<Category
         }
     }
     branch
+}
+
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Category>
+    for CategoriesRepoImpl<'a, T>
+{
+    fn is_in_scope(&self, _user_id: i32, scope: &Scope, _obj: Option<&Category>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => false,
+        }
+    }
 }

@@ -128,37 +128,11 @@ impl<T> Acl<Resource, Action, Scope, RepoError, T> for UnauthorizedAcl {
 mod tests {
     use std::time::SystemTime;
 
-    use stq_acl::{Acl, RolesCache, WithScope};
+    use stq_acl::{Acl, CheckScope};
     use serde_json;
 
-    use repos::error::RepoError as Error;
     use repos::*;
     use models::*;
-
-    #[derive(Clone)]
-    struct CacheRolesMock;
-
-    impl RolesCache for CacheRolesMock {
-        type Role = Role;
-        type Error = Error;
-
-        fn get(&self, user_id: i32, _db_conn: Option<&DbConnection>) -> Result<Vec<Self::Role>, Self::Error> {
-            match user_id {
-                1 => Ok(vec![Role::Superuser]),
-                _ => Ok(vec![Role::User]),
-            }
-        }
-
-        fn clear(&self) -> Result<(), Self::Error> {
-            Ok(())
-        }
-
-        fn remove(&self, _id: i32) -> Result<(), Self::Error> {
-            Ok(())
-        }
-    }
-
-    const MOCK_USER_ROLE: CacheRolesMock = CacheRolesMock {};
 
     fn create_store() -> Store {
         Store {
@@ -184,50 +158,81 @@ mod tests {
         }
     }
 
+    #[derive(Default)]
+    struct ScopeChecker;
+
+    impl CheckScope<Scope, Store> for ScopeChecker
+    {
+        fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&Store>) -> bool {
+            match *scope {
+                Scope::All => true,
+                Scope::Owned => {
+                    if let Some(store) = obj {
+                            store.user_id == user_id
+                    } else {
+                        false
+                    }
+                }
+            }
+        }
+    }
+
+    impl CheckScope<Scope, UserRole> for ScopeChecker
+    {
+        fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&UserRole>) -> bool {
+            match *scope {
+                Scope::All => true,
+                Scope::Owned => {
+                    if let Some(user_role) = obj {
+                            user_role.user_id == user_id
+                    } else {
+                        false
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
-    fn test_super_user_for_users() {
-        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 1);
-
+    fn test_super_user_for_stores() {
+        let acl = ApplicationAcl::new(vec![Role::Superuser], 1232);
+        let s = ScopeChecker::default();
         let resource = create_store();
-
-        let resources = vec![&resource as &WithScope<Scope>];
-
         assert_eq!(
-            acl.allows(&Resource::Stores, &Action::All, &resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::All, &s, Some(&resource))
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Read, &resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Read, &s, Some(&resource))
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Create, &resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Create, &s, Some(&resource))
                 .unwrap(),
             true
         );
     }
 
     #[test]
-    fn test_ordinary_user_for_users() {
-        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 2);
-
+    fn test_ordinary_user_for_store() {
+        let acl = ApplicationAcl::new(vec![Role::User], 2);
+        let s = ScopeChecker::default();
         let resource = create_store();
-        let resources = vec![&resource as &WithScope<Scope>];
 
         assert_eq!(
-            acl.allows(&Resource::Stores, &Action::All, &resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::All, &s, Some(&resource))
                 .unwrap(),
             false
         );
         assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Read, &resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Read, &s, Some(&resource))
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Create, &resources.clone(), None)
+            acl.allows(&Resource::Stores, &Action::Create, &s, Some(&resource))
                 .unwrap(),
             false
         );
@@ -235,72 +240,56 @@ mod tests {
 
     #[test]
     fn test_super_user_for_user_roles() {
-        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 1);
+        let acl = ApplicationAcl::new(vec![Role::Superuser], 1232);
+        let s = ScopeChecker::default();
 
         let resource = UserRole {
             id: 1,
             user_id: 1,
             role: Role::User,
         };
-        let resources = vec![&resource as &WithScope<Scope>];
 
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::All, &resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::All, &s, Some(&resource))
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(
-                &Resource::UserRoles,
-                &Action::Read,
-                &resources.clone(),
-                None
-            ).unwrap(),
+            acl.allows(&Resource::UserRoles, &Action::Read, &s, Some(&resource))
+                .unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(
-                &Resource::UserRoles,
-                &Action::Create,
-                &resources.clone(),
-                None
-            ).unwrap(),
+            acl.allows(&Resource::UserRoles, &Action::Create, &s, Some(&resource))
+                .unwrap(),
             true
         );
     }
 
     #[test]
     fn test_user_for_user_roles() {
-        let acl = ApplicationAcl::new(MOCK_USER_ROLE, 2);
+        let acl = ApplicationAcl::new(vec![Role::User], 2);
+        let s = ScopeChecker::default();
 
         let resource = UserRole {
             id: 1,
             user_id: 1,
             role: Role::User,
         };
-        let resources = vec![&resource as &WithScope<Scope>];
 
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::All, &resources.clone(), None)
+            acl.allows(&Resource::UserRoles, &Action::All, &s, Some(&resource))
                 .unwrap(),
             false
         );
         assert_eq!(
-            acl.allows(
-                &Resource::UserRoles,
-                &Action::Read,
-                &resources.clone(),
-                None
-            ).unwrap(),
+            acl.allows(&Resource::UserRoles, &Action::Read, &s, Some(&resource))
+                .unwrap(),
             false
         );
         assert_eq!(
-            acl.allows(
-                &Resource::UserRoles,
-                &Action::Create,
-                &resources.clone(),
-                None
-            ).unwrap(),
+            acl.allows(&Resource::UserRoles, &Action::Create, &s, Some(&resource))
+                .unwrap(),
             false
         );
     }

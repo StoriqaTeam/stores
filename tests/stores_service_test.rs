@@ -3,7 +3,6 @@ include!("tests_setup.rs");
 use tokio_core::reactor::Core;
 
 #[test]
-#[ignore]
 fn test_get_store() {
     let mut core = Core::new().unwrap();
     let handle = Arc::new(core.handle());

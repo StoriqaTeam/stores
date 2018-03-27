@@ -7,6 +7,7 @@ use stq_acl::SystemACL;
 use stores_lib::repos::{StoresRepo, StoresRepoImpl};
 
 #[test]
+#[ignore]
 fn test_find() {
     let conn = connection_with_stores_db_with_stores_table();
     let acl = Box::new(SystemACL {});

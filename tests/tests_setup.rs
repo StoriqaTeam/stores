@@ -21,7 +21,6 @@ use tokio_core::reactor::Handle;
 
 use r2d2::ManageConnection;
 
-use diesel::pg::PgConnection;
 use diesel::Connection;
 use diesel::ConnectionResult;
 use diesel::QueryResult;
@@ -35,7 +34,6 @@ use diesel::deserialize::QueryableByName;
 use diesel::connection::AnsiTransactionManager;
 use diesel::connection::SimpleConnection;
 
-use r2d2_diesel::ConnectionManager;
 
 use stq_http::client::Config as HttpConfig;
 use stq_static_resources::Translation;
@@ -45,12 +43,8 @@ use stores_lib::repos::*;
 use stores_lib::services::*;
 use stores_lib::models::*;
 use stores_lib::config::Config;
-use stores_lib::repos::error::RepoError;
 
-const MOCK_PRODUCTS: ProductsRepoMock = ProductsRepoMock {};
-const MOCK_USER_ROLE: CacheRolesMock = CacheRolesMock {};
 const MOCK_REPO_FACTORY: ReposFactoryMock = ReposFactoryMock {};
-const MOCK_STORES: StoresRepoMock = StoresRepoMock {};
 static MOCK_USER_ID: i32 = 1;
 static MOCK_BASE_PRODUCT_ID: i32 = 1;
 static MOCK_PRODUCT_ID: i32 = 1;
@@ -62,90 +56,60 @@ struct CacheRolesMock;
 
 impl RolesCache for CacheRolesMock {
     type Role = Role;
-    type Error = RepoError;
 
-    fn get(&self, user_id: i32, _db_conn: Option<&DbConnection>) -> Result<Vec<Self::Role>, Self::Error> {
-        match user_id {
-            1 => Ok(vec![Role::Superuser]),
-            _ => Ok(vec![Role::User]),
+    fn get(&self, user_id: i32) -> Vec<Self::Role> {
+         match user_id {
+            1 => vec![Role::Superuser],
+            _ => vec![Role::User],
         }
     }
 
-    fn clear(&self) -> Result<(), Self::Error> {
-        Ok(())
+    fn clear(&self) {}
+
+    fn remove(&self, _id: i32) {}
+
+    fn contains(&self, id: i32) -> bool {
+        match id {
+            1|2 => true,
+            _ => false,
+        }
     }
 
-    fn remove(&self, _id: i32) -> Result<(), Self::Error> {
-        Ok(())
-    }
+    fn add_roles(&self, _id: i32, _roles: &Vec<Self::Role>) {}
+
 }
 
 #[derive(Default, Copy, Clone)]
 pub struct ReposFactoryMock;
 
-impl ReposFactory for ReposFactoryMock {
-    fn create_attributes_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
-        &self,
-        _db_conn: &'a DbConnection,
-        _roles_cache: T,
-        _user_id: Option<i32>,
-    ) -> Box<AttributesRepo + 'a> {
+impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ReposFactory<C> for ReposFactoryMock {
+    fn create_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<AttributesRepo + 'a> {
         unimplemented!()
     }
-    fn create_categories_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
-        &self,
-        _db_conn: &'a DbConnection,
-        _roles_cache: T,
-        _user_id: Option<i32>,
-    ) -> Box<CategoriesRepo + 'a> {
+    fn create_categories_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CategoriesRepo + 'a> {
         unimplemented!()
     }
-    fn create_category_attrs_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
-        &self,
-        _db_conn: &'a DbConnection,
-        _roles_cache: T,
-        _user_id: Option<i32>,
-    ) -> Box<CategoryAttrsRepo + 'a> {
+    fn create_category_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a> {
         unimplemented!()
     }
-    fn create_base_product_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
-        &self,
-        _db_conn: &'a DbConnection,
-        _roles_cache: T,
-        _user_id: Option<i32>,
-    ) -> Box<BaseProductsRepo + 'a> {
+    fn create_base_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<BaseProductsRepo + 'a> {
         unimplemented!()
     }
-    fn create_product_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
-        &self,
-        _db_conn: &'a DbConnection,
-        _roles_cache: T,
-        _user_id: Option<i32>,
-    ) -> Box<ProductsRepo + 'a> {
+    fn create_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ProductsRepo + 'a> {
+        Box::new(ProductsRepoMock::default()) as Box<ProductsRepo>
+    }
+    fn create_product_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a> {
         unimplemented!()
     }
-    fn create_product_attrs_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
-        &self,
-        _db_conn: &'a DbConnection,
-        _roles_cache: T,
-        _user_id: Option<i32>,
-    ) -> Box<ProductAttrsRepo + 'a> {
-        unimplemented!()
+    fn create_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<StoresRepo + 'a> {
+        Box::new(StoresRepoMock::default()) as Box<StoresRepo>
     }
-    fn create_stores_repo<'a, T: RolesCache<C, Role = Role, Error = RepoError> + 'static>(
-        &self,
-        _db_conn: &'a DbConnection,
-        _roles_cache: T,
-        _user_id: Option<i32>,
-    ) -> Box<StoresRepo + 'a> {
-        unimplemented!()
-    }
-    fn create_user_roles_repo<'a>(&self, _db_conn: &'a DbConnection) -> Box<UserRolesRepo + 'a> {
+    fn create_user_roles_repo<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
         unimplemented!()
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct StoresRepoMock;
 
 impl StoresRepo for StoresRepoMock {
@@ -190,10 +154,8 @@ impl StoresRepo for StoresRepoMock {
 }
 
 #[allow(unused)]
-fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServiceImpl<ReposFactoryMock, CacheRolesMock> {
-    let database_url = "127.0.0.1";
-    let elastic_address = "127.0.0.1:9200".to_string();
-    let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
+fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+    let manager = MockConnectionManager::default();
     let db_pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create connection pool");
@@ -210,9 +172,8 @@ fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServ
     StoresServiceImpl {
         db_pool: db_pool,
         cpu_pool: cpu_pool,
-        roles_cache: MOCK_USER_ROLE,
         user_id: user_id,
-        elastic_address: elastic_address,
+        elastic_address: "127.0.0.1:9200".to_string(),
         client_handle: client_handle,
         repo_factory: MOCK_REPO_FACTORY,
     }
@@ -281,7 +242,7 @@ pub fn create_update_store(name: serde_json::Value) -> UpdateStore {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ProductsRepoMock;
 
 impl ProductsRepo for ProductsRepoMock {
@@ -325,9 +286,8 @@ impl ProductsRepo for ProductsRepoMock {
 }
 
 #[allow(unused)]
-fn create_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsServiceImpl<ReposFactoryMock, CacheRolesMock> {
-    let database_url = "127.0.0.1";
-    let manager = ConnectionManager::<PgConnection>::new(database_url.to_string());
+fn create_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+    let manager = MockConnectionManager::default();
     let db_pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create connection pool");
@@ -344,7 +304,6 @@ fn create_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> Products
     ProductsServiceImpl {
         db_pool: db_pool,
         cpu_pool: cpu_pool,
-        roles_cache: MOCK_USER_ROLE,
         user_id: user_id,
         client_handle: client_handle,
         elastic_address: "".to_string(),
@@ -399,21 +358,22 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
     }
 }
 
+#[derive(Default)]
 struct MockConnection;
 
 impl Connection for MockConnection {
     type Backend = Pg;
     type TransactionManager = AnsiTransactionManager;
 
-    fn establish(database_url: &str) -> ConnectionResult<MockConnection> {
+    fn establish(_database_url: &str) -> ConnectionResult<MockConnection> {
         Ok(MockConnection {})
     }
 
-    fn execute(&self, query: &str) -> QueryResult<usize> {
+    fn execute(&self, _query: &str) -> QueryResult<usize> {
         unimplemented!()
     }
 
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
+    fn query_by_index<T, U>(&self, _source: T) -> QueryResult<Vec<U>>
     where
         T: AsQuery,
         T::Query: QueryFragment<Pg> + QueryId,
@@ -423,7 +383,7 @@ impl Connection for MockConnection {
         unimplemented!()
     }
 
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
+    fn query_by_name<T, U>(&self, _source: &T) -> QueryResult<Vec<U>>
     where
         T: QueryFragment<Pg> + QueryId,
         U: QueryableByName<Pg>,
@@ -431,7 +391,7 @@ impl Connection for MockConnection {
         unimplemented!()
     }
 
-    fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
+    fn execute_returning_count<T>(&self, _source: &T) -> QueryResult<usize>
     where
         T: QueryFragment<Pg> + QueryId,
     {
@@ -444,11 +404,12 @@ impl Connection for MockConnection {
 }
 
 impl SimpleConnection for MockConnection {
-    fn batch_execute(&self, query: &str) -> QueryResult<()> {
+    fn batch_execute(&self, _query: &str) -> QueryResult<()> {
         Ok(())
     }
 }
 
+#[derive(Default)]
 struct MockConnectionManager;
 
 impl ManageConnection for MockConnectionManager {
@@ -459,7 +420,7 @@ impl ManageConnection for MockConnectionManager {
         Ok(MockConnection {})
     }
 
-    fn is_valid(&self, conn: &mut MockConnection) -> Result<(), MockError> {
+    fn is_valid(&self, _conn: &mut MockConnection) -> Result<(), MockError> {
         Ok(())
     }
 

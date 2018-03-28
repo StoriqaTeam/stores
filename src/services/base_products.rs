@@ -1,3 +1,4 @@
+//! Base product service
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
@@ -8,17 +9,18 @@ use elastic::{ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::{DbPool, RepoResult};
+use repos::error::RepoError;
 use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
 
 use stq_http::client::ClientHandle;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Returns product by ID
@@ -72,7 +74,7 @@ fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
 }
 
 impl BaseProductsService for BaseProductsServiceImpl {
-    fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -103,9 +105,35 @@ impl BaseProductsService for BaseProductsServiceImpl {
                                 .into_iter()
                                 .map(|el_product| {
                                     let acl = acl_for_id(roles_cache.clone(), user_id);
-                                    let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                                    products_repo
+                                    let base_products_repo = BaseProductsRepoImpl::new(&conn, acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                                    base_products_repo
                                         .find(el_product.id)
+                                        .and_then(move |base_product| {
+                                            products_repo
+                                                .find_with_base_id(base_product.id)
+                                                .map(|products| (base_product, products))
+                                                .and_then(move |(base_product, products)| {
+                                                    products
+                                                        .into_iter()
+                                                        .map(|product| {
+                                                            attr_prod_repo
+                                                                .find_all_attributes(product.id)
+                                                                .map(|attrs| {
+                                                                    attrs
+                                                                        .into_iter()
+                                                                        .map(|attr| attr.into())
+                                                                        .collect::<Vec<AttrValue>>()
+                                                                })
+                                                                .map(|attrs| VariantsWithAttributes::new(product, attrs))
+                                                        })
+                                                        .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
+                                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
+                                                })
+                                        })
                                         .map_err(ServiceError::from)
                                 })
                                 .collect()
@@ -116,7 +144,7 @@ impl BaseProductsService for BaseProductsServiceImpl {
     }
 
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -147,9 +175,35 @@ impl BaseProductsService for BaseProductsServiceImpl {
                                 .into_iter()
                                 .map(|el_product| {
                                     let acl = acl_for_id(roles_cache.clone(), user_id);
-                                    let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                                    products_repo
+                                    let base_products_repo = BaseProductsRepoImpl::new(&conn, acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                                    base_products_repo
                                         .find(el_product.id)
+                                        .and_then(move |base_product| {
+                                            products_repo
+                                                .find_with_base_id(base_product.id)
+                                                .and_then(move |products| {
+                                                    products
+                                                        .into_iter()
+                                                        .nth(0)
+                                                        .ok_or(RepoError::NotFound)
+                                                        .and_then(|prod| {
+                                                            attr_prod_repo
+                                                                .find_all_attributes(prod.id)
+                                                                .map(|attrs| {
+                                                                    attrs
+                                                                        .into_iter()
+                                                                        .map(|attr| attr.into())
+                                                                        .collect::<Vec<AttrValue>>()
+                                                                })
+                                                                .map(|attrs| VariantsWithAttributes::new(prod, attrs))
+                                                        })
+                                                })
+                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
+                                        })
                                         .map_err(ServiceError::from)
                                 })
                                 .collect()
@@ -160,7 +214,7 @@ impl BaseProductsService for BaseProductsServiceImpl {
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -191,9 +245,42 @@ impl BaseProductsService for BaseProductsServiceImpl {
                                 .into_iter()
                                 .map(|el_product| {
                                     let acl = acl_for_id(roles_cache.clone(), user_id);
-                                    let products_repo = BaseProductsRepoImpl::new(&conn, acl);
-                                    products_repo
+                                    let base_products_repo = BaseProductsRepoImpl::new(&conn, acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let products_repo = ProductsRepoImpl::new(&conn, acl);
+                                    let acl = acl_for_id(roles_cache.clone(), user_id);
+                                    let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
+                                    base_products_repo
                                         .find(el_product.id)
+                                        .and_then(move |base_product| {
+                                            products_repo
+                                                .find_with_base_id(base_product.id)
+                                                .and_then(move |products| {
+                                                    products
+                                                        .into_iter()
+                                                        .filter_map(|p| {
+                                                            if let Some(_) = p.discount {
+                                                                Some(p)
+                                                            } else {
+                                                                None
+                                                            }
+                                                        })
+                                                        .max_by_key(|p| (p.discount.unwrap() * 1000f64).round() as i64)
+                                                        .ok_or(RepoError::NotFound)
+                                                        .and_then(|prod| {
+                                                            attr_prod_repo
+                                                                .find_all_attributes(prod.id)
+                                                                .map(|attrs| {
+                                                                    attrs
+                                                                        .into_iter()
+                                                                        .map(|attr| attr.into())
+                                                                        .collect::<Vec<AttrValue>>()
+                                                                })
+                                                                .map(|attrs| VariantsWithAttributes::new(prod, attrs))
+                                                        })
+                                                })
+                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
+                                        })
                                         .map_err(ServiceError::from)
                                 })
                                 .collect()
@@ -265,7 +352,6 @@ impl BaseProductsService for BaseProductsServiceImpl {
                     let attr_prod_repo = ProductAttrsRepoImpl::new(&conn, acl);
                     base_products_repo
                         .find(base_product_id)
-                        .map(|base_product| base_product)
                         .and_then(move |base_product| {
                             products_repo
                                 .find_with_base_id(base_product.id)

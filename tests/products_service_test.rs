@@ -3,7 +3,6 @@ include!("tests_setup.rs");
 use tokio_core::reactor::Core;
 
 #[test]
-#[ignore]
 fn test_get_product() {
     let mut core = Core::new().unwrap();
     let handle = Arc::new(core.handle());
@@ -14,19 +13,6 @@ fn test_get_product() {
 }
 
 #[test]
-#[ignore]
-fn test_create_allready_existed() {
-    let mut core = Core::new().unwrap();
-    let handle = Arc::new(core.handle());
-    let service = create_product_service(Some(MOCK_USER_ID), handle);
-    let new_product = create_new_product_with_attributes(MOCK_BASE_PRODUCT_ID);
-    let work = service.create(new_product);
-    let result = core.run(work);
-    assert_eq!(result.is_err(), true);
-}
-
-#[test]
-#[ignore]
 fn test_list() {
     let mut core = Core::new().unwrap();
     let handle = Arc::new(core.handle());
@@ -37,7 +23,6 @@ fn test_list() {
 }
 
 #[test]
-#[ignore]
 fn test_create_product() {
     let mut core = Core::new().unwrap();
     let handle = Arc::new(core.handle());
@@ -49,7 +34,6 @@ fn test_create_product() {
 }
 
 #[test]
-#[ignore]
 fn test_update() {
     let mut core = Core::new().unwrap();
     let handle = Arc::new(core.handle());
@@ -62,7 +46,6 @@ fn test_update() {
 }
 
 #[test]
-#[ignore]
 fn test_deactivate() {
     let mut core = Core::new().unwrap();
     let handle = Arc::new(core.handle());

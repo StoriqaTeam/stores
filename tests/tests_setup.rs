@@ -34,12 +34,11 @@ use diesel::deserialize::QueryableByName;
 use diesel::connection::AnsiTransactionManager;
 use diesel::connection::SimpleConnection;
 
-
 use stq_http::client::Config as HttpConfig;
 use stq_static_resources::Translation;
-use stq_acl::RolesCache;
 
 use stores_lib::repos::*;
+use stores_lib::models::authorization::*;
 use stores_lib::services::*;
 use stores_lib::models::*;
 use stores_lib::config::Config;
@@ -48,64 +47,331 @@ const MOCK_REPO_FACTORY: ReposFactoryMock = ReposFactoryMock {};
 static MOCK_USER_ID: i32 = 1;
 static MOCK_BASE_PRODUCT_ID: i32 = 1;
 static MOCK_PRODUCT_ID: i32 = 1;
-static MOCK_STORE_NAME: &'static str = "store name";
-static MOCK_STORE_SLUG: &'static str = "store slug";
-
-#[derive(Clone)]
-struct CacheRolesMock;
-
-impl RolesCache for CacheRolesMock {
-    type Role = Role;
-
-    fn get(&self, user_id: i32) -> Vec<Self::Role> {
-         match user_id {
-            1 => vec![Role::Superuser],
-            _ => vec![Role::User],
-        }
-    }
-
-    fn clear(&self) {}
-
-    fn remove(&self, _id: i32) {}
-
-    fn contains(&self, id: i32) -> bool {
-        match id {
-            1|2 => true,
-            _ => false,
-        }
-    }
-
-    fn add_roles(&self, _id: i32, _roles: &Vec<Self::Role>) {}
-
-}
+static MOCK_STORE_NAME_JSON_EXISTED: &'static str = r##"[{"lang": "en","text": "store"}]"##;
+static MOCK_STORE_NAME_JSON: &'static str = r##"[{"lang": "de","text": "Store"}]"##;
+static MOCK_STORE_NAME: &'static str = "store";
+static MOCK_STORE_SLUG: &'static str = "{}";
 
 #[derive(Default, Copy, Clone)]
 pub struct ReposFactoryMock;
 
 impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ReposFactory<C> for ReposFactoryMock {
     fn create_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<AttributesRepo + 'a> {
-        unimplemented!()
+        Box::new(AttributesRepoMock::default()) as Box<AttributesRepo>
     }
     fn create_categories_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CategoriesRepo + 'a> {
-        unimplemented!()
+        Box::new(CategoriesRepoMock::default()) as Box<CategoriesRepo>
     }
     fn create_category_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a> {
-        unimplemented!()
+        Box::new(CategoryAttrsRepoMock::default()) as Box<CategoryAttrsRepo>
     }
     fn create_base_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<BaseProductsRepo + 'a> {
-        unimplemented!()
+        Box::new(BaseProductsRepoMock::default()) as Box<BaseProductsRepo>
     }
     fn create_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ProductsRepo + 'a> {
         Box::new(ProductsRepoMock::default()) as Box<ProductsRepo>
     }
     fn create_product_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a> {
-        unimplemented!()
+        Box::new(ProductAttrsRepoMock::default()) as Box<ProductAttrsRepo>
     }
     fn create_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<StoresRepo + 'a> {
         Box::new(StoresRepoMock::default()) as Box<StoresRepo>
     }
     fn create_user_roles_repo<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
-        unimplemented!()
+        Box::new(UserRolesRepoMock::default()) as Box<UserRolesRepo>
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct AttributesRepoMock;
+
+impl AttributesRepo for AttributesRepoMock {
+    /// Find specific attribute by id
+    fn find(&self, id_arg: i32) -> RepoResult<Attribute> {
+        Ok(Attribute {
+            id: id_arg,
+            name: serde_json::from_str("{}").unwrap(),
+            value_type: AttributeType::Str,
+            meta_field: None,
+        })
+    }
+
+    /// Creates new attribute
+    fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
+        Ok(Attribute {
+            id: 1,
+            name: payload.name,
+            value_type: AttributeType::Str,
+            meta_field: None,
+        })
+    }
+
+    /// Updates specific attribute
+    fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
+        Ok(Attribute {
+            id: attribute_id_arg,
+            name: payload.name.unwrap(),
+            value_type: AttributeType::Str,
+            meta_field: None,
+        })
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct CategoriesRepoMock;
+
+impl CategoriesRepo for CategoriesRepoMock {
+    /// Find specific category by id
+    fn find(&self, id_arg: i32) -> RepoResult<Category> {
+        Ok(Category {
+            id: id_arg,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![],
+        })
+    }
+
+    /// Creates new category
+    fn create(&self, payload: NewCategory) -> RepoResult<Category> {
+        Ok(Category {
+            id: 1,
+            name: payload.name,
+            meta_field: None,
+            children: vec![],
+        })
+    }
+
+    /// Updates specific category
+    fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category> {
+        Ok(Category {
+            id: category_id_arg,
+            name: payload.name.unwrap(),
+            meta_field: None,
+            children: vec![],
+        })
+    }
+
+    /// Returns all categories as a tree
+    fn get_all(&self) -> RepoResult<Category> {
+        Ok(Category {
+            id: 1,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![],
+        })
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct CategoryAttrsRepoMock;
+
+impl CategoryAttrsRepo for CategoryAttrsRepoMock {
+    /// Find category attributes by category ID
+    fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
+        Ok(vec![
+            CatAttr {
+                id: 1,
+                cat_id: category_id_arg,
+                attr_id: 1,
+            },
+        ])
+    }
+
+    /// Creates new category_attribute
+    fn create(&self, _payload: NewCatAttr) -> RepoResult<()> {
+        Ok(())
+    }
+
+    /// Delete attr from category
+    fn delete(&self, _payload: OldCatAttr) -> RepoResult<()> {
+        Ok(())
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct BaseProductsRepoMock;
+
+impl BaseProductsRepo for BaseProductsRepoMock {
+    /// Find specific base_product by ID
+    fn find(&self, base_product_id: i32) -> RepoResult<BaseProduct> {
+        Ok(BaseProduct {
+            id: base_product_id,
+            is_active: true,
+            store_id: 1,
+            name: serde_json::from_str("{}").unwrap(),
+            short_description: serde_json::from_str("{}").unwrap(),
+            long_description: None,
+            seo_title: None,
+            seo_description: None,
+            currency_id: 1,
+            category_id: 1,
+            views: 1,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+        })
+    }
+
+    /// Returns list of base_products, limited by `from` and `count` parameters
+    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
+        let mut base_products = vec![];
+        for i in from..(from + count as i32) {
+            let base_product = BaseProduct {
+                id: i,
+                is_active: true,
+                store_id: 1,
+                name: serde_json::from_str("{}").unwrap(),
+                short_description: serde_json::from_str("{}").unwrap(),
+                long_description: None,
+                seo_title: None,
+                seo_description: None,
+                currency_id: 1,
+                category_id: 1,
+                views: 1,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            };
+            base_products.push(base_product);
+        }
+        Ok(base_products)
+    }
+
+    /// Creates new base_product
+    fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct> {
+        Ok(BaseProduct {
+            id: 1,
+            is_active: true,
+            store_id: payload.store_id,
+            name: payload.name,
+            short_description: payload.short_description,
+            long_description: payload.long_description,
+            seo_title: payload.seo_title,
+            seo_description: payload.seo_description,
+            currency_id: payload.currency_id,
+            category_id: payload.category_id,
+            views: 1,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+        })
+    }
+
+    /// Updates specific base_product
+    fn update(&self, base_product_id: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
+        Ok(BaseProduct {
+            id: base_product_id,
+            is_active: true,
+            store_id: 1,
+            name: payload.name.unwrap(),
+            short_description: payload.short_description.unwrap(),
+            long_description: payload.long_description,
+            seo_title: payload.seo_title,
+            seo_description: payload.seo_description,
+            currency_id: payload.currency_id.unwrap(),
+            category_id: payload.category_id.unwrap(),
+            views: 1,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+        })
+    }
+
+    /// Deactivates specific base_product
+    fn deactivate(&self, base_product_id: i32) -> RepoResult<BaseProduct> {
+        Ok(BaseProduct {
+            id: base_product_id,
+            is_active: false,
+            store_id: 1,
+            name: serde_json::from_str("{}").unwrap(),
+            short_description: serde_json::from_str("{}").unwrap(),
+            long_description: None,
+            seo_title: None,
+            seo_description: None,
+            currency_id: 1,
+            category_id: 1,
+            views: 1,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+        })
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct ProductAttrsRepoMock;
+
+impl ProductAttrsRepo for ProductAttrsRepoMock {
+    /// Find product attributes by product ID
+    fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+        Ok(vec![
+            ProdAttr {
+                id: 1,
+                prod_id: product_id_arg,
+                base_prod_id: 1,
+                attr_id: 1,
+                value: "value".to_string(),
+                value_type: AttributeType::Str,
+                meta_field: None,
+            },
+        ])
+    }
+
+    /// Creates new product_attribute
+    fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
+        Ok(ProdAttr {
+            id: 1,
+            prod_id: payload.prod_id,
+            base_prod_id: payload.base_prod_id,
+            attr_id: payload.attr_id,
+            value: payload.value,
+            value_type: payload.value_type,
+            meta_field: payload.meta_field,
+        })
+    }
+
+    /// Updates specific product_attribute
+    fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
+        Ok(ProdAttr {
+            id: 1,
+            prod_id: payload.prod_id,
+            base_prod_id: payload.base_prod_id,
+            attr_id: payload.attr_id,
+            value: payload.value,
+            value_type: AttributeType::Str,
+            meta_field: payload.meta_field,
+        })
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct UserRolesRepoMock;
+
+impl UserRolesRepo for UserRolesRepoMock {
+    fn list_for_user(&self, user_id_value: i32) -> RepoResult<Vec<Role>> {
+        Ok(match user_id_value {
+            1 => vec![Role::Superuser],
+            _ => vec![Role::User],
+        })
+    }
+
+    fn create(&self, payload: NewUserRole) -> RepoResult<UserRole> {
+        Ok(UserRole {
+            id: 123,
+            user_id: payload.user_id,
+            role: payload.role,
+        })
+    }
+
+    fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
+        Ok(UserRole {
+            id: 123,
+            user_id: payload.user_id,
+            role: payload.role,
+        })
+    }
+
+    fn delete_by_user_id(&self, user_id_arg: i32) -> RepoResult<UserRole> {
+        Ok(UserRole {
+            id: 123,
+            user_id: user_id_arg,
+            role: Role::User,
+        })
     }
 }
 
@@ -114,7 +380,10 @@ pub struct StoresRepoMock;
 
 impl StoresRepo for StoresRepoMock {
     fn find(&self, store_id: i32) -> RepoResult<Store> {
-        let store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME).unwrap());
+        let store = create_store(
+            store_id,
+            serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap(),
+        );
         Ok(store)
     }
 
@@ -129,7 +398,7 @@ impl StoresRepo for StoresRepoMock {
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
         let mut stores = vec![];
         for i in from..(from + count as i32) {
-            let store = create_store(i, serde_json::from_str(MOCK_STORE_NAME).unwrap());
+            let store = create_store(i, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             stores.push(store);
         }
         Ok(stores)
@@ -147,14 +416,20 @@ impl StoresRepo for StoresRepoMock {
     }
 
     fn deactivate(&self, store_id: i32) -> RepoResult<Store> {
-        let mut store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME).unwrap());
+        let mut store = create_store(
+            store_id,
+            serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap(),
+        );
         store.is_active = false;
         Ok(store)
     }
 }
 
 #[allow(unused)]
-fn create_store_service(user_id: Option<i32>, handle: Arc<Handle>) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+fn create_store_service(
+    user_id: Option<i32>,
+    handle: Arc<Handle>,
+) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
     let manager = MockConnectionManager::default();
     let db_pool = r2d2::Pool::builder()
         .build(manager)
@@ -286,7 +561,10 @@ impl ProductsRepo for ProductsRepoMock {
 }
 
 #[allow(unused)]
-fn create_product_service(user_id: Option<i32>, handle: Arc<Handle>) -> ProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+fn create_product_service(
+    user_id: Option<i32>,
+    handle: Arc<Handle>,
+) -> ProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
     let manager = MockConnectionManager::default();
     let db_pool = r2d2::Pool::builder()
         .build(manager)
@@ -359,14 +637,16 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
 }
 
 #[derive(Default)]
-struct MockConnection;
+struct MockConnection {
+    tr: AnsiTransactionManager,
+}
 
 impl Connection for MockConnection {
     type Backend = Pg;
     type TransactionManager = AnsiTransactionManager;
 
     fn establish(_database_url: &str) -> ConnectionResult<MockConnection> {
-        Ok(MockConnection {})
+        Ok(MockConnection::default())
     }
 
     fn execute(&self, _query: &str) -> QueryResult<usize> {
@@ -399,7 +679,7 @@ impl Connection for MockConnection {
     }
 
     fn transaction_manager(&self) -> &Self::TransactionManager {
-        unimplemented!()
+        &self.tr
     }
 }
 
@@ -417,7 +697,7 @@ impl ManageConnection for MockConnectionManager {
     type Error = MockError;
 
     fn connect(&self) -> Result<MockConnection, MockError> {
-        Ok(MockConnection {})
+        Ok(MockConnection::default())
     }
 
     fn is_valid(&self, _conn: &mut MockConnection) -> Result<(), MockError> {

@@ -161,14 +161,13 @@ mod tests {
     #[derive(Default)]
     struct ScopeChecker;
 
-    impl CheckScope<Scope, Store> for ScopeChecker
-    {
+    impl CheckScope<Scope, Store> for ScopeChecker {
         fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&Store>) -> bool {
             match *scope {
                 Scope::All => true,
                 Scope::Owned => {
                     if let Some(store) = obj {
-                            store.user_id == user_id
+                        store.user_id == user_id
                     } else {
                         false
                     }
@@ -177,14 +176,13 @@ mod tests {
         }
     }
 
-    impl CheckScope<Scope, UserRole> for ScopeChecker
-    {
+    impl CheckScope<Scope, UserRole> for ScopeChecker {
         fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&UserRole>) -> bool {
             match *scope {
                 Scope::All => true,
                 Scope::Owned => {
                     if let Some(user_role) = obj {
-                            user_role.user_id == user_id
+                        user_role.user_id == user_id
                     } else {
                         false
                     }

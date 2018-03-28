@@ -7,20 +7,13 @@ use models::Attribute;
 use repos::error::RepoError;
 use repos::types::RepoResult;
 
-pub trait AttributeCache: Clone + Send + 'static {
-    fn get(&self, id: i32) -> RepoResult<Attribute>;
-    fn remove(&self, id: i32);
-    fn contains(&self, id: i32) -> bool;
-    fn add_attribute(&self, id: i32, attribute: Attribute);
-}
-
 #[derive(Clone, Default)]
 pub struct AttributeCacheImpl {
     inner: Arc<Mutex<HashMap<i32, Attribute>>>,
 }
 
-impl AttributeCache for AttributeCacheImpl {
-    fn get(&self, id: i32) -> RepoResult<Attribute> {
+impl AttributeCacheImpl {
+    pub fn get(&self, id: i32) -> RepoResult<Attribute> {
         let mut hash_map = self.inner.lock().unwrap();
         match hash_map.entry(id) {
             Entry::Occupied(o) => Ok(o.get().clone()),
@@ -28,17 +21,17 @@ impl AttributeCache for AttributeCacheImpl {
         }
     }
 
-    fn contains(&self, id: i32) -> bool {
+    pub fn contains(&self, id: i32) -> bool {
         let hash_map = self.inner.lock().unwrap();
         hash_map.contains_key(&id)
     }
 
-    fn add_attribute(&self, id: i32, attribute: Attribute) {
+    pub fn add_attribute(&self, id: i32, attribute: Attribute) {
         let mut hash_map = self.inner.lock().unwrap();
         hash_map.insert(id, attribute);
     }
 
-    fn remove(&self, id: i32) {
+    pub fn remove(&self, id: i32) {
         let mut hash_map = self.inner.lock().unwrap();
         hash_map.remove(&id);
     }

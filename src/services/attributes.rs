@@ -10,7 +10,7 @@ use models::{Attribute, NewAttribute, UpdateAttribute};
 use services::types::ServiceFuture;
 use services::error::ServiceError;
 use r2d2::{ManageConnection, Pool};
-use repos::attributes::AttributeCache;
+use repos::attributes::AttributeCacheImpl;
 use repos::ReposFactory;
 
 pub trait AttributesService {
@@ -26,12 +26,11 @@ pub trait AttributesService {
 pub struct AttributesServiceImpl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     F: ReposFactory<T>,
-    A: AttributeCache,
     M: ManageConnection<Connection = T>,
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub attributes_cache: A,
+    pub attributes_cache: AttributeCacheImpl,
     pub user_id: Option<i32>,
     pub repo_factory: F,
 }
@@ -39,11 +38,10 @@ pub struct AttributesServiceImpl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     F: ReposFactory<T>,
-    A: AttributeCache,
     M: ManageConnection<Connection = T>,
-> AttributesServiceImpl<T, F, A, M>
+> AttributesServiceImpl<T, F, M>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, attributes_cache: A, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, attributes_cache: AttributeCacheImpl, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -57,9 +55,8 @@ impl<
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     F: ReposFactory<T>,
-    A: AttributeCache,
     M: ManageConnection<Connection = T>,
-> AttributesService for AttributesServiceImpl<T, F, A, M>
+> AttributesService for AttributesServiceImpl<T, F, M>
 {
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {

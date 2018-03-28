@@ -4,7 +4,7 @@ use diesel::Connection;
 
 use repos::*;
 use models::*;
-use stq_acl::{Acl, RolesCache, SystemACL};
+use stq_acl::{Acl, SystemACL};
 use repos::error::RepoError;
 
 pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>

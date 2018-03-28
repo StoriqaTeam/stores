@@ -30,10 +30,8 @@ use stq_http::request_util::ControllerFuture;
 use stq_http::request_util::{parse_body, read_body};
 use stq_http::client::ClientHandle;
 use stq_router::RouteParser;
-use stq_acl::RolesCache;
 
 use models;
-use models::authorization::*;
 use services::system::{SystemService, SystemServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
@@ -41,22 +39,20 @@ use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
-use repos::categories::CategoryCache;
-use repos::attributes::AttributeCache;
+use repos::categories::CategoryCacheImpl;
+use repos::attributes::AttributeCacheImpl;
+use repos::roles_cache::RolesCacheImpl;
 use repos::repo_factory::*;
 use self::routes::Route;
 use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
-pub struct ControllerImpl<T, M, F, C, A, R>
+pub struct ControllerImpl<T, M, F>
 where
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    C: CategoryCache,
-    A: AttributeCache,
-    R: RolesCache<Role = Role>,
 {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
@@ -64,19 +60,16 @@ where
     pub config: Config,
     pub repo_factory: F,
     pub client_handle: ClientHandle,
-    pub roles_cache: R,
-    pub categories_cache: C,
-    pub attributes_cache: A,
+    pub roles_cache: RolesCacheImpl,
+    pub categories_cache: CategoryCacheImpl,
+    pub attributes_cache: AttributeCacheImpl,
 }
 
 impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    C: CategoryCache,
-    A: AttributeCache,
-    R: RolesCache<Role = Role>,
-> ControllerImpl<T, M, F, C, A, R>
+> ControllerImpl<T, M, F>
 {
     /// Create a new controller based on services
     pub fn new(
@@ -85,9 +78,9 @@ impl<
         client_handle: ClientHandle,
         config: Config,
         repo_factory: F,
-        roles_cache: R,
-        categories_cache: C,
-        attributes_cache: A,
+        roles_cache: RolesCacheImpl,
+        categories_cache: CategoryCacheImpl,
+        attributes_cache: AttributeCacheImpl,
     ) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
@@ -108,10 +101,7 @@ impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    C: CategoryCache,
-    A: AttributeCache,
-    R: RolesCache<Role = Role>,
-> Controller for ControllerImpl<T, M, F, C, A, R>
+> Controller for ControllerImpl<T, M, F>
 {
     /// Handle a request and get future response
     fn call(&self, req: Request) -> ControllerFuture {

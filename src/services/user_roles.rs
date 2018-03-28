@@ -7,12 +7,11 @@ use diesel::pg::Pg;
 use diesel::Connection;
 use r2d2::{ManageConnection, Pool};
 
-use stq_acl::RolesCache;
-
 use models::{NewUserRole, OldUserRole, Role, UserRole};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::ReposFactory;
+use repos::roles_cache::RolesCacheImpl;
 
 pub trait UserRolesService {
     /// Returns role by user ID
@@ -32,11 +31,10 @@ pub struct UserRolesServiceImpl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    R: RolesCache<Role = Role>,
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub cached_roles: R,
+    pub cached_roles: RolesCacheImpl,
     pub repo_factory: F,
 }
 
@@ -44,10 +42,9 @@ impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    R: RolesCache<Role = Role>,
-> UserRolesServiceImpl<T, M, F, R>
+> UserRolesServiceImpl<T, M, F>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, cached_roles: R, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, cached_roles: RolesCacheImpl, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -61,8 +58,7 @@ impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    R: RolesCache<Role = Role>,
-> UserRolesService for UserRolesServiceImpl<T, M, F, R>
+> UserRolesService for UserRolesServiceImpl<T, M, F>
 {
     /// Returns role by user ID
     fn get_roles(&self, user_id: i32) -> ServiceFuture<Vec<Role>> {

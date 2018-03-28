@@ -11,7 +11,7 @@ use models::{Attribute, NewCatAttr, OldCatAttr};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::RepoResult;
-use repos::categories::CategoryCache;
+use repos::categories::CategoryCacheImpl;
 use repos::ReposFactory;
 
 pub trait CategoriesService {
@@ -36,11 +36,10 @@ pub struct CategoriesServiceImpl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    C: CategoryCache,
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub categories_cache: C,
+    pub categories_cache: CategoryCacheImpl,
     pub user_id: Option<i32>,
     pub repo_factory: F,
 }
@@ -49,10 +48,9 @@ impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    C: CategoryCache,
-> CategoriesServiceImpl<T, M, F, C>
+> CategoriesServiceImpl<T, M, F>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, categories_cache: C, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, categories_cache: CategoryCacheImpl, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -67,8 +65,7 @@ impl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
-    C: CategoryCache,
-> CategoriesService for CategoriesServiceImpl<T, M, F, C>
+> CategoriesService for CategoriesServiceImpl<T, M, F>
 {
     /// Returns category by ID
     fn get(&self, category_id: i32) -> ServiceFuture<Category> {

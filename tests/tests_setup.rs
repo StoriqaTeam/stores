@@ -52,6 +52,9 @@ static MOCK_STORE_NAME_JSON: &'static str = r##"[{"lang": "de","text": "Store"}]
 static MOCK_STORE_NAME: &'static str = "store";
 static MOCK_STORE_SLUG: &'static str = "{}";
 
+static MOCK_BASE_PRODUCT_NAME_JSON: &'static str = r##"[{"lang": "en","text": "base product"}]"##;
+
+
 #[derive(Default, Copy, Clone)]
 pub struct ReposFactoryMock;
 
@@ -633,6 +636,212 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
     UpdateProductWithAttributes {
         product: create_update_product(),
         attributes: vec![],
+    }
+}
+
+#[allow(unused)]
+fn create_base_product_service(
+    user_id: Option<i32>,
+    handle: Arc<Handle>,
+) -> BaseProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+    let manager = MockConnectionManager::default();
+    let db_pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create connection pool");
+    let cpu_pool = CpuPool::new(1);
+
+    let config = Config::new().unwrap();
+    let http_config = HttpConfig {
+        http_client_retries: config.client.http_client_retries,
+        http_client_buffer_size: config.client.http_client_buffer_size,
+    };
+    let client = stq_http::client::Client::new(&http_config, &handle);
+    let client_handle = client.handle();
+
+    BaseProductsServiceImpl {
+        db_pool: db_pool,
+        cpu_pool: cpu_pool,
+        user_id: user_id,
+        client_handle: client_handle,
+        elastic_address: "".to_string(),
+        repo_factory: MOCK_REPO_FACTORY,
+    }
+}
+
+fn create_base_product(id: i32, name: serde_json::Value) -> BaseProduct {
+    BaseProduct {
+        id: id,
+        is_active: true,
+        store_id: 1,
+        name: name,
+        short_description: serde_json::from_str("{}").unwrap(),
+        long_description: None,
+        seo_title: None,
+        seo_description: None,
+        currency_id: 1,
+        category_id: 1,
+        views: 1,
+        created_at: SystemTime::now(),
+        updated_at: SystemTime::now(),
+    }
+}
+
+pub fn create_new_base_product(name: &str) -> NewBaseProduct {
+    NewBaseProduct {
+        name: serde_json::from_str(name).unwrap(),
+        store_id: 1,
+        short_description: serde_json::from_str("{}").unwrap(),
+        long_description: None,
+        seo_title: None,
+        seo_description: None,
+        currency_id: 1,
+        category_id: 1,
+    }
+}
+
+pub fn create_update_base_product(name: &str) -> UpdateBaseProduct {
+    UpdateBaseProduct {
+        name: Some(serde_json::from_str(name).unwrap()),
+        short_description: Some(serde_json::from_str("{}").unwrap()),
+        long_description: None,
+        seo_title: None,
+        seo_description: None,
+        currency_id: Some(1),
+        category_id: Some(1),
+    }
+}
+
+
+#[allow(unused)]
+fn create_categories_service(
+    user_id: Option<i32>,
+    handle: Arc<Handle>,
+) -> CategoriesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+    let manager = MockConnectionManager::default();
+    let db_pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create connection pool");
+    let cpu_pool = CpuPool::new(1);
+
+
+    CategoriesServiceImpl {
+        db_pool: db_pool,
+        cpu_pool: cpu_pool,
+        user_id: user_id,
+        repo_factory: MOCK_REPO_FACTORY,
+        categories_cache: CategoryCacheImpl::default()
+    }
+}
+
+fn create_categories(id: i32, name: serde_json::Value) -> Category {
+     Category {
+            id: 1,
+            name: name,
+            meta_field: None,
+            children: vec![],
+        }
+}
+
+pub fn create_new_categories(name: &str) -> NewCategory {
+    NewCategory {
+        name: serde_json::from_str(name).unwrap(),
+        meta_field: None,
+        parent_id: Some(1),
+    }
+}
+
+pub fn create_update_categories(name: &str) -> UpdateCategory {
+    UpdateCategory {
+        name: Some(serde_json::from_str(name).unwrap()),
+        meta_field: None,
+        parent_id: Some(1),
+    }
+}
+
+#[allow(unused)]
+fn create_attribute_service(
+    user_id: Option<i32>,
+    handle: Arc<Handle>,
+) -> AttributesServiceImpl<MockConnection,  ReposFactoryMock, MockConnectionManager> {
+    let manager = MockConnectionManager::default();
+    let db_pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create connection pool");
+    let cpu_pool = CpuPool::new(1);
+
+
+    AttributesServiceImpl {
+        db_pool: db_pool,
+        cpu_pool: cpu_pool,
+        user_id: user_id,
+        repo_factory: MOCK_REPO_FACTORY,
+        attributes_cache: AttributeCacheImpl::default()
+    }
+}
+
+fn create_attribute(id: i32, name: serde_json::Value) -> Attribute {
+     Attribute {
+            id: id,
+            name: name,
+            value_type: AttributeType::Str,
+            meta_field: None,
+        }
+}
+
+pub fn create_new_attribute(name: &str) -> NewAttribute {
+    NewAttribute {
+        name: serde_json::from_str(name).unwrap(),
+        value_type: AttributeType::Str,
+        meta_field: None,
+    }
+}
+
+pub fn create_update_attribute(name: &str) -> UpdateAttribute {
+    UpdateAttribute {
+        name: Some(serde_json::from_str(name).unwrap()),
+        meta_field: None,
+    }
+}
+
+#[allow(unused)]
+fn create_user_roles_service(
+    user_id: Option<i32>,
+    handle: Arc<Handle>,
+) -> UserRolesServiceImpl<MockConnection,  MockConnectionManager, ReposFactoryMock > {
+    let manager = MockConnectionManager::default();
+    let db_pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create connection pool");
+    let cpu_pool = CpuPool::new(1);
+
+
+    UserRolesServiceImpl {
+        db_pool: db_pool,
+        cpu_pool: cpu_pool,
+        cached_roles: RolesCacheImpl::default(),
+        repo_factory: MOCK_REPO_FACTORY,
+    }
+}
+
+fn create_user_roles(id: i32, name: serde_json::Value) -> UserRole {
+     UserRole {
+            id: id,
+            user_id: 1,
+            role: Role::User,
+        }
+}
+
+pub fn create_new_user_roles(user_id: i32) -> NewUserRole {
+    NewUserRole {
+        user_id: user_id,
+        role: Role::User,
+    }
+}
+
+pub fn delete_user_roles(user_id: i32) -> OldUserRole {
+    OldUserRole {
+        user_id: 1,
+        role: Role::User,
     }
 }
 

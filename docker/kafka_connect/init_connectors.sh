@@ -135,8 +135,22 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                      "discount": {
                         "type": "double"
                      },
+                     "price": {
+                        "type": "double"
+                     },
                      "attrs": {
-                        "type": "nested"
+                        "type": "nested",
+                        "properties": {
+                          "attr_id": {
+                              "type": "integer"
+                          },
+                          "float_val": {
+                              "type": "double"
+                          },
+                          "str_val": {
+                              "type": "text"
+                          }
+                        }
                      }
                   }
                },

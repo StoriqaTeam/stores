@@ -135,6 +135,9 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                      "discount": {
                         "type": "double"
                      },
+                     "price": {
+                        "type": "double"
+                     },
                      "attrs": {
                         "type": "nested"
                      }

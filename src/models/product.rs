@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use stq_acl::WithScope;
 
 use models::base_product::base_products::dsl as BaseProducts;
-use models::{AttrValue, AttributeFilter, BaseProduct, Scope};
+use models::{AttrValue, AttributeFilter, BaseProduct, Scope, RangeFilter};
 use models::validation_rules::*;
 use repos::types::DbConnection;
 
@@ -22,6 +22,7 @@ table! {
         additional_photos -> Nullable<Jsonb>,
         vendor_code -> Nullable<VarChar>,
         cashback -> Nullable<Double>,
+        price -> Double,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -39,6 +40,7 @@ pub struct Product {
     pub additional_photos: Option<serde_json::Value>,
     pub vendor_code: Option<String>,
     pub cashback: Option<f64>,
+    pub price: f64,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -56,6 +58,8 @@ pub struct NewProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f64>,
+    #[validate(custom = "validate_non_negative")]
+    pub price: f64,
 }
 
 /// Payload for creating products and attributes
@@ -77,6 +81,8 @@ pub struct UpdateProduct {
     pub vendor_code: Option<String>,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f64>,
+    #[validate(custom = "validate_non_negative")]
+    pub price: Option<f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -88,6 +94,7 @@ pub struct UpdateProductWithAttributes {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchOptions {
     pub attr_filters: Vec<AttributeFilter>,
+    pub price_filter: Option<RangeFilter>,
     pub categories_ids: Vec<i32>,
 }
 

@@ -192,20 +192,17 @@ impl ProductsElastic for ProductsElasticImpl {
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
         log_elastic_req(&prod);
-        let max_views_agg = json!({
-            "max_views" : { "max" : { "field" : "views" } }
-        });
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
-        query_map.insert("aggs".to_string(), max_views_agg);
 
         ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
 
         let query = json!({
             "from" : offset, "size" : count,
-            "aggs" : {
-                "most_viewed_products" : query_map
-            }
+            "query": {
+                "bool" : query_map
+            },
+            "sort" : [{ "views" : { "order" : "desc"} }]
         }).to_string();
 
         let url = format!(
@@ -228,27 +225,17 @@ impl ProductsElastic for ProductsElasticImpl {
     /// Find product by dicount pattern limited by `count` and `offset` parameters
     fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
         log_elastic_req(&prod);
-        let max_views_agg = json!({
-           "resellers" : {
-                "nested" : {
-                    "path" : "variants"
-                },
-                "aggs" : {
-                    "max_discount" : { "max" : { "field" : "variants.discount" } }
-                }
-            }
-        });
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
-        query_map.insert("aggs".to_string(), max_views_agg);
 
         ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
 
         let query = json!({
             "from" : offset, "size" : count,
-            "aggs" : {
-                "most_viewed_products" : query_map
-            }
+            "query": {
+                "bool" : query_map
+            },
+            "sort" : [{ "variants.discount" : { "order" : "desc"} }]
         }).to_string();
 
         let url = format!(

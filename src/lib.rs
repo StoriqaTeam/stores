@@ -69,7 +69,7 @@ use diesel::pg::PgConnection;
 use r2d2_diesel::ConnectionManager;
 use tokio_core::reactor::Core;
 use env_logger::LogBuilder;
-use log::{LogRecord, LogLevelFilter};
+use log::{LogLevelFilter, LogRecord};
 
 use stq_http::controller::Application;
 use stq_http::client::Config as HttpConfig;
@@ -78,12 +78,14 @@ use config::Config;
 use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCacheImpl;
 use repos::attributes::AttributeCacheImpl;
+use repos::repo_factory::ReposFactoryImpl;
 
 /// Starts new web service from provided `Config`
 pub fn start_server(config: Config) {
     let formatter = |record: &LogRecord| {
         let now = Utc::now();
-        format!("{} - {} - {}",
+        format!(
+            "{} - {} - {}",
             now.to_rfc3339(),
             record.level(),
             record.args()
@@ -96,7 +98,7 @@ pub fn start_server(config: Config) {
     if env::var("RUST_LOG").is_ok() {
         builder.parse(&env::var("RUST_LOG").unwrap());
     }
-        
+
     // Prepare logger
     builder.init().unwrap();
 
@@ -139,26 +141,28 @@ pub fn start_server(config: Config) {
     // Roles cache
     let roles_cache = RolesCacheImpl::default();
 
+    // Repo factory
+    let repo_factory = ReposFactoryImpl::new(roles_cache.clone());
+
     // Categories cache
     let category_cache = CategoryCacheImpl::default();
 
     // Attributes cache
     let attributes_cache = AttributeCacheImpl::default();
 
-    // Controller
-    let controller = controller::ControllerImpl::new(
-        r2d2_pool,
-        cpu_pool,
-        client_handle,
-        config,
-        roles_cache,
-        category_cache,
-        attributes_cache,
-    );
-
     let serve = Http::new()
         .serve_addr_handle(&address, &handle, move || {
-            let controller = Box::new(controller.clone());
+            let controller = controller::ControllerImpl::new(
+                r2d2_pool.clone(),
+                cpu_pool.clone(),
+                client_handle.clone(),
+                config.clone(),
+                repo_factory.clone(),
+                roles_cache.clone(),
+                category_cache.clone(),
+                attributes_cache.clone(),
+            );
+            let controller = Box::new(controller);
 
             // Prepare application
             let app = Application { controller };

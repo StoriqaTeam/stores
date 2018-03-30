@@ -3,13 +3,9 @@ use std::time::SystemTime;
 
 use validator::Validate;
 use serde_json;
-use diesel::prelude::*;
-use stq_acl::WithScope;
 
-use models::base_product::base_products::dsl as BaseProducts;
-use models::{AttrValue, AttributeFilter, BaseProduct, Scope, RangeFilter};
+use models::{AttrValue, AttributeFilter, RangeFilter};
 use models::validation_rules::*;
-use repos::types::DbConnection;
 
 /// diesel table for products
 table! {
@@ -112,44 +108,4 @@ pub struct MostViewedProducts {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MostDiscountProducts {
     pub options: Option<SearchOptions>,
-}
-
-impl WithScope<Scope> for Product {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    BaseProducts::base_products
-                        .find(self.base_product_id)
-                        .get_result::<BaseProduct>(&**conn)
-                        .and_then(|base_product: BaseProduct| Ok(base_product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
-        }
-    }
-}
-
-impl WithScope<Scope> for NewProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    BaseProducts::base_products
-                        .find(self.base_product_id)
-                        .get_result::<BaseProduct>(&**conn)
-                        .and_then(|base_product: BaseProduct| Ok(base_product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
-        }
-    }
 }

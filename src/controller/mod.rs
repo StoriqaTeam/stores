@@ -9,6 +9,10 @@ pub mod utils;
 use std::sync::Arc;
 use std::str::FromStr;
 
+use diesel::Connection;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+
 use futures::Future;
 use futures::future;
 use futures::IntoFuture;
@@ -17,15 +21,17 @@ use hyper::header::Authorization;
 use hyper::server::Request;
 use futures_cpupool::CpuPool;
 use validator::Validate;
+use r2d2::{ManageConnection, Pool};
 
 use stq_http::controller::Controller;
 use stq_http::request_util::serialize_future;
 use stq_http::errors::ControllerError as Error;
 use stq_http::request_util::ControllerFuture;
 use stq_http::request_util::{parse_body, read_body};
-use stq_router::RouteParser;
 use stq_http::client::ClientHandle;
+use stq_router::RouteParser;
 
+use models;
 use services::system::{SystemService, SystemServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
@@ -33,35 +39,45 @@ use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
-use repos::types::DbPool;
-use repos::acl::RolesCacheImpl;
 use repos::categories::CategoryCacheImpl;
 use repos::attributes::AttributeCacheImpl;
-
-use models;
+use repos::roles_cache::RolesCacheImpl;
+use repos::repo_factory::*;
 use self::routes::Route;
 use config::Config;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
-pub struct ControllerImpl {
-    pub db_pool: DbPool,
+pub struct ControllerImpl<T, M, F>
+where
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory<T>,
+{
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub route_parser: Arc<RouteParser<Route>>,
     pub config: Config,
+    pub repo_factory: F,
     pub client_handle: ClientHandle,
     pub roles_cache: RolesCacheImpl,
     pub categories_cache: CategoryCacheImpl,
     pub attributes_cache: AttributeCacheImpl,
 }
 
-impl ControllerImpl {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory<T>,
+> ControllerImpl<T, M, F>
+{
     /// Create a new controller based on services
     pub fn new(
-        db_pool: DbPool,
+        db_pool: Pool<M>,
         cpu_pool: CpuPool,
         client_handle: ClientHandle,
         config: Config,
+        repo_factory: F,
         roles_cache: RolesCacheImpl,
         categories_cache: CategoryCacheImpl,
         attributes_cache: AttributeCacheImpl,
@@ -73,6 +89,7 @@ impl ControllerImpl {
             cpu_pool,
             client_handle,
             config,
+            repo_factory,
             roles_cache,
             categories_cache,
             attributes_cache,
@@ -80,7 +97,12 @@ impl ControllerImpl {
     }
 }
 
-impl Controller for ControllerImpl {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    M: ManageConnection<Connection = T>,
+    F: ReposFactory<T>,
+> Controller for ControllerImpl<T, M, F>
+{
     /// Handle a request and get future response
     fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();
@@ -89,55 +111,55 @@ impl Controller for ControllerImpl {
             .map(move |auth| auth.0.clone())
             .and_then(|id| i32::from_str(&id).ok());
 
-        let cached_roles = self.roles_cache.clone();
         let cached_categories = self.categories_cache.clone();
         let cached_attributes = self.attributes_cache.clone();
         let system_service = SystemServiceImpl::new();
         let stores_service = StoresServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_roles.clone(),
             user_id,
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
+            self.repo_factory.clone(),
         );
         let products_service = ProductsServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_roles.clone(),
             user_id,
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
+            self.repo_factory.clone(),
         );
 
         let base_products_service = BaseProductsServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_roles.clone(),
             user_id,
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
+            self.repo_factory.clone(),
         );
 
         let user_roles_service = UserRolesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_roles.clone(),
+            self.roles_cache.clone(),
+            self.repo_factory.clone(),
         );
         let attributes_service = AttributesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_roles.clone(),
             cached_attributes,
             user_id,
+            self.repo_factory.clone(),
         );
 
         let categories_service = CategoriesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_roles.clone(),
             cached_categories,
             user_id,
+            self.repo_factory.clone(),
         );
 
         match (req.method(), self.route_parser.test(req.path())) {

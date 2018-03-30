@@ -4,10 +4,7 @@ use std::time::SystemTime;
 use validator::Validate;
 use serde_json;
 
-use repos::types::DbConnection;
 use models::validation_rules::*;
-use stq_acl::WithScope;
-use models::Scope;
 
 /// diesel table for stores
 table! {
@@ -133,22 +130,4 @@ pub struct UpdateStore {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchStore {
     pub name: String,
-}
-
-impl WithScope<Scope> for Store {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => self.user_id == user_id,
-        }
-    }
-}
-
-impl WithScope<Scope> for NewStore {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => self.user_id == user_id,
-        }
-    }
 }

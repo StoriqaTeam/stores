@@ -1,9 +1,4 @@
-use diesel::prelude::*;
-use stq_acl::WithScope;
-
-use models::product::products::dsl as Products;
-use models::{AttributeType, Product, Scope};
-use repos::types::DbConnection;
+use models::AttributeType;
 
 /// diesel table for product attributes
 table! {
@@ -82,46 +77,6 @@ impl UpdateProdAttr {
             attr_id,
             value,
             meta_field,
-        }
-    }
-}
-
-impl WithScope<Scope> for ProdAttr {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    Products::products
-                        .find(self.prod_id)
-                        .get_result::<Product>(&**conn)
-                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
-        }
-    }
-}
-
-impl WithScope<Scope> for NewProdAttr {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    Products::products
-                        .find(self.prod_id)
-                        .get_result::<Product>(&**conn)
-                        .and_then(|product: Product| Ok(product.is_in_scope(scope, user_id, Some(conn))))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
         }
     }
 }

@@ -3,10 +3,9 @@ use std::sync::{Arc, Mutex};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-use repos::attributes::{AttributesRepo, AttributesRepoImpl};
-use repos::types::{DbConnection, RepoResult};
-use repos::acl::BoxedAcl;
 use models::Attribute;
+use repos::error::RepoError;
+use repos::types::RepoResult;
 
 #[derive(Clone, Default)]
 pub struct AttributeCacheImpl {
@@ -14,26 +13,26 @@ pub struct AttributeCacheImpl {
 }
 
 impl AttributeCacheImpl {
-    pub fn get(&self, id: i32, db_conn: &DbConnection, acl: BoxedAcl) -> RepoResult<Attribute> {
+    pub fn get(&self, id: i32) -> RepoResult<Attribute> {
         let mut hash_map = self.inner.lock().unwrap();
         match hash_map.entry(id) {
             Entry::Occupied(o) => Ok(o.get().clone()),
-            Entry::Vacant(v) => AttributesRepoImpl::new(db_conn, acl)
-                .find(id)
-                .and_then(move |attr| {
-                    v.insert(attr.clone());
-                    debug!(
-                        "Added attribute {:?} with id {} to attributes cache.",
-                        attr, id
-                    );
-                    Ok(attr)
-                }),
+            Entry::Vacant(_) => return Err(RepoError::NotFound),
         }
     }
 
-    pub fn remove(&self, id: i32) -> RepoResult<()> {
+    pub fn contains(&self, id: i32) -> bool {
+        let hash_map = self.inner.lock().unwrap();
+        hash_map.contains_key(&id)
+    }
+
+    pub fn add_attribute(&self, id: i32, attribute: Attribute) {
+        let mut hash_map = self.inner.lock().unwrap();
+        hash_map.insert(id, attribute);
+    }
+
+    pub fn remove(&self, id: i32) {
         let mut hash_map = self.inner.lock().unwrap();
         hash_map.remove(&id);
-        Ok(())
     }
 }

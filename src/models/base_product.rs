@@ -2,14 +2,11 @@
 use std::time::SystemTime;
 
 use validator::Validate;
-use diesel::prelude::*;
+
 use serde_json;
-use stq_acl::WithScope;
 
 use super::Store;
-use repos::types::DbConnection;
-use models::{AttrValue, Product, Scope};
-use models::store::stores::dsl as Stores;
+use models::{AttrValue, Product};
 use models::validation_rules::*;
 
 /// diesel table for base_products
@@ -106,46 +103,6 @@ impl<'a> From<&'a BaseProduct> for UpdateBaseProductViews {
     fn from(base_product: &'a BaseProduct) -> Self {
         Self {
             views: base_product.views + 1,
-        }
-    }
-}
-
-impl WithScope<Scope> for BaseProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    Stores::stores
-                        .find(self.store_id)
-                        .get_result::<Store>(&**conn)
-                        .and_then(|store: Store| Ok(store.user_id == user_id))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
-        }
-    }
-}
-
-impl WithScope<Scope> for NewBaseProduct {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => {
-                if let Some(conn) = conn {
-                    Stores::stores
-                        .find(self.store_id)
-                        .get_result::<Store>(&**conn)
-                        .and_then(|store: Store| Ok(store.user_id == user_id))
-                        .ok()
-                        .unwrap_or(false)
-                } else {
-                    false
-                }
-            }
         }
     }
 }

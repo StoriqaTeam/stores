@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use stq_http::client::ClientHandle;
 
-use models::{ElasticIndex, ElasticProduct, MostDiscountProducts, MostViewedProducts, SearchProductsByName, SearchResponse, SearchOptions};
+use models::{ElasticIndex, ElasticProduct, MostDiscountProducts, MostViewedProducts, SearchOptions, SearchProductsByName, SearchResponse};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 use super::{log_elastic_req, log_elastic_resp};
@@ -60,10 +60,14 @@ impl ProductsElasticImpl {
                         json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": equal.values}}]}})
                     } else {
                         json!({})
-                    }  
+                    }
                 })
                 .collect::<Vec<serde_json::Value>>();
-            (Some(filters), Some(options.categories_ids), options.price_filter)
+            (
+                Some(filters),
+                Some(options.categories_ids),
+                options.price_filter,
+            )
         } else {
             (None, None, None)
         };

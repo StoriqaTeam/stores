@@ -3,20 +3,25 @@ use std::convert::From;
 use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use stq_acl::*;
 
-use models::{NewProdAttr, ProdAttr, UpdateProdAttr};
+use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
 use models::attribute_product::prod_attr_values::dsl::*;
+use models::store::stores::dsl as Stores;
+use models::base_product::base_products::dsl as BaseProducts;
 use repos::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
+use super::types::RepoResult;
 use models::authorization::*;
 use super::acl;
-use super::acl::BoxedAcl;
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
-pub struct ProductAttrsRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, ProdAttr>>,
 }
 
 pub trait ProductAttrsRepo {
@@ -30,13 +35,15 @@ pub trait ProductAttrsRepo {
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
 }
 
-impl<'a> ProductAttrsRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, ProdAttr>>) -> Self {
         Self { db_conn, acl }
     }
 }
 
-impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepo
+    for ProductAttrsRepoImpl<'a, T>
+{
     /// Find specific product_attributes by product ID
     fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
         debug!("Find all attributes of product id {}.", product_id_arg);
@@ -45,38 +52,38 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
             .order(id);
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
-                let resources = prod_attrs_res
-                    .iter()
-                    .map(|prod_attr| (prod_attr as &WithScope<Scope>))
-                    .collect::<Vec<&WithScope<Scope>>>();
-                acl::check(
-                    &*self.acl,
-                    &Resource::ProductAttrs,
-                    &Action::Read,
-                    &resources,
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(prod_attrs_res.clone()))
+                for prod_attr in prod_attrs_res.iter() {
+                    acl::check(
+                        &*self.acl,
+                        &Resource::ProductAttrs,
+                        &Action::Read,
+                        self,
+                        Some(&prod_attr),
+                    )?;
+                }
+                Ok(prod_attrs_res.clone())
             })
     }
 
     /// Creates new product_attribute
     fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
         debug!("Create new product attribute {:?}.", payload);
-        acl::check(
-            &*self.acl,
-            &Resource::ProductAttrs,
-            &Action::Create,
-            &[&payload],
-            Some(self.db_conn),
-        ).and_then(|_| {
-            let query_product_attribute = diesel::insert_into(prod_attr_values).values(&payload);
-            query_product_attribute
-                .get_result::<ProdAttr>(&**self.db_conn)
-                .map_err(Error::from)
-        })
+        let query_product_attribute = diesel::insert_into(prod_attr_values).values(&payload);
+        query_product_attribute
+            .get_result::<ProdAttr>(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|prod_attr| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::ProductAttrs,
+                    &Action::Create,
+                    self,
+                    Some(&prod_attr),
+                ).and_then(|_| Ok(prod_attr))
+            })
     }
 
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
@@ -86,15 +93,15 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
             .filter(attr_id.eq(payload.attr_id));
 
         query
-            .first::<ProdAttr>(&**self.db_conn)
+            .first::<ProdAttr>(self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attr: ProdAttr| {
                 acl::check(
                     &*self.acl,
                     &Resource::ProductAttrs,
                     &Action::Update,
-                    &[&prod_attr],
-                    Some(self.db_conn),
+                    self,
+                    Some(&prod_attr),
                 )
             })
             .and_then(|_| {
@@ -104,8 +111,35 @@ impl<'a> ProductAttrsRepo for ProductAttrsRepoImpl<'a> {
 
                 let query = diesel::update(filter).set(&payload);
                 query
-                    .get_result::<ProdAttr>(&**self.db_conn)
+                    .get_result::<ProdAttr>(self.db_conn)
                     .map_err(Error::from)
             })
+    }
+}
+
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, ProdAttr>
+    for ProductAttrsRepoImpl<'a, T>
+{
+    fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&ProdAttr>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(prod_attr) = obj {
+                    BaseProducts::base_products
+                        .find(prod_attr.base_prod_id)
+                        .get_result::<BaseProduct>(self.db_conn)
+                        .and_then(|base_prod: BaseProduct| {
+                            Stores::stores
+                                .find(base_prod.store_id)
+                                .get_result::<Store>(self.db_conn)
+                                .and_then(|store: Store| Ok(store.user_id == user_id))
+                        })
+                        .ok()
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
+        }
     }
 }

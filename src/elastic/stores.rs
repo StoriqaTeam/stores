@@ -10,6 +10,7 @@ use stq_http::client::ClientHandle;
 use models::{ElasticIndex, ElasticStore, SearchResponse, SearchStore};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
+use super::{log_elastic_req, log_elastic_resp};
 
 /// StoresSearch repository, responsible for handling stores
 pub struct StoresElasticImpl {
@@ -37,6 +38,7 @@ impl StoresElasticImpl {
 impl StoresElastic for StoresElasticImpl {
     /// Find specific stores by name limited by `count` parameters
     fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> RepoFuture<Vec<ElasticStore>> {
+        log_elastic_req(&search_store);
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
@@ -62,12 +64,14 @@ impl StoresElastic for StoresElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>())),
         )
     }
 
     /// Auto Complete
     fn auto_complete(&self, name: String, count: i64, _offset: i64) -> RepoFuture<Vec<String>> {
+        log_elastic_req(&name);
         let query = json!({
             "suggest": {
                 "name-suggest" : {
@@ -92,6 +96,7 @@ impl StoresElastic for StoresElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.suggested_texts())),
         )
     }

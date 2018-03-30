@@ -54,7 +54,6 @@ static MOCK_STORE_SLUG: &'static str = "{}";
 
 static MOCK_BASE_PRODUCT_NAME_JSON: &'static str = r##"[{"lang": "en","text": "base product"}]"##;
 
-
 #[derive(Default, Copy, Clone)]
 pub struct ReposFactoryMock;
 
@@ -711,7 +710,6 @@ pub fn create_update_base_product(name: &str) -> UpdateBaseProduct {
     }
 }
 
-
 #[allow(unused)]
 fn create_categories_service(
     user_id: Option<i32>,
@@ -723,23 +721,22 @@ fn create_categories_service(
         .expect("Failed to create connection pool");
     let cpu_pool = CpuPool::new(1);
 
-
     CategoriesServiceImpl {
         db_pool: db_pool,
         cpu_pool: cpu_pool,
         user_id: user_id,
         repo_factory: MOCK_REPO_FACTORY,
-        categories_cache: CategoryCacheImpl::default()
+        categories_cache: CategoryCacheImpl::default(),
     }
 }
 
 fn create_categories(id: i32, name: serde_json::Value) -> Category {
-     Category {
-            id: 1,
-            name: name,
-            meta_field: None,
-            children: vec![],
-        }
+    Category {
+        id: 1,
+        name: name,
+        meta_field: None,
+        children: vec![],
+    }
 }
 
 pub fn create_new_categories(name: &str) -> NewCategory {
@@ -762,30 +759,29 @@ pub fn create_update_categories(name: &str) -> UpdateCategory {
 fn create_attribute_service(
     user_id: Option<i32>,
     handle: Arc<Handle>,
-) -> AttributesServiceImpl<MockConnection,  ReposFactoryMock, MockConnectionManager> {
+) -> AttributesServiceImpl<MockConnection, ReposFactoryMock, MockConnectionManager> {
     let manager = MockConnectionManager::default();
     let db_pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create connection pool");
     let cpu_pool = CpuPool::new(1);
 
-
     AttributesServiceImpl {
         db_pool: db_pool,
         cpu_pool: cpu_pool,
         user_id: user_id,
         repo_factory: MOCK_REPO_FACTORY,
-        attributes_cache: AttributeCacheImpl::default()
+        attributes_cache: AttributeCacheImpl::default(),
     }
 }
 
 fn create_attribute(id: i32, name: serde_json::Value) -> Attribute {
-     Attribute {
-            id: id,
-            name: name,
-            value_type: AttributeType::Str,
-            meta_field: None,
-        }
+    Attribute {
+        id: id,
+        name: name,
+        value_type: AttributeType::Str,
+        meta_field: None,
+    }
 }
 
 pub fn create_new_attribute(name: &str) -> NewAttribute {
@@ -807,13 +803,12 @@ pub fn create_update_attribute(name: &str) -> UpdateAttribute {
 fn create_user_roles_service(
     user_id: Option<i32>,
     handle: Arc<Handle>,
-) -> UserRolesServiceImpl<MockConnection,  MockConnectionManager, ReposFactoryMock > {
+) -> UserRolesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
     let manager = MockConnectionManager::default();
     let db_pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create connection pool");
     let cpu_pool = CpuPool::new(1);
-
 
     UserRolesServiceImpl {
         db_pool: db_pool,
@@ -824,11 +819,11 @@ fn create_user_roles_service(
 }
 
 fn create_user_roles(id: i32, name: serde_json::Value) -> UserRole {
-     UserRole {
-            id: id,
-            user_id: 1,
-            role: Role::User,
-        }
+    UserRole {
+        id: id,
+        user_id: 1,
+        role: Role::User,
+    }
 }
 
 pub fn create_new_user_roles(user_id: i32) -> NewUserRole {

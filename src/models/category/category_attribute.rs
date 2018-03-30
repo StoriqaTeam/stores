@@ -17,7 +17,7 @@ pub struct CatAttr {
 }
 
 /// Payload for creating category attributes
-#[derive(Serialize, Deserialize, Insertable, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[table_name = "cat_attr_values"]
 pub struct NewCatAttr {
     pub cat_id: i32,
@@ -25,7 +25,7 @@ pub struct NewCatAttr {
 }
 
 /// Payload for updating category attributes
-#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Debug)]
 #[table_name = "cat_attr_values"]
 pub struct OldCatAttr {
     pub cat_id: i32,

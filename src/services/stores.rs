@@ -14,8 +14,8 @@ use stq_http::client::ClientHandle;
 use models::{NewStore, SearchStore, Store, UpdateStore};
 use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
-use super::error::ServiceError as Error;
 use repos::ReposFactory;
+use super::error::ServiceError;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -86,7 +86,7 @@ impl<
             let stores_el = StoresElasticImpl::new(client_handle, address);
             stores_el
                 .auto_complete(name, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(stores_names)
@@ -100,7 +100,7 @@ impl<
             let stores_el = StoresElasticImpl::new(client_handle, address);
             stores_el
                 .find_by_name(search_store, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(stores.and_then({
@@ -113,13 +113,19 @@ impl<
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Connection(e.into()))
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
                         .and_then(move |conn| {
                             el_stores
                                 .into_iter()
                                 .map(|el_store| {
                                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                                    stores_repo.find(el_store.id).map_err(Error::from)
+                                    stores_repo.find(el_store.id).map_err(ServiceError::from)
                                 })
                                 .collect()
                         })
@@ -138,10 +144,16 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    stores_repo.find(store_id).map_err(Error::from)
+                    stores_repo.find(store_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -156,10 +168,16 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    stores_repo.deactivate(store_id).map_err(Error::from)
+                    stores_repo.deactivate(store_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -174,10 +192,16 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    stores_repo.list(from, count).map_err(Error::from)
+                    stores_repo.list(from, count).map_err(ServiceError::from)
                 })
         }))
     }
@@ -193,20 +217,26 @@ impl<
             cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                    .map_err(|e| Error::Connection(e.into()))
+                    .map_err(|e| {
+                        error!(
+                            "Could not get connection to db from pool! {}",
+                            e.to_string()
+                        );
+                        ServiceError::Connection(e.into())
+                    })
                     .and_then(move |conn| {
                         let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                        conn.transaction::<Store, Error, _>(move || {
+                        conn.transaction::<Store, ServiceError, _>(move || {
                             serde_json::from_value::<Vec<Translation>>(payload.name.clone())
-                                .map_err(|e| Error::Parse(e.to_string()))
+                                .map_err(|e| ServiceError::Parse(e.to_string()))
                                 .and_then(|translations| {
                                     stores_repo
                                         .name_exists(translations)
                                         .map(move |exists| (payload, exists))
-                                        .map_err(Error::from)
+                                        .map_err(ServiceError::from)
                                         .and_then(|(payload, exists)| {
                                             if exists {
-                                                Err(Error::Validate(
+                                                Err(ServiceError::Validate(
                                                     validation_errors!({"name": ["name" => "Store with this name already exists"]}),
                                                 ))
                                             } else {
@@ -218,10 +248,10 @@ impl<
                                     stores_repo
                                         .slug_exists(payload.slug.to_string())
                                         .map(move |exists| (payload, exists))
-                                        .map_err(Error::from)
+                                        .map_err(ServiceError::from)
                                         .and_then(|(new_store, exists)| {
                                             if exists {
-                                                Err(Error::Validate(
+                                                Err(ServiceError::Validate(
                                                     validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
                                                 ))
                                             } else {
@@ -229,7 +259,7 @@ impl<
                                             }
                                         })
                                 })
-                                .and_then(move |new_store| stores_repo.create(new_store).map_err(Error::from))
+                                .and_then(move |new_store| stores_repo.create(new_store).map_err(ServiceError::from))
                         })
                     })
             })
@@ -246,13 +276,19 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo
                         .find(store_id.clone())
                         .and_then(move |_user| stores_repo.update(store_id, payload))
-                        .map_err(Error::from)
+                        .map_err(ServiceError::from)
                 })
         }))
     }

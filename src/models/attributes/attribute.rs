@@ -24,7 +24,7 @@ pub struct Attribute {
 }
 
 /// Payload for creating attributes
-#[derive(Serialize, Deserialize, Insertable, Clone, Validate)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Validate, Debug)]
 #[table_name = "attributes"]
 pub struct NewAttribute {
     #[validate(custom = "validate_translation")]
@@ -34,7 +34,7 @@ pub struct NewAttribute {
 }
 
 /// Payload for updating attributes
-#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate)]
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
 #[table_name = "attributes"]
 pub struct UpdateAttribute {
     #[validate(custom = "validate_translation")]

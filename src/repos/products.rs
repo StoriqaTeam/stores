@@ -59,6 +59,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepo for ProductsRepoImpl<'a, T> {
     /// Find specific product by ID
     fn find(&self, product_id_arg: i32) -> RepoResult<Product> {
+        debug!("Find in products with id {}.", product_id_arg);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
                 acl::check(
@@ -73,6 +74,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<Product> {
+        debug!("Create products {:?}.", payload);
         let query_product = diesel::insert_into(products).values(&payload);
         query_product
             .get_result::<Product>(self.db_conn)
@@ -90,6 +92,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Product>> {
+        debug!("Find in products with ids from {} count {}.", from, count);
         let query = products
             .filter(is_active.eq(true))
             .filter(id.ge(from))
@@ -115,6 +118,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Returns list of products with base id
     fn find_with_base_id(&self, base_id_arg: i32) -> RepoResult<Vec<Product>> {
+        debug!("Find in products with id {}.", base_id_arg);
         let query = products
             .filter(is_active.eq(true))
             .filter(base_product_id.ge(base_id_arg));
@@ -138,6 +142,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Updates specific product
     fn update(&self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
+        debug!(
+            "Updating base product with id {} and payload {:?}.",
+            product_id_arg, payload
+        );
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
                 acl::check(
@@ -162,6 +170,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Deactivates specific product
     fn deactivate(&self, product_id_arg: i32) -> RepoResult<Product> {
+        debug!("Deactivate base product with id {}.", product_id_arg);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| {
                 acl::check(

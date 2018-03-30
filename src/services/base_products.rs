@@ -1,3 +1,4 @@
+//! Base product service
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
@@ -8,19 +9,20 @@ use r2d2::{ManageConnection, Pool};
 use models::*;
 use elastic::{ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
-use super::error::ServiceError as Error;
 use repos::types::RepoResult;
 use repos::ReposFactory;
+use super::error::ServiceError;
+use repos::error::RepoError;
 
 use stq_http::client::ClientHandle;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
     /// Returns product by ID
@@ -82,14 +84,14 @@ impl<
     F: ReposFactory<T>,
 > BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
-    fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .search_by_name(search_product, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products.and_then({
@@ -101,13 +103,45 @@ impl<
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Connection(e.into()))
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
                         .and_then(move |conn| {
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
                                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    base_products_repo.find(el_product.id).map_err(Error::from)
+                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+                                    base_products_repo
+                                        .find(el_product.id)
+                                        .and_then(move |base_product| {
+                                            products_repo
+                                                .find_with_base_id(base_product.id)
+                                                .map(|products| (base_product, products))
+                                                .and_then(move |(base_product, products)| {
+                                                    products
+                                                        .into_iter()
+                                                        .map(|product| {
+                                                            attr_prod_repo
+                                                                .find_all_attributes(product.id)
+                                                                .map(|attrs| {
+                                                                    attrs
+                                                                        .into_iter()
+                                                                        .map(|attr| attr.into())
+                                                                        .collect::<Vec<AttrValue>>()
+                                                                })
+                                                                .map(|attrs| VariantsWithAttributes::new(product, attrs))
+                                                        })
+                                                        .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
+                                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
+                                                })
+                                        })
+                                        .map_err(ServiceError::from)
                                 })
                                 .collect()
                         })
@@ -117,14 +151,14 @@ impl<
     }
 
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .search_most_viewed(prod, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products.and_then({
@@ -136,13 +170,45 @@ impl<
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Connection(e.into()))
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
                         .and_then(move |conn| {
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
                                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    base_products_repo.find(el_product.id).map_err(Error::from)
+                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+                                    base_products_repo
+                                        .find(el_product.id)
+                                        .and_then(move |base_product| {
+                                            products_repo
+                                                .find_with_base_id(base_product.id)
+                                                .and_then(move |products| {
+                                                    products
+                                                        .into_iter()
+                                                        .nth(0)
+                                                        .ok_or(RepoError::NotFound)
+                                                        .and_then(|prod| {
+                                                            attr_prod_repo
+                                                                .find_all_attributes(prod.id)
+                                                                .map(|attrs| {
+                                                                    attrs
+                                                                        .into_iter()
+                                                                        .map(|attr| attr.into())
+                                                                        .collect::<Vec<AttrValue>>()
+                                                                })
+                                                                .map(|attrs| VariantsWithAttributes::new(prod, attrs))
+                                                        })
+                                                })
+                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
+                                        })
+                                        .map_err(ServiceError::from)
                                 })
                                 .collect()
                         })
@@ -152,14 +218,14 @@ impl<
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .search_most_discount(prod, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products.and_then({
@@ -171,13 +237,52 @@ impl<
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| Error::Connection(e.into()))
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
                         .and_then(move |conn| {
                             el_products
                                 .into_iter()
                                 .map(|el_product| {
                                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    base_products_repo.find(el_product.id).map_err(Error::from)
+                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+                                    base_products_repo
+                                        .find(el_product.id)
+                                        .and_then(move |base_product| {
+                                            products_repo
+                                                .find_with_base_id(base_product.id)
+                                                .and_then(move |products| {
+                                                    products
+                                                        .into_iter()
+                                                        .filter_map(|p| {
+                                                            if let Some(_) = p.discount {
+                                                                Some(p)
+                                                            } else {
+                                                                None
+                                                            }
+                                                        })
+                                                        .max_by_key(|p| (p.discount.unwrap() * 1000f64).round() as i64)
+                                                        .ok_or(RepoError::NotFound)
+                                                        .and_then(|prod| {
+                                                            attr_prod_repo
+                                                                .find_all_attributes(prod.id)
+                                                                .map(|attrs| {
+                                                                    attrs
+                                                                        .into_iter()
+                                                                        .map(|attr| attr.into())
+                                                                        .collect::<Vec<AttrValue>>()
+                                                                })
+                                                                .map(|attrs| VariantsWithAttributes::new(prod, attrs))
+                                                        })
+                                                })
+                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
+                                        })
+                                        .map_err(ServiceError::from)
                                 })
                                 .collect()
                         })
@@ -193,7 +298,7 @@ impl<
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
                 .auto_complete(name, count, offset)
-                .map_err(Error::from)
+                .map_err(ServiceError::from)
         };
 
         Box::new(products_names)
@@ -208,10 +313,18 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo.find(product_id).map_err(Error::from)
+                    base_products_repo
+                        .find(product_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -225,14 +338,19 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                     base_products_repo
                         .find(base_product_id)
-                        .map(|base_product| base_product)
                         .and_then(move |base_product| {
                             products_repo
                                 .find_with_base_id(base_product.id)
@@ -255,7 +373,7 @@ impl<
                                         .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
                                 })
                         })
-                        .map_err(Error::from)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -269,12 +387,18 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     base_products_repo
                         .deactivate(product_id)
-                        .map_err(Error::from)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -288,10 +412,18 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo.list(from, count).map_err(Error::from)
+                    base_products_repo
+                        .list(from, count)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -305,10 +437,20 @@ impl<
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    conn.transaction::<(BaseProduct), Error, _>(move || base_products_repo.create(payload).map_err(Error::from))
+                    conn.transaction::<(BaseProduct), ServiceError, _>(move || {
+                        base_products_repo
+                            .create(payload)
+                            .map_err(ServiceError::from)
+                    })
                 })
         }))
     }
@@ -323,13 +465,19 @@ impl<
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    conn.transaction::<(BaseProduct), Error, _>(move || {
+                    conn.transaction::<(BaseProduct), ServiceError, _>(move || {
                         base_products_repo
                             .update(product_id, payload)
-                            .map_err(Error::from)
+                            .map_err(ServiceError::from)
                     })
                 })
         }))

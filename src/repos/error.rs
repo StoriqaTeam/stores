@@ -24,6 +24,7 @@ pub enum RepoError {
 
 impl From<DieselError> for RepoError {
     fn from(err: DieselError) -> Self {
+        error!("Diesel error occured: '{:?}'.", err);
         match err {
             DieselError::InvalidCString(e) => RepoError::Unknown(DieselError::InvalidCString(e).into()),
             DieselError::DatabaseError(kind, info) => RepoError::ContstaintViolation(DieselError::DatabaseError(kind, info).into()),
@@ -39,6 +40,7 @@ impl From<DieselError> for RepoError {
 
 impl From<HttpError> for RepoError {
     fn from(err: HttpError) -> Self {
+        error!("Http error occured: '{:?}'.", err);
         RepoError::Connection(format_err!("Http error. {}", err))
     }
 }

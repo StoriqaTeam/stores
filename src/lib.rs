@@ -58,7 +58,9 @@ pub mod types;
 
 use std::sync::Arc;
 use std::process;
+use std::env;
 
+use chrono::prelude::*;
 use futures::{Future, Stream};
 use futures::future;
 use futures_cpupool::CpuPool;
@@ -66,6 +68,8 @@ use hyper::server::Http;
 use diesel::pg::PgConnection;
 use r2d2_diesel::ConnectionManager;
 use tokio_core::reactor::Core;
+use env_logger::LogBuilder;
+use log::{LogLevelFilter, LogRecord};
 
 use stq_http::controller::Application;
 use stq_http::client::Config as HttpConfig;
@@ -78,8 +82,25 @@ use repos::repo_factory::ReposFactoryImpl;
 
 /// Starts new web service from provided `Config`
 pub fn start_server(config: Config) {
+    let formatter = |record: &LogRecord| {
+        let now = Utc::now();
+        format!(
+            "{} - {} - {}",
+            now.to_rfc3339(),
+            record.level(),
+            record.args()
+        )
+    };
+
+    let mut builder = LogBuilder::new();
+    builder.format(formatter).filter(None, LogLevelFilter::Info);
+
+    if env::var("RUST_LOG").is_ok() {
+        builder.parse(&env::var("RUST_LOG").unwrap());
+    }
+
     // Prepare logger
-    env_logger::init().unwrap();
+    builder.init().unwrap();
 
     // Prepare reactor
     let mut core = Core::new().expect("Unexpected error creating event loop core");

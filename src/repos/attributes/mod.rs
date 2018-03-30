@@ -47,6 +47,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepo for AttributesRepoImpl<'a, T> {
     /// Find specific attribute by id
     fn find(&self, id_arg: i32) -> RepoResult<Attribute> {
+        debug!("Find in attributes with id {}.", id_arg);
         let query = attributes.filter(id.eq(id_arg));
 
         query
@@ -65,6 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Creates new attribute
     fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
+        debug!("Create attribute {:?}.", payload);
         let query_attribute = diesel::insert_into(attributes).values(&payload);
         query_attribute
             .get_result::<Attribute>(self.db_conn)
@@ -82,6 +84,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Updates specific attribute
     fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
+        debug!(
+            "Updating attribute with id {} and payload {:?}.",
+            attribute_id_arg, payload
+        );
         let query = attributes.find(attribute_id_arg);
 
         query

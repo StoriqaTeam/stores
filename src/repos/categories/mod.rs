@@ -52,6 +52,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepo for CategoriesRepoImpl<'a, T> {
     /// Find specific category by id
     fn find(&self, id_arg: i32) -> RepoResult<Category> {
+        debug!("Find in categories with id {}.", id_arg);
         let query = categories.filter(id.eq(id_arg));
 
         query
@@ -77,6 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category> {
+        debug!("Create new category {:?}.", payload);
         let query_categorie = diesel::insert_into(categories).values(&payload);
         query_categorie
             .get_result::<RawCategory>(self.db_conn)
@@ -98,8 +100,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Updates specific category
     fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category> {
+        debug!(
+            "Updating category with id {} and payload {:?}.",
+            category_id_arg, payload
+        );
         let query = categories.find(category_id_arg);
-
         query
             .first::<RawCategory>(self.db_conn)
             .map_err(Error::from)
@@ -136,6 +141,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn get_all(&self) -> RepoResult<Category> {
+        debug!("get all categories request.");
         acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
             .and_then(|_| {
                 categories

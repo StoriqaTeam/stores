@@ -12,8 +12,8 @@ use r2d2::{ManageConnection, Pool};
 
 use models::*;
 use super::types::ServiceFuture;
-use super::error::ServiceError as Error;
 use repos::ReposFactory;
+use super::error::ServiceError;
 
 pub trait ProductsService {
     /// Returns product by ID
@@ -82,10 +82,16 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo.find(product_id).map_err(Error::from)
+                    products_repo.find(product_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -100,10 +106,18 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo.deactivate(product_id).map_err(Error::from)
+                    products_repo
+                        .deactivate(product_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -118,10 +132,16 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo.list(from, count).map_err(Error::from)
+                    products_repo.list(from, count).map_err(ServiceError::from)
                 })
         }))
     }
@@ -137,7 +157,13 @@ impl<
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
@@ -145,15 +171,15 @@ impl<
                     let product = payload.product;
                     let attributes = payload.attributes;
 
-                    conn.transaction::<(Product), Error, _>(move || {
+                    conn.transaction::<(Product), ServiceError, _>(move || {
                         products_repo
                             .create(product)
-                            .map_err(Error::from)
+                            .map_err(ServiceError::from)
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
                                 let base_product_id = product.base_product_id;
-                                let res: Result<Vec<ProdAttr>, Error> = attributes
+                                let res: Result<Vec<ProdAttr>, ServiceError> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
                                         attr_repo
@@ -169,7 +195,7 @@ impl<
                                                 );
                                                 prod_attr_repo.create(new_prod_attr)
                                             })
-                                            .map_err(Error::from)
+                                            .map_err(ServiceError::from)
                                     })
                                     .collect();
                                 res.and_then(|_| Ok(product))
@@ -190,22 +216,28 @@ impl<
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| Error::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                     let product = payload.product;
                     let attributes = payload.attributes;
 
-                    conn.transaction::<(Product), Error, _>(move || {
+                    conn.transaction::<(Product), ServiceError, _>(move || {
                         products_repo
                             .update(product_id, product)
-                            .map_err(Error::from)
+                            .map_err(ServiceError::from)
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
                                 let base_product_id = product.base_product_id;
-                                let res: Result<Vec<ProdAttr>, Error> = attributes
+                                let res: Result<Vec<ProdAttr>, ServiceError> = attributes
                                     .into_iter()
                                     .map(|attr_value| {
                                         let update_attr = UpdateProdAttr::new(
@@ -215,7 +247,9 @@ impl<
                                             attr_value.value,
                                             attr_value.meta_field,
                                         );
-                                        prod_attr_repo.update(update_attr).map_err(Error::from)
+                                        prod_attr_repo
+                                            .update(update_attr)
+                                            .map_err(ServiceError::from)
                                     })
                                     .collect();
                                 res.and_then(|_| Ok(product))

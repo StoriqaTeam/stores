@@ -73,7 +73,7 @@ impl From<Store> for ElasticStore {
 }
 
 /// Payload for creating stores
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone, Debug)]
 #[table_name = "stores"]
 pub struct NewStore {
     #[validate(custom = "validate_translation")]
@@ -101,7 +101,7 @@ pub struct NewStore {
 }
 
 /// Payload for updating users
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Debug)]
 #[table_name = "stores"]
 pub struct UpdateStore {
     #[validate(custom = "validate_translation")]
@@ -127,25 +127,7 @@ pub struct UpdateStore {
     pub slogan: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchStore {
     pub name: String,
 }
-
-// impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for Store {
-//     fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
-//         match *scope {
-//             Scope::All => true,
-//             Scope::Owned => self.user_id == user_id,
-//         }
-//     }
-// }
-
-// impl<T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WithScope<Scope, T> for NewStore {
-//     fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&T>) -> bool {
-//         match *scope {
-//             Scope::All => true,
-//             Scope::Owned => self.user_id == user_id,
-//         }
-//     }
-// }

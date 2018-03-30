@@ -65,3 +65,15 @@ pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationEr
 
     Ok(())
 }
+
+pub fn validate_urls(text: &serde_json::Value) -> Result<(), ValidationError> {
+    serde_json::from_value::<Vec<String>>(text.clone()).map_err(|_| ValidationError {
+        code: Cow::from("urls"),
+        message: Some(Cow::from(
+            "Invalid format of urls. Must be json array of strings.",
+        )),
+        params: HashMap::new(),
+    })?;
+
+    Ok(())
+}

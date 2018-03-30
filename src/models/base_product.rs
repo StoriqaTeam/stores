@@ -48,7 +48,7 @@ pub struct BaseProduct {
 }
 
 /// Payload for creating base_products
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone, Debug)]
 #[table_name = "base_products"]
 pub struct NewBaseProduct {
     #[validate(custom = "validate_translation")]
@@ -67,7 +67,7 @@ pub struct NewBaseProduct {
 }
 
 /// Payload for updating base_products
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone, Debug)]
 #[table_name = "base_products"]
 pub struct UpdateBaseProduct {
     #[validate(custom = "validate_translation")]

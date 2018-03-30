@@ -130,6 +130,8 @@ impl CategoriesRepo for CategoriesRepoMock {
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
+            level: 0,
+            parent_id: Some(0)
         })
     }
 
@@ -140,6 +142,8 @@ impl CategoriesRepo for CategoriesRepoMock {
             name: payload.name,
             meta_field: None,
             children: vec![],
+            level: 0,
+            parent_id: Some(0)
         })
     }
 
@@ -150,6 +154,8 @@ impl CategoriesRepo for CategoriesRepoMock {
             name: payload.name.unwrap(),
             meta_field: None,
             children: vec![],
+            level: 0,
+            parent_id: Some(0)
         })
     }
 
@@ -160,6 +166,8 @@ impl CategoriesRepo for CategoriesRepoMock {
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
+            level: 0,
+            parent_id: Some(0)
         })
     }
 }
@@ -600,6 +608,8 @@ pub fn create_product(id: i32, base_product_id: i32) -> Product {
         photo_main: None,
         vendor_code: None,
         cashback: None,
+        additional_photos: None,
+        price: 0f64,
         created_at: SystemTime::now(),
         updated_at: SystemTime::now(),
     }
@@ -619,6 +629,8 @@ pub fn create_new_product(base_product_id: i32) -> NewProduct {
         photo_main: None,
         vendor_code: None,
         cashback: None,
+        additional_photos: None,
+        price: 0f64,
     }
 }
 
@@ -628,6 +640,8 @@ pub fn create_update_product() -> UpdateProduct {
         photo_main: None,
         vendor_code: None,
         cashback: None,
+        additional_photos: None,
+        price: None,
     }
 }
 
@@ -736,6 +750,8 @@ fn create_categories(id: i32, name: serde_json::Value) -> Category {
         name: name,
         meta_field: None,
         children: vec![],
+        level: 0,
+        parent_id: Some(0)
     }
 }
 
@@ -744,6 +760,7 @@ pub fn create_new_categories(name: &str) -> NewCategory {
         name: serde_json::from_str(name).unwrap(),
         meta_field: None,
         parent_id: Some(1),
+        level: 0,
     }
 }
 
@@ -752,6 +769,7 @@ pub fn create_update_categories(name: &str) -> UpdateCategory {
         name: Some(serde_json::from_str(name).unwrap()),
         meta_field: None,
         parent_id: Some(1),
+        level: Some(0),
     }
 }
 

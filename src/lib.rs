@@ -180,7 +180,7 @@ pub fn start_server(config: Config) {
             .for_each(move |conn| {
                 handle_arc2.spawn(
                     conn.map(|_| ())
-                        .map_err(|why| error!("Server Error: {:?}", why)),
+                        .map_err(|why| error!("Server Error: {}", why)),
                 );
                 Ok(())
             })

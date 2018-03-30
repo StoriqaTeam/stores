@@ -10,21 +10,21 @@ pub enum RepoError {
     NotFound,
     #[fail(display = "Rollback")]
     Rollback,
-    #[fail(display = "Unauthorized")]
+    #[fail(display = "Unauthorized: {} {}", _0, _1)]
     Unauthorized(Resource, Action),
-    #[fail(display = "Constraint violation")]
+    #[fail(display = "Constraint violation: {}", _0)]
     ContstaintViolation(Error),
-    #[fail(display = "Mismatched type")]
+    #[fail(display = "Mismatched type: {}", _0)]
     MismatchedType(Error),
-    #[fail(display = "Connection")]
+    #[fail(display = "Connection: {}", _0)]
     Connection(Error),
-    #[fail(display = "Unknown")]
+    #[fail(display = "Unknown: {}", _0)]
     Unknown(Error),
 }
 
 impl From<DieselError> for RepoError {
     fn from(err: DieselError) -> Self {
-        error!("Diesel error occured: '{:?}'.", err);
+        error!("Diesel error occured: '{}'.", err);
         match err {
             DieselError::InvalidCString(e) => RepoError::Unknown(DieselError::InvalidCString(e).into()),
             DieselError::DatabaseError(kind, info) => RepoError::ContstaintViolation(DieselError::DatabaseError(kind, info).into()),
@@ -40,7 +40,7 @@ impl From<DieselError> for RepoError {
 
 impl From<HttpError> for RepoError {
     fn from(err: HttpError) -> Self {
-        error!("Http error occured: '{:?}'.", err);
+        error!("Http error occured: '{}'.", err);
         RepoError::Connection(format_err!("Http error. {}", err))
     }
 }

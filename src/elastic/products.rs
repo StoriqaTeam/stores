@@ -85,11 +85,11 @@ impl ProductsElasticImpl {
                                                 "must" : attr_filters 
                                                     }
                                                 }
-                                            }	
+                                            }
                                     }
                                 }
                             }
-                    }        
+                    }
         });
 
         if let Some(filters) = attr_filters {
@@ -120,7 +120,7 @@ impl ProductsElasticImpl {
                 "nested" : {
                     "path" : "variants",
                     "query" : { "bool" : {"must": { "range": { "variants.price": range_map}}}}
-                    }        
+                    }
             });
             query_map.insert("filter".to_string(), price_filter);
         }

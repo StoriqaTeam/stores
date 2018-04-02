@@ -147,11 +147,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_by_store(&self, store_id_arg: i32, base_product_id_arg: i32) -> RepoResult<Vec<BaseProduct>>{
-        debug!(
-            "Find in base products with store id {}.",
-            store_id_arg
-        );
+    fn list_by_store(&self, store_id_arg: i32, base_product_id_arg: i32) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Find in base products with store id {}.", store_id_arg);
         let query = base_products
             .filter(is_active.eq(true))
             .filter(store_id.eq(store_id_arg))

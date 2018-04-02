@@ -339,11 +339,11 @@ pub mod tests {
             }
             Ok(base_products)
         }
-        
+
         /// Returns list of base_products by store id, limited by 10
         fn list_by_store(&self, store_id: i32, id: i32) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
-            for i in (id + 1)..(id+10) {
+            for i in (id + 1)..(id + 10) {
                 let base_product = BaseProduct {
                     id: i,
                     is_active: true,

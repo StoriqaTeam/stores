@@ -416,7 +416,9 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products/with_variants",
                     user_id
                 );
-                if let (Some(store_id), Some(base_product_id)) = parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "base_product_id" => i32) {
+                if let (Some(store_id), Some(base_product_id)) =
+                    parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "base_product_id" => i32)
+                {
                     serialize_future(base_products_service.list_with_variants(store_id, base_product_id))
                 } else {
                     error!("Parsing query parameters // GET /base_products/with_variants failed!");
@@ -609,6 +611,26 @@ impl<
                         "Error parsing request from gateway body"
                     ))))
                 }
+            }
+
+            // GET /products/search_filters
+            (&Get, Some(Route::ProductsSearchFilters)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /products/search_filters",
+                    user_id
+                );
+                serialize_future(
+                    read_body(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // GET /products/search_filters in String failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |name| {
+                            base_products_service
+                                .search_filters(name)
+                                .map_err(Error::from)
+                        }),
+                )
             }
 
             // GET /user_role/<user_id>

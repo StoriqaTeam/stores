@@ -1,4 +1,6 @@
 //! Base product service
+use std::collections::{HashMap, HashSet};
+
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
@@ -16,6 +18,8 @@ use repos::error::RepoError;
 
 use stq_http::client::ClientHandle;
 
+const MAX_PRODUCTS_SEARCH_COUNT: i64 = 1000;
+
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
     fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
@@ -25,6 +29,8 @@ pub trait BaseProductsService {
     fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
+    /// search filters
+    fn search_filters(&self, name: String) -> ServiceFuture<SearchFilters>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
     /// Returns product by ID
@@ -36,7 +42,7 @@ pub trait BaseProductsService {
     /// Lists base products limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_with_variants(&self, store_id: i32, base_product_id: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> ;
+    fn list_with_variants(&self, store_id: i32, base_product_id: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Updates base product
     fn update(&self, product_id: i32, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
 }
@@ -304,6 +310,101 @@ impl<
         };
 
         Box::new(products_names)
+    }
+
+    fn search_filters(&self, name: String) -> ServiceFuture<SearchFilters> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let mut search_prod = SearchProductsByName::default();
+        search_prod.name = name;
+        let search_filters = {
+            let products_el = ProductsElasticImpl::new(client_handle, address);
+            products_el
+                .search_by_name(search_prod, MAX_PRODUCTS_SEARCH_COUNT, 0)
+                .map_err(ServiceError::from)
+        };
+
+        Box::new(search_filters.and_then({
+            let cpu_pool = self.cpu_pool.clone();
+            let db_pool = self.db_pool.clone();
+            let user_id = self.user_id;
+            let repo_factory = self.repo_factory.clone();
+            move |el_products| {
+                cpu_pool.spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
+                        .and_then(move |conn| {
+                            el_products
+                                .into_iter()
+                                .map(|el_product| {
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+                                    base_products_repo
+                                        .find(el_product.id)
+                                        .and_then(move |base_product| {
+                                            products_repo
+                                                .find_with_base_id(base_product.id)
+                                                .map(|products| (base_product, products))
+                                                .and_then(move |(base_product, products)| {
+                                                    products
+                                                        .into_iter()
+                                                        .map(|product| {
+                                                            attr_prod_repo
+                                                                .find_all_attributes(product.id)
+                                                                .map(|attrs| {
+                                                                    attrs
+                                                                        .into_iter()
+                                                                        .map(|attr| attr.into())
+                                                                        .collect::<Vec<AttrValue>>()
+                                                                })
+                                                                .map(|attrs| VariantsWithAttributes::new(product, attrs))
+                                                        })
+                                                        .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
+                                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
+                                                })
+                                        })
+                                })
+                                .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
+                                .and_then(|prods| {
+                                    let mut cats = HashSet::<i32>::default();
+                                    let mut attrs = HashMap::<i32, HashSet<String>>::default();
+
+                                    for product in prods.into_iter() {
+                                        cats.insert(product.base_product.category_id);
+                                        for variant in product.variants.into_iter() {
+                                            for attr_value in variant.attrs.into_iter() {
+                                                let hash_with_values = attrs
+                                                    .entry(attr_value.attr_id)
+                                                    .or_insert(HashSet::<String>::default());
+                                                hash_with_values.insert(attr_value.value);
+                                            }
+                                        }
+                                    }
+
+                                    Ok(SearchFilters {
+                                        categories_ids: cats.into_iter().collect(),
+                                        attributes_values: attrs
+                                            .iter()
+                                            .map(|(k, v)| AttributeValues {
+                                                attr_id: *k,
+                                                values: v.iter().map(|s| s.clone()).collect(),
+                                            })
+                                            .collect(),
+                                    })
+                                })
+                                .map_err(ServiceError::from)
+                        })
+                })
+            }
+        }))
     }
 
     /// Returns product by ID

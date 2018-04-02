@@ -158,3 +158,24 @@ impl VariantsWithAttributes {
         Self { product, attrs }
     }
 }
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct SearchFilters {
+    pub categories_ids: Vec<i32>,
+    pub attributes_values: Vec<AttributeValues>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Hash, Eq, PartialEq, Debug)]
+pub struct AttributeValues {
+    pub attr_id: i32,
+    pub values: Vec<String>,
+}
+
+impl AttributeValues {
+    pub fn new(attr_id: i32, value: String) -> Self {
+        Self {
+            attr_id,
+            values: vec![value],
+        }
+    }
+}

@@ -94,7 +94,7 @@ pub struct SearchOptions {
     pub categories_ids: Vec<i32>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct SearchProductsByName {
     pub name: String,
     pub options: Option<SearchOptions>,

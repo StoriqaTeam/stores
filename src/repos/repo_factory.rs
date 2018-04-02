@@ -339,6 +339,30 @@ pub mod tests {
             }
             Ok(base_products)
         }
+        
+        /// Returns list of base_products by store id, limited by 10
+        fn list_by_store(&self, store_id: i32, id: i32) -> RepoResult<Vec<BaseProduct>> {
+            let mut base_products = vec![];
+            for i in (id + 1)..(id+10) {
+                let base_product = BaseProduct {
+                    id: i,
+                    is_active: true,
+                    store_id: store_id,
+                    name: serde_json::from_str("{}").unwrap(),
+                    short_description: serde_json::from_str("{}").unwrap(),
+                    long_description: None,
+                    seo_title: None,
+                    seo_description: None,
+                    currency_id: 1,
+                    category_id: 1,
+                    views: 1,
+                    created_at: SystemTime::now(),
+                    updated_at: SystemTime::now(),
+                };
+                base_products.push(base_product);
+            }
+            Ok(base_products)
+        }
 
         /// Creates new base_product
         fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct> {

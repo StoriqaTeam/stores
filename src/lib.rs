@@ -81,7 +81,7 @@ use repos::attributes::AttributeCacheImpl;
 use repos::repo_factory::ReposFactoryImpl;
 
 /// Starts new web service from provided `Config`
-pub fn start_server(config: Config) {
+pub fn start_server<F: FnOnce() + 'static>(config: Config, port: Option<String>, callback: F) {
     let formatter = |record: &LogRecord| {
         let now = Utc::now();
         format!(
@@ -132,11 +132,12 @@ pub fn start_server(config: Config) {
     let cpu_pool = CpuPool::new(thread_count);
 
     // Prepare server
-    let address = config
-        .server
-        .address
-        .parse()
-        .expect("Address must be set in configuration");
+    let address = {
+        let port = port.as_ref().unwrap_or(&config.server.port);
+        format!("{}:{}", config.server.host, port)
+            .parse()
+            .expect("Could not parse address")
+    };
 
     // Roles cache
     let roles_cache = RolesCacheImpl::default();
@@ -188,5 +189,9 @@ pub fn start_server(config: Config) {
     );
 
     info!("Listening on http://{}, threads: {}", address, thread_count);
+    handle.spawn_fn(move || {
+        callback();
+        future::ok(())
+    });
     core.run(future::empty::<(), ()>()).unwrap();
 }

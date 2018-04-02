@@ -12,5 +12,5 @@ fn test_find() {
     let conn = connection_with_stores_db_with_stores_table();
     let acl = Box::new(SystemACL {});
     let repo = StoresRepoImpl::new(&conn, acl);
-    let res = repo.find(1);
+    let _res = repo.find(1);
 }

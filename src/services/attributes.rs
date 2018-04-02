@@ -151,3 +151,87 @@ impl<
         }))
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use std::sync::Arc;
+
+    use serde_json;
+    use futures_cpupool::CpuPool;
+    use tokio_core::reactor::Handle;
+    use tokio_core::reactor::Core;
+    use r2d2;
+
+    use repos::repo_factory::tests::*;
+    use services::*;
+    use models::*;
+    use repos::*;
+
+    #[allow(unused)]
+    fn create_attribute_service(
+        user_id: Option<i32>,
+        handle: Arc<Handle>,
+    ) -> AttributesServiceImpl<MockConnection, ReposFactoryMock, MockConnectionManager> {
+        let manager = MockConnectionManager::default();
+        let db_pool = r2d2::Pool::builder()
+            .build(manager)
+            .expect("Failed to create connection pool");
+        let cpu_pool = CpuPool::new(1);
+
+        AttributesServiceImpl {
+            db_pool: db_pool,
+            cpu_pool: cpu_pool,
+            user_id: user_id,
+            repo_factory: MOCK_REPO_FACTORY,
+            attributes_cache: AttributeCacheImpl::default(),
+        }
+    }
+
+    pub fn create_new_attribute(name: &str) -> NewAttribute {
+        NewAttribute {
+            name: serde_json::from_str(name).unwrap(),
+            value_type: AttributeType::Str,
+            meta_field: None,
+        }
+    }
+
+    pub fn create_update_attribute(name: &str) -> UpdateAttribute {
+        UpdateAttribute {
+            name: Some(serde_json::from_str(name).unwrap()),
+            meta_field: None,
+        }
+    }
+
+    #[test]
+    fn test_get_attribute() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_attribute_service(Some(MOCK_USER_ID), handle);
+        let work = service.get(1);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+    }
+
+    #[test]
+    fn test_create_attribute() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_attribute_service(Some(MOCK_USER_ID), handle);
+        let new_attribute = create_new_attribute(MOCK_BASE_PRODUCT_NAME_JSON);
+        let work = service.create(new_attribute);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, MOCK_BASE_PRODUCT_ID);
+    }
+
+    #[test]
+    fn test_update() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_attribute_service(Some(MOCK_USER_ID), handle);
+        let new_attribute = create_update_attribute(MOCK_BASE_PRODUCT_NAME_JSON);
+        let work = service.update(1, new_attribute);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+    }
+
+}

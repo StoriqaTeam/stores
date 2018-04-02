@@ -293,3 +293,161 @@ impl<
         }))
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use std::sync::Arc;
+
+    use serde_json;
+    use futures_cpupool::CpuPool;
+    use tokio_core::reactor::Handle;
+    use tokio_core::reactor::Core;
+    use r2d2;
+
+    use stq_http::client::Config as HttpConfig;
+    use stq_http;
+
+    use repos::repo_factory::tests::*;
+    use services::*;
+    use models::*;
+    use config::Config;
+
+    fn create_store_service(
+        user_id: Option<i32>,
+        handle: Arc<Handle>,
+    ) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+        let manager = MockConnectionManager::default();
+        let db_pool = r2d2::Pool::builder()
+            .build(manager)
+            .expect("Failed to create connection pool");
+        let cpu_pool = CpuPool::new(1);
+
+        let config = Config::new().unwrap();
+        let http_config = HttpConfig {
+            http_client_retries: config.client.http_client_retries,
+            http_client_buffer_size: config.client.http_client_buffer_size,
+        };
+        let client = stq_http::client::Client::new(&http_config, &handle);
+        let client_handle = client.handle();
+
+        StoresServiceImpl {
+            db_pool: db_pool,
+            cpu_pool: cpu_pool,
+            user_id: user_id,
+            elastic_address: "127.0.0.1:9200".to_string(),
+            client_handle: client_handle,
+            repo_factory: MOCK_REPO_FACTORY,
+        }
+    }
+
+    pub fn create_new_store(name: serde_json::Value) -> NewStore {
+        NewStore {
+            name: name,
+            user_id: MOCK_USER_ID,
+            short_description: serde_json::from_str("{}").unwrap(),
+            long_description: None,
+            slug: "slug".to_string(),
+            cover: None,
+            logo: None,
+            phone: Some("1234567".to_string()),
+            email: Some("example@mail.com".to_string()),
+            address: Some("town city street".to_string()),
+            facebook_url: None,
+            twitter_url: None,
+            instagram_url: None,
+            default_language: "en".to_string(),
+            slogan: Some("fdsf".to_string()),
+        }
+    }
+
+    pub fn create_update_store(name: serde_json::Value) -> UpdateStore {
+        UpdateStore {
+            name: Some(name),
+            short_description: serde_json::from_str("{}").unwrap(),
+            long_description: None,
+            slug: None,
+            cover: None,
+            logo: None,
+            phone: None,
+            email: None,
+            address: None,
+            facebook_url: None,
+            twitter_url: None,
+            instagram_url: None,
+            default_language: None,
+            slogan: None,
+        }
+    }
+
+    #[test]
+    fn test_get_store() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_store_service(Some(MOCK_USER_ID), handle);
+        let work = service.get(1);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+    }
+
+    #[test]
+    fn test_create_allready_existed() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_store_service(Some(MOCK_USER_ID), handle);
+        let new_store = create_new_store(serde_json::from_str(MOCK_STORE_NAME_JSON_EXISTED).unwrap());
+        let work = service.create(new_store);
+        let result = core.run(work);
+        assert_eq!(result.is_err(), true);
+    }
+
+    #[test]
+    fn test_list() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_store_service(Some(MOCK_USER_ID), handle);
+        let work = service.list(1, 5);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.len(), 5);
+    }
+
+    #[test]
+    fn test_create_store() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_store_service(Some(MOCK_USER_ID), handle);
+        let new_store = create_new_store(serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
+        let work = service.create(new_store);
+        let result = core.run(work).unwrap();
+        assert_eq!(
+            result.name,
+            serde_json::from_str::<serde_json::Value>(MOCK_STORE_NAME_JSON).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_update() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_store_service(Some(MOCK_USER_ID), handle);
+        let new_store = create_update_store(serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
+        let work = service.update(1, new_store);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+        assert_eq!(
+            result.name,
+            serde_json::from_str::<serde_json::Value>(MOCK_STORE_NAME_JSON).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_deactivate() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_store_service(Some(MOCK_USER_ID), handle);
+        let work = service.deactivate(1);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+        assert_eq!(result.is_active, false);
+    }
+
+}

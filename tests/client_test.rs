@@ -2,6 +2,7 @@ extern crate futures;
 extern crate hyper;
 extern crate serde_json;
 extern crate stores_lib;
+extern crate stq_http;
 extern crate tokio_core;
 
 use std::sync::Arc;
@@ -16,7 +17,8 @@ use tokio_core::reactor::Core;
 use futures::{Future, Stream};
 use futures::sync::oneshot;
 
-use stores_lib::http::client::{Client, Error};
+use stq_http::client::{Client, Error};
+use stq_http::client::Config as HttpConfig;
 use stores_lib::config::Config;
 
 #[test]
@@ -60,7 +62,11 @@ fn test_request() {
         .unwrap();
 
     let config = Config::new().unwrap();
-    let client = Client::new(&config, &handle);
+    let http_config = HttpConfig {
+        http_client_retries: config.client.http_client_retries,
+        http_client_buffer_size: config.client.http_client_buffer_size,
+    };
+    let client = stq_http::client::Client::new(&http_config, &handle);
     let client_handle = client.handle();
     let client_stream = client.stream();
     handle.spawn(client_stream.for_each(|_| Ok(())));

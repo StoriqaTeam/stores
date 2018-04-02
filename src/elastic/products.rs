@@ -8,9 +8,10 @@ use futures::Future;
 use serde_json;
 use stq_http::client::ClientHandle;
 
-use models::{ElasticIndex, ElasticProduct, Filter, SearchProduct, SearchResponse};
+use models::{ElasticIndex, ElasticProduct, MostDiscountProducts, MostViewedProducts, SearchOptions, SearchProductsByName, SearchResponse};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
+use super::{log_elastic_req, log_elastic_resp};
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsElasticImpl {
@@ -23,7 +24,13 @@ pub trait ProductsElastic {
     fn auto_complete(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<String>>;
 
     /// Find specific product by name limited by `count` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+
+    /// Find product by views limited by `count` and `offset` parameters
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+
+    /// Find product by dicount pattern limited by `count` and `offset` parameters
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
 }
 
 impl ProductsElasticImpl {
@@ -33,13 +40,100 @@ impl ProductsElasticImpl {
             elastic_address,
         }
     }
+
+    fn update_query_with_options(query_map: &mut serde_json::Map<String, serde_json::Value>, options: Option<SearchOptions>) {
+        let (attr_filters, categories_ids, price_filters) = if let Some(options) = options {
+            let filters = options
+                .attr_filters
+                .into_iter()
+                .map(|attr| {
+                    if let Some(range) = attr.range {
+                        let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
+                        if let Some(min) = range.min_value {
+                            range_map.insert("gte".to_string(), json!(min));
+                        }
+                        if let Some(max) = range.max_value {
+                            range_map.insert("lte".to_string(), json!(max));
+                        }
+                        json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": range_map}}]}})
+                    } else if let Some(equal) = attr.equal {
+                        json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": equal.values}}]}})
+                    } else {
+                        json!({})
+                    }
+                })
+                .collect::<Vec<serde_json::Value>>();
+            (
+                Some(filters),
+                Some(options.categories_ids),
+                options.price_filter,
+            )
+        } else {
+            (None, None, None)
+        };
+
+        let attr_filter = json!({
+                "nested" : {
+                    "path" : "variants",
+                    "query" : {
+                        "bool" : {
+                            "must" : {
+                                    "nested": {
+                                        "path": "variants.attrs",
+                                        "query": {
+                                            "bool" : {
+                                                "must" : attr_filters 
+                                                    }
+                                                }
+                                            }	
+                                    }
+                                }
+                            }
+                    }        
+        });
+
+        if let Some(filters) = attr_filters {
+            if !filters.is_empty() {
+                query_map.insert("filter".to_string(), attr_filter);
+            }
+        }
+
+        let category = json!({
+                "terms": {"category_id": categories_ids}
+            });
+
+        if let Some(ids) = categories_ids {
+            if !ids.is_empty() {
+                query_map.insert("filter".to_string(), category);
+            }
+        }
+
+        if let Some(price_filters) = price_filters {
+            let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
+            if let Some(min) = price_filters.min_value {
+                range_map.insert("gte".to_string(), json!(min));
+            }
+            if let Some(max) = price_filters.max_value {
+                range_map.insert("lte".to_string(), json!(max));
+            }
+            let price_filter = json!({
+                "nested" : {
+                    "path" : "variants",
+                    "query" : { "bool" : {"must": { "range": { "variants.price": range_map}}}}
+                    }        
+            });
+            query_map.insert("filter".to_string(), price_filter);
+        }
+    }
 }
 
 impl ProductsElastic for ProductsElasticImpl {
     /// Find specific products by name limited by `count` parameters
-    fn search(&self, prod: SearchProduct, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
-        let name_query = json!(
-                [
+    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        log_elastic_req(&prod);
+        let name_query = json!({
+            "bool" : {
+                "should" : [
                     {"nested": {
                         "path": "name",
                         "query": {
@@ -65,49 +159,20 @@ impl ProductsElastic for ProductsElasticImpl {
                         }
                     }}
                 ]
-            );
+            }
+        });
 
-        let filters = prod.attr_filters
-            .into_iter()
-            .map(|attr| match attr.filter {
-                Filter::Equal(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}},{"term": {"str_val": val}}]}}),
-                Filter::Lte(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"lte": val }}}]}}),
-                Filter::Le(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"le": val }}}]}}),
-                Filter::Ge(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"ge": val }}}]}}),
-                Filter::Gte(val) => json!({ "bool" : {"must": [{"term": {"id": attr.id}}, { "range": { "float_val": {"gte": val }}}]}}),
-            })
-            .collect::<Vec<serde_json::Value>>();
-        let props = json!({
-                        "nested" : {
-                            "path" : "properties",
-                            "filter" : {
-                                "bool" : {
-                                    "must" : filters
-                                }
-                            }
-                        }
-                });
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        if !prod.name.is_empty() {
+            query_map.insert("must".to_string(), name_query);
+        }
 
-        let category = if !prod.categories_ids.is_empty() {
-            json!({
-                "query" : {
-                        "bool" : {
-                            "must" : {"term": {"category_id": prod.categories_ids}}
-                        }
-                    }
-            })
-        } else {
-            json!({})
-        };
+        ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
 
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
-                "bool" : {
-                    "must" : name_query,
-                    "filter" : props,
-                    "filter" : category,
-                }
+                "bool" : query_map
             }
         }).to_string();
 
@@ -123,11 +188,79 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
+                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
+        )
+    }
+
+    /// Find product by views limited by `count` and `offset` parameters
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        log_elastic_req(&prod);
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+
+        ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
+
+        let query = json!({
+            "from" : offset, "size" : count,
+            "query": {
+                "bool" : query_map
+            },
+            "sort" : [{ "views" : { "order" : "desc"} }]
+        }).to_string();
+
+        let url = format!(
+            "http://{}/{}/_search",
+            self.elastic_address,
+            ElasticIndex::Product
+        );
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
+        Box::new(
+            self.client_handle
+                .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
+                .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
+                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
+        )
+    }
+
+    /// Find product by dicount pattern limited by `count` and `offset` parameters
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+        log_elastic_req(&prod);
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+
+        ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
+
+        let query = json!({
+            "from" : offset, "size" : count,
+            "query": {
+                "bool" : query_map
+            },
+            "sort" : [{ "variants.discount" : { "order" : "desc"} }]
+        }).to_string();
+
+        let url = format!(
+            "http://{}/{}/_search",
+            self.elastic_address,
+            ElasticIndex::Product
+        );
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
+        Box::new(
+            self.client_handle
+                .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
+                .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
         )
     }
 
     fn auto_complete(&self, name: String, count: i64, _offset: i64) -> RepoFuture<Vec<String>> {
+        log_elastic_req(&name);
         let query = json!({
             "suggest": {
                 "name-suggest" : {
@@ -152,6 +285,7 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.suggested_texts())),
         )
     }

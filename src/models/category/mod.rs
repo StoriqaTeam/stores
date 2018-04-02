@@ -3,6 +3,7 @@
 //! EAV model categories
 use serde_json;
 use validator::Validate;
+
 use models::validation_rules::*;
 
 pub mod category_attribute;
@@ -15,6 +16,7 @@ table! {
         name -> Jsonb,
         meta_field -> Nullable<Jsonb>,
         parent_id -> Nullable<Integer>,
+        level -> Integer,
     }
 }
 
@@ -26,26 +28,31 @@ pub struct RawCategory {
     pub name: serde_json::Value,
     pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
+    pub level: i32,
 }
 
 /// Payload for creating categories
-#[derive(Serialize, Deserialize, Insertable, Clone, Validate)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Validate, Debug)]
 #[table_name = "categories"]
 pub struct NewCategory {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
+    #[validate(range(min = "1", max = "3"))]
+    pub level: i32,
 }
 
 /// Payload for updating categories
-#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate)]
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
 #[table_name = "categories"]
 pub struct UpdateCategory {
     #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
     pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
+    #[validate(range(min = "1", max = "3"))]
+    pub level: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -53,6 +60,8 @@ pub struct Category {
     pub id: i32,
     pub name: serde_json::Value,
     pub meta_field: Option<serde_json::Value>,
+    pub level: i32,
+    pub parent_id: Option<i32>,
     pub children: Vec<Category>,
 }
 
@@ -63,6 +72,8 @@ impl Default for Category {
             name: serde_json::from_str("[{\"lang\" : \"en\", \"text\" : \"root\"}]").unwrap(),
             meta_field: None,
             children: vec![],
+            level: 0,
+            parent_id: None,
         }
     }
 }
@@ -74,6 +85,8 @@ impl<'a> From<&'a RawCategory> for Category {
             name: cat.name.clone(),
             meta_field: cat.meta_field.clone(),
             children: vec![],
+            parent_id: cat.parent_id,
+            level: cat.level,
         }
     }
 }
@@ -85,6 +98,8 @@ impl From<RawCategory> for Category {
             name: cat.name.clone(),
             meta_field: cat.meta_field.clone(),
             children: vec![],
+            parent_id: cat.parent_id,
+            level: cat.level,
         }
     }
 }

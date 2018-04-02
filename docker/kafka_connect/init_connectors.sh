@@ -31,7 +31,7 @@ cat << EOF > products-connector.json
   "name": "products-connector",
   "config": {
     "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
-    "topics": "stores-pg.public.base_products,stores-pg.public.prod_attr_values",
+    "topics": "stores-pg.public.base_products,stores-pg.public.products,stores-pg.public.prod_attr_values",
     "tasks.max": "1",
     "type.name": "_doc",
     "elastic.url": "stores-es",
@@ -123,8 +123,36 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                "category_id": {
                   "type": "integer"
                },
+               "views": {
+                  "type": "integer"
+               },
                "variants": {
-                  "type": "nested"
+                  "type": "nested",
+                  "properties": {
+                     "prod_id": {
+                        "type": "integer"
+                     },
+                     "discount": {
+                        "type": "double"
+                     },
+                     "price": {
+                        "type": "double"
+                     },
+                     "attrs": {
+                        "type": "nested",
+                        "properties": {
+                          "attr_id": {
+                              "type": "integer"
+                          },
+                          "float_val": {
+                              "type": "double"
+                          },
+                          "str_val": {
+                              "type": "text"
+                          }
+                        }
+                     }
+                  }
                },
                "suggest" : {
                    "type" : "completion"

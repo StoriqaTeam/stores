@@ -37,6 +37,7 @@ pub enum ServiceError {
 
 impl From<RepoError> for ServiceError {
     fn from(err: RepoError) -> Self {
+        error!("Repo error occured: '{:?}'.", err);
         match err {
             RepoError::NotFound => ServiceError::NotFound,
             RepoError::Rollback => ServiceError::Rollback,
@@ -54,12 +55,14 @@ impl From<RepoError> for ServiceError {
 
 impl From<DieselError> for ServiceError {
     fn from(err: DieselError) -> Self {
+        error!("Diesel error occured: '{:?}'.", err);
         ServiceError::Transaction(err.into())
     }
 }
 
 impl From<ServiceError> for ControllerError {
     fn from(e: ServiceError) -> Self {
+        error!("Service error occured: '{:?}'.", e);
         match e {
             ServiceError::NotFound => ControllerError::NotFound,
             ServiceError::Rollback => ControllerError::BadRequest(ServiceError::Rollback.into()),

@@ -2,12 +2,16 @@
 
 use futures_cpupool::CpuPool;
 
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
+
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use services::types::ServiceFuture;
 use services::error::ServiceError;
-use repos::types::DbPool;
-use repos::attributes::{AttributeCacheImpl, AttributesRepo, AttributesRepoImpl};
-use repos::acl::{ApplicationAcl, BoxedAcl, RolesCacheImpl, UnauthorizedAcl};
+use r2d2::{ManageConnection, Pool};
+use repos::attributes::AttributeCacheImpl;
+use repos::ReposFactory;
 
 pub trait AttributesService {
     /// Returns attribute by ID
@@ -18,56 +22,74 @@ pub trait AttributesService {
     fn update(&self, attribute_id: i32, payload: UpdateAttribute) -> ServiceFuture<Attribute>;
 }
 
-fn acl_for_id(roles_cache: RolesCacheImpl, user_id: Option<i32>) -> BoxedAcl {
-    user_id.map_or(Box::new(UnauthorizedAcl::default()) as BoxedAcl, |id| {
-        (Box::new(ApplicationAcl::new(roles_cache, id)) as BoxedAcl)
-    })
-}
-
 /// Attributes services, responsible for Attribute-related CRUD operations
-pub struct AttributesServiceImpl {
-    pub db_pool: DbPool,
+pub struct AttributesServiceImpl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    F: ReposFactory<T>,
+    M: ManageConnection<Connection = T>,
+> {
+    pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub roles_cache: RolesCacheImpl,
     pub attributes_cache: AttributeCacheImpl,
     pub user_id: Option<i32>,
+    pub repo_factory: F,
 }
 
-impl AttributesServiceImpl {
-    pub fn new(
-        db_pool: DbPool,
-        cpu_pool: CpuPool,
-        roles_cache: RolesCacheImpl,
-        attributes_cache: AttributeCacheImpl,
-        user_id: Option<i32>,
-    ) -> Self {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    F: ReposFactory<T>,
+    M: ManageConnection<Connection = T>,
+> AttributesServiceImpl<T, F, M>
+{
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, attributes_cache: AttributeCacheImpl, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
-            roles_cache,
             attributes_cache,
             user_id,
+            repo_factory,
         }
     }
 }
 
-impl AttributesService for AttributesServiceImpl {
+impl<
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+    F: ReposFactory<T>,
+    M: ManageConnection<Connection = T>,
+> AttributesService for AttributesServiceImpl<T, F, M>
+{
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
         let attributes_cache = self.attributes_cache.clone();
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-                    attributes_cache
-                        .get(attribute_id, &conn, acl)
-                        .map_err(ServiceError::from)
+                    if attributes_cache.contains(attribute_id) {
+                        attributes_cache
+                            .get(attribute_id)
+                            .map_err(ServiceError::from)
+                    } else {
+                        let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                        attributes_repo
+                            .find(attribute_id)
+                            .map_err(ServiceError::from)
+                            .and_then(|attr| {
+                                attributes_cache.add_attribute(attribute_id, attr.clone());
+                                Ok(attr)
+                            })
+                    }
                 })
         }))
     }
@@ -76,18 +98,25 @@ impl AttributesService for AttributesServiceImpl {
     fn create(&self, new_attribute: NewAttribute) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-                    let attributes_repo = AttributesRepoImpl::new(&conn, acl);
-                    attributes_repo
-                        .create(new_attribute)
-                        .map_err(ServiceError::from)
+                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                    conn.transaction::<(Attribute), ServiceError, _>(move || {
+                        attributes_repo
+                            .create(new_attribute)
+                            .map_err(ServiceError::from)
+                    })
                 })
         }))
     }
@@ -96,20 +125,28 @@ impl AttributesService for AttributesServiceImpl {
     fn update(&self, attribute_id: i32, payload: UpdateAttribute) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let roles_cache = self.roles_cache.clone();
         let attributes_cache = self.attributes_cache.clone();
+        let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ServiceError::Connection(e.into()))
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
                 .and_then(move |conn| {
-                    let acl = acl_for_id(roles_cache, user_id);
-                    let attributes_repo = AttributesRepoImpl::new(&conn, acl);
+                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     attributes_repo
                         .update(attribute_id, payload)
-                        .and_then(|attribute| attributes_cache.remove(attribute_id).map(|_| attribute))
                         .map_err(ServiceError::from)
+                        .and_then(|attribute| {
+                            attributes_cache.remove(attribute_id);
+                            Ok(attribute)
+                        })
                 })
         }))
     }

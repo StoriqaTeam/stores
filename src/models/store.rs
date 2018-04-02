@@ -4,10 +4,7 @@ use std::time::SystemTime;
 use validator::Validate;
 use serde_json;
 
-use repos::types::DbConnection;
 use models::validation_rules::*;
-use stq_acl::WithScope;
-use models::Scope;
 
 /// diesel table for stores
 table! {
@@ -16,7 +13,6 @@ table! {
         user_id -> Integer,
         is_active -> Bool,
         name -> Jsonb,
-        currency_id -> Integer,
         short_description -> Jsonb,
         long_description -> Nullable<Jsonb>,
         slug -> VarChar,
@@ -42,7 +38,6 @@ pub struct Store {
     pub user_id: i32,
     pub is_active: bool,
     pub name: serde_json::Value,
-    pub currency_id: i32,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub slug: String,
@@ -78,13 +73,12 @@ impl From<Store> for ElasticStore {
 }
 
 /// Payload for creating stores
-#[derive(Serialize, Deserialize, Insertable, Validate, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Validate, Clone, Debug)]
 #[table_name = "stores"]
 pub struct NewStore {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub user_id: i32,
-    pub currency_id: i32,
     #[validate(custom = "validate_translation")]
     pub short_description: serde_json::Value,
     #[validate(custom = "validate_translation")]
@@ -107,12 +101,14 @@ pub struct NewStore {
 }
 
 /// Payload for updating users
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Debug)]
 #[table_name = "stores"]
 pub struct UpdateStore {
+    #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
-    pub currency_id: Option<i32>,
+    #[validate(custom = "validate_translation")]
     pub short_description: Option<serde_json::Value>,
+    #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
     #[validate(length(min = "1", message = "Slug must not be empty"))]
     pub slug: Option<String>,
@@ -131,25 +127,7 @@ pub struct UpdateStore {
     pub slogan: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchStore {
     pub name: String,
-}
-
-impl WithScope<Scope> for Store {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => self.user_id == user_id,
-        }
-    }
-}
-
-impl WithScope<Scope> for NewStore {
-    fn is_in_scope(&self, scope: &Scope, user_id: i32, _conn: Option<&DbConnection>) -> bool {
-        match *scope {
-            Scope::All => true,
-            Scope::Owned => self.user_id == user_id,
-        }
-    }
 }

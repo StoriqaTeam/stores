@@ -5,8 +5,10 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
-use diesel::pg::PgConnection;
 use diesel::dsl::exists;
+use diesel::connection::AnsiTransactionManager;
+use diesel::pg::Pg;
+use diesel::Connection;
 
 use stq_acl::*;
 use stq_static_resources::Translation;
@@ -14,15 +16,14 @@ use stq_static_resources::Translation;
 use models::{NewStore, Store, UpdateStore};
 use models::store::stores::dsl::*;
 use super::error::RepoError as Error;
-use super::types::{DbConnection, RepoResult};
+use super::types::RepoResult;
 use models::authorization::*;
 use super::acl;
-use super::acl::BoxedAcl;
 
 /// Stores repository, responsible for handling stores
-pub struct StoresRepoImpl<'a> {
-    pub db_conn: &'a DbConnection,
-    pub acl: BoxedAcl,
+pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+    pub db_conn: &'a T,
+    pub acl: Box<Acl<Resource, Action, Scope, Error, Store>>,
 }
 
 pub trait StoresRepo {
@@ -48,49 +49,53 @@ pub trait StoresRepo {
     fn name_exists(&self, name: Vec<Translation>) -> RepoResult<bool>;
 }
 
-impl<'a> StoresRepoImpl<'a> {
-    pub fn new(db_conn: &'a DbConnection, acl: BoxedAcl) -> Self {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Store>>) -> Self {
         Self { db_conn, acl }
     }
 
-    fn execute_query<T: Send + 'static, U: LoadQuery<PgConnection, T> + Send + 'static>(&self, query: U) -> Result<T, Error> {
-        query.get_result::<T>(&**self.db_conn).map_err(Error::from)
+    fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
+        query.get_result::<Ty>(self.db_conn).map_err(Error::from)
     }
 }
 
-impl<'a> StoresRepo for StoresRepoImpl<'a> {
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepo for StoresRepoImpl<'a, T> {
     /// Find specific store by ID
     fn find(&self, store_id_arg: i32) -> RepoResult<Store> {
+        debug!("Find in stores with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl::check(
                     &*self.acl,
                     &Resource::Stores,
                     &Action::Read,
-                    &[&store],
-                    Some(self.db_conn),
+                    self,
+                    Some(&store),
                 ).and_then(|_| Ok(store))
             })
     }
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store> {
-        acl::check(
-            &*self.acl,
-            &Resource::Stores,
-            &Action::Create,
-            &[&payload],
-            Some(self.db_conn),
-        ).and_then(|_| {
-            let query_store = diesel::insert_into(stores).values(&payload);
-            query_store
-                .get_result::<Store>(&**self.db_conn)
-                .map_err(Error::from)
-        })
+        debug!("Create store {:?}.", payload);
+        let query_store = diesel::insert_into(stores).values(&payload);
+        query_store
+            .get_result::<Store>(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|store| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::Stores,
+                    &Action::Create,
+                    self,
+                    Some(&store),
+                ).and_then(|_| Ok(store))
+            })
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
+        debug!("Find in stores with ids from {} count {}.", from, count);
         let query = stores
             .filter(is_active.eq(true))
             .filter(id.gt(from))
@@ -98,33 +103,36 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
             .limit(count);
 
         query
-            .get_results(&**self.db_conn)
+            .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|stores_res: Vec<Store>| {
-                let resources = stores_res
-                    .iter()
-                    .map(|store| (store as &WithScope<Scope>))
-                    .collect::<Vec<&WithScope<Scope>>>();
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Read,
-                    &resources,
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(stores_res.clone()))
+                for store in stores_res.iter() {
+                    acl::check(
+                        &*self.acl,
+                        &Resource::Stores,
+                        &Action::Read,
+                        self,
+                        Some(&store),
+                    )?;
+                }
+                Ok(stores_res.clone())
             })
     }
 
     /// Updates specific store
     fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
+        debug!(
+            "Updating store with id {} and payload {:?}.",
+            store_id_arg, payload
+        );
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl::check(
                     &*self.acl,
                     &Resource::Stores,
                     &Action::Update,
-                    &[&store],
-                    Some(self.db_conn),
+                    self,
+                    Some(&store),
                 )
             })
             .and_then(|_| {
@@ -133,22 +141,21 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     .filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query
-                    .get_result::<Store>(&**self.db_conn)
-                    .map_err(Error::from)
+                query.get_result::<Store>(self.db_conn).map_err(Error::from)
             })
     }
 
     /// Deactivates specific store
     fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
+        debug!("Deactivate store with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| {
                 acl::check(
                     &*self.acl,
                     &Resource::Stores,
                     &Action::Delete,
-                    &[&store],
-                    Some(self.db_conn),
+                    self,
+                    Some(&store),
                 )
             })
             .and_then(|_| {
@@ -161,24 +168,17 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
     }
 
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
+        debug!("Check if store slug {} exists.", slug_arg);
         let query = diesel::select(exists(stores.filter(slug.eq(slug_arg))));
-
         query
-            .get_result(&**self.db_conn)
+            .get_result(self.db_conn)
             .map_err(Error::from)
-            .and_then(|exists| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Read,
-                    &[],
-                    Some(self.db_conn),
-                ).and_then(|_| Ok(exists))
-            })
+            .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
     }
 
     /// Checks name exists
     fn name_exists(&self, name_arg: Vec<Translation>) -> RepoResult<bool> {
+        debug!("Check if store name {:?} exists.", name_arg);
         let res = name_arg
             .into_iter()
             .map(|trans| {
@@ -187,11 +187,29 @@ impl<'a> StoresRepo for StoresRepoImpl<'a> {
                     trans.lang, trans.text
                 );
                 diesel::dsl::sql::<(diesel::sql_types::Bool)>(&query_str)
-                    .get_result(&**self.db_conn)
+                    .get_result(self.db_conn)
                     .map_err(Error::from)
             })
             .collect::<RepoResult<Vec<bool>>>();
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
+            .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
+    }
+}
+
+impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Store>
+    for StoresRepoImpl<'a, T>
+{
+    fn is_in_scope(&self, user_id_arg: i32, scope: &Scope, obj: Option<&Store>) -> bool {
+        match *scope {
+            Scope::All => true,
+            Scope::Owned => {
+                if let Some(store) = obj {
+                    store.user_id == user_id_arg
+                } else {
+                    false
+                }
+            }
+        }
     }
 }

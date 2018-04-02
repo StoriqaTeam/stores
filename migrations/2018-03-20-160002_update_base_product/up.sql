@@ -1,0 +1,1 @@
+ALTER TABLE base_products ADD COLUMN views INTEGER NOT NULL DEFAULT '0';

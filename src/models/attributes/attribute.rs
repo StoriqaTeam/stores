@@ -1,13 +1,16 @@
 //! EAV model attributes
 use serde_json;
+use validator::Validate;
 
 use models::*;
+use models::validation_rules::*;
 
 table! {
     attributes {
         id -> Integer,
         name -> Jsonb,
-        meta_field -> Nullable<VarChar>,
+        value_type -> VarChar,
+        meta_field -> Nullable<Jsonb>,
     }
 }
 
@@ -16,41 +19,33 @@ table! {
 pub struct Attribute {
     pub id: i32,
     pub name: serde_json::Value,
-    pub meta_field: Option<String>,
+    pub value_type: AttributeType,
+    pub meta_field: Option<serde_json::Value>,
 }
 
 /// Payload for creating attributes
-#[derive(Serialize, Deserialize, Insertable, Clone)]
+#[derive(Serialize, Deserialize, Insertable, Clone, Validate, Debug)]
 #[table_name = "attributes"]
 pub struct NewAttribute {
+    #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
-    pub meta_field: Option<String>,
+    pub value_type: AttributeType,
+    pub meta_field: Option<serde_json::Value>,
 }
 
 /// Payload for updating attributes
-#[derive(Serialize, Deserialize, Insertable, AsChangeset)]
+#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
 #[table_name = "attributes"]
 pub struct UpdateAttribute {
+    #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
-    pub meta_field: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone, ElasticType)]
-pub struct ElasticAttribute {
-    pub id: i32,
-    pub name: serde_json::Value,
-}
-
-#[derive(Serialize, Deserialize, Clone, ElasticType)]
-pub struct SearchAttribute {
-    pub name: String,
+    pub meta_field: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AttrValue {
     pub attr_id: i32,
     pub value: String,
-    pub value_type: AttributeType,
     pub meta_field: Option<String>,
 }
 
@@ -59,7 +54,6 @@ impl From<ProdAttr> for AttrValue {
         Self {
             attr_id: pr.attr_id,
             value: pr.value,
-            value_type: pr.value_type,
             meta_field: pr.meta_field,
         }
     }

@@ -12,7 +12,8 @@ pub enum Route {
     Product(i32),
     BaseProducts,
     BaseProduct(i32),
-    BaseProductWithVariants(i32),
+    BaseProductWithVariants,
+    BaseProductWithVariant(i32),
     ProductsSearch,
     ProductsAutoComplete,
     ProductsMostViewed,
@@ -73,12 +74,17 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(|product_id| Route::BaseProduct(product_id))
     });
 
+    // Base products with variants routes
+    router.add_route(r"^/base_products/with_variants$", || {
+        Route::BaseProductWithVariants
+    });
+
     // Base products/:id/with_variants route
     router.add_route_with_params(r"^/base_products/(\d+)/with_variants$", |params| {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|product_id| Route::BaseProductWithVariants(product_id))
+            .map(|product_id| Route::BaseProductWithVariant(product_id))
     });
 
     // Products Search route

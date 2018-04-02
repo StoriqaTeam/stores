@@ -402,12 +402,28 @@ impl<
             }
 
             // GET /base_products/<base_product_id>/with_variants
-            (&Get, Some(Route::BaseProductWithVariants(base_product_id))) => {
+            (&Get, Some(Route::BaseProductWithVariant(base_product_id))) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // GET /base_products/{}/with_variants",
                     user_id, base_product_id
                 );
                 serialize_future(base_products_service.get_with_variants(base_product_id))
+            }
+
+            // GET /base_products/with_variants
+            (&Get, Some(Route::BaseProductWithVariants)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /base_products/with_variants",
+                    user_id
+                );
+                if let (Some(store_id), Some(base_product_id)) = parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "base_product_id" => i32) {
+                    serialize_future(base_products_service.list_with_variants(store_id, base_product_id))
+                } else {
+                    error!("Parsing query parameters // GET /base_products/with_variants failed!");
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
             }
 
             // GET /base_products

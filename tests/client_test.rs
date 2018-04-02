@@ -66,7 +66,7 @@ fn test_request() {
         http_client_retries: config.client.http_client_retries,
         http_client_buffer_size: config.client.http_client_buffer_size,
     };
-    let client = stq_http::client::Client::new(&http_config, &handle);
+    let client = Client::new(&http_config, &handle);
     let client_handle = client.handle();
     let client_stream = client.stream();
     handle.spawn(client_stream.for_each(|_| Ok(())));

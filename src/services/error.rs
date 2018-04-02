@@ -17,11 +17,11 @@ pub enum ServiceError {
     Validate(ValidationErrors),
     #[fail(display = "Parse error: {}", _0)]
     Parse(String),
-    #[fail(display = "R2D2 connection error")]
+    #[fail(display = "R2D2 connection error: {}", _0)]
     Connection(Error),
-    #[fail(display = "Diesel transaction error")]
+    #[fail(display = "Diesel transaction error: {}", _0)]
     Transaction(Error),
-    #[fail(display = "Repo error")]
+    #[fail(display = "Repo error: {}", _0)]
     Database(Error),
     #[fail(display = "Http client error: {}", _0)]
     HttpClient(String),
@@ -29,7 +29,7 @@ pub enum ServiceError {
     EmailAlreadyExists(String),
     #[fail(display = "Incorrect email or password")]
     IncorrectCredentials,
-    #[fail(display = "Unauthorized")]
+    #[fail(display = "Unauthorized: {}", _0)]
     Unauthorized(String),
     #[fail(display = "Unknown error: {}", _0)]
     Unknown(String),
@@ -37,7 +37,7 @@ pub enum ServiceError {
 
 impl From<RepoError> for ServiceError {
     fn from(err: RepoError) -> Self {
-        error!("Repo error occured: '{:?}'.", err);
+        error!("Repo error occured: '{}'.", err);
         match err {
             RepoError::NotFound => ServiceError::NotFound,
             RepoError::Rollback => ServiceError::Rollback,
@@ -55,14 +55,14 @@ impl From<RepoError> for ServiceError {
 
 impl From<DieselError> for ServiceError {
     fn from(err: DieselError) -> Self {
-        error!("Diesel error occured: '{:?}'.", err);
+        error!("Diesel error occured: '{}'.", err);
         ServiceError::Transaction(err.into())
     }
 }
 
 impl From<ServiceError> for ControllerError {
     fn from(e: ServiceError) -> Self {
-        error!("Service error occured: '{:?}'.", e);
+        error!("Service error occured: '{}'.", e);
         match e {
             ServiceError::NotFound => ControllerError::NotFound,
             ServiceError::Rollback => ControllerError::BadRequest(ServiceError::Rollback.into()),

@@ -275,3 +275,80 @@ impl<
         }))
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use serde_json;
+    use futures_cpupool::CpuPool;
+    use tokio_core::reactor::Core;
+    use r2d2;
+
+    use repos::repo_factory::tests::*;
+    use services::*;
+    use models::*;
+    use repos::*;
+
+    fn create_categories_service(user_id: Option<i32>) -> CategoriesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+        let manager = MockConnectionManager::default();
+        let db_pool = r2d2::Pool::builder()
+            .build(manager)
+            .expect("Failed to create connection pool");
+        let cpu_pool = CpuPool::new(1);
+
+        CategoriesServiceImpl {
+            db_pool: db_pool,
+            cpu_pool: cpu_pool,
+            user_id: user_id,
+            repo_factory: MOCK_REPO_FACTORY,
+            categories_cache: CategoryCacheImpl::default(),
+        }
+    }
+
+    pub fn create_new_categories(name: &str) -> NewCategory {
+        NewCategory {
+            name: serde_json::from_str(name).unwrap(),
+            meta_field: None,
+            parent_id: Some(1),
+            level: 0,
+        }
+    }
+
+    pub fn create_update_categories(name: &str) -> UpdateCategory {
+        UpdateCategory {
+            name: Some(serde_json::from_str(name).unwrap()),
+            meta_field: None,
+            parent_id: Some(1),
+            level: Some(0),
+        }
+    }
+
+    #[test]
+    fn test_get_categories() {
+        let mut core = Core::new().unwrap();
+        let service = create_categories_service(Some(MOCK_USER_ID));
+        let work = service.get(1);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+    }
+
+    #[test]
+    fn test_create_categories() {
+        let mut core = Core::new().unwrap();
+        let service = create_categories_service(Some(MOCK_USER_ID));
+        let new_categories = create_new_categories(MOCK_BASE_PRODUCT_NAME_JSON);
+        let work = service.create(new_categories);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, MOCK_BASE_PRODUCT_ID);
+    }
+
+    #[test]
+    fn test_update() {
+        let mut core = Core::new().unwrap();
+        let service = create_categories_service(Some(MOCK_USER_ID));
+        let new_categories = create_update_categories(MOCK_BASE_PRODUCT_NAME_JSON);
+        let work = service.update(1, new_categories);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+    }
+
+}

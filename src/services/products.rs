@@ -259,3 +259,158 @@ impl<
         }))
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use std::time::SystemTime;
+    use std::sync::Arc;
+
+    use futures_cpupool::CpuPool;
+    use tokio_core::reactor::Handle;
+    use r2d2;
+
+    use stq_http::client::Config as HttpConfig;
+    use stq_http;
+    use tokio_core::reactor::Core;
+
+    use repos::repo_factory::tests::*;
+    use services::*;
+    use models::*;
+    use config::Config;
+
+    fn create_product_service(
+        user_id: Option<i32>,
+        handle: Arc<Handle>,
+    ) -> ProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+        let manager = MockConnectionManager::default();
+        let db_pool = r2d2::Pool::builder()
+            .build(manager)
+            .expect("Failed to create connection pool");
+        let cpu_pool = CpuPool::new(1);
+
+        let config = Config::new().unwrap();
+        let http_config = HttpConfig {
+            http_client_retries: config.client.http_client_retries,
+            http_client_buffer_size: config.client.http_client_buffer_size,
+        };
+        let client = stq_http::client::Client::new(&http_config, &handle);
+        let client_handle = client.handle();
+
+        ProductsServiceImpl {
+            db_pool: db_pool,
+            cpu_pool: cpu_pool,
+            user_id: user_id,
+            client_handle: client_handle,
+            elastic_address: "".to_string(),
+            repo_factory: MOCK_REPO_FACTORY,
+        }
+    }
+
+    pub fn create_product(id: i32, base_product_id: i32) -> Product {
+        Product {
+            id: id,
+            base_product_id: base_product_id,
+            is_active: true,
+            discount: None,
+            photo_main: None,
+            vendor_code: None,
+            cashback: None,
+            additional_photos: None,
+            price: 0f64,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+        }
+    }
+
+    pub fn create_new_product_with_attributes(base_product_id: i32) -> NewProductWithAttributes {
+        NewProductWithAttributes {
+            product: create_new_product(base_product_id),
+            attributes: vec![],
+        }
+    }
+
+    pub fn create_new_product(base_product_id: i32) -> NewProduct {
+        NewProduct {
+            base_product_id: base_product_id,
+            discount: None,
+            photo_main: None,
+            vendor_code: None,
+            cashback: None,
+            additional_photos: None,
+            price: 0f64,
+        }
+    }
+
+    pub fn create_update_product() -> UpdateProduct {
+        UpdateProduct {
+            discount: None,
+            photo_main: None,
+            vendor_code: None,
+            cashback: None,
+            additional_photos: None,
+            price: None,
+        }
+    }
+
+    pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
+        UpdateProductWithAttributes {
+            product: create_update_product(),
+            attributes: vec![],
+        }
+    }
+
+    #[test]
+    fn test_get_product() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_product_service(Some(MOCK_USER_ID), handle);
+        let work = service.get(1);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+    }
+
+    #[test]
+    fn test_list() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_product_service(Some(MOCK_USER_ID), handle);
+        let work = service.list(1, 5);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.len(), 5);
+    }
+
+    #[test]
+    fn test_create_product() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_product_service(Some(MOCK_USER_ID), handle);
+        let new_product = create_new_product_with_attributes(MOCK_BASE_PRODUCT_ID);
+        let work = service.create(new_product);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.base_product_id, MOCK_BASE_PRODUCT_ID);
+    }
+
+    #[test]
+    fn test_update() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_product_service(Some(MOCK_USER_ID), handle);
+        let new_product = create_update_product_with_attributes();
+        let work = service.update(1, new_product);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+        assert_eq!(result.base_product_id, MOCK_BASE_PRODUCT_ID);
+    }
+
+    #[test]
+    fn test_deactivate() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_product_service(Some(MOCK_USER_ID), handle);
+        let work = service.deactivate(1);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.id, 1);
+        assert_eq!(result.is_active, false);
+    }
+
+}

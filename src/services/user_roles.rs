@@ -214,3 +214,64 @@ impl<
         }))
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use futures_cpupool::CpuPool;
+    use tokio_core::reactor::Core;
+    use r2d2;
+
+    use repos::repo_factory::tests::*;
+    use services::*;
+    use models::*;
+    use repos::*;
+
+    fn create_user_roles_service() -> UserRolesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+        let manager = MockConnectionManager::default();
+        let db_pool = r2d2::Pool::builder()
+            .build(manager)
+            .expect("Failed to create connection pool");
+        let cpu_pool = CpuPool::new(1);
+
+        UserRolesServiceImpl {
+            db_pool: db_pool,
+            cpu_pool: cpu_pool,
+            cached_roles: RolesCacheImpl::default(),
+            repo_factory: MOCK_REPO_FACTORY,
+        }
+    }
+
+    pub fn create_new_user_roles(user_id: i32) -> NewUserRole {
+        NewUserRole {
+            user_id: user_id,
+            role: Role::User,
+        }
+    }
+
+    pub fn delete_user_roles(user_id: i32) -> OldUserRole {
+        OldUserRole {
+            user_id: user_id,
+            role: Role::User,
+        }
+    }
+
+    #[test]
+    fn test_get_user_roles() {
+        let mut core = Core::new().unwrap();
+        let service = create_user_roles_service();
+        let work = service.get_roles(1);
+        let result = core.run(work).unwrap();
+        assert_eq!(result[0], Role::Superuser);
+    }
+
+    #[test]
+    fn test_create_user_roles() {
+        let mut core = Core::new().unwrap();
+        let service = create_user_roles_service();
+        let new_user_roles = create_new_user_roles(MOCK_USER_ID);
+        let work = service.create(new_user_roles);
+        let result = core.run(work).unwrap();
+        assert_eq!(result.user_id, MOCK_BASE_PRODUCT_ID);
+    }
+
+}

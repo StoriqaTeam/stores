@@ -1,5 +1,6 @@
 [server]
-address = "0.0.0.0:8001"
+host = "0.0.0.0"
+port = "8000"
 database = "postgresql://stores:stores@stores-pg/stores"
 elastic = "stores-es:9200"
 thread_count = 20

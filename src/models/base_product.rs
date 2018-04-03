@@ -122,6 +122,7 @@ pub struct ElasticProduct {
 pub struct ElasticVariant {
     pub prod_id: i32,
     pub discount: Option<f64>,
+    pub price: f64,
     pub attrs: Vec<ElasticAttrValue>,
 }
 
@@ -129,7 +130,7 @@ pub struct ElasticVariant {
 pub struct ElasticAttrValue {
     pub attr_id: i32,
     pub str_val: Option<String>,
-    pub float_val: Option<f32>,
+    pub float_val: Option<f64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -156,26 +157,5 @@ pub struct VariantsWithAttributes {
 impl VariantsWithAttributes {
     pub fn new(product: Product, attrs: Vec<AttrValue>) -> Self {
         Self { product, attrs }
-    }
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, Default)]
-pub struct SearchFilters {
-    pub categories_ids: Vec<i32>,
-    pub attributes_values: Vec<AttributeValues>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Hash, Eq, PartialEq, Debug)]
-pub struct AttributeValues {
-    pub attr_id: i32,
-    pub values: Vec<String>,
-}
-
-impl AttributeValues {
-    pub fn new(attr_id: i32, value: String) -> Self {
-        Self {
-            attr_id,
-            values: vec![value],
-        }
     }
 }

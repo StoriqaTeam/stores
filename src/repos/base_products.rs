@@ -32,7 +32,7 @@ pub trait BaseProductsRepo {
     fn list(&self, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_by_store(&self, store_id_arg: i32, base_product_id_arg: i32) -> RepoResult<Vec<BaseProduct>>;
+    fn list_by_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>>;
 
     /// Creates new base_product
     fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct>;
@@ -146,14 +146,30 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
-    /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_by_store(&self, store_id_arg: i32, base_product_id_arg: i32) -> RepoResult<Vec<BaseProduct>> {
-        debug!("Find in base products with store id {}.", store_id_arg);
-        let query = base_products
-            .filter(is_active.eq(true))
-            .filter(store_id.eq(store_id_arg))
-            .filter(id.ne(base_product_id_arg))
-            .limit(10);
+    /// Returns list of base_products by store id and skip skip_base_product_id, limited by from and count
+    fn list_by_store(&self, store_id_arg: i32, skip_base_product_id: Option<i32>, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
+        debug!(
+            "Find in base products with store id {} skip {:?} from {} count {}.",
+            store_id_arg, skip_base_product_id, from, count
+        );
+        let query = if let Some(skip_base_product_id) = skip_base_product_id {
+            base_products
+                .filter(is_active.eq(true))
+                .filter(store_id.eq(store_id_arg))
+                .filter(id.ne(skip_base_product_id))
+                .filter(id.ge(from))
+                .order(id)
+                .limit(count)
+                .into_boxed()
+        } else {
+            base_products
+                .filter(is_active.eq(true))
+                .filter(store_id.eq(store_id_arg))
+                .filter(id.ge(from))
+                .order(id)
+                .limit(count)
+                .into_boxed()
+        };
 
         query
             .get_results(self.db_conn)

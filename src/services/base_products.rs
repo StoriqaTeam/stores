@@ -42,7 +42,13 @@ pub trait BaseProductsService {
     /// Lists base products limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_with_variants(&self, store_id: i32, base_product_id: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn list_with_variants(
+        &self,
+        store_id: i32,
+        skip_base_product_id: Option<i32>,
+        from: i32,
+        count: i64,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Updates base product
     fn update(&self, product_id: i32, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
 }
@@ -499,8 +505,14 @@ impl<
         }))
     }
 
-    /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_with_variants(&self, store_id: i32, base_product_id: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+    /// Returns list of base_products by store id and exclude skip_base_product_id, limited by from and count
+    fn list_with_variants(
+        &self,
+        store_id: i32,
+        skip_base_product_id: Option<i32>,
+        from: i32,
+        count: i64,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -520,7 +532,7 @@ impl<
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                     base_products_repo
-                        .list_by_store(store_id, base_product_id)
+                        .list_by_store(store_id, skip_base_product_id, from, count)
                         .and_then(move |base_products| {
                             base_products
                                 .into_iter()
@@ -531,7 +543,9 @@ impl<
                                         .and_then(|(base_product, products)| {
                                             products
                                                 .into_iter()
-                                                .map(|product| {
+                                                .nth(0)
+                                                .ok_or(RepoError::NotFound)
+                                                .and_then(|product| {
                                                     attr_prod_repo
                                                         .find_all_attributes(product.id)
                                                         .map(|attrs| {
@@ -542,8 +556,7 @@ impl<
                                                         })
                                                         .map(|attrs| VariantsWithAttributes::new(product, attrs))
                                                 })
-                                                .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
-                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
+                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
                                         })
                                 })
                                 .collect::<RepoResult<Vec<BaseProductWithVariants>>>()

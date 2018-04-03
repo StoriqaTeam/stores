@@ -341,9 +341,9 @@ pub mod tests {
         }
 
         /// Returns list of base_products by store id, limited by 10
-        fn list_by_store(&self, store_id: i32, id: i32) -> RepoResult<Vec<BaseProduct>> {
+        fn list_by_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
-            for i in (id + 1)..(id + 10) {
+            for i in (skip_base_product_id.unwrap() + from)..(skip_base_product_id.unwrap() + from + count as i32) {
                 let base_product = BaseProduct {
                     id: i,
                     is_active: true,

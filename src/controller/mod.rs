@@ -187,8 +187,8 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /stores",
                     user_id
                 );
-                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
-                    serialize_future(stores_service.list(from, count))
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i64) {
+                    serialize_future(stores_service.list(offset, count))
                 } else {
                     error!("Parsing query parameters // GET /stores failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
@@ -323,8 +323,8 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /products",
                     user_id
                 );
-                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
-                    serialize_future(products_service.list(from, count))
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i64) {
+                    serialize_future(products_service.list(offset, count))
                 } else {
                     error!("Parsing query parameters // GET /products failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
@@ -416,10 +416,9 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products/with_variants",
                     user_id
                 );
-                if let (Some(store_id), Some(base_product_id)) =
-                    parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "base_product_id" => i32)
+                if let (Some(store_id), skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "skip_base_product_id" => i32, "offset" => i32, "count" => i64)
                 {
-                    serialize_future(base_products_service.list_with_variants(store_id, base_product_id))
+                    serialize_future(base_products_service.list_with_variants(store_id, skip_base_product_id, offset, count))
                 } else {
                     error!("Parsing query parameters // GET /base_products/with_variants failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
@@ -434,8 +433,8 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products",
                     user_id
                 );
-                if let (Some(from), Some(count)) = parse_query!(req.query().unwrap_or_default(), "from" => i32, "count" => i64) {
-                    serialize_future(base_products_service.list(from, count))
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i64) {
+                    serialize_future(base_products_service.list(offset, count))
                 } else {
                     error!("Parsing query parameters // GET /base_products failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(

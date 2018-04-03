@@ -85,4 +85,12 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn params_6() {
+        assert_eq!(
+            parse_query!("from=12", "from" => i32, "to" => i64),
+            (Some(12), None)
+        );
+    }
 }

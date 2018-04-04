@@ -235,6 +235,26 @@ impl<
                 }
             }
 
+            // POST /stores/search/count
+            (&Post, Some(Route::StoresSearchCount)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /stores/search/count",
+                    user_id
+                );
+                serialize_future(
+                    read_body(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /stores/search/count in String failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |name| {
+                            stores_service
+                                .search_count(name)
+                                .map_err(Error::from)
+                        }),
+                )
+            }
+
             // POST /stores/auto_complete
             (&Post, Some(Route::StoresAutoComplete)) => {
                 debug!(
@@ -623,16 +643,16 @@ impl<
                 }
             }
 
-            // POST /products/search_filters
+            // POST /products/search/filters
             (&Post, Some(Route::ProductsSearchFilters)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search_filters",
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters",
                     user_id
                 );
                 serialize_future(
                     read_body(req.body())
                         .map_err(|_| {
-                            error!("Parsing body // POST /products/search_filters in String failed!");
+                            error!("Parsing body // POST /products/search/filters in String failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
                         .and_then(move |name| {

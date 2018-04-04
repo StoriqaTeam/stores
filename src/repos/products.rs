@@ -31,7 +31,7 @@ pub trait ProductsRepo {
     fn find(&self, product_id: i32) -> RepoResult<Product>;
 
     /// Returns list of products, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Product>>;
+    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>>;
 
     /// Returns list of products with base id
     fn find_with_base_id(&self, base_id: i32) -> RepoResult<Vec<Product>>;
@@ -91,13 +91,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of products, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Product>> {
+    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>> {
         debug!("Find in products with ids from {} count {}.", from, count);
         let query = products
             .filter(is_active.eq(true))
             .filter(id.ge(from))
             .order(id)
-            .limit(count);
+            .limit(count.into());
 
         query
             .get_results(self.db_conn)

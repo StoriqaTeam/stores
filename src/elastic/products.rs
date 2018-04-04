@@ -21,16 +21,16 @@ pub struct ProductsElasticImpl {
 
 pub trait ProductsElastic {
     /// Find specific product by name limited by `count` parameters
-    fn auto_complete(&self, name: String, count: i64, offset: i64) -> RepoFuture<Vec<String>>;
+    fn auto_complete(&self, name: String, count: i32, offset: i32) -> RepoFuture<Vec<String>>;
 
     /// Find specific product by name limited by `count` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>>;
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>>;
 }
 
 impl ProductsElasticImpl {
@@ -129,7 +129,7 @@ impl ProductsElasticImpl {
 
 impl ProductsElastic for ProductsElasticImpl {
     /// Find specific products by name limited by `count` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>> {
         log_elastic_req(&prod);
         let name_query = json!({
             "bool" : {
@@ -194,7 +194,7 @@ impl ProductsElastic for ProductsElasticImpl {
     }
 
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>> {
         log_elastic_req(&prod);
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
@@ -227,7 +227,7 @@ impl ProductsElastic for ProductsElasticImpl {
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> RepoFuture<Vec<ElasticProduct>> {
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>> {
         log_elastic_req(&prod);
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
@@ -259,7 +259,7 @@ impl ProductsElastic for ProductsElasticImpl {
         )
     }
 
-    fn auto_complete(&self, name: String, count: i64, _offset: i64) -> RepoFuture<Vec<String>> {
+    fn auto_complete(&self, name: String, count: i32, _offset: i32) -> RepoFuture<Vec<String>> {
         log_elastic_req(&name);
         let query = json!({
             "suggest": {

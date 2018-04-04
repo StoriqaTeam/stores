@@ -32,7 +32,10 @@ pub trait BaseProductsRepo {
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_by_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>>;
+    fn get_products_of_the_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Counts products by store id
+    fn count_with_store_id(&self, store_id: i32) -> RepoResult<i32>;
 
     /// Creates new base_product
     fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct>;
@@ -81,6 +84,27 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         .get_result::<BaseProduct>(self.db_conn)
                         .map_err(Error::from)
                 })
+            })
+    }
+    
+    /// Counts products by store id
+    fn count_with_store_id(&self, store_id_arg: i32) -> RepoResult<i32> {
+        debug!("Counts products with store id {}.", store_id_arg);
+        let query = base_products
+            .filter(is_active.eq(true))
+            .filter(store_id.eq(store_id_arg))
+            .count();
+
+        self.execute_query(query)
+            .and_then(|count: i64| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::BaseProducts,
+                    &Action::Read,
+                    self,
+                    None,
+                )?;
+                Ok(count as i32)
             })
     }
 
@@ -147,7 +171,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of base_products by store id and skip skip_base_product_id, limited by from and count
-    fn list_by_store(&self, store_id_arg: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
+    fn get_products_of_the_store(&self, store_id_arg: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
         debug!(
             "Find in base products with store id {} skip {:?} from {} count {}.",
             store_id_arg, skip_base_product_id, from, count

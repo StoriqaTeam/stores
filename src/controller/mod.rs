@@ -207,6 +207,32 @@ impl<
                 }
             }
 
+            // GET /stores/:id/products route
+            (&Get, Some(Route::StoreProducts(store_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /stores/:id/products route",
+                    user_id
+                );
+                if let (skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "skip_base_product_id" => i32, "offset" => i32, "count" => i32)
+                {
+                    serialize_future(base_products_service.get_products_of_the_store(store_id, skip_base_product_id, offset, count))
+                } else {
+                    error!("Parsing query parameters // GET /stores/:id/product failed!");
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
+
+            // GET /stores/:id/products/count route
+            (&Get, Some(Route::StoreProductsCount(store_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /stores/{}",
+                    user_id, store_id
+                );
+                serialize_future(stores_service.get_products_count(store_id))
+            }
+
             // POST /stores/search
             (&Post, Some(Route::StoresSearch)) => {
                 debug!(
@@ -421,22 +447,7 @@ impl<
                 serialize_future(base_products_service.get_with_variants(base_product_id))
             }
 
-            // GET /base_products/with_variants
-            (&Get, Some(Route::BaseProductWithVariants)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/with_variants",
-                    user_id
-                );
-                if let (Some(store_id), skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "skip_base_product_id" => i32, "offset" => i32, "count" => i32)
-                {
-                    serialize_future(base_products_service.list_with_variants(store_id, skip_base_product_id, offset, count))
-                } else {
-                    error!("Parsing query parameters // GET /base_products/with_variants failed!");
-                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
-                        "Error parsing request from gateway body"
-                    ))))
-                }
-            }
+            
 
             // GET /base_products
             (&Get, Some(Route::BaseProducts)) => {

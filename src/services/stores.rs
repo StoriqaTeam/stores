@@ -20,6 +20,8 @@ use super::error::ServiceError;
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
     fn find_by_name(&self, search_store: SearchStore, count: i32, offset: i32) -> ServiceFuture<Vec<Store>>;
+    /// search count
+    fn search_count(&self, name: String) -> ServiceFuture<i32>;
     /// Find stores auto complete limited by `count` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
@@ -135,6 +137,20 @@ impl<
             }
         }))
     }
+
+    fn search_count(&self, name: String) -> ServiceFuture<i32> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let search_filters = {
+            let stores_el = StoresElasticImpl::new(client_handle, address);
+            stores_el
+                .search_count(name)
+                .map_err(ServiceError::from)
+        };
+
+        Box::new(search_filters)
+    }
+
 
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store> {

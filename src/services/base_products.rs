@@ -42,7 +42,7 @@ pub trait BaseProductsService {
     /// Lists base products limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_with_variants(
+    fn get_products_of_the_store(
         &self,
         store_id: i32,
         skip_base_product_id: Option<i32>,
@@ -506,7 +506,7 @@ impl<
     }
 
     /// Returns list of base_products by store id and exclude skip_base_product_id, limited by from and count
-    fn list_with_variants(
+    fn get_products_of_the_store(
         &self,
         store_id: i32,
         skip_base_product_id: Option<i32>,
@@ -532,7 +532,7 @@ impl<
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                     base_products_repo
-                        .list_by_store(store_id, skip_base_product_id, from, count)
+                        .get_products_of_the_store(store_id, skip_base_product_id, from, count)
                         .and_then(move |base_products| {
                             base_products
                                 .into_iter()

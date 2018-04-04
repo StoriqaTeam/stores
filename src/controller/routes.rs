@@ -5,20 +5,22 @@ use stq_router::RouteParser;
 pub enum Route {
     Healthcheck,
     Stores,
-    Store(i32),
     StoresSearch,
     StoresAutoComplete,
+    Store(i32),
+    StoreProducts(i32),
+    StoreProductsCount(i32),
     Products,
-    Product(i32),
-    BaseProducts,
-    BaseProduct(i32),
-    BaseProductWithVariants,
-    BaseProductWithVariant(i32),
     ProductsSearch,
     ProductsAutoComplete,
     ProductsMostViewed,
     ProductsMostDiscount,
     ProductsSearchFilters,
+    Product(i32),
+    BaseProducts,
+    BaseProductWithVariants,
+    BaseProduct(i32),
+    BaseProductWithVariant(i32),
     UserRoles,
     UserRole(i32),
     DefaultRole(i32),
@@ -45,6 +47,22 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(|store_id| Route::Store(store_id))
+    });
+
+    // Stores/:id/products route
+    router.add_route_with_params(r"^/stores/(\d+)/products$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|store_id| Route::StoreProducts(store_id))
+    });
+
+    // Stores/:id/products/count route
+    router.add_route_with_params(r"^/stores/(\d+)/products/count$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|store_id| Route::StoreProductsCount(store_id))
     });
 
     // Stores Search route

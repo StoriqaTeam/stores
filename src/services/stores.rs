@@ -24,11 +24,13 @@ pub trait StoresService {
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store>;
+    /// Returns products count
+    fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32>;
     /// Deactivates specific store
     fn deactivate(&self, store_id: i32) -> ServiceFuture<Store>;
     /// Creates new store
     fn create(&self, payload: NewStore) -> ServiceFuture<Store>;
-    /// Lists users limited by `from` and `count` parameters
+    /// Lists stores limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Store>>;
     /// Updates specific store
     fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store>;
@@ -154,6 +156,30 @@ impl<
                 .and_then(move |conn| {
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo.find(store_id).map_err(ServiceError::from)
+                })
+        }))
+    }
+
+    /// Returns products count
+    fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32>{
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
+                .and_then(move |conn| {
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    base_products_repo.count_with_store_id(store_id).map_err(ServiceError::from)
                 })
         }))
     }

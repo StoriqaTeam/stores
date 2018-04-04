@@ -317,9 +317,9 @@ pub mod tests {
         }
 
         /// Returns list of base_products, limited by `from` and `count` parameters
-        fn list(&self, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
+        fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
-            for i in from..(from + count as i32) {
+            for i in from..(from + count) {
                 let base_product = BaseProduct {
                     id: i,
                     is_active: true,
@@ -341,9 +341,9 @@ pub mod tests {
         }
 
         /// Returns list of base_products by store id, limited by 10
-        fn list_by_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
+        fn list_by_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
-            for i in (skip_base_product_id.unwrap() + from)..(skip_base_product_id.unwrap() + from + count as i32) {
+            for i in (skip_base_product_id.unwrap() + from)..(skip_base_product_id.unwrap() + from + count) {
                 let base_product = BaseProduct {
                     id: i,
                     is_active: true,
@@ -524,9 +524,9 @@ pub mod tests {
             Ok(slug == MOCK_STORE_SLUG.to_string())
         }
 
-        fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
+        fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Store>> {
             let mut stores = vec![];
-            for i in from..(from + count as i32) {
+            for i in from..(from + count) {
                 let store = create_store(i, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
                 stores.push(store);
             }
@@ -662,9 +662,9 @@ pub mod tests {
             Ok(products)
         }
 
-        fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Product>> {
+        fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>> {
             let mut products = vec![];
-            for i in from..(from + count as i32) {
+            for i in from..(from + count) {
                 let product = create_product(i, MOCK_BASE_PRODUCT_ID);
                 products.push(product);
             }

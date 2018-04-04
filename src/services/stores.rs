@@ -19,9 +19,9 @@ use super::error::ServiceError;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
-    fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> ServiceFuture<Vec<Store>>;
+    fn find_by_name(&self, search_store: SearchStore, count: i32, offset: i32) -> ServiceFuture<Vec<Store>>;
     /// Find stores auto complete limited by `count` parameters
-    fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
+    fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store>;
     /// Deactivates specific store
@@ -29,7 +29,7 @@ pub trait StoresService {
     /// Creates new store
     fn create(&self, payload: NewStore) -> ServiceFuture<Store>;
     /// Lists users limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Store>>;
+    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Store>>;
     /// Updates specific store
     fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store>;
 }
@@ -79,7 +79,7 @@ impl<
     F: ReposFactory<T>,
 > StoresService for StoresServiceImpl<T, M, F>
 {
-    fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
+    fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let stores_names = {
@@ -93,7 +93,7 @@ impl<
     }
 
     /// Find stores by name
-    fn find_by_name(&self, search_store: SearchStore, count: i64, offset: i64) -> ServiceFuture<Vec<Store>> {
+    fn find_by_name(&self, search_store: SearchStore, count: i32, offset: i32) -> ServiceFuture<Vec<Store>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let stores = {
@@ -183,7 +183,7 @@ impl<
     }
 
     /// Lists users limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Store>> {
+    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Store>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 

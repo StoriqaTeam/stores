@@ -17,7 +17,7 @@ use futures::Future;
 use futures::future;
 use futures::IntoFuture;
 use hyper::{Delete, Get, Post, Put};
-use hyper::header::Authorization;
+use hyper::header::{Authorization, Cookie};
 use hyper::server::Request;
 use futures_cpupool::CpuPool;
 use validator::Validate;
@@ -111,6 +111,16 @@ impl<
             .map(move |auth| auth.0.clone())
             .and_then(|id| i32::from_str(&id).ok());
 
+        let uuid_header = headers.get::<Cookie>();
+        let uuid = uuid_header.map(move |cookie| cookie.get("UUID"));
+
+        debug!(
+            "User with id = '{:?}' and uuid = {:?} is requesting {}",
+            user_id,
+            uuid,
+            req.path()
+        );
+
         let cached_categories = self.categories_cache.clone();
         let cached_attributes = self.attributes_cache.clone();
         let system_service = SystemServiceImpl::new();
@@ -187,7 +197,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /stores",
                     user_id
                 );
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(stores_service.list(offset, count))
                 } else {
                     error!("Parsing query parameters // GET /stores failed!");
@@ -197,17 +207,18 @@ impl<
                 }
             }
 
-            // GET /stores/search
-            (&Get, Some(Route::StoresSearch)) => {
+            // POST /stores/search
+            (&Post, Some(Route::StoresSearch)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /stores/search",
+                    "User with id = '{:?}' is requesting  // POST /stores/search",
                     user_id
                 );
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                println!("req body - {:?}", req.body_ref());
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<models::SearchStore>(req.body())
                             .map_err(|_| {
-                                error!("Parsing body // GET /stores/search in models::SearchStore failed!");
+                                error!("Parsing body // POST /stores/search in models::SearchStore failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
                             .and_then(move |store_search| {
@@ -217,24 +228,24 @@ impl<
                             }),
                     )
                 } else {
-                    error!("Parsing query parameters // GET /stores/search failed!");
+                    error!("Parsing query parameters // POST /stores/search failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
                         "Error parsing request from gateway body"
                     ))))
                 }
             }
 
-            // GET /stores/auto_complete
-            (&Get, Some(Route::StoresAutoComplete)) => {
+            // POST /stores/auto_complete
+            (&Post, Some(Route::StoresAutoComplete)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /stores/auto_complete",
+                    "User with id = '{:?}' is requesting  // POST /stores/auto_complete",
                     user_id
                 );
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         read_body(req.body())
                             .map_err(|_| {
-                                error!("Parsing body // GET /stores/auto_complete in String failed!");
+                                error!("Parsing body // POST /stores/auto_complete in String failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
                             .and_then(move |name| {
@@ -244,7 +255,7 @@ impl<
                             }),
                     )
                 } else {
-                    error!("Parsing query parameters // GET /stores/auto_complete failed!");
+                    error!("Parsing query parameters // POST /stores/auto_complete failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
                         "Error parsing request from gateway body"
                     ))))
@@ -323,7 +334,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /products",
                     user_id
                 );
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(products_service.list(offset, count))
                 } else {
                     error!("Parsing query parameters // GET /products failed!");
@@ -416,7 +427,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products/with_variants",
                     user_id
                 );
-                if let (Some(store_id), skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "skip_base_product_id" => i32, "offset" => i32, "count" => i64)
+                if let (Some(store_id), skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "store_id" => i32, "skip_base_product_id" => i32, "offset" => i32, "count" => i32)
                 {
                     serialize_future(base_products_service.list_with_variants(store_id, skip_base_product_id, offset, count))
                 } else {
@@ -433,7 +444,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products",
                     user_id
                 );
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(base_products_service.list(offset, count))
                 } else {
                     error!("Parsing query parameters // GET /base_products failed!");
@@ -504,17 +515,17 @@ impl<
                 serialize_future(base_products_service.deactivate(base_product_id))
             }
 
-            // GET /products/search
-            (&Get, Some(Route::ProductsSearch)) => {
+            // POST /products/search
+            (&Post, Some(Route::ProductsSearch)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /products/search",
+                    "User with id = '{:?}' is requesting  // POST /products/search",
                     user_id
                 );
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<models::SearchProductsByName>(req.body())
                             .map_err(|_| {
-                                error!("Parsing body // GET /products/search in models::SearchProductsByName failed!");
+                                error!("Parsing body // POST /products/search in models::SearchProductsByName failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
                             .and_then(move |prod| {
@@ -524,24 +535,24 @@ impl<
                             }),
                     )
                 } else {
-                    error!("Parsing query parameters // GET /products/search failed!");
+                    error!("Parsing query parameters // POST /products/search failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
                         "Error parsing request from gateway body"
                     ))))
                 }
             }
 
-            // GET /products/auto_complete
-            (&Get, Some(Route::ProductsAutoComplete)) => {
+            // POST /products/auto_complete
+            (&Post, Some(Route::ProductsAutoComplete)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /products/auto_complete",
+                    "User with id = '{:?}' is requesting  // POST /products/auto_complete",
                     user_id
                 );
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         read_body(req.body())
                             .map_err(|_| {
-                                error!("Parsing body // GET /products/auto_complete in String failed!");
+                                error!("Parsing body // POST /products/auto_complete in String failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
                             .and_then(move |name| {
@@ -551,24 +562,24 @@ impl<
                             }),
                     )
                 } else {
-                    error!("Parsing query parameters // GET /products/auto_complete failed!");
+                    error!("Parsing query parameters // POST /products/auto_complete failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
                         "Error parsing request from gateway body"
                     ))))
                 }
             }
 
-            // GET /products/most_discount
-            (&Get, Some(Route::ProductsMostDiscount)) => {
+            // POST /products/most_discount
+            (&Post, Some(Route::ProductsMostDiscount)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /products/most_discount",
+                    "User with id = '{:?}' is requesting  // POST /products/most_discount",
                     user_id
                 );
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<models::MostDiscountProducts>(req.body())
                             .map_err(|_| {
-                                error!("Parsing body // GET /products/most_discount in models::MostDiscountProducts failed!");
+                                error!("Parsing body // POST /products/most_discount in models::MostDiscountProducts failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
                             .and_then(move |prod| {
@@ -578,24 +589,24 @@ impl<
                             }),
                     )
                 } else {
-                    error!("Parsing query parameters // GET /products/most_discount failed!");
+                    error!("Parsing query parameters // POST /products/most_discount failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
                         "Error parsing request from gateway body"
                     ))))
                 }
             }
 
-            // GET /products/most_viewed
-            (&Get, Some(Route::ProductsMostViewed)) => {
+            // POST /products/most_viewed
+            (&Post, Some(Route::ProductsMostViewed)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /products/most_viewed",
+                    "User with id = '{:?}' is requesting  // POST /products/most_viewed",
                     user_id
                 );
-                if let (Some(count), Some(offset)) = parse_query!(req.query().unwrap_or_default(), "count" => i64, "offset" => i64) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<models::MostViewedProducts>(req.body())
                             .map_err(|_| {
-                                error!("Parsing body // GET /products/most_viewed in models::MostViewedProducts failed!");
+                                error!("Parsing body // POST /products/most_viewed in models::MostViewedProducts failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
                             .and_then(move |prod| {
@@ -605,23 +616,23 @@ impl<
                             }),
                     )
                 } else {
-                    error!("Parsing query parameters // GET /products/most_viewed failed!");
+                    error!("Parsing query parameters // POST /products/most_viewed failed!");
                     Box::new(future::err(Error::UnprocessableEntity(format_err!(
                         "Error parsing request from gateway body"
                     ))))
                 }
             }
 
-            // GET /products/search_filters
-            (&Get, Some(Route::ProductsSearchFilters)) => {
+            // POST /products/search_filters
+            (&Post, Some(Route::ProductsSearchFilters)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /products/search_filters",
+                    "User with id = '{:?}' is requesting  // POST /products/search_filters",
                     user_id
                 );
                 serialize_future(
                     read_body(req.body())
                         .map_err(|_| {
-                            error!("Parsing body // GET /products/search_filters in String failed!");
+                            error!("Parsing body // POST /products/search_filters in String failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
                         .and_then(move |name| {

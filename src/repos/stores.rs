@@ -31,7 +31,7 @@ pub trait StoresRepo {
     fn find(&self, store_id: i32) -> RepoResult<Store>;
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>>;
+    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Store>>;
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store>;
@@ -94,13 +94,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<Store>> {
+    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Store>> {
         debug!("Find in stores with ids from {} count {}.", from, count);
         let query = stores
             .filter(is_active.eq(true))
             .filter(id.gt(from))
             .order(id)
-            .limit(count);
+            .limit(count.into());
 
         query
             .get_results(self.db_conn)

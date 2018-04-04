@@ -23,7 +23,7 @@ pub trait ProductsService {
     /// Creates base product
     fn create(&self, payload: NewProductWithAttributes) -> ServiceFuture<Product>;
     /// Lists product variants limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Product>>;
+    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>>;
     /// Updates  product
     fn update(&self, product_id: i32, payload: UpdateProductWithAttributes) -> ServiceFuture<Product>;
 }
@@ -123,7 +123,7 @@ impl<
     }
 
     /// Lists users limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<Product>> {
+    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 

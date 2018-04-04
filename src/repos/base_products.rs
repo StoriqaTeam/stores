@@ -29,10 +29,10 @@ pub trait BaseProductsRepo {
     fn find(&self, base_product_id: i32) -> RepoResult<BaseProduct>;
 
     /// Returns list of base_products, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>>;
+    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn list_by_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>>;
+    fn list_by_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>>;
 
     /// Creates new base_product
     fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct>;
@@ -103,7 +103,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of base_products, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
+    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
         debug!(
             "Find in base products with ids from {} count {}.",
             from, count
@@ -112,7 +112,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .filter(is_active.eq(true))
             .filter(id.ge(from))
             .order(id)
-            .limit(count);
+            .limit(count.into());
 
         query
             .get_results(self.db_conn)
@@ -147,7 +147,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of base_products by store id and skip skip_base_product_id, limited by from and count
-    fn list_by_store(&self, store_id_arg: i32, skip_base_product_id: Option<i32>, from: i32, count: i64) -> RepoResult<Vec<BaseProduct>> {
+    fn list_by_store(&self, store_id_arg: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
         debug!(
             "Find in base products with store id {} skip {:?} from {} count {}.",
             store_id_arg, skip_base_product_id, from, count
@@ -159,7 +159,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .filter(id.ne(skip_base_product_id))
                 .filter(id.ge(from))
                 .order(id)
-                .limit(count)
+                .limit(count.into())
                 .into_boxed()
         } else {
             base_products
@@ -167,7 +167,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .filter(store_id.eq(store_id_arg))
                 .filter(id.ge(from))
                 .order(id)
-                .limit(count)
+                .limit(count.into())
                 .into_boxed()
         };
 

@@ -18,17 +18,17 @@ use repos::error::RepoError;
 
 use stq_http::client::ClientHandle;
 
-const MAX_PRODUCTS_SEARCH_COUNT: i64 = 1000;
+const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// auto complete limited by `count` and `offset` parameters
-    fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>>;
+    fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
     fn search_filters(&self, name: String) -> ServiceFuture<SearchOptions>;
     /// Returns product by ID
@@ -40,14 +40,14 @@ pub trait BaseProductsService {
     /// Creates base product
     fn create(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Lists base products limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<BaseProduct>>;
+    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
     fn list_with_variants(
         &self,
         store_id: i32,
         skip_base_product_id: Option<i32>,
         from: i32,
-        count: i64,
+        count: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Updates base product
     fn update(&self, product_id: i32, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
@@ -98,7 +98,7 @@ impl<
     F: ReposFactory<T>,
 > BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
-    fn search_by_name(&self, search_product: SearchProductsByName, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+    fn search_by_name(&self, search_product: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -165,7 +165,7 @@ impl<
     }
 
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -232,7 +232,7 @@ impl<
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i64, offset: i64) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -305,7 +305,7 @@ impl<
         }))
     }
 
-    fn auto_complete(&self, name: String, count: i64, offset: i64) -> ServiceFuture<Vec<String>> {
+    fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products_names = {
@@ -481,7 +481,7 @@ impl<
     }
 
     /// Lists base products limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i64) -> ServiceFuture<Vec<BaseProduct>> {
+    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<BaseProduct>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -511,7 +511,7 @@ impl<
         store_id: i32,
         skip_base_product_id: Option<i32>,
         from: i32,
-        count: i64,
+        count: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;

@@ -30,6 +30,9 @@ pub struct AttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager
 pub trait AttributesRepo {
     /// Find specific attribute by id
     fn find(&self, id_arg: i32) -> RepoResult<Attribute>;
+    
+    /// List all attributes
+    fn list(&self) -> RepoResult<Vec<Attribute>>;
 
     /// Creates new attribute
     fn create(&self, payload: NewAttribute) -> RepoResult<Attribute>;
@@ -61,6 +64,28 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     self,
                     Some(&attribute),
                 ).and_then(|_| Ok(attribute))
+            })
+    }
+    
+    /// List all attributes
+    fn list(&self) -> RepoResult<Vec<Attribute>> {
+        debug!("Find all attributes.");
+        let query = attributes.order(id);
+
+        query
+            .get_results(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|attributes_vec: Vec<Attribute>| {
+                for attribute in attributes_vec.iter() {
+                    acl::check(
+                        &*self.acl,
+                        &Resource::Attributes,
+                        &Action::Read,
+                        self,
+                        Some(&attribute),
+                    )?;
+                }
+                Ok(attributes_vec)
             })
     }
 

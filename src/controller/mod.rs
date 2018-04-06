@@ -741,6 +741,15 @@ impl<
                 );
                 serialize_future(attributes_service.get(attribute_id))
             }
+            
+            // GET /attributes
+            (&Get, Some(Route::Attributes)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /attributes",
+                    user_id
+                );
+                serialize_future(attributes_service.list())
+            }
 
             // POST /attributes
             (&Post, Some(Route::Attributes)) => {

@@ -193,6 +193,11 @@ pub mod tests {
             })
         }
 
+        /// List all attributes
+        fn list(&self) -> RepoResult<Vec<Attribute>> {
+            Ok (vec![])
+        }
+
         /// Creates new attribute
         fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
             Ok(Attribute {

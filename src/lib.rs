@@ -161,10 +161,9 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: Option<String>,
                 category_cache.clone(),
                 attributes_cache.clone(),
             );
-            let controller = Box::new(controller);
 
             // Prepare application
-            let app = Application { controller };
+            let app = Application::new(controller);
 
             Ok(app)
         })

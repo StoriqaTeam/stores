@@ -16,6 +16,8 @@ use repos::ReposFactory;
 pub trait AttributesService {
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute>;
+    /// Returns all attributes
+    fn list(&self) -> ServiceFuture<Vec<Attribute>>;
     /// Creates new attribute
     fn create(&self, payload: NewAttribute) -> ServiceFuture<Attribute>;
     /// Updates specific attribute
@@ -90,6 +92,31 @@ impl<
                                 Ok(attr)
                             })
                     }
+                })
+        }))
+    }
+   
+    /// Returns all attributes
+    fn list(&self) -> ServiceFuture<Vec<Attribute>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
+                .and_then(move |conn| {
+                        let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                        attributes_repo
+                            .list()
+                            .map_err(ServiceError::from)
                 })
         }))
     }

@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use stq_http::client::ClientHandle;
 
-use models::{ElasticIndex, ElasticStore, SearchResponse, SearchStore, CountResponse};
+use models::{CountResponse, ElasticIndex, ElasticStore, SearchResponse, SearchStore};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 use super::{log_elastic_req, log_elastic_resp};
@@ -115,7 +115,7 @@ impl StoresElastic for StoresElasticImpl {
                 .and_then(|res| future::ok(res.suggested_texts())),
         )
     }
-   
+
     /// Search count of stores by name
     fn search_count(&self, name: String) -> RepoFuture<i32> {
         log_elastic_req(&name);
@@ -155,7 +155,7 @@ impl StoresElastic for StoresElasticImpl {
                 .request::<CountResponse>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
-                .and_then(|res| future::ok(res.get_count() as i32))
+                .and_then(|res| future::ok(res.get_count() as i32)),
         )
     }
 }

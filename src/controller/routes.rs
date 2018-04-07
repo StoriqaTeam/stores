@@ -13,10 +13,14 @@ pub enum Route {
     StoreProductsCount(i32),
     Products,
     ProductsSearch,
+    ProductsSearchInCategory,
+    ProductsSearchWithoutCategory,
     ProductsAutoComplete,
     ProductsMostViewed,
     ProductsMostDiscount,
     ProductsSearchFilters,
+    ProductsSearchInCategoryFilters,
+    ProductsSearchWithoutCategoryFilters,
     Product(i32),
     BaseProducts,
     BaseProductWithVariants,
@@ -68,7 +72,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Stores Search route
     router.add_route(r"^/stores/search$", || Route::StoresSearch);
-    
+
     // Stores Search count route
     router.add_route(r"^/stores/search/count$", || Route::StoresSearchCount);
 
@@ -113,6 +117,16 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Products Search route
     router.add_route(r"^/products/search$", || Route::ProductsSearch);
 
+    // Products Search without category route
+    router.add_route(r"^/products/search/without_category$", || {
+        Route::ProductsSearchWithoutCategory
+    });
+
+    // Products Search in category route
+    router.add_route(r"^/products/search/in_category$", || {
+        Route::ProductsSearchInCategory
+    });
+
     // Products auto complete route
     router.add_route(r"^/products/auto_complete$", || Route::ProductsAutoComplete);
 
@@ -125,6 +139,16 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Products search filters route
     router.add_route(r"^/products/search/filters", || {
         Route::ProductsSearchFilters
+    });
+
+    // Products search filters route
+    router.add_route(r"^/products/search/without_category/filters", || {
+        Route::ProductsSearchWithoutCategoryFilters
+    });
+
+    // Products search filters route
+    router.add_route(r"^/products/search/in_category/filters", || {
+        Route::ProductsSearchInCategoryFilters
     });
 
     // User_roles Routes

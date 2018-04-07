@@ -30,7 +30,7 @@ pub struct AttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager
 pub trait AttributesRepo {
     /// Find specific attribute by id
     fn find(&self, id_arg: i32) -> RepoResult<Attribute>;
-    
+
     /// List all attributes
     fn list(&self) -> RepoResult<Vec<Attribute>>;
 
@@ -66,7 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 ).and_then(|_| Ok(attribute))
             })
     }
-    
+
     /// List all attributes
     fn list(&self) -> RepoResult<Vec<Attribute>> {
         debug!("Find all attributes.");

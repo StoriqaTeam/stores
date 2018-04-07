@@ -66,7 +66,7 @@ impl ProductsElasticImpl {
             (
                 Some(filters),
                 Some(options.categories_ids),
-                options.price_filter,
+                options.price_range,
             )
         } else {
             (None, None, None)

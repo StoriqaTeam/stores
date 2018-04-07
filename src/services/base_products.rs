@@ -13,6 +13,7 @@ use elastic::{ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
 use repos::types::RepoResult;
 use repos::ReposFactory;
+use repos::remove_unused_categories;
 use super::error::ServiceError;
 use repos::error::RepoError;
 
@@ -23,6 +24,15 @@ const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
     fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    /// Find product by name without categories limited by `count` and `offset` parameters
+    fn search_without_category(
+        &self,
+        prod: SearchProductWithoutCategory,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    /// Find product by name in category limited by `count` and `offset` parameters
+    fn search_in_category(&self, prod: SearchProductInCategory, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
@@ -30,7 +40,11 @@ pub trait BaseProductsService {
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
-    fn search_filters(&self, name: String) -> ServiceFuture<SearchOptions>;
+    fn search_filters(&self, search_prod: SearchProductsByName) -> ServiceFuture<SearchOptions>;
+    /// search filters
+    fn search_without_category_filters(&self, name: String) -> ServiceFuture<SearchFiltersWithoutCategory>;
+    /// search filters
+    fn search_in_category_filters(&self, name: String, category_id: i32) -> ServiceFuture<SearchFiltersInCategory>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
     /// Returns product by ID
@@ -162,6 +176,20 @@ impl<
                 })
             }
         }))
+    }
+
+    /// Find product by name without categories limited by `count` and `offset` parameters
+    fn search_without_category(
+        &self,
+        prod: SearchProductWithoutCategory,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+        self.search_by_name(prod.into(), count, offset)
+    }
+    /// Find product by name in category limited by `count` and `offset` parameters
+    fn search_in_category(&self, prod: SearchProductInCategory, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+        self.search_by_name(prod.into(), count, offset)
     }
 
     /// Find product by views limited by `count` and `offset` parameters
@@ -318,11 +346,10 @@ impl<
         Box::new(products_names)
     }
 
-    fn search_filters(&self, name: String) -> ServiceFuture<SearchOptions> {
+    fn search_filters(&self, search_prod: SearchProductsByName) -> ServiceFuture<SearchOptions> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
-        let mut search_prod = SearchProductsByName::default();
-        search_prod.name = name;
+
         let search_filters = {
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el
@@ -330,55 +357,104 @@ impl<
                 .map_err(ServiceError::from)
         };
 
-        Box::new(search_filters.and_then({
-            move |el_products| {
-                let mut cats = HashSet::<i32>::default();
-                let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
-                let mut range_attrs = HashMap::<i32, RangeFilter>::default();
-                let mut price_filters = RangeFilter::default();
+        Box::new(search_filters.map(move |el_products| {
+            let mut cats = HashSet::<i32>::default();
+            let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
+            let mut range_attrs = HashMap::<i32, RangeFilter>::default();
+            let mut price_filters = RangeFilter::default();
 
-                for product in el_products.into_iter() {
-                    cats.insert(product.category_id);
-                    for variant in product.variants.into_iter() {
-                        price_filters.add_value(variant.price);
-                        for attr_value in variant.attrs.into_iter() {
-                            if let Some(value) = attr_value.str_val {
-                                let hash_with_values = equal_attrs
-                                    .entry(attr_value.attr_id)
-                                    .or_insert(HashSet::<String>::default());
-                                hash_with_values.insert(value);
-                            }
-                            if let Some(value) = attr_value.float_val {
-                                let range = range_attrs
-                                    .entry(attr_value.attr_id)
-                                    .or_insert(RangeFilter::default());
-                                range.add_value(value);
-                            }
+            for product in el_products.into_iter() {
+                cats.insert(product.category_id);
+                for variant in product.variants.into_iter() {
+                    price_filters.add_value(variant.price);
+                    for attr_value in variant.attrs.into_iter() {
+                        if let Some(value) = attr_value.str_val {
+                            let hash_with_values = equal_attrs
+                                .entry(attr_value.attr_id)
+                                .or_insert(HashSet::<String>::default());
+                            hash_with_values.insert(value);
+                        }
+                        if let Some(value) = attr_value.float_val {
+                            let range = range_attrs
+                                .entry(attr_value.attr_id)
+                                .or_insert(RangeFilter::default());
+                            range.add_value(value);
                         }
                     }
                 }
+            }
 
-                let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                    id: k,
-                    equal: Some(EqualFilter {
-                        values: v.iter().map(|s| s.clone()).collect(),
-                    }),
-                    range: None,
-                });
+            let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                id: k,
+                equal: Some(EqualFilter {
+                    values: v.iter().map(|s| s.clone()).collect(),
+                }),
+                range: None,
+            });
 
-                let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                    id: k,
-                    equal: None,
-                    range: Some(v),
-                });
+            let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                id: k,
+                equal: None,
+                range: Some(v),
+            });
 
-                Ok(SearchOptions {
-                    categories_ids: cats.into_iter().collect(),
-                    attr_filters: eq_filters.chain(range_filters).collect(),
-                    price_filter: Some(price_filters),
-                })
+            SearchOptions {
+                categories_ids: cats.into_iter().collect(),
+                attr_filters: eq_filters.chain(range_filters).collect(),
+                price_range: Some(price_filters),
             }
         }))
+    }
+
+    /// search filters
+    fn search_without_category_filters(&self, name: String) -> ServiceFuture<SearchFiltersWithoutCategory> {
+        let db_pool = self.db_pool.clone();
+        let cpu_pool = self.cpu_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        let mut search_prod = SearchProductsByName::default();
+        search_prod.name = name;
+        Box::new(self.search_filters(search_prod).and_then(move |options| {
+            cpu_pool.spawn_fn(move || {
+                db_pool
+                    .get()
+                    .map_err(|e| {
+                        error!(
+                            "Could not get connection to db from pool! {}",
+                            e.to_string()
+                        );
+                        ServiceError::Connection(e.into())
+                    })
+                    .and_then(move |conn| {
+                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                        categories_repo.get_all().map_err(ServiceError::from)
+                    })
+                    .and_then(|mut category| {
+                        remove_unused_categories(&mut category, options.categories_ids);
+
+                        Ok(SearchFiltersWithoutCategory {
+                            price_range: options.price_range,
+                            categories: category,
+                        })
+                    })
+            })
+        }))
+    }
+    /// search filters
+    fn search_in_category_filters(&self, name: String, category_id: i32) -> ServiceFuture<SearchFiltersInCategory> {
+        let mut search_prod = SearchProductsByName::default();
+        search_prod.name = name;
+        let mut options = SearchOptions::default();
+        options.categories_ids = vec![category_id];
+        search_prod.options = Some(options);
+        Box::new(
+            self.search_filters(search_prod)
+                .map(|options| SearchFiltersInCategory {
+                    price_range: options.price_range,
+                    attr_filters: options.attr_filters,
+                }),
+        )
     }
 
     /// Returns product by ID

@@ -195,7 +195,7 @@ pub mod tests {
 
         /// List all attributes
         fn list(&self) -> RepoResult<Vec<Attribute>> {
-            Ok (vec![])
+            Ok(vec![])
         }
 
         /// Creates new attribute
@@ -346,7 +346,13 @@ pub mod tests {
         }
 
         /// Returns list of base_products by store id, limited by 10
-        fn get_products_of_the_store(&self, store_id: i32, skip_base_product_id: Option<i32>, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
+        fn get_products_of_the_store(
+            &self,
+            store_id: i32,
+            skip_base_product_id: Option<i32>,
+            from: i32,
+            count: i32,
+        ) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
             for i in (skip_base_product_id.unwrap() + from)..(skip_base_product_id.unwrap() + from + count) {
                 let base_product = BaseProduct {
@@ -369,12 +375,10 @@ pub mod tests {
             Ok(base_products)
         }
 
-
         /// Find specific base_product by ID
         fn count_with_store_id(&self, store_id: i32) -> RepoResult<i32> {
             Ok(store_id)
         }
-
 
         /// Creates new base_product
         fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct> {

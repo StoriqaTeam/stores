@@ -95,7 +95,7 @@ impl<
                 })
         }))
     }
-   
+
     /// Returns all attributes
     fn list(&self) -> ServiceFuture<Vec<Attribute>> {
         let db_pool = self.db_pool.clone();
@@ -113,10 +113,8 @@ impl<
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
-                        let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                        attributes_repo
-                            .list()
-                            .map_err(ServiceError::from)
+                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                    attributes_repo.list().map_err(ServiceError::from)
                 })
         }))
     }

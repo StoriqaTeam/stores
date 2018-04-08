@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use validator::Validate;
 use serde_json;
 
-use models::{AttrValue, AttributeFilter, RangeFilter};
+use models::{AttrValue, AttributeFilter, Category, RangeFilter};
 use models::validation_rules::*;
 
 /// diesel table for products
@@ -87,11 +87,23 @@ pub struct UpdateProductWithAttributes {
     pub attributes: Vec<AttrValue>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct SearchOptions {
     pub attr_filters: Vec<AttributeFilter>,
-    pub price_filter: Option<RangeFilter>,
+    pub price_range: Option<RangeFilter>,
     pub categories_ids: Vec<i32>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct SearchFiltersWithoutCategory {
+    pub price_range: Option<RangeFilter>,
+    pub categories: Category,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct SearchFiltersInCategory {
+    pub attr_filters: Vec<AttributeFilter>,
+    pub price_range: Option<RangeFilter>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -108,4 +120,47 @@ pub struct MostViewedProducts {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MostDiscountProducts {
     pub options: Option<SearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct SearchProductWithoutCategory {
+    pub name: String,
+    pub price_range: Option<RangeFilter>,
+}
+
+impl From<SearchProductWithoutCategory> for SearchProductsByName {
+    fn from(prod: SearchProductWithoutCategory) -> Self {
+        let options = SearchOptions {
+            price_range: prod.price_range,
+            ..Default::default()
+        };
+
+        Self {
+            name: prod.name,
+            options: Some(options),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct SearchProductInCategory {
+    pub name: String,
+    pub category_id: i32,
+    pub attr_filters: Vec<AttributeFilter>,
+    pub price_range: Option<RangeFilter>,
+}
+
+impl From<SearchProductInCategory> for SearchProductsByName {
+    fn from(prod: SearchProductInCategory) -> Self {
+        let options = SearchOptions {
+            price_range: prod.price_range,
+            attr_filters: prod.attr_filters,
+            categories_ids: vec![prod.category_id],
+        };
+
+        Self {
+            name: prod.name,
+            options: Some(options),
+        }
+    }
 }

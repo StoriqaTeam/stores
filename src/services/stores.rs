@@ -143,14 +143,11 @@ impl<
         let address = self.elastic_address.clone();
         let search_filters = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el
-                .search_count(name)
-                .map_err(ServiceError::from)
+            stores_el.search_count(name).map_err(ServiceError::from)
         };
 
         Box::new(search_filters)
     }
-
 
     /// Returns store by ID
     fn get(&self, store_id: i32) -> ServiceFuture<Store> {
@@ -177,7 +174,7 @@ impl<
     }
 
     /// Returns products count
-    fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32>{
+    fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -195,7 +192,9 @@ impl<
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo.count_with_store_id(store_id).map_err(ServiceError::from)
+                    base_products_repo
+                        .count_with_store_id(store_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }

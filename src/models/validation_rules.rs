@@ -7,6 +7,9 @@ use regex::Regex;
 use isolang::Language;
 use stq_static_resources::Translation;
 
+
+
+
 pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {
         static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^\+?\d{7}\d*$").unwrap();
@@ -18,6 +21,22 @@ pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
         Err(ValidationError {
             code: Cow::from("phone"),
             message: Some(Cow::from("Incorrect phone format")),
+            params: HashMap::new(),
+        })
+    }
+}
+
+pub fn validate_slug(phone: &str) -> Result<(), ValidationError> {
+    lazy_static! {
+        static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^[a-z][-a-z0-9]*$").unwrap();
+    }
+
+    if PHONE_VALIDATION_RE.is_match(phone) {
+        Ok(())
+    } else {
+        Err(ValidationError {
+            code: Cow::from("slug"),
+            message: Some(Cow::from("Incorrect slug format")),
             params: HashMap::new(),
         })
     }

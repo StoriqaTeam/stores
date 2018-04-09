@@ -83,7 +83,7 @@ pub struct NewStore {
     pub short_description: serde_json::Value,
     #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
-    #[validate(length(min = "1", message = "Slug must not be empty"))]
+    #[validate(custom = "validate_slug")]
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
@@ -110,7 +110,7 @@ pub struct UpdateStore {
     pub short_description: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub long_description: Option<serde_json::Value>,
-    #[validate(length(min = "1", message = "Slug must not be empty"))]
+    #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
     pub cover: Option<String>,
     pub logo: Option<String>,

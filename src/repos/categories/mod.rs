@@ -200,3 +200,34 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use models::*;
+
+
+    #[test]
+    fn test_unused() {
+        let mut cat = Category::default();
+        cat.id = 1;
+        for i in 2..4 {
+            let mut cat_child = Category::default();
+            cat_child.id = i;
+            cat_child.parent_id = Some(1);
+            for j in 1..3 {
+                let mut cat_child_child = Category::default();
+                cat_child_child.id = 2*i + j;
+                cat_child_child.parent_id = Some(i);
+                cat_child.children.push(cat_child_child);
+            }
+            cat.children.push(cat_child);
+        }
+
+        let used = vec![5,6];
+        remove_unused_categories(&mut cat, used);
+        assert_eq!(cat.children[0].children[0].id, 5);
+        assert_eq!(cat.children[0].children[1].id, 6);
+    }
+}

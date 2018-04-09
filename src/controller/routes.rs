@@ -137,17 +137,17 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/products/most_viewed$", || Route::ProductsMostViewed);
 
     // Products search filters route
-    router.add_route(r"^/products/search/filters", || {
+    router.add_route(r"^/products/search/filters$", || {
         Route::ProductsSearchFilters
     });
 
     // Products search filters route
-    router.add_route(r"^/products/search/without_category/filters", || {
+    router.add_route(r"^/products/search/without_category/filters$", || {
         Route::ProductsSearchWithoutCategoryFilters
     });
 
     // Products search filters route
-    router.add_route(r"^/products/search/in_category/filters", || {
+    router.add_route(r"^/products/search/in_category/filters$", || {
         Route::ProductsSearchInCategoryFilters
     });
 

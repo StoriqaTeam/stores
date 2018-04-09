@@ -26,7 +26,6 @@ table! {
 
 /// Payload for querying products
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
-#[belongs_to(Store)]
 pub struct Product {
     pub id: i32,
     pub base_product_id: i32,

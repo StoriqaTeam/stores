@@ -120,8 +120,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find_with_base_id(&self, base_id_arg: i32) -> RepoResult<Vec<Product>> {
         debug!("Find in products with id {}.", base_id_arg);
         let query = products
-            .filter(is_active.eq(true))
-            .filter(base_product_id.ge(base_id_arg));
+            .filter(base_product_id.eq(base_id_arg))
+            .filter(is_active.eq(true));
 
         query
             .get_results(self.db_conn)

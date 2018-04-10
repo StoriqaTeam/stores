@@ -158,17 +158,17 @@ impl<
                                                         .map(|product| {
                                                             attr_prod_repo
                                                                 .find_all_attributes(product.id)
+                                                                .or_else(|_| Ok(vec![]))
                                                                 .map(|attrs| {
                                                                     attrs
                                                                         .into_iter()
                                                                         .map(|attr| attr.into())
                                                                         .collect::<Vec<AttrValue>>()
                                                                 })
-                                                                .or_else(|_| Ok(vec![]))
                                                                 .map(|attrs| VariantsWithAttributes::new(product, attrs))
                                                         })
                                                         .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
-                                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
+                                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product.clone(), var)))
                                                 })
                                         })
                                         .map_err(ServiceError::from)
@@ -234,7 +234,7 @@ impl<
                                             products_repo
                                                 .find_with_base_id(base_product.id)
                                                 .or_else(|_| Ok(vec![]))
-                                                .and_then(move |products| {
+                                                .and_then(|products| {
                                                     products
                                                         .into_iter()
                                                         .nth(0)
@@ -242,17 +242,23 @@ impl<
                                                         .and_then(|prod| {
                                                             attr_prod_repo
                                                                 .find_all_attributes(prod.id)
+                                                                .or_else(|_| Ok(vec![]))
                                                                 .map(|attrs| {
                                                                     attrs
                                                                         .into_iter()
                                                                         .map(|attr| attr.into())
                                                                         .collect::<Vec<AttrValue>>()
                                                                 })
-                                                                .or_else(|_| Ok(vec![]))
                                                                 .map(|attrs| VariantsWithAttributes::new(prod, attrs))
                                                         })
+                                                        .and_then(|var| {
+                                                            Ok(BaseProductWithVariants::new(
+                                                                base_product.clone(),
+                                                                vec![var],
+                                                            ))
+                                                        })
                                                 })
-                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
+                                                .or_else(|_| Ok(BaseProductWithVariants::new(base_product, vec![])))
                                         })
                                         .map_err(ServiceError::from)
                                 })
@@ -302,8 +308,7 @@ impl<
                                         .and_then(move |base_product| {
                                             products_repo
                                                 .find_with_base_id(base_product.id)
-                                                .or_else(|_| Ok(vec![]))
-                                                .and_then(move |products| {
+                                                .and_then(|products| {
                                                     products
                                                         .into_iter()
                                                         .filter_map(|p| {
@@ -318,17 +323,23 @@ impl<
                                                         .and_then(|prod| {
                                                             attr_prod_repo
                                                                 .find_all_attributes(prod.id)
+                                                                .or_else(|_| Ok(vec![]))
                                                                 .map(|attrs| {
                                                                     attrs
                                                                         .into_iter()
                                                                         .map(|attr| attr.into())
                                                                         .collect::<Vec<AttrValue>>()
                                                                 })
-                                                                .or_else(|_| Ok(vec![]))
                                                                 .map(|attrs| VariantsWithAttributes::new(prod, attrs))
                                                         })
+                                                        .and_then(|var| {
+                                                            Ok(BaseProductWithVariants::new(
+                                                                base_product.clone(),
+                                                                vec![var],
+                                                            ))
+                                                        })
                                                 })
-                                                .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
+                                                .or_else(|_| Ok(BaseProductWithVariants::new(base_product, vec![])))
                                         })
                                         .map_err(ServiceError::from)
                                 })
@@ -514,25 +525,26 @@ impl<
                             products_repo
                                 .find_with_base_id(base_product.id)
                                 .or_else(|_| Ok(vec![]))
-                                .map(|products| (base_product, products))
-                                .and_then(move |(base_product, products)| {
+                                .map(|products| (base_product.clone(), products))
+                                .and_then(|(base_product, products)| {
                                     products
                                         .into_iter()
                                         .map(|product| {
                                             attr_prod_repo
                                                 .find_all_attributes(product.id)
+                                                .or_else(|_| Ok(vec![]))
                                                 .map(|attrs| {
                                                     attrs
                                                         .into_iter()
                                                         .map(|attr| attr.into())
                                                         .collect::<Vec<AttrValue>>()
                                                 })
-                                                .or_else(|_| Ok(vec![]))
                                                 .map(|attrs| VariantsWithAttributes::new(product, attrs))
                                         })
                                         .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
-                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product, var)))
+                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product.clone(), var)))
                                 })
+                                .or_else(|_| Ok(BaseProductWithVariants::new(base_product, vec![])))
                         })
                         .map_err(ServiceError::from)
                 })
@@ -624,7 +636,7 @@ impl<
                                     products_repo
                                         .find_with_base_id(base_product.id)
                                         .or_else(|_| Ok(vec![]))
-                                        .map(|products| (base_product, products))
+                                        .map(|products| (base_product.clone(), products))
                                         .and_then(|(base_product, products)| {
                                             products
                                                 .into_iter()
@@ -633,17 +645,18 @@ impl<
                                                 .and_then(|product| {
                                                     attr_prod_repo
                                                         .find_all_attributes(product.id)
+                                                        .or_else(|_| Ok(vec![]))
                                                         .map(|attrs| {
                                                             attrs
                                                                 .into_iter()
                                                                 .map(|attr| attr.into())
                                                                 .collect::<Vec<AttrValue>>()
                                                         })
-                                                        .or_else(|_| Ok(vec![]))
                                                         .map(|attrs| VariantsWithAttributes::new(product, attrs))
                                                 })
                                                 .and_then(|var| Ok(BaseProductWithVariants::new(base_product, vec![var])))
                                         })
+                                        .or_else(|_| Ok(BaseProductWithVariants::new(base_product, vec![])))
                                 })
                                 .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
                         })

@@ -212,6 +212,7 @@ impl<
                     let attrs_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     category_attrs_repo
                         .find_all_attributes(category_id_arg)
+                        .or_else(|_| Ok(vec![]))
                         .and_then(|cat_attrs| {
                             cat_attrs
                                 .into_iter()

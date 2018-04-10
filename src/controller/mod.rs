@@ -734,7 +734,7 @@ impl<
                 if let Some(name) = parse_query!(req.query().unwrap_or_default(), "name" => String) {
                     serialize_future(
                         base_products_service
-                            .search_without_category_filters(name)
+                            .search_without_category_filters(name.replace("%20", " "))
                             .map_err(Error::from),
                     )
                 } else {
@@ -756,7 +756,7 @@ impl<
                 {
                     serialize_future(
                         base_products_service
-                            .search_in_category_filters(name, category_id)
+                            .search_in_category_filters(name.replace("%20", " "), category_id)
                             .map_err(Error::from),
                     )
                 } else {

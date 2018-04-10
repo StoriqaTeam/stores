@@ -150,6 +150,7 @@ impl<
                                         .and_then(move |base_product| {
                                             products_repo
                                                 .find_with_base_id(base_product.id)
+                                                .or_else(|_| Ok(vec![]))
                                                 .map(|products| (base_product, products))
                                                 .and_then(move |(base_product, products)| {
                                                     products
@@ -231,6 +232,7 @@ impl<
                                         .and_then(move |base_product| {
                                             products_repo
                                                 .find_with_base_id(base_product.id)
+                                                .or_else(|_| Ok(vec![]))
                                                 .and_then(move |products| {
                                                     products
                                                         .into_iter()
@@ -298,6 +300,7 @@ impl<
                                         .and_then(move |base_product| {
                                             products_repo
                                                 .find_with_base_id(base_product.id)
+                                                .or_else(|_| Ok(vec![]))
                                                 .and_then(move |products| {
                                                     products
                                                         .into_iter()
@@ -507,6 +510,7 @@ impl<
                         .and_then(move |base_product| {
                             products_repo
                                 .find_with_base_id(base_product.id)
+                                .or_else(|_| Ok(vec![]))
                                 .map(|products| (base_product, products))
                                 .and_then(move |(base_product, products)| {
                                     products
@@ -615,6 +619,7 @@ impl<
                                 .map(|base_product| {
                                     products_repo
                                         .find_with_base_id(base_product.id)
+                                        .or_else(|_| Ok(vec![]))
                                         .map(|products| (base_product, products))
                                         .and_then(|(base_product, products)| {
                                             products

@@ -125,6 +125,24 @@ impl ProductsElasticImpl {
             });
             filters.push(price_filter);
         }
+
+        let variants_exists = json!({
+                "nested": {
+                    "path": "variants",
+                    "query": {
+                    "bool": {
+                        "filter": {
+                        "exists": {
+                            "field": "variants"
+                        }
+                        }
+                    }
+                    }
+                }
+            });
+
+        filters.push(variants_exists);
+
         filters
     }
 }

@@ -371,6 +371,24 @@ impl<
                 serialize_future(products_service.get(product_id))
             }
 
+            // GET products/by_base_product/<base_product_id> route
+            (&Get, Some(Route::ProductsByBaseProduct(base_product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET products/by_base_product/{}",
+                    user_id, base_product_id
+                );
+                serialize_future(products_service.find_with_base_id(base_product_id))
+            }
+
+            // GET products/<product_id>/attributes route
+            (&Get, Some(Route::ProductAttributes(product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET attributes/{}/attributes",
+                    user_id, product_id
+                );
+                serialize_future(products_service.find_attributes(product_id))
+            }
+
             // GET /products
             (&Get, Some(Route::Products)) => {
                 debug!(
@@ -455,15 +473,6 @@ impl<
                 serialize_future(base_products_service.get(base_product_id))
             }
 
-            // GET /base_products/<base_product_id>/with_variants
-            (&Get, Some(Route::BaseProductWithVariant(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/{}/with_variants",
-                    user_id, base_product_id
-                );
-                serialize_future(base_products_service.get_with_variants(base_product_id))
-            }
-
             // GET /base_products
             (&Get, Some(Route::BaseProducts)) => {
                 debug!(
@@ -541,8 +550,8 @@ impl<
                 serialize_future(base_products_service.deactivate(base_product_id))
             }
 
-            // POST /products/search
-            (&Post, Some(Route::ProductsSearch)) => {
+            // POST /base_products/search
+            (&Post, Some(Route::BaseProductsSearch)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/search",
                     user_id
@@ -568,8 +577,8 @@ impl<
                 }
             }
 
-            // POST /products/search/without_category
-            (&Post, Some(Route::ProductsSearchWithoutCategory)) => {
+            // POST /base_products/search/without_category
+            (&Post, Some(Route::BaseProductsSearchWithoutCategory)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/search/without_category",
                     user_id
@@ -595,8 +604,8 @@ impl<
                 }
             }
 
-            // POST /products/search/in_category
-            (&Post, Some(Route::ProductsSearchInCategory)) => {
+            // POST /base_products/search/in_category
+            (&Post, Some(Route::BaseProductsSearchInCategory)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/search/in_category",
                     user_id
@@ -622,8 +631,8 @@ impl<
                 }
             }
 
-            // POST /products/auto_complete
-            (&Post, Some(Route::ProductsAutoComplete)) => {
+            // POST /base_products/auto_complete
+            (&Post, Some(Route::BaseProductsAutoComplete)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/auto_complete",
                     user_id
@@ -649,8 +658,8 @@ impl<
                 }
             }
 
-            // POST /products/most_discount
-            (&Post, Some(Route::ProductsMostDiscount)) => {
+            // POST /base_products/most_discount
+            (&Post, Some(Route::BaseProductsMostDiscount)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/most_discount",
                     user_id
@@ -676,8 +685,8 @@ impl<
                 }
             }
 
-            // POST /products/most_viewed
-            (&Post, Some(Route::ProductsMostViewed)) => {
+            // POST /base_products/most_viewed
+            (&Post, Some(Route::BaseProductsMostViewed)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/most_viewed",
                     user_id
@@ -703,8 +712,8 @@ impl<
                 }
             }
 
-            // POST /products/search/filters
-            (&Post, Some(Route::ProductsSearchFilters)) => {
+            // POST /base_products/search/filters
+            (&Post, Some(Route::BaseProductsSearchFilters)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/search/filters",
                     user_id
@@ -725,8 +734,8 @@ impl<
                 )
             }
 
-            // POST /products/search/without_category/filters
-            (&Post, Some(Route::ProductsSearchWithoutCategoryFilters)) => {
+            // POST /base_products/search/without_category/filters
+            (&Post, Some(Route::BaseProductsSearchWithoutCategoryFilters)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/search/without_category/filters",
                     user_id
@@ -745,8 +754,8 @@ impl<
                 }
             }
 
-            // POST /products/search/in_category/filters
-            (&Post, Some(Route::ProductsSearchInCategoryFilters)) => {
+            // POST /base_products/search/in_category/filters
+            (&Post, Some(Route::BaseProductsSearchInCategoryFilters)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/search/in_category/filters",
                     user_id

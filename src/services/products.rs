@@ -26,6 +26,10 @@ pub trait ProductsService {
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>>;
     /// Updates  product
     fn update(&self, product_id: i32, payload: UpdateProductWithAttributes) -> ServiceFuture<Product>;
+    /// Get by base product id
+    fn find_with_base_id(&self, base_product_id: i32) -> ServiceFuture<Vec<Product>>;
+    /// Get by base product id
+    fn find_attributes(&self, product_id: i32) -> ServiceFuture<Vec<AttrValue>>;
 }
 
 /// Products services, responsible for Product-related CRUD operations
@@ -255,6 +259,59 @@ impl<
                                 res.and_then(|_| Ok(product))
                             })
                     })
+                })
+        }))
+    }
+
+    /// Get by base product id
+    fn find_with_base_id(&self, base_product_id: i32) -> ServiceFuture<Vec<Product>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
+                .and_then(move |conn| {
+                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                    products_repo
+                        .find_with_base_id(base_product_id)
+                        .map_err(ServiceError::from)
+                })
+        }))
+    }
+
+    /// Get by base product id
+    fn find_attributes(&self, product_id: i32) -> ServiceFuture<Vec<AttrValue>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| {
+                    error!(
+                        "Could not get connection to db from pool! {}",
+                        e.to_string()
+                    );
+                    ServiceError::Connection(e.into())
+                })
+                .and_then(move |conn| {
+                    let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+                    prod_attr_repo
+                        .find_all_attributes(product_id)
+                        .map_err(ServiceError::from)
+                        .map(|pr_attrs| pr_attrs.into_iter().map(|pr_attr| pr_attr.into()).collect())
                 })
         }))
     }

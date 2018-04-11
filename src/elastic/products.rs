@@ -41,9 +41,10 @@ impl ProductsElasticImpl {
         }
     }
 
-    fn update_query_with_options(query_map: &mut serde_json::Map<String, serde_json::Value>, options: Option<SearchOptions>) {
+    fn create_elastic_filters(options: Option<SearchOptions>) -> Vec<serde_json::Value> {
+        let mut filters: Vec<serde_json::Value> = vec![];
         let (attr_filters, categories_ids, price_filters) = if let Some(options) = options {
-            let filters = options
+            let attr_filters = options
                 .attr_filters
                 .into_iter()
                 .map(|attr| {
@@ -64,7 +65,7 @@ impl ProductsElasticImpl {
                 })
                 .collect::<Vec<serde_json::Value>>();
             (
-                Some(filters),
+                Some(attr_filters),
                 Some(options.categories_ids),
                 options.price_range,
             )
@@ -92,9 +93,9 @@ impl ProductsElasticImpl {
                     }
         });
 
-        if let Some(filters) = attr_filters {
-            if !filters.is_empty() {
-                query_map.insert("filter".to_string(), attr_filter);
+        if let Some(attr_filters) = attr_filters {
+            if !attr_filters.is_empty() {
+                filters.push(attr_filter);
             }
         }
 
@@ -104,7 +105,7 @@ impl ProductsElasticImpl {
 
         if let Some(ids) = categories_ids {
             if !ids.is_empty() {
-                query_map.insert("filter".to_string(), category);
+                filters.push(category);
             }
         }
 
@@ -122,8 +123,9 @@ impl ProductsElasticImpl {
                     "query" : { "bool" : {"must": { "range": { "variants.price": range_map}}}}
                     }
             });
-            query_map.insert("filter".to_string(), price_filter);
+            filters.push(price_filter);
         }
+        filters
     }
 }
 
@@ -167,7 +169,10 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
+        let filters = ProductsElasticImpl::create_elastic_filters(prod.options);
+        if !filters.is_empty() {
+            query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+        }
 
         let query = json!({
             "from" : offset, "size" : count,
@@ -199,7 +204,10 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
+        let filters = ProductsElasticImpl::create_elastic_filters(prod.options);
+        if !filters.is_empty() {
+            query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+        }
 
         let query = json!({
             "from" : offset, "size" : count,
@@ -232,7 +240,10 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        ProductsElasticImpl::update_query_with_options(&mut query_map, prod.options);
+        let filters = ProductsElasticImpl::create_elastic_filters(prod.options);
+        if !filters.is_empty() {
+            query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+        }
 
         let query = json!({
             "from" : offset, "size" : count,

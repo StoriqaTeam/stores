@@ -7,8 +7,8 @@ pipeline:
       - DATABASE_HOST=db-postgresql
       - DATABASE_URL=postgresql://stores:stores@db-postgresql/stores
     commands:
-      - rustup component add rustfmt-preview
-      - cargo fmt --all -- --write-mode=diff
+      #- rustup component add rustfmt-preview
+      #- cargo fmt --all -- --write-mode=diff
       - apt-get update && apt-get install -y wget gnupg2
       - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
       - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list

@@ -55,7 +55,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
-                for prod_attr in prod_attrs_res.iter() {
+                for prod_attr in &prod_attrs_res {
                     acl::check(
                         &*self.acl,
                         &Resource::ProductAttrs,

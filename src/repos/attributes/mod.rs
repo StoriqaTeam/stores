@@ -76,7 +76,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|attributes_vec: Vec<Attribute>| {
-                for attribute in attributes_vec.iter() {
+                for attribute in &attributes_vec {
                     acl::check(
                         &*self.acl,
                         &Resource::Attributes,

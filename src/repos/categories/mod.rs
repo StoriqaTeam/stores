@@ -170,7 +170,7 @@ fn create_tree(cats: &[RawCategory], parent_id_arg: Option<i32>) -> Vec<Category
     branch
 }
 
-pub fn remove_unused_categories(cat: &mut Category, used_categories_ids: Vec<i32>) {
+pub fn remove_unused_categories(cat: &mut Category, used_categories_ids: &[i32]) {
     let children = cat.children
         .clone()
         .into_iter()
@@ -181,7 +181,7 @@ pub fn remove_unused_categories(cat: &mut Category, used_categories_ids: Vec<i32
                     .any(|used_id| cat_child.id == *used_id)
             } else {
                 let mut c = cat_child.clone();
-                remove_unused_categories(&mut c, used_categories_ids.clone());
+                remove_unused_categories(&mut c, used_categories_ids);
                 !c.children.is_empty()
             }
         })

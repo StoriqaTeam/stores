@@ -51,7 +51,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = user_roles.filter(user_id.eq(user_id_value));
         query
             .get_results::<UserRole>(self.db_conn)
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
             .and_then(|user_roles_arg| {
                 Ok(user_roles_arg
                     .into_iter()

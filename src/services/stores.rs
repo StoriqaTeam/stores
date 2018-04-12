@@ -327,7 +327,7 @@ impl<
                 .and_then(move |conn| {
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo
-                        .find(store_id.clone())
+                        .find(store_id)
                         .and_then(move |_user| stores_repo.update(store_id, payload))
                         .map_err(ServiceError::from)
                 })

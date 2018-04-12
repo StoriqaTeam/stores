@@ -282,21 +282,21 @@ impl<
             let mut range_attrs = HashMap::<i32, RangeFilter>::default();
             let mut price_filters = RangeFilter::default();
 
-            for product in el_products.into_iter() {
+            for product in el_products {
                 cats.insert(product.category_id);
-                for variant in product.variants.into_iter() {
+                for variant in product.variants {
                     price_filters.add_value(variant.price);
-                    for attr_value in variant.attrs.into_iter() {
+                    for attr_value in variant.attrs {
                         if let Some(value) = attr_value.str_val {
                             let hash_with_values = equal_attrs
                                 .entry(attr_value.attr_id)
-                                .or_insert(HashSet::<String>::default());
+                                .or_insert_with(HashSet::<String>::default);
                             hash_with_values.insert(value);
                         }
                         if let Some(value) = attr_value.float_val {
                             let range = range_attrs
                                 .entry(attr_value.attr_id)
-                                .or_insert(RangeFilter::default());
+                                .or_insert_with(RangeFilter::default);
                             range.add_value(value);
                         }
                     }
@@ -306,7 +306,7 @@ impl<
             let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
                 id: k,
                 equal: Some(EqualFilter {
-                    values: v.iter().map(|s| s.clone()).collect(),
+                    values: v.iter().cloned().collect(),
                 }),
                 range: None,
             });
@@ -350,7 +350,7 @@ impl<
                         categories_repo.get_all().map_err(ServiceError::from)
                     })
                     .and_then(|mut category| {
-                        remove_unused_categories(&mut category, options.categories_ids);
+                        remove_unused_categories(&mut category, &options.categories_ids);
 
                         Ok(SearchFiltersWithoutCategory {
                             price_range: options.price_range,

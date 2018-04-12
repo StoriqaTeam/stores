@@ -123,7 +123,7 @@ impl<
 
         let cached_categories = self.categories_cache.clone();
         let cached_attributes = self.attributes_cache.clone();
-        let system_service = SystemServiceImpl::new();
+        let system_service = SystemServiceImpl::default();
         let stores_service = StoresServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),

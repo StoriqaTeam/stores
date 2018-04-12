@@ -46,7 +46,7 @@ impl<T> SearchResponse<T> {
 
     /** A http status associated with the response. */
     pub fn status(&self) -> Option<u16> {
-        self.status.clone()
+        self.status
     }
 
     /** The total number of documents that matched the search query. */
@@ -56,7 +56,7 @@ impl<T> SearchResponse<T> {
 
     /** The max score for documents that matched the search query. */
     pub fn max_score(&self) -> Option<f32> {
-        self.hits.max_score.clone()
+        self.hits.max_score
     }
 
     /** Iterate over the hits matched by the search query. */
@@ -103,9 +103,9 @@ impl<T> SearchResponse<T> {
     Get suggested texts.
     */
     pub fn suggested_texts(&self) -> Vec<String> {
-        match &self.suggest {
-            &None => vec![],
-            &Some(ref sug) => sug.into_suggested_text(),
+        match self.suggest {
+            None => vec![],
+            Some(ref sug) => sug.get_suggested_text(),
         }
     }
 
@@ -113,9 +113,9 @@ impl<T> SearchResponse<T> {
     Get suggested documents
     */
     pub fn suggested_documents(&self) -> Vec<&T> {
-        match &self.suggest {
-            &None => vec![],
-            &Some(ref sug) => sug.into_documents(),
+        match self.suggest {
+            None => vec![],
+            Some(ref sug) => sug.get_documents(),
         }
     }
 }
@@ -244,12 +244,12 @@ impl<T> Hit<T> {
 
     /** The version of the hit. */
     pub fn version(&self) -> Option<u32> {
-        self.version.clone()
+        self.version
     }
 
     /** The score of the hit. */
     pub fn score(&self) -> Option<f32> {
-        self.score.clone()
+        self.score
     }
 }
 
@@ -287,7 +287,7 @@ impl<'a> Aggs<'a> {
         Aggs {
             current_row: None,
             current_row_finished: false,
-            iter_stack: iter_stack,
+            iter_stack,
         }
     }
 }
@@ -436,13 +436,13 @@ impl<T> SuggestOption<T> {
 
     /** The score of the hit. */
     pub fn score(&self) -> Option<f32> {
-        self.score.clone()
+        self.score
     }
 }
 
 impl<T> SuggestWrapper<T> {
     /** Get vector of source document. */
-    pub fn into_documents(&self) -> Vec<&T> {
+    pub fn get_documents(&self) -> Vec<&T> {
         self.options
             .iter()
             .filter_map(|op| op.document())
@@ -450,7 +450,7 @@ impl<T> SuggestWrapper<T> {
     }
 
     /** Get vector of source document. */
-    pub fn into_suggested_text(&self) -> Vec<String> {
+    pub fn get_suggested_text(&self) -> Vec<String> {
         self.options
             .iter()
             .map(|op| op.text())
@@ -460,18 +460,18 @@ impl<T> SuggestWrapper<T> {
 
 impl<T> Suggest<T> {
     /** Get vector of source document. */
-    pub fn into_documents(&self) -> Vec<&T> {
+    pub fn get_documents(&self) -> Vec<&T> {
         self.inner
             .iter()
-            .flat_map(|wrapper| wrapper.into_documents())
+            .flat_map(|wrapper| wrapper.get_documents())
             .collect::<Vec<&T>>()
     }
 
     /** Get vector of source document. */
-    pub fn into_suggested_text(&self) -> Vec<String> {
+    pub fn get_suggested_text(&self) -> Vec<String> {
         self.inner
             .iter()
-            .flat_map(|wrapper| wrapper.into_suggested_text())
+            .flat_map(|wrapper| wrapper.get_suggested_text())
             .collect::<Vec<String>>()
     }
 }

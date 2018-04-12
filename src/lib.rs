@@ -78,7 +78,7 @@ use repos::attributes::AttributeCacheImpl;
 use repos::repo_factory::ReposFactoryImpl;
 
 /// Starts new web service from provided `Config`
-pub fn start_server<F: FnOnce() + 'static>(config: Config, port: Option<String>, callback: F) {
+pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>, callback: F) {
     let mut builder = LogBuilder::new();
     builder
         .format(|formatter, record| {
@@ -124,7 +124,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: Option<String>,
         .build(manager)
         .expect("Failed to create connection pool");
 
-    let thread_count = config.server.thread_count.clone();
+    let thread_count = config.server.thread_count;
 
     // Prepare CPU pool
     let cpu_pool = CpuPool::new(thread_count);

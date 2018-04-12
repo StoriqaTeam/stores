@@ -106,7 +106,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|stores_res: Vec<Store>| {
-                for store in stores_res.iter() {
+                for store in &stores_res {
                     acl::check(
                         &*self.acl,
                         &Resource::Stores,

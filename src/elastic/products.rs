@@ -125,6 +125,24 @@ impl ProductsElasticImpl {
             });
             filters.push(price_filter);
         }
+
+        let variants_exists = json!({
+                "nested": {
+                    "path": "variants",
+                    "query": {
+                    "bool": {
+                        "filter": {
+                        "exists": {
+                            "field": "variants"
+                        }
+                        }
+                    }
+                    }
+                }
+            });
+
+        filters.push(variants_exists);
+
         filters
     }
 }
@@ -244,6 +262,22 @@ impl ProductsElastic for ProductsElasticImpl {
         if !filters.is_empty() {
             query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
         }
+        let discount_exists = json!({
+                "nested": {
+                    "path": "variants",
+                    "query": {
+                    "bool": {
+                        "filter": {
+                            "exists": {
+                                "field": "variants.discount"
+                            }
+                        }
+                    }
+                    }
+                }
+            });
+
+        query_map.insert("must".to_string(), discount_exists);
 
         let query = json!({
             "from" : offset, "size" : count,

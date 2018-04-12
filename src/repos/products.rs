@@ -103,7 +103,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|products_res: Vec<Product>| {
-                for product in products_res.iter() {
+                for product in &products_res {
                     acl::check(
                         &*self.acl,
                         &Resource::Products,
@@ -127,7 +127,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|products_res: Vec<Product>| {
-                for product in products_res.iter() {
+                for product in &products_res {
                     acl::check(
                         &*self.acl,
                         &Resource::Products,

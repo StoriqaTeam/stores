@@ -53,7 +53,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|store_id| Route::Store(store_id))
+            .map(Route::Store)
     });
 
     // Stores/:id/products route
@@ -61,7 +61,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|store_id| Route::StoreProducts(store_id))
+            .map(Route::StoreProducts)
     });
 
     // Stores/:id/products/count route
@@ -69,7 +69,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|store_id| Route::StoreProductsCount(store_id))
+            .map(Route::StoreProductsCount)
     });
 
     // Stores Search route
@@ -89,7 +89,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|product_id| Route::Product(product_id))
+            .map(Route::Product)
     });
 
     // Products/by_base_product/:id route
@@ -116,7 +116,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|product_id| Route::BaseProduct(product_id))
+            .map(Route::BaseProduct)
     });
 
     // Base products with variants routes
@@ -129,7 +129,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|product_id| Route::BaseProductWithVariant(product_id))
+            .map(Route::BaseProductWithVariant)
     });
 
     // BaseProducts Search route
@@ -177,7 +177,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|user_role_id| Route::UserRole(user_role_id))
+            .map(Route::UserRole)
     });
 
     // Attributes Routes
@@ -188,7 +188,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|attribute_id| Route::Attribute(attribute_id))
+            .map(Route::Attribute)
     });
 
     // Categories Routes
@@ -199,7 +199,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|category_id| Route::Category(category_id))
+            .map(Route::Category)
     });
 
     // roles/default/:id route
@@ -207,7 +207,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|user_id| Route::DefaultRole(user_id))
+            .map(Route::DefaultRole)
     });
 
     // Categories Attributes Routes
@@ -218,7 +218,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|category_id| Route::CategoryAttr(category_id))
+            .map(Route::CategoryAttr)
     });
 
     router

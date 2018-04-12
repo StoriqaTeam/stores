@@ -2,9 +2,9 @@ pipeline:
   test:
     image: rust:1.24.1-stretch
     commands:
-      - cargo test
       - rustup component add rustfmt-preview
       - cargo fmt --all -- --write-mode=diff
+      - cargo test
     when:
       event: pull_request
   build:

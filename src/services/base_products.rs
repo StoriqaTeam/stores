@@ -293,10 +293,10 @@ impl<
                             price_filters.add_value(variant.price);
                             for attr_value in variant.attrs {
                                 if let Some(value) = attr_value.str_val {
-                                    let hash_with_values = equal_attrs
+                                    let equal = equal_attrs
                                         .entry(attr_value.attr_id)
                                         .or_insert_with(HashSet::<String>::default);
-                                    hash_with_values.insert(value);
+                                    equal.insert(value);
                                 }
                                 if let Some(value) = attr_value.float_val {
                                     let range = range_attrs

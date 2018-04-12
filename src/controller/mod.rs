@@ -665,14 +665,12 @@ impl<
                     user_id
                 );
                 serialize_future(
-                    read_body(req.body())
-                        .map_err(|_| {
-                            error!("Parsing body // POST /products/search/filters in String failed!");
-                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
-                        })
-                        .and_then(move |name| {
-                            let mut search_prod = SearchProductsByName::default();
-                            search_prod.name = name;
+                    parse_body::<SearchProductsByName>(req.body())
+                            .map_err(|_| {
+                                error!("Parsing body // POST /products/search in SearchProductsByName failed!");
+                                Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                            })
+                        .and_then(move |search_prod| {
                             base_products_service
                                 .search_filters(search_prod)
                                 .map_err(Error::from)

@@ -224,7 +224,7 @@ mod tests {
         }
 
         let used = vec![5, 6];
-        remove_unused_categories(&mut cat, used);
+        remove_unused_categories(&mut cat, &used);
         assert_eq!(cat.children[0].children[0].id, 5);
         assert_eq!(cat.children[0].children[1].id, 6);
     }

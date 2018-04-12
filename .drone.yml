@@ -1,9 +1,20 @@
 pipeline:
   test:
     image: rust:1.24.1-stretch
+    environment:
+      - PGPASSWORD=a1a1a1a1
+      - RUN_MODE=k8s
+      - DATABASE_HOST=db-postgresql
+      - DATABASE_URL=postgresql://stores:stores@db-postgresql/stores
     commands:
       - rustup component add rustfmt-preview
       - cargo fmt --all -- --write-mode=diff
+      - apt-get update && apt-get install -y wget gnupg2
+      - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
+      - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
+      - apt-get update
+      - apt-get install -y libpq5 postgresql-client-10
+      - psql -U postgres -h db-postgresql -c "CREATE ROLE stores WITH PASSWORD 'stores' LOGIN REPLICATION" -c "CREATE DATABASE stores OWNER stores"
       - cargo test
     when:
       event: pull_request
@@ -83,3 +94,8 @@ pipeline:
       {{/success}}
     when:
       event: push
+services:
+  db-postgresql:
+    image: postgres:10-alpine
+    environment:
+      - POSTGRES_PASSWORD=a1a1a1a1

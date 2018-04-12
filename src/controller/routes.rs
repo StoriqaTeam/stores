@@ -13,14 +13,10 @@ pub enum Route {
     StoreProductsCount(i32),
     Products,
     BaseProductsSearch,
-    BaseProductsSearchInCategory,
-    BaseProductsSearchWithoutCategory,
     BaseProductsAutoComplete,
     BaseProductsMostViewed,
     BaseProductsMostDiscount,
     BaseProductsSearchFilters,
-    BaseProductsSearchInCategoryFilters,
-    BaseProductsSearchWithoutCategoryFilters,
     Product(i32),
     ProductAttributes(i32),
     ProductsByBaseProduct(i32),
@@ -135,38 +131,24 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // BaseProducts Search route
     router.add_route(r"^/base_products/search$", || Route::BaseProductsSearch);
 
-    // BaseProducts Search without category route
-    router.add_route(r"^/base_products/search/without_category$", || {
-        Route::BaseProductsSearchWithoutCategory
-    });
-
-    // BaseProducts Search in category route
-    router.add_route(r"^/base_products/search/in_category$", || {
-        Route::BaseProductsSearchInCategory
-    });
-
     // BaseProducts auto complete route
-    router.add_route(r"^/base_products/auto_complete$", || Route::BaseProductsAutoComplete);
+    router.add_route(r"^/base_products/auto_complete$", || {
+        Route::BaseProductsAutoComplete
+    });
 
     // BaseProducts with most discount
-    router.add_route(r"^/base_products/most_discount$", || Route::BaseProductsMostDiscount);
+    router.add_route(r"^/base_products/most_discount$", || {
+        Route::BaseProductsMostDiscount
+    });
 
     // BaseProducts with most viewed
-    router.add_route(r"^/base_products/most_viewed$", || Route::BaseProductsMostViewed);
+    router.add_route(r"^/base_products/most_viewed$", || {
+        Route::BaseProductsMostViewed
+    });
 
     // BaseProducts search filters route
     router.add_route(r"^/base_products/search/filters$", || {
         Route::BaseProductsSearchFilters
-    });
-
-    // BaseProducts search filters route
-    router.add_route(r"^/base_products/search/without_category/filters$", || {
-        Route::BaseProductsSearchWithoutCategoryFilters
-    });
-
-    // BaseProducts search filters route
-    router.add_route(r"^/base_products/search/in_category/filters$", || {
-        Route::BaseProductsSearchInCategoryFilters
     });
 
     // User_roles Routes

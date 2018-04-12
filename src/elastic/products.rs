@@ -31,6 +31,9 @@ pub trait ProductsElastic {
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
     fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>>;
+
+    /// Find all categories ids where prod exist
+    fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<i32>>;
 }
 
 impl ProductsElasticImpl {
@@ -43,32 +46,29 @@ impl ProductsElasticImpl {
 
     fn create_elastic_filters(options: Option<SearchOptions>) -> Vec<serde_json::Value> {
         let mut filters: Vec<serde_json::Value> = vec![];
-        let (attr_filters, categories_ids, price_filters) = if let Some(options) = options {
-            let attr_filters = options
-                .attr_filters
-                .into_iter()
-                .map(|attr| {
-                    if let Some(range) = attr.range {
-                        let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
-                        if let Some(min) = range.min_value {
-                            range_map.insert("gte".to_string(), json!(min));
+        let (attr_filters, category_id, price_filters) = if let Some(options) = options {
+            let attr_filters = options.attr_filters.map(|attrs| {
+                attrs
+                    .into_iter()
+                    .map(|attr| {
+                        if let Some(range) = attr.range {
+                            let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
+                            if let Some(min) = range.min_value {
+                                range_map.insert("gte".to_string(), json!(min));
+                            }
+                            if let Some(max) = range.max_value {
+                                range_map.insert("lte".to_string(), json!(max));
+                            }
+                            json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": range_map}}]}})
+                        } else if let Some(equal) = attr.equal {
+                            json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": equal.values}}]}})
+                        } else {
+                            json!({})
                         }
-                        if let Some(max) = range.max_value {
-                            range_map.insert("lte".to_string(), json!(max));
-                        }
-                        json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": range_map}}]}})
-                    } else if let Some(equal) = attr.equal {
-                        json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": equal.values}}]}})
-                    } else {
-                        json!({})
-                    }
-                })
-                .collect::<Vec<serde_json::Value>>();
-            (
-                Some(attr_filters),
-                Some(options.categories_ids),
-                options.price_range,
-            )
+                    })
+                    .collect::<Vec<serde_json::Value>>()
+            });
+            (attr_filters, options.category_id, options.price_range)
         } else {
             (None, None, None)
         };
@@ -99,14 +99,11 @@ impl ProductsElasticImpl {
             }
         }
 
-        let category = json!({
-                "terms": {"category_id": categories_ids}
+        if let Some(id) = category_id {
+            let category = json!({
+                "term": {"category_id": id}
             });
-
-        if let Some(ids) = categories_ids {
-            if !ids.is_empty() {
-                filters.push(category);
-            }
+            filters.push(category);
         }
 
         if let Some(price_filters) = price_filters {
@@ -332,6 +329,47 @@ impl ProductsElastic for ProductsElasticImpl {
                 .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.suggested_texts())),
+        )
+    }
+
+    /// Find all categories ids where prod exist
+    fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<i32>> {
+        log_elastic_req(&name);
+        let query = json!({
+        "size": 0,
+        "aggregations": {
+            "my_agg": {
+                "terms": {
+                    "field": "category_id"
+                }
+            }
+        }
+        }).to_string();
+
+        let url = format!(
+            "http://{}/{}/_search",
+            self.elastic_address,
+            ElasticIndex::Product
+        );
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
+        Box::new(
+            self.client_handle
+                .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
+                .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
+                .and_then(|res| {
+                    let mut cats = vec![];
+                    for ag in res.aggs() {
+                        info!("aggregations: {:?}.", ag);
+                        for k in ag.keys() {
+                            info!("Aggregation keys: {}.", k);
+                            cats.push(k.clone().into_owned().parse::<i32>().unwrap());
+                        }
+                    }
+                    future::ok(cats)
+                }),
         )
     }
 }

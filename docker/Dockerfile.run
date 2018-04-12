@@ -1,24 +1,22 @@
 FROM debian:stable-slim
 
-RUN mkdir -p /app/config
-RUN mkdir -p /app/migrations
-RUN mkdir -p /usr/local/cargo/bin/
+RUN mkdir -p /app/config \
+  && mkdir -p /app/migrations \
+  && mkdir -p /usr/local/cargo/bin/
 WORKDIR /app
 
-RUN apt-get update
-RUN apt-get install -y wget gnupg2
+RUN apt-get update && apt-get install -y wget gnupg2
 RUN wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
 RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
-RUN apt-get update
-RUN apt-get install -y libpq5 libmariadbclient18
+RUN apt-get update && apt-get install -y libpq5 libmariadbclient18
 
 # Cleaning up
-RUN apt-get purge -y wget
-RUN apt-get autoremove -y
-RUN apt-get clean -y
-RUN rm -rf /var/lib/apt/lists/
+RUN apt-get purge -y wget \
+  && apt-get autoremove -y \
+  && apt-get clean -y \
+  && rm -rf /var/lib/apt/lists/
 
-COPY stores /app
+COPY target/release/stores /app
 COPY diesel /usr/local/cargo/bin/diesel
 COPY config /app/config
 COPY migrations /app/migrations

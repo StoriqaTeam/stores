@@ -1,0 +1,85 @@
+pipeline:
+  test:
+    image: rust:1.24.1-stretch
+    commands:
+      - cargo test
+      - rustup component add rustfmt-preview
+      - cargo fmt --all -- --write-mode=diff
+    when:
+      event: pull_request
+  build:
+    image: rust:1.24.1-stretch
+    commands:
+      - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
+      - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
+      - apt-get update &&
+      - apt-get install -y libpq-dev
+      - cargo install diesel_cli
+      - cargo build --release --locked
+      - cp /usr/local/cargo/bin/diesel .
+    when:
+      event: push
+  package:
+    image: plugins/docker
+    repo: storiqateam/stq-stores
+    tags:
+      - ${DRONE_BRANCH}
+      - ${DRONE_BRANCH}${DRONE_BUILD_NUMBER/\//_}
+    username: stqcommon
+    password: "Tz-q6qDL#d3Mz8hm"
+    dockerfile: docker/Dockerfile.run
+    when:
+      event: [push, tag]
+  cleanup:
+    image: rust:1.24.1-stretch
+    commands:
+      - cargo clean
+      - rm diesel || true
+  deploy2nightly:
+    image: quay.io/honestbee/drone-kubernetes
+    kubernetes_server: https://api.nightly.stq.cloud
+    kubernetes_token: 32txou6YhrlD3sHcpxsiCmP1m7taE1fY
+    namespace: default
+    deployment: stores
+    repo: storiqateam/stq-stores
+    container: stores
+    tag: ${DRONE_BRANCH}${DRONE_BUILD_NUMBER/\//_}
+    when:
+      branch: master
+      event: push
+  test_release:
+    image: alpine
+    commands:
+      - sleep 10
+      - apk update
+      - apk add curl
+      - "curl -sf 'http://nightly.stq.cloud:60088/graphql' -H 'Content-Type: application/json' -d '{\"query\":\"{ apiVersion }\",\"variables\":null,\"operationName\":null}' || true"
+    when:
+      branch: master
+      event: push
+  deploy2stage:
+    image: quay.io/honestbee/drone-kubernetes
+    kubernetes_server: https://api.stage.stq.cloud
+    kubernetes_token: PW2clI0vKqLi3eywlN776rMyE7hk1pgX
+    namespace: default
+    deployment: stores
+    repo: storiqateam/stq-stores
+    container: stores
+    tag: ${DRONE_BRANCH}${DRONE_BUILD_NUMBER/\//_}
+    when:
+      branch: release*
+      event: push
+  notify_slack:
+    image: plugins/slack
+    webhook: https://hooks.slack.com/services/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
+    channel: back
+    icon_url: https://drone.io/favicon.ico
+    username: cd.stq.cloud
+    template: >
+      {{#success build.status}}
+        Build {{build.number}} for {{repo.name}} branch {{build.branch}} succeeded.
+      {{else}}
+        Build {{build.number}} for {{repo.name}} branch {{build.branch}} failed.
+      {{/success}}
+    when:
+      event: push

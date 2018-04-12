@@ -335,8 +335,47 @@ impl ProductsElastic for ProductsElasticImpl {
     /// Find all categories ids where prod exist
     fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<i32>> {
         log_elastic_req(&name);
+        let name_query = json!({
+            "bool" : {
+                "should" : [
+                    {"nested": {
+                        "path": "name",
+                        "query": {
+                            "match": {
+                                "name.text": name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "short_description",
+                        "query": {
+                            "match": {
+                                "short_description.text": name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "long_description",
+                        "query": {
+                            "match": {
+                                "long_description.text": name
+                            }
+                        }
+                    }}
+                ]
+            }
+        });
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        if !name.is_empty() {
+            query_map.insert("must".to_string(), name_query);
+        }
+
         let query = json!({
         "size": 0,
+        "query": {
+                "bool" : query_map
+            },
         "aggregations": {
             "my_agg": {
                 "terms": {
@@ -362,10 +401,10 @@ impl ProductsElastic for ProductsElasticImpl {
                 .and_then(|res| {
                     let mut cats = vec![];
                     for ag in res.aggs() {
-                        info!("aggregations: {:?}.", ag);
-                        for k in ag.keys() {
-                            info!("Aggregation keys: {}.", k);
-                            cats.push(k.clone().into_owned().parse::<i32>().unwrap());
+                        if let Some(my_agg) = ag.get("my_agg") {
+                            if let Some(cat) = my_agg.as_i64() {
+                                cats.push(cat as i32);
+                            }
                         }
                     }
                     future::ok(cats)

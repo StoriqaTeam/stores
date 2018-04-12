@@ -170,24 +170,24 @@ fn create_tree(cats: &[RawCategory], parent_id_arg: Option<i32>) -> Vec<Category
     branch
 }
 
-pub fn remove_unused_categories(cat: &mut Category, used_categories_ids: &[i32]) {
-    let children = cat.children
-        .clone()
-        .into_iter()
-        .filter(|cat_child| {
-            if cat_child.children.is_empty() {
-                used_categories_ids
-                    .iter()
-                    .any(|used_id| cat_child.id == *used_id)
-            } else {
-                let mut c = cat_child.clone();
-                remove_unused_categories(&mut c, used_categories_ids);
-                !c.children.is_empty()
+pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32]) -> Category {
+    let mut children = vec![];
+    for cat_child in cat.children.into_iter() {
+        if cat_child.children.is_empty() {
+            if used_categories_ids
+                .iter()
+                .any(|used_id| cat_child.id == *used_id) {
+                    children.push(cat_child);
+                }
+        } else {
+            let new_cat = remove_unused_categories(cat_child, used_categories_ids);
+            if !new_cat.children.is_empty() {
+                children.push(new_cat);
             }
-        })
-        .map(|c| c.clone())
-        .collect();
+        }
+    }
     cat.children = children;
+    cat
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Category>

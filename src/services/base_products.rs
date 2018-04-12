@@ -266,9 +266,9 @@ impl<
                                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                 categories_repo.get_all().map_err(ServiceError::from)
                             })
-                            .and_then(|mut category| {
-                                remove_unused_categories(&mut category, &cats);
-                                Ok(category)
+                            .and_then(|category| {
+                                let new_cat = remove_unused_categories(category, &cats);
+                                Ok(new_cat)
                             })
                     })
                 })

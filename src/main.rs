@@ -5,5 +5,5 @@ extern crate stores_lib;
 
 fn main() {
     let config = stores_lib::config::Config::new().expect("Can't load app config!");
-    stores_lib::start_server(config, None, || ());
+    stores_lib::start_server(config, &None, || ());
 }

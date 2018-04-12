@@ -27,7 +27,7 @@ pub fn setup() -> Context {
     let port = rng.gen_range(50000, 60000);
     thread::spawn(move || {
         let config = stores_lib::config::Config::new().expect("Can't load app config!");
-        stores_lib::start_server(config, Some(port.to_string()), move || {
+        stores_lib::start_server(config, &Some(port.to_string()), move || {
             let _ = tx.send(true);
         });
     });

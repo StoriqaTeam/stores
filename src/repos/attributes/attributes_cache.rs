@@ -17,7 +17,7 @@ impl AttributeCacheImpl {
         let mut hash_map = self.inner.lock().unwrap();
         match hash_map.entry(id) {
             Entry::Occupied(o) => Ok(o.get().clone()),
-            Entry::Vacant(_) => return Err(RepoError::NotFound),
+            Entry::Vacant(_) => Err(RepoError::NotFound),
         }
     }
 

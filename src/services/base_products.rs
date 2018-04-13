@@ -2,6 +2,7 @@
 use std::collections::{HashMap, HashSet};
 
 use futures::future::*;
+use futures::future;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
@@ -23,32 +24,21 @@ const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
-    /// Find product by name without categories limited by `count` and `offset` parameters
-    fn search_without_category(
-        &self,
-        prod: SearchProductWithoutCategory,
-        count: i32,
-        offset: i32,
-    ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
-    /// Find product by name in category limited by `count` and `offset` parameters
-    fn search_in_category(&self, prod: SearchProductInCategory, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
-    fn search_filters(&self, search_prod: SearchProductsByName) -> ServiceFuture<SearchOptions>;
+    fn search_filters_price(&self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
     /// search filters
-    fn search_without_category_filters(&self, name: String) -> ServiceFuture<SearchFiltersWithoutCategory>;
+    fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
     /// search filters
-    fn search_in_category_filters(&self, name: String, category_id: i32) -> ServiceFuture<SearchFiltersInCategory>;
+    fn search_filters_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
-    /// Returns product by ID
-    fn get_with_variants(&self, product_id: i32) -> ServiceFuture<BaseProductWithVariants>;
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
     /// Creates base product
@@ -112,7 +102,7 @@ impl<
     F: ReposFactory<T>,
 > BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
-    fn search_by_name(&self, search_product: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+    fn search_by_name(&self, search_product: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -143,34 +133,8 @@ impl<
                                 .into_iter()
                                 .map(|el_product| {
                                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                                     base_products_repo
                                         .find(el_product.id)
-                                        .and_then(move |base_product| {
-                                            products_repo
-                                                .find_with_base_id(base_product.id)
-                                                .or_else(|_| Ok(vec![]))
-                                                .map(|products| (base_product, products))
-                                                .and_then(move |(base_product, products)| {
-                                                    products
-                                                        .into_iter()
-                                                        .map(|product| {
-                                                            attr_prod_repo
-                                                                .find_all_attributes(product.id)
-                                                                .or_else(|_| Ok(vec![]))
-                                                                .map(|attrs| {
-                                                                    attrs
-                                                                        .into_iter()
-                                                                        .map(|attr| attr.into())
-                                                                        .collect::<Vec<AttrValue>>()
-                                                                })
-                                                                .map(|attrs| VariantsWithAttributes::new(product, attrs))
-                                                        })
-                                                        .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
-                                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product.clone(), var)))
-                                                })
-                                        })
                                         .map_err(ServiceError::from)
                                 })
                                 .collect()
@@ -180,22 +144,8 @@ impl<
         }))
     }
 
-    /// Find product by name without categories limited by `count` and `offset` parameters
-    fn search_without_category(
-        &self,
-        prod: SearchProductWithoutCategory,
-        count: i32,
-        offset: i32,
-    ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
-        self.search_by_name(prod.into(), count, offset)
-    }
-    /// Find product by name in category limited by `count` and `offset` parameters
-    fn search_in_category(&self, prod: SearchProductInCategory, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
-        self.search_by_name(prod.into(), count, offset)
-    }
-
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -226,40 +176,8 @@ impl<
                                 .into_iter()
                                 .map(|el_product| {
                                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                                     base_products_repo
                                         .find(el_product.id)
-                                        .and_then(move |base_product| {
-                                            products_repo
-                                                .find_with_base_id(base_product.id)
-                                                .or_else(|_| Ok(vec![]))
-                                                .and_then(|products| {
-                                                    products
-                                                        .into_iter()
-                                                        .nth(0)
-                                                        .ok_or(RepoError::NotFound)
-                                                        .and_then(|prod| {
-                                                            attr_prod_repo
-                                                                .find_all_attributes(prod.id)
-                                                                .or_else(|_| Ok(vec![]))
-                                                                .map(|attrs| {
-                                                                    attrs
-                                                                        .into_iter()
-                                                                        .map(|attr| attr.into())
-                                                                        .collect::<Vec<AttrValue>>()
-                                                                })
-                                                                .map(|attrs| VariantsWithAttributes::new(prod, attrs))
-                                                        })
-                                                        .and_then(|var| {
-                                                            Ok(BaseProductWithVariants::new(
-                                                                base_product.clone(),
-                                                                vec![var],
-                                                            ))
-                                                        })
-                                                })
-                                                .or_else(|_| Ok(BaseProductWithVariants::new(base_product, vec![])))
-                                        })
                                         .map_err(ServiceError::from)
                                 })
                                 .collect()
@@ -270,7 +188,7 @@ impl<
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>> {
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>> {
         let products = {
             let client_handle = self.client_handle.clone();
             let address = self.elastic_address.clone();
@@ -301,46 +219,8 @@ impl<
                                 .into_iter()
                                 .map(|el_product| {
                                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                                     base_products_repo
                                         .find(el_product.id)
-                                        .and_then(move |base_product| {
-                                            products_repo
-                                                .find_with_base_id(base_product.id)
-                                                .and_then(|products| {
-                                                    products
-                                                        .into_iter()
-                                                        .filter_map(|p| {
-                                                            if let Some(_) = p.discount {
-                                                                Some(p)
-                                                            } else {
-                                                                None
-                                                            }
-                                                        })
-                                                        .max_by_key(|p| (p.discount.unwrap() * 1000f64).round() as i64)
-                                                        .ok_or(RepoError::NotFound)
-                                                        .and_then(|prod| {
-                                                            attr_prod_repo
-                                                                .find_all_attributes(prod.id)
-                                                                .or_else(|_| Ok(vec![]))
-                                                                .map(|attrs| {
-                                                                    attrs
-                                                                        .into_iter()
-                                                                        .map(|attr| attr.into())
-                                                                        .collect::<Vec<AttrValue>>()
-                                                                })
-                                                                .map(|attrs| VariantsWithAttributes::new(prod, attrs))
-                                                        })
-                                                        .and_then(|var| {
-                                                            Ok(BaseProductWithVariants::new(
-                                                                base_product.clone(),
-                                                                vec![var],
-                                                            ))
-                                                        })
-                                                })
-                                                .or_else(|_| Ok(BaseProductWithVariants::new(base_product, vec![])))
-                                        })
                                         .map_err(ServiceError::from)
                                 })
                                 .collect()
@@ -363,115 +243,109 @@ impl<
         Box::new(products_names)
     }
 
-    fn search_filters(&self, search_prod: SearchProductsByName) -> ServiceFuture<SearchOptions> {
+    fn search_filters_price(&self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
-
-        let search_filters = {
-            let products_el = ProductsElasticImpl::new(client_handle, address);
+        let products_el = ProductsElasticImpl::new(client_handle, address);
+        Box::new(
             products_el
-                .search_by_name(search_prod, MAX_PRODUCTS_SEARCH_COUNT, 0)
-                .map_err(ServiceError::from)
-        };
-
-        Box::new(search_filters.map(move |el_products| {
-            let mut cats = HashSet::<i32>::default();
-            let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
-            let mut range_attrs = HashMap::<i32, RangeFilter>::default();
-            let mut price_filters = RangeFilter::default();
-
-            for product in el_products {
-                cats.insert(product.category_id);
-                for variant in product.variants {
-                    price_filters.add_value(variant.price);
-                    for attr_value in variant.attrs {
-                        if let Some(value) = attr_value.str_val {
-                            let hash_with_values = equal_attrs
-                                .entry(attr_value.attr_id)
-                                .or_insert_with(HashSet::<String>::default);
-                            hash_with_values.insert(value);
-                        }
-                        if let Some(value) = attr_value.float_val {
-                            let range = range_attrs
-                                .entry(attr_value.attr_id)
-                                .or_insert_with(RangeFilter::default);
-                            range.add_value(value);
-                        }
-                    }
-                }
-            }
-
-            let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                id: k,
-                equal: Some(EqualFilter {
-                    values: v.iter().cloned().collect(),
-                }),
-                range: None,
-            });
-
-            let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                id: k,
-                equal: None,
-                range: Some(v),
-            });
-
-            SearchOptions {
-                categories_ids: cats.into_iter().collect(),
-                attr_filters: eq_filters.chain(range_filters).collect(),
-                price_range: Some(price_filters),
-            }
-        }))
+                .aggregate_price(search_prod)
+                .map_err(ServiceError::from),
+        )
     }
 
     /// search filters
-    fn search_without_category_filters(&self, name: String) -> ServiceFuture<SearchFiltersWithoutCategory> {
-        let db_pool = self.db_pool.clone();
+    fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
         let cpu_pool = self.cpu_pool.clone();
+        let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
+        let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        let mut search_prod = SearchProductsByName::default();
-        search_prod.name = name;
-        Box::new(self.search_filters(search_prod).and_then(move |options| {
-            cpu_pool.spawn_fn(move || {
-                db_pool
-                    .get()
-                    .map_err(|e| {
-                        error!(
-                            "Could not get connection to db from pool! {}",
-                            e.to_string()
-                        );
-                        ServiceError::Connection(e.into())
-                    })
-                    .and_then(move |conn| {
-                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                        categories_repo.get_all().map_err(ServiceError::from)
-                    })
-                    .and_then(|mut category| {
-                        remove_unused_categories(&mut category, &options.categories_ids);
-
-                        Ok(SearchFiltersWithoutCategory {
-                            price_range: options.price_range,
-                            categories: category,
-                        })
-                    })
-            })
-        }))
-    }
-    /// search filters
-    fn search_in_category_filters(&self, name: String, category_id: i32) -> ServiceFuture<SearchFiltersInCategory> {
-        let mut search_prod = SearchProductsByName::default();
-        search_prod.name = name;
-        let mut options = SearchOptions::default();
-        options.categories_ids = vec![category_id];
-        search_prod.options = Some(options);
         Box::new(
-            self.search_filters(search_prod)
-                .map(|options| SearchFiltersInCategory {
-                    price_range: options.price_range,
-                    attr_filters: options.attr_filters,
+            products_el
+                .aggregate_categories(search_prod.name.clone())
+                .map_err(ServiceError::from)
+                .and_then(move |cats| {
+                    cpu_pool.spawn_fn(move || {
+                        db_pool
+                            .get()
+                            .map_err(|e| {
+                                error!(
+                                    "Could not get connection to db from pool! {}",
+                                    e.to_string()
+                                );
+                                ServiceError::Connection(e.into())
+                            })
+                            .and_then(move |conn| {
+                                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                                categories_repo.get_all().map_err(ServiceError::from)
+                            })
+                            .and_then(|category| {
+                                let new_cat = remove_unused_categories(category, &cats);
+                                Ok(new_cat)
+                            })
+                    })
                 }),
         )
+    }
+
+    /// search filters
+    fn search_filters_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let products_el = ProductsElasticImpl::new(client_handle, address);
+        if let Some(options) = search_prod.options.clone() {
+            if options.category_id.is_some() {
+                return Box::new(
+                    products_el
+                        .search_by_name(search_prod, MAX_PRODUCTS_SEARCH_COUNT, 0)
+                        .map_err(ServiceError::from)
+                        .map(|el_products| {
+                            let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
+                            let mut range_attrs = HashMap::<i32, RangeFilter>::default();
+
+                            for product in el_products {
+                                for variant in product.variants {
+                                    for attr_value in variant.attrs {
+                                        if let Some(value) = attr_value.str_val {
+                                            let equal = equal_attrs
+                                                .entry(attr_value.attr_id)
+                                                .or_insert_with(HashSet::<String>::default);
+                                            equal.insert(value);
+                                        }
+                                        if let Some(value) = attr_value.float_val {
+                                            let range = range_attrs
+                                                .entry(attr_value.attr_id)
+                                                .or_insert_with(RangeFilter::default);
+                                            range.add_value(value);
+                                        }
+                                    }
+                                }
+                            }
+
+                            let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                id: k,
+                                equal: Some(EqualFilter {
+                                    values: v.iter().cloned().collect(),
+                                }),
+                                range: None,
+                            });
+
+                            let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                id: k,
+                                equal: None,
+                                range: Some(v),
+                            });
+
+                            Some(eq_filters.chain(range_filters).collect())
+                        }),
+                );
+            }
+        }
+        return Box::new(future::ok(None));
     }
 
     /// Returns product by ID
@@ -494,58 +368,6 @@ impl<
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     base_products_repo
                         .find(product_id)
-                        .map_err(ServiceError::from)
-                })
-        }))
-    }
-
-    /// Returns product by ID
-    fn get_with_variants(&self, base_product_id: i32) -> ServiceFuture<BaseProductWithVariants> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
-
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
-                    ServiceError::Connection(e.into())
-                })
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let attr_prod_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
-                    base_products_repo
-                        .find(base_product_id)
-                        .and_then(move |base_product| {
-                            products_repo
-                                .find_with_base_id(base_product.id)
-                                .or_else(|_| Ok(vec![]))
-                                .map(|products| (base_product.clone(), products))
-                                .and_then(|(base_product, products)| {
-                                    products
-                                        .into_iter()
-                                        .map(|product| {
-                                            attr_prod_repo
-                                                .find_all_attributes(product.id)
-                                                .or_else(|_| Ok(vec![]))
-                                                .map(|attrs| {
-                                                    attrs
-                                                        .into_iter()
-                                                        .map(|attr| attr.into())
-                                                        .collect::<Vec<AttrValue>>()
-                                                })
-                                                .map(|attrs| VariantsWithAttributes::new(product, attrs))
-                                        })
-                                        .collect::<RepoResult<Vec<VariantsWithAttributes>>>()
-                                        .and_then(|var| Ok(BaseProductWithVariants::new(base_product.clone(), var)))
-                                })
-                                .or_else(|_| Ok(BaseProductWithVariants::new(base_product, vec![])))
-                        })
                         .map_err(ServiceError::from)
                 })
         }))

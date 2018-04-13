@@ -39,9 +39,6 @@ use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
-use repos::categories::CategoryCacheImpl;
-use repos::attributes::AttributeCacheImpl;
-use repos::roles_cache::RolesCacheImpl;
 use repos::repo_factory::*;
 use self::routes::Route;
 use config::Config;
@@ -60,9 +57,6 @@ where
     pub config: Config,
     pub repo_factory: F,
     pub client_handle: ClientHandle,
-    pub roles_cache: RolesCacheImpl,
-    pub categories_cache: CategoryCacheImpl,
-    pub attributes_cache: AttributeCacheImpl,
 }
 
 impl<
@@ -72,16 +66,7 @@ impl<
 > ControllerImpl<T, M, F>
 {
     /// Create a new controller based on services
-    pub fn new(
-        db_pool: Pool<M>,
-        cpu_pool: CpuPool,
-        client_handle: ClientHandle,
-        config: Config,
-        repo_factory: F,
-        roles_cache: RolesCacheImpl,
-        categories_cache: CategoryCacheImpl,
-        attributes_cache: AttributeCacheImpl,
-    ) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, repo_factory: F) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
             route_parser,
@@ -90,9 +75,6 @@ impl<
             client_handle,
             config,
             repo_factory,
-            roles_cache,
-            categories_cache,
-            attributes_cache,
         }
     }
 }
@@ -121,8 +103,6 @@ impl<
             req.path()
         );
 
-        let cached_categories = self.categories_cache.clone();
-        let cached_attributes = self.attributes_cache.clone();
         let system_service = SystemServiceImpl::default();
         let stores_service = StoresServiceImpl::new(
             self.db_pool.clone(),
@@ -153,13 +133,11 @@ impl<
         let user_roles_service = UserRolesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            self.roles_cache.clone(),
             self.repo_factory.clone(),
         );
         let attributes_service = AttributesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_attributes,
             user_id,
             self.repo_factory.clone(),
         );
@@ -167,7 +145,6 @@ impl<
         let categories_service = CategoriesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_categories,
             user_id,
             self.repo_factory.clone(),
         );
@@ -371,6 +348,24 @@ impl<
                 serialize_future(products_service.get(product_id))
             }
 
+            // GET products/by_base_product/<base_product_id> route
+            (&Get, Some(Route::ProductsByBaseProduct(base_product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET products/by_base_product/{}",
+                    user_id, base_product_id
+                );
+                serialize_future(products_service.find_with_base_id(base_product_id))
+            }
+
+            // GET products/<product_id>/attributes route
+            (&Get, Some(Route::ProductAttributes(product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET attributes/{}/attributes",
+                    user_id, product_id
+                );
+                serialize_future(products_service.find_attributes(product_id))
+            }
+
             // GET /products
             (&Get, Some(Route::Products)) => {
                 debug!(
@@ -455,15 +450,6 @@ impl<
                 serialize_future(base_products_service.get(base_product_id))
             }
 
-            // GET /base_products/<base_product_id>/with_variants
-            (&Get, Some(Route::BaseProductWithVariant(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/{}/with_variants",
-                    user_id, base_product_id
-                );
-                serialize_future(base_products_service.get_with_variants(base_product_id))
-            }
-
             // GET /base_products
             (&Get, Some(Route::BaseProducts)) => {
                 debug!(
@@ -541,8 +527,8 @@ impl<
                 serialize_future(base_products_service.deactivate(base_product_id))
             }
 
-            // POST /products/search
-            (&Post, Some(Route::ProductsSearch)) => {
+            // POST /base_products/search
+            (&Post, Some(Route::BaseProductsSearch)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/search",
                     user_id
@@ -568,62 +554,8 @@ impl<
                 }
             }
 
-            // POST /products/search/without_category
-            (&Post, Some(Route::ProductsSearchWithoutCategory)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/without_category",
-                    user_id
-                );
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
-                    serialize_future(
-                        parse_body::<SearchProductWithoutCategory>(req.body())
-                            .map_err(|_| {
-                                error!("Parsing body // POST /products/search/without_category in SearchProductWithoutCategory failed!");
-                                Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
-                            })
-                            .and_then(move |prod| {
-                                base_products_service
-                                    .search_without_category(prod, count, offset)
-                                    .map_err(Error::from)
-                            }),
-                    )
-                } else {
-                    error!("Parsing query parameters // POST /products/search/without_category failed!");
-                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
-                        "Error parsing request from gateway body"
-                    ))))
-                }
-            }
-
-            // POST /products/search/in_category
-            (&Post, Some(Route::ProductsSearchInCategory)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/in_category",
-                    user_id
-                );
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
-                    serialize_future(
-                        parse_body::<SearchProductInCategory>(req.body())
-                            .map_err(|_| {
-                                error!("Parsing body // POST /products/search/in_category in SearchProductInCategory failed!");
-                                Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
-                            })
-                            .and_then(move |prod| {
-                                base_products_service
-                                    .search_in_category(prod, count, offset)
-                                    .map_err(Error::from)
-                            }),
-                    )
-                } else {
-                    error!("Parsing query parameters // POST /products/search/in_category failed!");
-                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
-                        "Error parsing request from gateway body"
-                    ))))
-                }
-            }
-
-            // POST /products/auto_complete
-            (&Post, Some(Route::ProductsAutoComplete)) => {
+            // POST /base_products/auto_complete
+            (&Post, Some(Route::BaseProductsAutoComplete)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/auto_complete",
                     user_id
@@ -649,8 +581,8 @@ impl<
                 }
             }
 
-            // POST /products/most_discount
-            (&Post, Some(Route::ProductsMostDiscount)) => {
+            // POST /base_products/most_discount
+            (&Post, Some(Route::BaseProductsMostDiscount)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/most_discount",
                     user_id
@@ -676,8 +608,8 @@ impl<
                 }
             }
 
-            // POST /products/most_viewed
-            (&Post, Some(Route::ProductsMostViewed)) => {
+            // POST /base_products/most_viewed
+            (&Post, Some(Route::BaseProductsMostViewed)) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /products/most_viewed",
                     user_id
@@ -703,68 +635,62 @@ impl<
                 }
             }
 
-            // POST /products/search/filters
-            (&Post, Some(Route::ProductsSearchFilters)) => {
+            // POST /base_products/search/filters/price
+            (&Post, Some(Route::BaseProductsSearchFiltersPrice)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/filters",
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters/price",
                     user_id
                 );
                 serialize_future(
-                    read_body(req.body())
+                    parse_body::<SearchProductsByName>(req.body())
                         .map_err(|_| {
-                            error!("Parsing body // POST /products/search/filters in String failed!");
+                            error!("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |name| {
-                            let mut search_prod = SearchProductsByName::default();
-                            search_prod.name = name;
+                        .and_then(move |search_prod| {
                             base_products_service
-                                .search_filters(search_prod)
+                                .search_filters_price(search_prod)
                                 .map_err(Error::from)
                         }),
                 )
             }
-
-            // POST /products/search/without_category/filters
-            (&Post, Some(Route::ProductsSearchWithoutCategoryFilters)) => {
+            // POST /base_products/search/filters/category
+            (&Post, Some(Route::BaseProductsSearchFiltersCategory)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/without_category/filters",
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters/category",
                     user_id
                 );
-                if let Some(name) = parse_query!(req.query().unwrap_or_default(), "name" => String) {
-                    serialize_future(
-                        base_products_service
-                            .search_without_category_filters(name.replace("%20", " "))
-                            .map_err(Error::from),
-                    )
-                } else {
-                    error!("Parsing query parameters // POST /products/most_viewed failed!");
-                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
-                        "Error parsing request from gateway body"
-                    ))))
-                }
+                serialize_future(
+                    parse_body::<SearchProductsByName>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_prod| {
+                            base_products_service
+                                .search_filters_category(search_prod)
+                                .map_err(Error::from)
+                        }),
+                )
             }
-
-            // POST /products/search/in_category/filters
-            (&Post, Some(Route::ProductsSearchInCategoryFilters)) => {
+            // POST /base_products/search/filters/attributes
+            (&Post, Some(Route::BaseProductsSearchFiltersAttributes)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/in_category/filters",
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters/attributes",
                     user_id
                 );
-                if let (Some(name), Some(category_id)) =
-                    parse_query!(req.query().unwrap_or_default(), "name" => String, "category_id" => i32)
-                {
-                    serialize_future(
-                        base_products_service
-                            .search_in_category_filters(name.replace("%20", " "), category_id)
-                            .map_err(Error::from),
-                    )
-                } else {
-                    error!("Parsing query parameters // POST /products/most_viewed failed!");
-                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
-                        "Error parsing request from gateway body"
-                    ))))
-                }
+                serialize_future(
+                    parse_body::<SearchProductsByName>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_prod| {
+                            base_products_service
+                                .search_filters_attributes(search_prod)
+                                .map_err(Error::from)
+                        }),
+                )
             }
 
             // GET /user_role/<user_id>

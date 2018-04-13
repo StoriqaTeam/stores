@@ -11,7 +11,6 @@ use models::{Attribute, NewCatAttr, OldCatAttr};
 use super::types::ServiceFuture;
 use super::error::ServiceError;
 use repos::types::RepoResult;
-use repos::categories::CategoryCacheImpl;
 use repos::ReposFactory;
 
 pub trait CategoriesService {
@@ -39,7 +38,6 @@ pub struct CategoriesServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub categories_cache: CategoryCacheImpl,
     pub user_id: Option<i32>,
     pub repo_factory: F,
 }
@@ -50,11 +48,10 @@ impl<
     F: ReposFactory<T>,
 > CategoriesServiceImpl<T, M, F>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, categories_cache: CategoryCacheImpl, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
-            categories_cache,
             user_id,
             repo_factory,
         }
@@ -96,8 +93,6 @@ impl<
     fn create(&self, new_category: NewCategory) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-
-        let categories_cache = self.categories_cache.clone();
         let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -116,10 +111,6 @@ impl<
                         categories_repo
                             .create(new_category)
                             .map_err(ServiceError::from)
-                            .and_then(|category| {
-                                categories_cache.clear();
-                                Ok(category)
-                            })
                     })
                 })
         }))
@@ -130,7 +121,6 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
-        let categories_cache = self.categories_cache.clone();
         let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -148,10 +138,6 @@ impl<
                     categories_repo
                         .update(category_id, payload)
                         .map_err(ServiceError::from)
-                        .and_then(|category| {
-                            categories_cache.clear();
-                            Ok(category)
-                        })
                 })
         }))
     }
@@ -160,7 +146,6 @@ impl<
     fn get_all(&self) -> ServiceFuture<Category> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let categories_cache = self.categories_cache.clone();
         let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -174,18 +159,8 @@ impl<
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
-                    if categories_cache.is_some() {
-                        categories_cache.get().map_err(ServiceError::from)
-                    } else {
-                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                        categories_repo
-                            .get_all()
-                            .map_err(ServiceError::from)
-                            .and_then(|category| {
-                                categories_cache.set(category.clone());
-                                Ok(category)
-                            })
-                    }
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                    categories_repo.get_all().map_err(ServiceError::from)
                 })
         }))
     }

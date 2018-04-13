@@ -140,14 +140,14 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     // Roles cache
     let roles_cache = RolesCacheImpl::default();
 
-    // Repo factory
-    let repo_factory = ReposFactoryImpl::new(roles_cache.clone());
-
     // Categories cache
     let category_cache = CategoryCacheImpl::default();
 
     // Attributes cache
     let attributes_cache = AttributeCacheImpl::default();
+
+    // Repo factory
+    let repo_factory = ReposFactoryImpl::new(roles_cache, category_cache, attributes_cache);
 
     let serve = Http::new()
         .serve_addr_handle(&address, &handle, move || {
@@ -157,9 +157,6 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
                 client_handle.clone(),
                 config.clone(),
                 repo_factory.clone(),
-                roles_cache.clone(),
-                category_cache.clone(),
-                attributes_cache.clone(),
             );
 
             // Prepare application

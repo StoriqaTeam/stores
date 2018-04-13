@@ -13,6 +13,7 @@ services:
       - stores_cargo_cache:/usr/local/cargo
     environment:
       - DATABASE_URL=postgresql://stores:stores@stores-pg/stores
+      - RUST_LOG=main=debug
     expose:
       - 8000
     stdin_open: true

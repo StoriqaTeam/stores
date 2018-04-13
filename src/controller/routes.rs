@@ -12,16 +12,16 @@ pub enum Route {
     StoreProducts(i32),
     StoreProductsCount(i32),
     Products,
-    ProductsSearch,
-    ProductsSearchInCategory,
-    ProductsSearchWithoutCategory,
-    ProductsAutoComplete,
-    ProductsMostViewed,
-    ProductsMostDiscount,
-    ProductsSearchFilters,
-    ProductsSearchInCategoryFilters,
-    ProductsSearchWithoutCategoryFilters,
+    BaseProductsSearch,
+    BaseProductsAutoComplete,
+    BaseProductsMostViewed,
+    BaseProductsMostDiscount,
+    BaseProductsSearchFiltersPrice,
+    BaseProductsSearchFiltersCategory,
+    BaseProductsSearchFiltersAttributes,
     Product(i32),
+    ProductAttributes(i32),
+    ProductsByBaseProduct(i32),
     BaseProducts,
     BaseProductWithVariants,
     BaseProduct(i32),
@@ -90,6 +90,22 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::Product)
     });
 
+    // Products/by_base_product/:id route
+    router.add_route_with_params(r"^/products/by_base_product/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|base_product_id| Route::ProductsByBaseProduct(base_product_id))
+    });
+
+    // Products/:id/attributes route
+    router.add_route_with_params(r"^/products/(\d+)/attributes$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(|product_id| Route::ProductAttributes(product_id))
+    });
+
     // Base products routes
     router.add_route(r"^/base_products$", || Route::BaseProducts);
 
@@ -114,41 +130,37 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::BaseProductWithVariant)
     });
 
-    // Products Search route
-    router.add_route(r"^/products/search$", || Route::ProductsSearch);
+    // BaseProducts Search route
+    router.add_route(r"^/base_products/search$", || Route::BaseProductsSearch);
 
-    // Products Search without category route
-    router.add_route(r"^/products/search/without_category$", || {
-        Route::ProductsSearchWithoutCategory
+    // BaseProducts auto complete route
+    router.add_route(r"^/base_products/auto_complete$", || {
+        Route::BaseProductsAutoComplete
     });
 
-    // Products Search in category route
-    router.add_route(r"^/products/search/in_category$", || {
-        Route::ProductsSearchInCategory
+    // BaseProducts with most discount
+    router.add_route(r"^/base_products/most_discount$", || {
+        Route::BaseProductsMostDiscount
     });
 
-    // Products auto complete route
-    router.add_route(r"^/products/auto_complete$", || Route::ProductsAutoComplete);
-
-    // Products with most discount
-    router.add_route(r"^/products/most_discount$", || Route::ProductsMostDiscount);
-
-    // Products with most viewed
-    router.add_route(r"^/products/most_viewed$", || Route::ProductsMostViewed);
-
-    // Products search filters route
-    router.add_route(r"^/products/search/filters$", || {
-        Route::ProductsSearchFilters
+    // BaseProducts with most viewed
+    router.add_route(r"^/base_products/most_viewed$", || {
+        Route::BaseProductsMostViewed
     });
 
-    // Products search filters route
-    router.add_route(r"^/products/search/without_category/filters$", || {
-        Route::ProductsSearchWithoutCategoryFilters
+    // BaseProducts search filters price route
+    router.add_route(r"^/base_products/search/filters/price$", || {
+        Route::BaseProductsSearchFiltersPrice
     });
 
-    // Products search filters route
-    router.add_route(r"^/products/search/in_category/filters$", || {
-        Route::ProductsSearchInCategoryFilters
+    // BaseProducts search filters category route
+    router.add_route(r"^/base_products/search/filters/category", || {
+        Route::BaseProductsSearchFiltersCategory
+    });
+
+    // BaseProducts search filters attribute route
+    router.add_route(r"^/base_products/search/filters/attributes", || {
+        Route::BaseProductsSearchFiltersAttributes
     });
 
     // User_roles Routes

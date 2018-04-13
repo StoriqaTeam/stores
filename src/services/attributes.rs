@@ -10,7 +10,6 @@ use models::{Attribute, NewAttribute, UpdateAttribute};
 use services::types::ServiceFuture;
 use services::error::ServiceError;
 use r2d2::{ManageConnection, Pool};
-use repos::attributes::AttributeCacheImpl;
 use repos::ReposFactory;
 
 pub trait AttributesService {
@@ -32,7 +31,6 @@ pub struct AttributesServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub attributes_cache: AttributeCacheImpl,
     pub user_id: Option<i32>,
     pub repo_factory: F,
 }
@@ -43,11 +41,10 @@ impl<
     M: ManageConnection<Connection = T>,
 > AttributesServiceImpl<T, F, M>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, attributes_cache: AttributeCacheImpl, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
-            attributes_cache,
             user_id,
             repo_factory,
         }
@@ -64,7 +61,6 @@ impl<
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let attributes_cache = self.attributes_cache.clone();
         let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -78,20 +74,10 @@ impl<
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
-                    if attributes_cache.contains(attribute_id) {
-                        attributes_cache
-                            .get(attribute_id)
-                            .map_err(ServiceError::from)
-                    } else {
-                        let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                        attributes_repo
-                            .find(attribute_id)
-                            .map_err(ServiceError::from)
-                            .and_then(|attr| {
-                                attributes_cache.add_attribute(attribute_id, attr.clone());
-                                Ok(attr)
-                            })
-                    }
+                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                    attributes_repo
+                        .find(attribute_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
@@ -150,7 +136,6 @@ impl<
     fn update(&self, attribute_id: i32, payload: UpdateAttribute) -> ServiceFuture<Attribute> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let attributes_cache = self.attributes_cache.clone();
         let repo_factory = self.repo_factory.clone();
 
         Box::new(self.cpu_pool.spawn_fn(move || {
@@ -168,10 +153,6 @@ impl<
                     attributes_repo
                         .update(attribute_id, payload)
                         .map_err(ServiceError::from)
-                        .and_then(|attribute| {
-                            attributes_cache.remove(attribute_id);
-                            Ok(attribute)
-                        })
                 })
         }))
     }

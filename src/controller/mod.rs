@@ -148,6 +148,7 @@ impl<
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
             self.repo_factory.clone(),
+            cached_categories.clone()
         );
 
         let user_roles_service = UserRolesServiceImpl::new(

@@ -1,6 +1,6 @@
 pipeline:
   test:
-    image: rust:1.24.1-stretch
+    image: rust:1.25-stretch
     environment:
       - PGPASSWORD=a1a1a1a1
       - RUN_MODE=k8s
@@ -19,7 +19,7 @@ pipeline:
     when:
       event: pull_request
   build:
-    image: rust:1.24.1-stretch
+    image: rust:1.25-stretch
     commands:
       - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
       - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
@@ -42,7 +42,7 @@ pipeline:
     when:
       event: [push, tag]
   cleanup:
-    image: rust:1.24.1-stretch
+    image: rust:1.25-stretch
     commands:
       - cargo clean
       - rm diesel || true

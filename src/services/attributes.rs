@@ -171,7 +171,6 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
     use models::*;
-    use repos::*;
 
     #[allow(unused)]
     fn create_attribute_service(

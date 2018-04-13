@@ -8,7 +8,7 @@ pipeline:
       - DATABASE_URL=postgresql://stores:stores@db-postgresql/stores
     commands:
       - rustup component add rustfmt-preview
-      - cargo fmt --all -- --write-mode=diff || true
+      - cargo fmt --all -- --write-mode=diff
       - apt-get update && apt-get install -y wget gnupg2
       - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
       - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
@@ -23,7 +23,7 @@ pipeline:
     commands:
       - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
       - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
-      - apt-get update &&
+      - apt-get update
       - apt-get install -y libpq-dev
       - cargo install diesel_cli
       - cargo build --release --locked
@@ -58,13 +58,13 @@ pipeline:
     when:
       branch: master
       event: push
-  test_release:
-    image: alpine
-    commands:
-      - sleep 10
-      - apk update
-      - apk add curl
-      - "curl -sf 'http://nightly.stq.cloud:60088/graphql' -H 'Content-Type: application/json' -d '{\"query\":\"{ apiVersion }\",\"variables\":null,\"operationName\":null}' || true"
+#  test_release:
+#    image: alpine
+#    commands:
+#      - sleep 10
+#      - apk update
+#      - apk add curl
+#      - "curl -sf 'http://nightly.stq.cloud:60088/graphql' -H 'Content-Type: application/json' -d '{\"query\":\"{ apiVersion }\",\"variables\":null,\"operationName\":null}' || true"
     when:
       branch: master
       event: push
@@ -94,6 +94,8 @@ pipeline:
       {{/success}}
     when:
       event: push
+      branch: [ master, release ]
+      status:  [ failure, success ]
 services:
   db-postgresql:
     image: postgres:10-alpine

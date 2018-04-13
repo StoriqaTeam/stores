@@ -189,7 +189,6 @@ pub mod tests {
             cpu_pool: cpu_pool,
             user_id: user_id,
             repo_factory: MOCK_REPO_FACTORY,
-            attributes_cache: AttributeCacheImpl::default(),
         }
     }
 

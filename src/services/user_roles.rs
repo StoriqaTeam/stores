@@ -201,7 +201,6 @@ pub mod tests {
         UserRolesServiceImpl {
             db_pool: db_pool,
             cpu_pool: cpu_pool,
-            cached_roles: RolesCacheImpl::default(),
             repo_factory: MOCK_REPO_FACTORY,
         }
     }

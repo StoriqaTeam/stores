@@ -15,7 +15,6 @@ use super::types::ServiceFuture;
 use repos::types::RepoResult;
 use repos::ReposFactory;
 use repos::remove_unused_categories;
-use repos::categories::CategoryCacheImpl;
 use super::error::ServiceError;
 use repos::error::RepoError;
 
@@ -70,7 +69,6 @@ pub struct BaseProductsServiceImpl<
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
-    pub categories_cache: CategoryCacheImpl,
 }
 
 impl<
@@ -86,7 +84,6 @@ impl<
         client_handle: ClientHandle,
         elastic_address: String,
         repo_factory: F,
-        categories_cache: CategoryCacheImpl,
     ) -> Self {
         Self {
             db_pool,
@@ -95,7 +92,6 @@ impl<
             client_handle,
             elastic_address,
             repo_factory,
-            categories_cache
         }
     }
 }
@@ -254,7 +250,7 @@ impl<
         Box::new(
             products_el
                 .aggregate_price(search_prod)
-                .map_err(ServiceError::from)
+                .map_err(ServiceError::from),
         )
     }
 
@@ -266,7 +262,6 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
-        let categories_cache = self.categories_cache.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
         Box::new(
@@ -285,18 +280,8 @@ impl<
                                 ServiceError::Connection(e.into())
                             })
                             .and_then(move |conn| {
-                                if categories_cache.is_some() {
-                                    categories_cache.get().map_err(ServiceError::from)
-                                } else {
-                                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                                    categories_repo
-                                        .get_all()
-                                        .map_err(ServiceError::from)
-                                        .and_then(|category| {
-                                            categories_cache.set(category.clone());
-                                            Ok(category)
-                                        })
-                                }
+                                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                                categories_repo.get_all().map_err(ServiceError::from)
                             })
                             .and_then(|category| {
                                 let new_cat = remove_unused_categories(category, &cats);
@@ -357,7 +342,7 @@ impl<
 
                             Some(eq_filters.chain(range_filters).collect())
                         }),
-                ); 
+                );
             }
         }
         return Box::new(future::ok(None));

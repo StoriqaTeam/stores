@@ -22,11 +22,17 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
 #[derive(Clone)]
 pub struct ReposFactoryImpl {
     roles_cache: RolesCacheImpl,
+    category_cache: CategoryCacheImpl,
+    attribute_cache: AttributeCacheImpl,
 }
 
 impl ReposFactoryImpl {
-    pub fn new(roles_cache: RolesCacheImpl) -> Self {
-        Self { roles_cache }
+    pub fn new(roles_cache: RolesCacheImpl, category_cache: CategoryCacheImpl, attribute_cache: AttributeCacheImpl) -> Self {
+        Self {
+            roles_cache,
+            category_cache,
+            attribute_cache,
+        }
     }
 
     pub fn get_roles<'a, C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>(
@@ -34,22 +40,10 @@ impl ReposFactoryImpl {
         id: i32,
         db_conn: &'a C,
     ) -> Vec<Role> {
-        if self.roles_cache.contains(id) {
-            self.roles_cache.get(id)
-        } else {
-            UserRolesRepoImpl::new(
-                db_conn,
-                Box::new(SystemACL::default()) as Box<Acl<Resource, Action, Scope, RepoError, UserRole>>,
-            ).list_for_user(id)
-                .and_then(|ref r| {
-                    if !r.is_empty() {
-                        self.roles_cache.add_roles(id, r);
-                    }
-                    Ok(r.clone())
-                })
-                .ok()
-                .unwrap_or_default()
-        }
+        self.create_user_roles_repo(db_conn)
+            .list_for_user(id)
+            .ok()
+            .unwrap_or_default()
     }
 
     fn get_acl<'a, T, C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>(
@@ -70,11 +64,19 @@ impl ReposFactoryImpl {
 impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ReposFactory<C> for ReposFactoryImpl {
     fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<AttributesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
-        Box::new(AttributesRepoImpl::new(db_conn, acl)) as Box<AttributesRepo>
+        Box::new(AttributesRepoImpl::new(
+            db_conn,
+            acl,
+            self.attribute_cache.clone(),
+        )) as Box<AttributesRepo>
     }
     fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoriesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
-        Box::new(CategoriesRepoImpl::new(db_conn, acl)) as Box<CategoriesRepo>
+        Box::new(CategoriesRepoImpl::new(
+            db_conn,
+            acl,
+            self.category_cache.clone(),
+        )) as Box<CategoriesRepo>
     }
     fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
@@ -100,6 +102,7 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
         Box::new(UserRolesRepoImpl::new(
             db_conn,
             Box::new(SystemACL::default()) as Box<Acl<Resource, Action, Scope, RepoError, UserRole>>,
+            self.roles_cache.clone(),
         )) as Box<UserRolesRepo>
     }
 }

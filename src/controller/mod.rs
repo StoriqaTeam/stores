@@ -39,9 +39,6 @@ use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
-use repos::categories::CategoryCacheImpl;
-use repos::attributes::AttributeCacheImpl;
-use repos::roles_cache::RolesCacheImpl;
 use repos::repo_factory::*;
 use self::routes::Route;
 use config::Config;
@@ -60,9 +57,6 @@ where
     pub config: Config,
     pub repo_factory: F,
     pub client_handle: ClientHandle,
-    pub roles_cache: RolesCacheImpl,
-    pub categories_cache: CategoryCacheImpl,
-    pub attributes_cache: AttributeCacheImpl,
 }
 
 impl<
@@ -72,16 +66,7 @@ impl<
 > ControllerImpl<T, M, F>
 {
     /// Create a new controller based on services
-    pub fn new(
-        db_pool: Pool<M>,
-        cpu_pool: CpuPool,
-        client_handle: ClientHandle,
-        config: Config,
-        repo_factory: F,
-        roles_cache: RolesCacheImpl,
-        categories_cache: CategoryCacheImpl,
-        attributes_cache: AttributeCacheImpl,
-    ) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, repo_factory: F) -> Self {
         let route_parser = Arc::new(routes::create_route_parser());
         Self {
             route_parser,
@@ -90,9 +75,6 @@ impl<
             client_handle,
             config,
             repo_factory,
-            roles_cache,
-            categories_cache,
-            attributes_cache,
         }
     }
 }
@@ -121,8 +103,6 @@ impl<
             req.path()
         );
 
-        let cached_categories = self.categories_cache.clone();
-        let cached_attributes = self.attributes_cache.clone();
         let system_service = SystemServiceImpl::default();
         let stores_service = StoresServiceImpl::new(
             self.db_pool.clone(),
@@ -148,19 +128,16 @@ impl<
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
             self.repo_factory.clone(),
-            cached_categories.clone()
         );
 
         let user_roles_service = UserRolesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            self.roles_cache.clone(),
             self.repo_factory.clone(),
         );
         let attributes_service = AttributesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_attributes,
             user_id,
             self.repo_factory.clone(),
         );
@@ -168,7 +145,6 @@ impl<
         let categories_service = CategoriesServiceImpl::new(
             self.db_pool.clone(),
             self.cpu_pool.clone(),
-            cached_categories,
             user_id,
             self.repo_factory.clone(),
         );

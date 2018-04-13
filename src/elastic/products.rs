@@ -34,7 +34,7 @@ pub trait ProductsElastic {
 
     /// Find all categories ids where prod exist
     fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<i32>>;
-    
+
     /// Find price range
     fn aggregate_price(&self, prod: SearchProductsByName) -> RepoFuture<RangeFilter>;
 }
@@ -458,7 +458,7 @@ impl ProductsElastic for ProductsElasticImpl {
             if let Some(prod_options_category_id) = prod_options.category_id {
                 let category = json!({
                     "term": {"category_id": prod_options_category_id}
-                });    
+                });
                 query_map.insert("filter".to_string(), category);
             }
         }

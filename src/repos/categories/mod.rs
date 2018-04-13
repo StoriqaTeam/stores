@@ -27,6 +27,7 @@ pub use self::category_cache::*;
 pub struct CategoriesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
     pub acl: Box<Acl<Resource, Action, Scope, Error, Category>>,
+    pub cache: CategoryCacheImpl,
 }
 
 pub trait CategoriesRepo {
@@ -44,8 +45,12 @@ pub trait CategoriesRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Category>>) -> Self {
-        Self { db_conn, acl }
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Category>>, cache: CategoryCacheImpl) -> Self {
+        Self {
+            db_conn,
+            acl,
+            cache,
+        }
     }
 }
 
@@ -79,6 +84,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category> {
         debug!("Create new category {:?}.", payload);
+        self.cache.clear();
         let query_categorie = diesel::insert_into(categories).values(&payload);
         query_categorie
             .get_result::<RawCategory>(self.db_conn)
@@ -104,6 +110,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             "Updating category with id {} and payload {:?}.",
             category_id_arg, payload
         );
+        self.cache.clear();
         let query = categories.find(category_id_arg);
         query
             .first::<RawCategory>(self.db_conn)
@@ -136,24 +143,30 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let mut result: Category = updated_category.into();
                 let children = create_tree(&cats, Some(id_arg));
                 result.children = children;
+                self.cache.set(result.clone());
                 Ok(result)
             })
     }
 
     fn get_all(&self) -> RepoResult<Category> {
         debug!("get all categories request.");
-        acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
-            .and_then(|_| {
-                categories
-                    .load::<RawCategory>(self.db_conn)
-                    .map_err(Error::from)
-            })
-            .and_then(|cats| {
-                let mut root = Category::default();
-                let children = create_tree(&cats, None);
-                root.children = children;
-                Ok(root)
-            })
+        if self.cache.is_some() {
+            self.cache.get()
+        } else {
+            acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
+                .and_then(|_| {
+                    categories
+                        .load::<RawCategory>(self.db_conn)
+                        .map_err(Error::from)
+                })
+                .and_then(|cats| {
+                    let mut root = Category::default();
+                    let children = create_tree(&cats, None);
+                    root.children = children;
+                    self.cache.set(root.clone());
+                    Ok(root)
+                })
+        }
     }
 }
 

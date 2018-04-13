@@ -25,6 +25,7 @@ pub use self::attributes_cache::*;
 pub struct AttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
     pub acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>,
+    pub cache: AttributeCacheImpl,
 }
 
 pub trait AttributesRepo {
@@ -42,8 +43,12 @@ pub trait AttributesRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>) -> Self {
-        Self { db_conn, acl }
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>, cache: AttributeCacheImpl) -> Self {
+        Self {
+            db_conn,
+            acl,
+            cache,
+        }
     }
 }
 
@@ -51,20 +56,26 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific attribute by id
     fn find(&self, id_arg: i32) -> RepoResult<Attribute> {
         debug!("Find in attributes with id {}.", id_arg);
-        let query = attributes.filter(id.eq(id_arg));
-
-        query
-            .first::<Attribute>(self.db_conn)
-            .map_err(Error::from)
-            .and_then(|attribute: Attribute| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Attributes,
-                    &Action::Read,
-                    self,
-                    Some(&attribute),
-                ).and_then(|_| Ok(attribute))
-            })
+        if self.cache.contains(id_arg) {
+            self.cache.get(id_arg)
+        } else {
+            let query = attributes.filter(id.eq(id_arg));
+            query
+                .first::<Attribute>(self.db_conn)
+                .map_err(Error::from)
+                .and_then(|attribute: Attribute| {
+                    acl::check(
+                        &*self.acl,
+                        &Resource::Attributes,
+                        &Action::Read,
+                        self,
+                        Some(&attribute),
+                    ).and_then(|_| {
+                        self.cache.add_attribute(id_arg, attribute.clone());
+                        Ok(attribute)
+                    })
+                })
+        }
     }
 
     /// List all attributes
@@ -103,7 +114,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     &Action::Create,
                     self,
                     Some(&attribute),
-                ).and_then(|_| Ok(attribute))
+                ).and_then(|_| {
+                    self.cache.add_attribute(attribute.id, attribute.clone());
+                    Ok(attribute)
+                })
             })
     }
 
@@ -128,8 +142,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 )
             })
             .and_then(|_| {
+                self.cache.remove(attribute_id_arg);
                 let filter = attributes.filter(id.eq(attribute_id_arg));
-
                 let query = diesel::update(filter).set(&payload);
                 query
                     .get_result::<Attribute>(self.db_conn)

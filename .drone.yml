@@ -99,3 +99,5 @@ services:
     image: postgres:10-alpine
     environment:
       - POSTGRES_PASSWORD=a1a1a1a1
+    when:
+      event: pull_request

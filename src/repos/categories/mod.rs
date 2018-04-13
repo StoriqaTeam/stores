@@ -59,7 +59,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find(&self, id_arg: i32) -> RepoResult<Category> {
         debug!("Find in categories with id {}.", id_arg);
         let query = categories.filter(id.eq(id_arg));
-
         query
             .first::<RawCategory>(self.db_conn)
             .map_err(Error::from)
@@ -143,7 +142,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let mut result: Category = updated_category.into();
                 let children = create_tree(&cats, Some(id_arg));
                 result.children = children;
-                self.cache.set(result.clone());
                 Ok(result)
             })
     }
@@ -163,8 +161,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     let mut root = Category::default();
                     let children = create_tree(&cats, None);
                     root.children = children;
-                    self.cache.set(root.clone());
                     Ok(root)
+                })
+                .and_then(|cat| {
+                    self.cache.set(cat.clone());
+                    Ok(cat)
                 })
         }
     }
@@ -238,8 +239,8 @@ mod tests {
         }
 
         let used = vec![5, 6];
-        remove_unused_categories(&mut cat, &used);
-        assert_eq!(cat.children[0].children[0].id, 5);
-        assert_eq!(cat.children[0].children[1].id, 6);
+        let new_cat = remove_unused_categories(cat, &used);
+        assert_eq!(new_cat.children[0].children[0].id, 5);
+        assert_eq!(new_cat.children[0].children[1].id, 6);
     }
 }

@@ -189,7 +189,6 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
     use models::*;
-    use repos::*;
 
     fn create_user_roles_service() -> UserRolesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
@@ -201,7 +200,6 @@ pub mod tests {
         UserRolesServiceImpl {
             db_pool: db_pool,
             cpu_pool: cpu_pool,
-            cached_roles: RolesCacheImpl::default(),
             repo_factory: MOCK_REPO_FACTORY,
         }
     }

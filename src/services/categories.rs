@@ -262,7 +262,6 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
     use models::*;
-    use repos::*;
 
     fn create_categories_service(user_id: Option<i32>) -> CategoriesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
@@ -276,7 +275,6 @@ pub mod tests {
             cpu_pool: cpu_pool,
             user_id: user_id,
             repo_factory: MOCK_REPO_FACTORY,
-            categories_cache: CategoryCacheImpl::default(),
         }
     }
 

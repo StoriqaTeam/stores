@@ -171,7 +171,6 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
     use models::*;
-    use repos::*;
 
     #[allow(unused)]
     fn create_attribute_service(
@@ -189,7 +188,6 @@ pub mod tests {
             cpu_pool: cpu_pool,
             user_id: user_id,
             repo_factory: MOCK_REPO_FACTORY,
-            attributes_cache: AttributeCacheImpl::default(),
         }
     }
 

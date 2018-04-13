@@ -67,6 +67,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         .into_iter()
                         .map(|user_role| user_role.role)
                         .collect::<Vec<Role>>();
+                    Ok(roles)
+                })
+                .and_then(|roles| {
                     self.cached_roles.add_roles(user_id_value, &roles);
                     Ok(roles)
                 })

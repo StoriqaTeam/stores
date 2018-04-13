@@ -249,19 +249,8 @@ impl<
         let products_el = ProductsElasticImpl::new(client_handle, address);
         Box::new(
             products_el
-                .search_by_name(search_prod.clone(), MAX_PRODUCTS_SEARCH_COUNT, 0)
+                .aggregate_price(search_prod)
                 .map_err(ServiceError::from)
-                .map(|el_products| {
-                    let mut price_filters = RangeFilter::default();
-
-                    for product in el_products {
-                        for variant in product.variants {
-                            price_filters.add_value(variant.price);
-                        }
-                    }
-
-                    price_filters
-                }),
         )
     }
 

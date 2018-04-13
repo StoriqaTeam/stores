@@ -8,7 +8,7 @@ use futures::Future;
 use serde_json;
 use stq_http::client::ClientHandle;
 
-use models::{ElasticIndex, ElasticProduct, MostDiscountProducts, MostViewedProducts, SearchOptions, SearchProductsByName, SearchResponse};
+use models::*;
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 use super::{log_elastic_req, log_elastic_resp};
@@ -34,6 +34,9 @@ pub trait ProductsElastic {
 
     /// Find all categories ids where prod exist
     fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<i32>>;
+    
+    /// Find price range
+    fn aggregate_price(&self, prod: SearchProductsByName) -> RepoFuture<RangeFilter>;
 }
 
 impl ProductsElasticImpl {
@@ -408,6 +411,100 @@ impl ProductsElastic for ProductsElasticImpl {
                         }
                     }
                     future::ok(cats)
+                }),
+        )
+    }
+
+    fn aggregate_price(&self, prod: SearchProductsByName) -> RepoFuture<RangeFilter> {
+        log_elastic_req(&prod);
+
+        let name_query = json!({
+            "bool" : {
+                "should" : [
+                    {"nested": {
+                        "path": "name",
+                        "query": {
+                            "match": {
+                                "name.text": prod.name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "short_description",
+                        "query": {
+                            "match": {
+                                "short_description.text": prod.name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "long_description",
+                        "query": {
+                            "match": {
+                                "long_description.text": prod.name
+                            }
+                        }
+                    }}
+                ]
+            }
+        });
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        if !prod.name.is_empty() {
+            query_map.insert("must".to_string(), name_query);
+        }
+
+        if let Some(prod_options) = prod.options {
+            if let Some(prod_options_category_id) = prod_options.category_id {
+                let category = json!({
+                    "term": {"category_id": prod_options_category_id}
+                });    
+                query_map.insert("filter".to_string(), category);
+            }
+        }
+
+        let query = json!({
+        "size": 0,
+        "query": {
+                "bool" : query_map
+            },
+        "aggregations": {
+            "variants" : {
+                "nested" : {
+                    "path" : "variants"
+                },
+                "aggs" : {
+                    "min_price" : { "min" : { "field" : "variants.price" } },
+                    "max_price" : { "max" : { "field" : "variants.price" } }
+                }
+            }
+        }
+        }).to_string();
+
+        let url = format!(
+            "http://{}/{}/_search",
+            self.elastic_address,
+            ElasticIndex::Product
+        );
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
+        Box::new(
+            self.client_handle
+                .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
+                .map_err(Error::from)
+                .inspect(|ref res| log_elastic_resp(res))
+                .and_then(|res| {
+                    let mut price_filters = RangeFilter::default();
+                    if let Some(aggs_raw) = res.aggs_raw() {
+                        if let Some(max_price) = aggs_raw["variants"]["max_price"]["value"].as_f64() {
+                            price_filters.add_value(max_price);
+                        };
+                        if let Some(min_price) = aggs_raw["variants"]["min_price"]["value"].as_f64() {
+                            price_filters.add_value(min_price);
+                        };
+                    }
+                    future::ok(price_filters)
                 }),
         )
     }

@@ -176,9 +176,10 @@ pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32]) 
         if cat_child.children.is_empty() {
             if used_categories_ids
                 .iter()
-                .any(|used_id| cat_child.id == *used_id) {
-                    children.push(cat_child);
-                }
+                .any(|used_id| cat_child.id == *used_id)
+            {
+                children.push(cat_child);
+            }
         } else {
             let new_cat = remove_unused_categories(cat_child, used_categories_ids);
             if !new_cat.children.is_empty() {

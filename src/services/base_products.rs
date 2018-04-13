@@ -2,6 +2,7 @@
 use std::collections::{HashMap, HashSet};
 
 use futures::future::*;
+use futures::future;
 use futures_cpupool::CpuPool;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
@@ -31,7 +32,11 @@ pub trait BaseProductsService {
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
-    fn search_filters(&self, search_prod: SearchProductsByName) -> ServiceFuture<SearchFilters>;
+    fn search_filters_price(&self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
+    /// search filters
+    fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
+    /// search filters
+    fn search_filters_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>>;
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
     /// Deactivates specific product
@@ -238,7 +243,30 @@ impl<
         Box::new(products_names)
     }
 
-    fn search_filters(&self, search_prod: SearchProductsByName) -> ServiceFuture<SearchFilters> {
+    fn search_filters_price(&self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let products_el = ProductsElasticImpl::new(client_handle, address);
+        Box::new(
+            products_el
+                .search_by_name(search_prod.clone(), MAX_PRODUCTS_SEARCH_COUNT, 0)
+                .map_err(ServiceError::from)
+                .map(|el_products| {
+                    let mut price_filters = RangeFilter::default();
+
+                    for product in el_products {
+                        for variant in product.variants {
+                            price_filters.add_value(variant.price);
+                        }
+                    }
+
+                    price_filters
+                }),
+        )
+    }
+
+    /// search filters
+    fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let cpu_pool = self.cpu_pool.clone();
@@ -247,7 +275,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        let search_categories = {
+        Box::new(
             products_el
                 .aggregate_categories(search_prod.name.clone())
                 .map_err(ServiceError::from)
@@ -271,74 +299,64 @@ impl<
                                 Ok(new_cat)
                             })
                     })
-                })
-        };
-
-        let options = search_prod.options.clone();
-        Box::new(
-            search_categories
-                .and_then(move |category| {
-                    products_el
-                        .search_by_name(search_prod.clone(), MAX_PRODUCTS_SEARCH_COUNT, 0)
-                        .map_err(ServiceError::from)
-                        .map(|prods| (prods, category))
-                })
-                .and_then(move |(el_products, categories)| {
-                    let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
-                    let mut range_attrs = HashMap::<i32, RangeFilter>::default();
-                    let mut price_filters = RangeFilter::default();
-
-                    for product in el_products {
-                        for variant in product.variants {
-                            price_filters.add_value(variant.price);
-                            for attr_value in variant.attrs {
-                                if let Some(value) = attr_value.str_val {
-                                    let equal = equal_attrs
-                                        .entry(attr_value.attr_id)
-                                        .or_insert_with(HashSet::<String>::default);
-                                    equal.insert(value);
-                                }
-                                if let Some(value) = attr_value.float_val {
-                                    let range = range_attrs
-                                        .entry(attr_value.attr_id)
-                                        .or_insert_with(RangeFilter::default);
-                                    range.add_value(value);
-                                }
-                            }
-                        }
-                    }
-
-                    let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                        id: k,
-                        equal: Some(EqualFilter {
-                            values: v.iter().cloned().collect(),
-                        }),
-                        range: None,
-                    });
-
-                    let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                        id: k,
-                        equal: None,
-                        range: Some(v),
-                    });
-
-                    let attr_filters = options
-                        .map(|o| {
-                            if o.category_id.is_some() {
-                                Some(eq_filters.chain(range_filters).collect())
-                            } else {
-                                None
-                            }
-                        })
-                        .and_then(|x| x);
-
-                    Ok(SearchFilters {
-                        categories,
-                        attr_filters,
-                        price_range: Some(price_filters),
-                    })
                 }),
         )
+    }
+
+    /// search filters
+    fn search_filters_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let products_el = ProductsElasticImpl::new(client_handle, address);
+        if let Some(options) = search_prod.options.clone() {
+            if options.category_id.is_some() {
+                return Box::new(
+                    products_el
+                        .search_by_name(search_prod, MAX_PRODUCTS_SEARCH_COUNT, 0)
+                        .map_err(ServiceError::from)
+                        .map(|el_products| {
+                            let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
+                            let mut range_attrs = HashMap::<i32, RangeFilter>::default();
+
+                            for product in el_products {
+                                for variant in product.variants {
+                                    for attr_value in variant.attrs {
+                                        if let Some(value) = attr_value.str_val {
+                                            let equal = equal_attrs
+                                                .entry(attr_value.attr_id)
+                                                .or_insert_with(HashSet::<String>::default);
+                                            equal.insert(value);
+                                        }
+                                        if let Some(value) = attr_value.float_val {
+                                            let range = range_attrs
+                                                .entry(attr_value.attr_id)
+                                                .or_insert_with(RangeFilter::default);
+                                            range.add_value(value);
+                                        }
+                                    }
+                                }
+                            }
+
+                            let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                id: k,
+                                equal: Some(EqualFilter {
+                                    values: v.iter().cloned().collect(),
+                                }),
+                                range: None,
+                            });
+
+                            let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                id: k,
+                                equal: None,
+                                range: Some(v),
+                            });
+
+                            Some(eq_filters.chain(range_filters).collect())
+                        }),
+                ); 
+            }
+        }
+        return Box::new(future::ok(None));
     }
 
     /// Returns product by ID

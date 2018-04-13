@@ -16,7 +16,9 @@ pub enum Route {
     BaseProductsAutoComplete,
     BaseProductsMostViewed,
     BaseProductsMostDiscount,
-    BaseProductsSearchFilters,
+    BaseProductsSearchFiltersPrice,
+    BaseProductsSearchFiltersCategory,
+    BaseProductsSearchFiltersAttributes,
     Product(i32),
     ProductAttributes(i32),
     ProductsByBaseProduct(i32),
@@ -146,9 +148,19 @@ pub fn create_route_parser() -> RouteParser<Route> {
         Route::BaseProductsMostViewed
     });
 
-    // BaseProducts search filters route
-    router.add_route(r"^/base_products/search/filters$", || {
-        Route::BaseProductsSearchFilters
+    // BaseProducts search filters price route
+    router.add_route(r"^/base_products/search/filters/price$", || {
+        Route::BaseProductsSearchFiltersPrice
+    });
+
+    // BaseProducts search filters category route
+    router.add_route(r"^/base_products/search/filters/category", || {
+        Route::BaseProductsSearchFiltersCategory
+    });
+
+    // BaseProducts search filters attribute route
+    router.add_route(r"^/base_products/search/filters/attributes", || {
+        Route::BaseProductsSearchFiltersAttributes
     });
 
     // User_roles Routes

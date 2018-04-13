@@ -658,21 +658,59 @@ impl<
                 }
             }
 
-            // POST /base_products/search/filters
-            (&Post, Some(Route::BaseProductsSearchFilters)) => {
+            // POST /base_products/search/filters/price
+            (&Post, Some(Route::BaseProductsSearchFiltersPrice)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/filters",
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters/price",
                     user_id
                 );
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
-                            .map_err(|_| {
-                                error!("Parsing body // POST /products/search in SearchProductsByName failed!");
-                                Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
-                            })
+                        .map_err(|_| {
+                            error!("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
                         .and_then(move |search_prod| {
                             base_products_service
-                                .search_filters(search_prod)
+                                .search_filters_price(search_prod)
+                                .map_err(Error::from)
+                        }),
+                )
+            }
+            // POST /base_products/search/filters/category
+            (&Post, Some(Route::BaseProductsSearchFiltersCategory)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters/category",
+                    user_id
+                );
+                serialize_future(
+                    parse_body::<SearchProductsByName>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_prod| {
+                            base_products_service
+                                .search_filters_category(search_prod)
+                                .map_err(Error::from)
+                        }),
+                )
+            }
+            // POST /base_products/search/filters/attributes
+            (&Post, Some(Route::BaseProductsSearchFiltersAttributes)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters/attributes",
+                    user_id
+                );
+                serialize_future(
+                    parse_body::<SearchProductsByName>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_prod| {
+                            base_products_service
+                                .search_filters_attributes(search_prod)
                                 .map_err(Error::from)
                         }),
                 )

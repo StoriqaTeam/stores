@@ -1,0 +1,103 @@
+pipeline:
+  test:
+    image: rust:1.24.1-stretch
+    environment:
+      - PGPASSWORD=a1a1a1a1
+      - RUN_MODE=k8s
+      - DATABASE_HOST=db-postgresql
+      - DATABASE_URL=postgresql://stores:stores@db-postgresql/stores
+    commands:
+      - rustup component add rustfmt-preview
+      - cargo fmt --all -- --write-mode=diff || true
+      - apt-get update && apt-get install -y wget gnupg2
+      - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
+      - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
+      - apt-get update
+      - apt-get install -y libpq5 postgresql-client-10
+      - psql -U postgres -h db-postgresql -c "CREATE ROLE stores WITH PASSWORD 'stores' LOGIN REPLICATION" -c "CREATE DATABASE stores OWNER stores"
+      - cargo test
+    when:
+      event: pull_request
+  build:
+    image: rust:1.24.1-stretch
+    commands:
+      - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
+      - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
+      - apt-get update &&
+      - apt-get install -y libpq-dev
+      - cargo install diesel_cli
+      - cargo build --release --locked
+      - cp /usr/local/cargo/bin/diesel .
+    when:
+      event: push
+  package:
+    image: plugins/docker
+    repo: storiqateam/stq-stores
+    tags:
+      - ${DRONE_BRANCH/\//_}
+      - ${DRONE_BRANCH/\//_}${DRONE_BUILD_NUMBER}
+    username: stqcommon
+    password: "Tz-q6qDL#d3Mz8hm"
+    dockerfile: docker/Dockerfile.run
+    when:
+      event: [push, tag]
+  cleanup:
+    image: rust:1.24.1-stretch
+    commands:
+      - cargo clean
+      - rm diesel || true
+  deploy2nightly:
+    image: quay.io/honestbee/drone-kubernetes
+    kubernetes_server: https://api.nightly.stq.cloud
+    kubernetes_token: 32txou6YhrlD3sHcpxsiCmP1m7taE1fY
+    namespace: default
+    deployment: stores
+    repo: storiqateam/stq-stores
+    container: stores
+    tag: ${DRONE_BRANCH/\//_}${DRONE_BUILD_NUMBER}
+    when:
+      branch: master
+      event: push
+  test_release:
+    image: alpine
+    commands:
+      - sleep 10
+      - apk update
+      - apk add curl
+      - "curl -sf 'http://nightly.stq.cloud:60088/graphql' -H 'Content-Type: application/json' -d '{\"query\":\"{ apiVersion }\",\"variables\":null,\"operationName\":null}' || true"
+    when:
+      branch: master
+      event: push
+  deploy2stage:
+    image: quay.io/honestbee/drone-kubernetes
+    kubernetes_server: https://api.stage.stq.cloud
+    kubernetes_token: PW2clI0vKqLi3eywlN776rMyE7hk1pgX
+    namespace: default
+    deployment: stores
+    repo: storiqateam/stq-stores
+    container: stores
+    tag: ${DRONE_BRANCH/\//_}${DRONE_BUILD_NUMBER}
+    when:
+      branch: release*
+      event: push
+  notify_slack:
+    image: plugins/slack
+    webhook: https://hooks.slack.com/services/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
+    channel: back
+    icon_url: https://drone.io/favicon.ico
+    username: cd.stq.cloud
+    template: >
+      {{#success build.status}}
+        Build {{build.number}} for {{repo.name}} branch {{build.branch}} succeeded.
+      {{else}}
+        Build {{build.number}} for {{repo.name}} branch {{build.branch}} failed.
+      {{/success}}
+    when:
+      event: push
+services:
+  db-postgresql:
+    image: postgres:10-alpine
+    environment:
+      - POSTGRES_PASSWORD=a1a1a1a1
+    when:
+      event: pull_request

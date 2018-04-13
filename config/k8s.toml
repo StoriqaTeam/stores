@@ -1,6 +1,7 @@
 [server]
-address = "0.0.0.0:8000"
-database = "postgresql://stores:stores@stores-pg-postgresql/stores"
+host = "0.0.0.0"
+port = "8001"
+database = "postgresql://stores:stores@db-postgresql/stores"
 thread_count = 20
 
 [client]

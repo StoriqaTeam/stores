@@ -239,19 +239,19 @@ impl<
                 }
             }
 
-            // POST /stores/search/count
-            (&Post, Some(Route::StoresSearchCount)) => {
+            // POST /stores/search/filters/count
+            (&Post, Some(Route::StoresSearchFiltersCount)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // POST /stores/search/count",
+                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/count",
                     user_id
                 );
                 serialize_future(
-                    read_body(req.body())
-                        .map_err(|_| {
-                            error!("Parsing body // POST /stores/search/count in String failed!");
-                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
-                        })
-                        .and_then(move |name| stores_service.search_count(name).map_err(Error::from)),
+                        parse_body::<SearchStore>(req.body())
+                            .map_err(|_| {
+                                error!("Parsing body // POST /stores/search/filters/count in SearchStore failed!");
+                                Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                            })
+                        .and_then(move |search_store| stores_service.search_count(search_store).map_err(Error::from)),
                 )
             }
 

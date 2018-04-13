@@ -130,4 +130,11 @@ pub struct UpdateStore {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchStore {
     pub name: String,
+    pub options: Option<StoresSearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct StoresSearchOptions {
+    pub category_id: Option<i32>,
+    pub country: Option<String>,
 }

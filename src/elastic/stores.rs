@@ -23,7 +23,7 @@ pub trait StoresElastic {
     /// Find specific store by name limited by `count` parameters
     fn find_by_name(&self, search_store: SearchStore, count: i32, offset: i32) -> RepoFuture<Vec<ElasticStore>>;
     /// Search count of stores by name
-    fn search_count(&self, name: String) -> RepoFuture<i32>;
+    fn search_count(&self, search_store: SearchStore) -> RepoFuture<i32>;
     /// Auto complete
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> RepoFuture<Vec<String>>;
 }
@@ -117,14 +117,14 @@ impl StoresElastic for StoresElasticImpl {
     }
 
     /// Search count of stores by name
-    fn search_count(&self, name: String) -> RepoFuture<i32> {
-        log_elastic_req(&name);
+    fn search_count(&self, search_store: SearchStore) -> RepoFuture<i32> {
+        log_elastic_req(&search_store);
         let name_query = json!({
             "nested" : {
                     "path" : "name",
                     "query" : {
                         "match": {
-                            "name.text" : name
+                            "name.text" : search_store.name
                         }
                     }
                 }
@@ -132,7 +132,7 @@ impl StoresElastic for StoresElasticImpl {
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        if !name.is_empty() {
+        if !search_store.name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 

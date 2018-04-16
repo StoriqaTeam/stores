@@ -28,6 +28,8 @@ table! {
         updated_at -> Timestamp,
         default_language -> VarChar,
         slogan -> Nullable<VarChar>,
+        rating -> Nullable<Double>,
+        country -> Nullable<VarChar>,
     }
 }
 
@@ -53,6 +55,8 @@ pub struct Store {
     pub updated_at: SystemTime,
     pub default_language: String,
     pub slogan: Option<String>,
+    pub rating: Option<f64>,
+    pub country: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -98,6 +102,7 @@ pub struct NewStore {
     #[validate(custom = "validate_lang")]
     pub default_language: String,
     pub slogan: Option<String>,
+    pub country: Option<String>
 }
 
 /// Payload for updating users
@@ -125,6 +130,8 @@ pub struct UpdateStore {
     #[validate(custom = "validate_lang")]
     pub default_language: Option<String>,
     pub slogan: Option<String>,
+    pub rating: Option<f64>,
+    pub country: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

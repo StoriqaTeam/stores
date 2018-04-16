@@ -65,6 +65,12 @@ curl -XPUT 'stores-es:9200/stores?pretty' -H 'Content-Type: application/json' -d
                "user_id": {
                   "type": "integer"
                },
+               "rating": {
+                  "type": "double"
+               },
+               "country": {
+                  "type": "text"
+               },
                "id": {
                   "type": "integer"
                },

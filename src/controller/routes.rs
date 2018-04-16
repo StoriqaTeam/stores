@@ -74,7 +74,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/stores/search$", || Route::StoresSearch);
 
     // Stores Search count route
-    router.add_route(r"^/stores/search/filters/count$", || Route::StoresSearchFiltersCount);
+    router.add_route(r"^/stores/search/filters/count$", || {
+        Route::StoresSearchFiltersCount
+    });
 
     // Stores auto complete route
     router.add_route(r"^/stores/auto_complete$", || Route::StoresAutoComplete);

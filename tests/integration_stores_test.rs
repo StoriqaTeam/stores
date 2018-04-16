@@ -26,6 +26,7 @@ fn create_new_store(name: serde_json::Value) -> NewStore {
         facebook_url: None,
         twitter_url: None,
         instagram_url: None,
+        country: None,
         default_language: "en".to_string(),
         slogan: Some("fdsf".to_string()),
     }
@@ -47,6 +48,8 @@ pub fn create_update_store(name: serde_json::Value) -> UpdateStore {
         instagram_url: None,
         default_language: None,
         slogan: None,
+        rating: None,
+        country: None,
     }
 }
 

@@ -143,7 +143,9 @@ impl<
         let address = self.elastic_address.clone();
         let search_filters = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el.search_count(search_store).map_err(ServiceError::from)
+            stores_el
+                .search_count(search_store)
+                .map_err(ServiceError::from)
         };
 
         Box::new(search_filters)
@@ -398,6 +400,7 @@ pub mod tests {
             instagram_url: None,
             default_language: "en".to_string(),
             slogan: Some("fdsf".to_string()),
+            country: None,
         }
     }
 
@@ -417,6 +420,8 @@ pub mod tests {
             instagram_url: None,
             default_language: None,
             slogan: None,
+            rating: None,
+            country: None,
         }
     }
 

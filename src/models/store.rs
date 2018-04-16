@@ -56,7 +56,7 @@ pub struct Store {
     pub default_language: String,
     pub slogan: Option<String>,
     pub rating: Option<f64>,
-    pub country: Option<String>
+    pub country: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -102,7 +102,7 @@ pub struct NewStore {
     #[validate(custom = "validate_lang")]
     pub default_language: String,
     pub slogan: Option<String>,
-    pub country: Option<String>
+    pub country: Option<String>,
 }
 
 /// Payload for updating users
@@ -131,7 +131,7 @@ pub struct UpdateStore {
     pub default_language: Option<String>,
     pub slogan: Option<String>,
     pub rating: Option<f64>,
-    pub country: Option<String>
+    pub country: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

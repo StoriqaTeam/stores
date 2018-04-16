@@ -246,12 +246,16 @@ impl<
                     user_id
                 );
                 serialize_future(
-                        parse_body::<SearchStore>(req.body())
-                            .map_err(|_| {
-                                error!("Parsing body // POST /stores/search/filters/count in SearchStore failed!");
-                                Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
-                            })
-                        .and_then(move |search_store| stores_service.search_count(search_store).map_err(Error::from)),
+                    parse_body::<SearchStore>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /stores/search/filters/count in SearchStore failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_store| {
+                            stores_service
+                                .search_count(search_store)
+                                .map_err(Error::from)
+                        }),
                 )
             }
 

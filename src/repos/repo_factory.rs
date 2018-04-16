@@ -623,6 +623,8 @@ pub mod tests {
             slogan: Some("fdsf".to_string()),
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
+            country: None,
+            rating: None,
         }
     }
 
@@ -643,6 +645,7 @@ pub mod tests {
             instagram_url: None,
             default_language: "en".to_string(),
             slogan: Some("fdsf".to_string()),
+            country: None,
         }
     }
 
@@ -662,6 +665,8 @@ pub mod tests {
             instagram_url: None,
             default_language: None,
             slogan: None,
+            rating: None,
+            country: None,
         }
     }
 

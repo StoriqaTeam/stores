@@ -205,6 +205,19 @@ pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32]) 
     cat
 }
 
+pub fn get_parent_category(cat: &Category, child_id: i32, child_level: i32) -> Option<Category> {
+    if child_level != 0 {
+        cat.children
+            .iter()
+            .find(|cat_child| get_parent_category(cat_child, child_id, child_level - 1).is_some())
+            .and_then(|_| Some(cat.clone()))
+    } else if cat.id == child_id {
+        Some(cat.clone())
+    } else {
+        None
+    }
+}
+
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Category>
     for CategoriesRepoImpl<'a, T>
 {

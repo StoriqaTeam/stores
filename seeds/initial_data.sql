@@ -98,17 +98,17 @@ INSERT INTO stores (user_id, slug, name, logo, cover, short_description, default
 (5,'slug 22','[{"lang": "de", "text": "twelve store 22 foo"}, {"lang": "en", "text": "foobar"}]', 'https://image.ibb.co/isVHNH/35e3138162918f3eb2af0c5738423bf5.png', 'https://preview.ibb.co/bGDRGc/boutique_shop_free_cute_facebook_timeline_cover1.jpg', '[{"lang": "en", "text": "foobar"}]', 'en'),
 (5,'slug 23','[{"lang": "de", "text": "twelve store 23 foo"}, {"lang": "en", "text": "foobar"}]', 'https://image.ibb.co/isVHNH/35e3138162918f3eb2af0c5738423bf5.png', 'https://preview.ibb.co/bGDRGc/boutique_shop_free_cute_facebook_timeline_cover1.jpg', '[{"lang": "en", "text": "foobar"}]', 'en');
 
-INSERT INTO base_products (store_id, name, short_description, currency_id, category_id, views) VALUES
-(1, '[{"lang": "en", "text": "test product 16"}, {"lang": "ru", "text": "тест продукт16"}]','[{"lang": "en", "text": "test"}]',2,10,792),
-(2, '[{"lang": "en", "text": "test product 15"}, {"lang": "ru", "text": "тест продукт15"}]','[{"lang": "en", "text": "test"}]',2,11,791),
-(3, '[{"lang": "en", "text": "test product 17"}, {"lang": "ru", "text": "тест продукт17"}]','[{"lang": "en", "text": "test"}]',2,12,791),
-(4, '[{"lang": "en", "text": "test product 18"}, {"lang": "ru", "text": "тест продукт18"}]','[{"lang": "en", "text": "test"}]',2,13,790),
-(5, '[{"lang": "en", "text": "test product 04.09_113700"}, {"lang": "ru", "text": "тест продукт 04.09_113700"}]','[{"lang": "en", "text": "test"}]',2,14,80),
-(6, '[{"lang": "en", "text": "test product 04.09_113710"}, {"lang": "ru", "text": "тест продукт 04.09_113710"}]','[{"lang": "en", "text": "test"}]',2,15,79),
-(7, '[{"lang": "en", "text": "test product 04.09_120135"}, {"lang": "ru", "text": "тест продукт 04.09_120135"}]','[{"lang": "en", "text": "test"}]',2,16,61),
-(8, '[{"lang": "en", "text": "test product 04.09_120604"}, {"lang": "ru", "text": "тест продукт 04.09_120604"}]','[{"lang": "en", "text": "test"}]',2,17,60),
-(9, '[{"lang": "en", "text": "test product 04.09_120727"}, {"lang": "ru", "text": "тест продукт 04.09_120727"}]','[{"lang": "en", "text": "test"}]',2,18,59),
-(10, '[{"lang": "en", "text": "test product 14"}, {"lang": "ru", "text": "тест продукт 14"}]','[{"lang": "en", "text": "test"}]',2,19, 806);
+INSERT INTO base_products (store_id, name, short_description, currency_id, category_id, views, photo_main) VALUES
+(1, '[{"lang": "en", "text": "test product 16"}, {"lang": "ru", "text": "тест продукт16"}]','[{"lang": "en", "text": "test"}]',2,10,792, 'https://image.ibb.co/k66QZn/1.jpg'),
+(2, '[{"lang": "en", "text": "test product 15"}, {"lang": "ru", "text": "тест продукт15"}]','[{"lang": "en", "text": "test"}]',2,11,791, 'https://image.ibb.co/k66QZn/1.jpg'),
+(3, '[{"lang": "en", "text": "test product 17"}, {"lang": "ru", "text": "тест продукт17"}]','[{"lang": "en", "text": "test"}]',2,12,791, 'https://image.ibb.co/k66QZn/1.jpg'),
+(4, '[{"lang": "en", "text": "test product 18"}, {"lang": "ru", "text": "тест продукт18"}]','[{"lang": "en", "text": "test"}]',2,13,790, 'https://image.ibb.co/k66QZn/1.jpg'),
+(5, '[{"lang": "en", "text": "test product 04.09_113700"}, {"lang": "ru", "text": "тест продукт 04.09_113700"}]','[{"lang": "en", "text": "test"}]',2,14,80, 'https://image.ibb.co/bWz177/3.jpg'),
+(6, '[{"lang": "en", "text": "test product 04.09_113710"}, {"lang": "ru", "text": "тест продукт 04.09_113710"}]','[{"lang": "en", "text": "test"}]',2,15,79, 'https://image.ibb.co/bWz177https://image.ibb.co/g1CSfS/4.jpg/3.jpg'),
+(7, '[{"lang": "en", "text": "test product 04.09_120135"}, {"lang": "ru", "text": "тест продукт 04.09_120135"}]','[{"lang": "en", "text": "test"}]',2,16,61, 'https://image.ibb.co/bWz177https://image.ibb.co/g1CSfS/4.https://image.ibb.co/eRz177/2.jpgjpg/3.jpg'),
+(8, '[{"lang": "en", "text": "test product 04.09_120604"}, {"lang": "ru", "text": "тест продукт 04.09_120604"}]','[{"lang": "en", "text": "test"}]',2,17,60, 'https://image.ibb.co/g1CSfS/4.jpghttps://image.ibb.co/eRz177/2.jpghttps://image.ibb.co/eRz177/2.jpg'),
+(9, '[{"lang": "en", "text": "test product 04.09_120727"}, {"lang": "ru", "text": "тест продукт 04.09_120727"}]','[{"lang": "en", "text": "test"}]',2,18,59, 'https://image.ibb.co/eRz177/2.jpghttps://image.ibb.co/eRz177/2.jpg'),
+(10, '[{"lang": "en", "text": "test product 14"}, {"lang": "ru", "text": "тест продукт 14"}]','[{"lang": "en", "text": "test"}]',2,19, 806, 'https://image.ibb.co/eRz177/2.jpg');
 
 INSERT INTO products (discount, base_product_id, price) VALUES
 (NULL, 1,100),
@@ -123,14 +123,34 @@ INSERT INTO products (discount, base_product_id, price) VALUES
 (5, 10,200);
 
 INSERT INTO prod_attr_values (prod_id, attr_id, value, value_type, meta_field, base_prod_id) VALUES
-(1,1,1,'str','dfasfas',1),
-(2,1,1,'str','dfasfas',2),
-(3,1,1,'str','dfasfas',3),
-(4,1,1,'str','dfasfas',4),
-(5,1,1,'str',NULL,5),
-(6,1,1,'str','dfasfas',6),
-(7,1,1,'str','dfasfas',7),
-(8,1,1,'str','dfasfas',8),
-(9,1,1,'str','dfasfas',9),
-(10,1,1,'str','dfasfas',10);
+(1,1,'44','str','dfasfas',1),
+(1,2,'Tree','str','dfasfas',1),
+(1,3,'Black','str','dfasfas',1),
+(2,1,'44','str','dfasfas',2),
+(2,2,'Tree','str','dfasfas',2),
+(2,3,'Black','str','dfasfas',2),
+(3,1,'44','str','dfasfas',3),
+(3,2,'Tree','str','dfasfas',3),
+(3,3,'Black','str','dfasfas',3),
+(4,1,'44','str','dfasfas',4),
+(4,2,'Tree','str','dfasfas',4),
+(4,3,'Black','str','dfasfas',4),
+(5,1,'44','str','dfasfas',5),
+(5,2,'Tree','str','dfasfas',5),
+(5,3,'Black','str','dfasfas',5),
+(6,1,'44','str','dfasfas',6),
+(6,2,'Tree','str','dfasfas',6),
+(6,3,'Black','str','dfasfas',6),
+(7,1,'44','str','dfasfas',7),
+(7,2,'Tree','str','dfasfas',7),
+(7,3,'Black','str','dfasfas',7),
+(8,1,'44','str','dfasfas',8),
+(8,2,'Tree','str','dfasfas',8),
+(8,3,'Black','str','dfasfas',8),
+(9,1,'44','str','dfasfas',9),
+(9,2,'Tree','str','dfasfas',9),
+(9,3,'Black','str','dfasfas',9),
+(10,1,'44','str','dfasfas',10),
+(10,2,'Tree','str','dfasfas',10),
+(10,3,'Black','str','dfasfas',10);
 

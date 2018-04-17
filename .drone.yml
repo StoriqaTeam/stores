@@ -5,7 +5,7 @@ pipeline:
     mount:
       - target
     volumes:
-      - /mnt/stores:/cache
+      - /tmp/stores:/cache
   test:
     image: rust:1.25-stretch
     environment:
@@ -54,7 +54,7 @@ pipeline:
     mount:
       - target
     volumes:
-      - /mnt/stores:/cache
+      - /tmp/stores:/cache
   deploy2nightly:
     image: quay.io/honestbee/drone-kubernetes
     kubernetes_server: https://api.nightly.stq.cloud

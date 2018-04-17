@@ -253,7 +253,47 @@ impl<
                         })
                         .and_then(move |search_store| {
                             stores_service
-                                .search_count(search_store)
+                                .search_filters_count(search_store)
+                                .map_err(Error::from)
+                        }),
+                )
+            }
+            
+            // POST /stores/search/filters/country
+            (&Post, Some(Route::StoresSearchFiltersCountry)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/country",
+                    user_id
+                );
+                serialize_future(
+                    parse_body::<SearchStore>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /stores/search/filters/country in SearchStore failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_store| {
+                            stores_service
+                                .search_filters_country(search_store)
+                                .map_err(Error::from)
+                        }),
+                )
+            }
+            
+            // POST /stores/search/filters/category
+            (&Post, Some(Route::StoresSearchFiltersCategory)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/category",
+                    user_id
+                );
+                serialize_future(
+                    parse_body::<SearchStore>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /stores/search/filters/category in SearchStore failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_store| {
+                            stores_service
+                                .search_filters_category(search_store)
                                 .map_err(Error::from)
                         }),
                 )

@@ -286,7 +286,7 @@ impl<
                                 categories_repo.get_all().map_err(ServiceError::from)
                             })
                             .and_then(|category| {
-                                let new_cat = remove_unused_categories(category, &cats);
+                                let new_cat = remove_unused_categories(category, &cats, 2);
                                 Ok(new_cat)
                             })
                     })

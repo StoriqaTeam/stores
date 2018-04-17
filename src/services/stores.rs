@@ -11,17 +11,22 @@ use serde_json;
 use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
 
-use models::{NewStore, SearchStore, Store, UpdateStore};
+use models::{NewStore, SearchStore, Store, UpdateStore, Category};
 use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
+use repos::remove_unused_categories;
 use repos::ReposFactory;
 use super::error::ServiceError;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
     fn find_by_name(&self, search_store: SearchStore, count: i32, offset: i32) -> ServiceFuture<Vec<Store>>;
-    /// search count
-    fn search_count(&self, search_store: SearchStore) -> ServiceFuture<i32>;
+    /// search filters count
+    fn search_filters_count(&self, search_store: SearchStore) -> ServiceFuture<i32>;
+    /// search filters country
+    fn search_filters_country(&self, search_store: SearchStore) -> ServiceFuture<Vec<String>>;
+    /// search filters category
+    fn search_filters_category(&self, search_store: SearchStore) -> ServiceFuture<Category>;
     /// Find stores auto complete limited by `count` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
@@ -138,7 +143,8 @@ impl<
         }))
     }
 
-    fn search_count(&self, search_store: SearchStore) -> ServiceFuture<i32> {
+    /// search filters count
+    fn search_filters_count(&self, search_store: SearchStore) -> ServiceFuture<i32> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let search_filters = {
@@ -149,6 +155,56 @@ impl<
         };
 
         Box::new(search_filters)
+    }
+
+    /// search filters country
+    fn search_filters_country(&self, search_store: SearchStore) -> ServiceFuture<Vec<String>>{
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let search_filters = {
+            let stores_el = StoresElasticImpl::new(client_handle, address);
+            stores_el
+                .aggregate_countries(search_store)
+                .map_err(ServiceError::from)
+        };
+
+        Box::new(search_filters)
+    }
+    
+    /// search filters category
+    fn search_filters_category(&self, search_store: SearchStore) -> ServiceFuture<Category>{
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let stores_el = StoresElasticImpl::new(client_handle, address);
+        let cpu_pool = self.cpu_pool.clone();
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(stores_el
+                .aggregate_categories(search_store)
+                .map_err(ServiceError::from)
+                .and_then( move |categories_ids| {
+                cpu_pool.spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| {
+                            error!(
+                                "Could not get connection to db from pool! {}",
+                                e.to_string()
+                            );
+                            ServiceError::Connection(e.into())
+                        })
+                        .and_then(move |conn| {
+                                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                                categories_repo.get_all().map_err(ServiceError::from)
+                            })
+                        .and_then(|category| {
+                            let new_cat = remove_unused_categories(category, &categories_ids, 0);
+                            Ok(new_cat)
+                        })
+                })
+        }))
     }
 
     /// Returns store by ID

@@ -168,6 +168,8 @@ mod tests {
             instagram_url: None,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
+            country: None,
+            rating: None,
         }
     }
 

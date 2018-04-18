@@ -239,19 +239,63 @@ impl<
                 }
             }
 
-            // POST /stores/search/count
-            (&Post, Some(Route::StoresSearchCount)) => {
+            // POST /stores/search/filters/count
+            (&Post, Some(Route::StoresSearchFiltersCount)) => {
                 debug!(
-                    "User with id = '{:?}' is requesting  // POST /stores/search/count",
+                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/count",
                     user_id
                 );
                 serialize_future(
-                    read_body(req.body())
+                    parse_body::<SearchStore>(req.body())
                         .map_err(|_| {
-                            error!("Parsing body // POST /stores/search/count in String failed!");
+                            error!("Parsing body // POST /stores/search/filters/count in SearchStore failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |name| stores_service.search_count(name).map_err(Error::from)),
+                        .and_then(move |search_store| {
+                            stores_service
+                                .search_filters_count(search_store)
+                                .map_err(Error::from)
+                        }),
+                )
+            }
+            
+            // POST /stores/search/filters/country
+            (&Post, Some(Route::StoresSearchFiltersCountry)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/country",
+                    user_id
+                );
+                serialize_future(
+                    parse_body::<SearchStore>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /stores/search/filters/country in SearchStore failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_store| {
+                            stores_service
+                                .search_filters_country(search_store)
+                                .map_err(Error::from)
+                        }),
+                )
+            }
+            
+            // POST /stores/search/filters/category
+            (&Post, Some(Route::StoresSearchFiltersCategory)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/category",
+                    user_id
+                );
+                serialize_future(
+                    parse_body::<SearchStore>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /stores/search/filters/category in SearchStore failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |search_store| {
+                            stores_service
+                                .search_filters_category(search_store)
+                                .map_err(Error::from)
+                        }),
                 )
             }
 

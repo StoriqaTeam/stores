@@ -6,7 +6,9 @@ pub enum Route {
     Healthcheck,
     Stores,
     StoresSearch,
-    StoresSearchCount,
+    StoresSearchFiltersCount,
+    StoresSearchFiltersCountry,
+    StoresSearchFiltersCategory,
     StoresAutoComplete,
     Store(i32),
     StoreProducts(i32),
@@ -73,8 +75,20 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Stores Search route
     router.add_route(r"^/stores/search$", || Route::StoresSearch);
 
-    // Stores Search count route
-    router.add_route(r"^/stores/search/count$", || Route::StoresSearchCount);
+    // Stores Search filter count route
+    router.add_route(r"^/stores/search/filters/count$", || {
+        Route::StoresSearchFiltersCount
+    });
+    
+    // Stores Search filter country route
+    router.add_route(r"^/stores/search/filters/country$", || {
+        Route::StoresSearchFiltersCountry
+    });
+    
+    // Stores Search filter  route
+    router.add_route(r"^/stores/search/filters/category$", || {
+        Route::StoresSearchFiltersCategory
+    });
 
     // Stores auto complete route
     router.add_route(r"^/stores/auto_complete$", || Route::StoresAutoComplete);

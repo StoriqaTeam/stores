@@ -87,7 +87,7 @@ pub struct UpdateProductWithAttributes {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct SearchOptions {
+pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
     pub price_range: Option<RangeFilter>,
     pub category_id: Option<i32>,
@@ -103,15 +103,15 @@ pub struct SearchFilters {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct SearchProductsByName {
     pub name: String,
-    pub options: Option<SearchOptions>,
+    pub options: Option<ProductsSearchOptions>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MostViewedProducts {
-    pub options: Option<SearchOptions>,
+    pub options: Option<ProductsSearchOptions>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MostDiscountProducts {
-    pub options: Option<SearchOptions>,
+    pub options: Option<ProductsSearchOptions>,
 }

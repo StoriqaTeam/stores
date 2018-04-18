@@ -7,6 +7,7 @@ use futures_cpupool::CpuPool;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use serde_json;
 use r2d2::{ManageConnection, Pool};
 
 use models::*;
@@ -15,6 +16,7 @@ use super::types::ServiceFuture;
 use repos::types::RepoResult;
 use repos::ReposFactory;
 use repos::remove_unused_categories;
+use repos::get_parent_category;
 use super::error::ServiceError;
 use repos::error::RepoError;
 
@@ -284,7 +286,7 @@ impl<
                                 categories_repo.get_all().map_err(ServiceError::from)
                             })
                             .and_then(|category| {
-                                let new_cat = remove_unused_categories(category, &cats);
+                                let new_cat = remove_unused_categories(category, &cats, 2);
                                 Ok(new_cat)
                             })
                     })
@@ -391,8 +393,47 @@ impl<
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                     base_products_repo
                         .deactivate(product_id)
+                        .and_then(|prod| {
+                            categories_repo
+                                .get_all()
+                                .and_then(|category_root| {
+                                    category_root
+                                        .children
+                                        .into_iter()
+                                        .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
+                                        .ok_or_else(|| RepoError::NotFound)
+                                })
+                                .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
+                                .and_then(|(store, cat)| {
+                                    let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
+                                        let mut product_categories =
+                                            serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+                                        let mut new_prod_cats = vec![];
+                                        for pc in product_categories.iter_mut() {
+                                            if pc.category_id == cat.id {
+                                                pc.count -= 1;
+                                            }
+                                            new_prod_cats.push(pc.clone());
+                                        }
+                                        new_prod_cats
+                                    } else {
+                                        vec![]
+                                    };
+
+                                    let product_categories = serde_json::to_value(prod_cats).ok();
+
+                                    let update_store = UpdateStore {
+                                        product_categories,
+                                        ..Default::default()
+                                    };
+                                    stores_repo.update(store.id, update_store)
+                                })
+                                .and_then(|_| Ok(prod))
+                        })
                         .map_err(ServiceError::from)
                 })
         }))
@@ -505,9 +546,54 @@ impl<
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                     conn.transaction::<(BaseProduct), ServiceError, _>(move || {
                         base_products_repo
                             .create(payload)
+                            .and_then(|prod| {
+                                categories_repo
+                                    .get_all()
+                                    .and_then(|category_root| {
+                                        category_root
+                                            .children
+                                            .into_iter()
+                                            .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
+                                            .ok_or_else(|| RepoError::NotFound)
+                                    })
+                                    .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
+                                    .and_then(|(store, cat)| {
+                                        let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
+                                            let mut product_categories =
+                                                serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+                                            let mut new_prod_cats = vec![];
+                                            let mut cat_exists = false;
+                                            for pc in product_categories.iter_mut() {
+                                                if pc.category_id == cat.id {
+                                                    pc.count += 1;
+                                                    cat_exists = true;
+                                                }
+                                                new_prod_cats.push(pc.clone());
+                                            }
+                                            if !cat_exists {
+                                                new_prod_cats.push(ProductCategories::new(cat.id));
+                                            }
+                                            new_prod_cats
+                                        } else {
+                                            let pc = ProductCategories::new(cat.id);
+                                            vec![pc]
+                                        };
+
+                                        let product_categories = serde_json::to_value(prod_cats).ok();
+
+                                        let update_store = UpdateStore {
+                                            product_categories,
+                                            ..Default::default()
+                                        };
+                                        stores_repo.update(store.id, update_store)
+                                    })
+                                    .and_then(|_| Ok(prod))
+                            })
                             .map_err(ServiceError::from)
                     })
                 })
@@ -533,10 +619,86 @@ impl<
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                     conn.transaction::<(BaseProduct), ServiceError, _>(move || {
-                        base_products_repo
-                            .update(product_id, payload)
-                            .map_err(ServiceError::from)
+                        if let Some(new_cat_id) = payload.category_id {
+                            base_products_repo
+                                .find(product_id)
+                                .and_then(|old_prod| {
+                                    let old_cat_id = old_prod.category_id;
+                                    categories_repo
+                                        .get_all()
+                                        .and_then(|category_root| {
+                                            category_root
+                                                .children
+                                                .into_iter()
+                                                .find(|cat_child| get_parent_category(&cat_child, old_cat_id, 2).is_some())
+                                                .ok_or_else(|| RepoError::NotFound)
+                                        })
+                                        .map(|old_cat| (old_cat, old_prod))
+                                })
+                                .and_then(|(old_cat, old_prod)| {
+                                    categories_repo
+                                        .get_all()
+                                        .and_then(|category_root| {
+                                            category_root
+                                                .children
+                                                .into_iter()
+                                                .find(|cat_child| get_parent_category(&cat_child, new_cat_id, 2).is_some())
+                                                .ok_or_else(|| RepoError::NotFound)
+                                        })
+                                        .map(|new_cat| (new_cat, old_cat, old_prod))
+                                })
+                                .and_then(|(new_cat, old_cat, old_prod)| {
+                                    stores_repo
+                                        .find(old_prod.store_id)
+                                        .map(|store| (store, new_cat, old_cat))
+                                })
+                                .and_then(|(store, new_cat, old_cat)| {
+                                    if new_cat.id != old_cat.id {
+                                        let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
+                                            let mut product_categories =
+                                                serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+                                            let mut new_prod_cats = vec![];
+                                            let mut new_cat_exists = false;
+                                            for pc in product_categories.iter_mut() {
+                                                if pc.category_id == new_cat.id {
+                                                    pc.count += 1;
+                                                    new_cat_exists = true;
+                                                }
+                                                if pc.category_id == old_cat.id {
+                                                    pc.count -= 1;
+                                                }
+                                                new_prod_cats.push(pc.clone());
+                                            }
+                                            if !new_cat_exists {
+                                                new_prod_cats.push(ProductCategories::new(new_cat.id));
+                                            }
+                                            new_prod_cats
+                                        } else {
+                                            let pc = ProductCategories::new(new_cat.id);
+                                            vec![pc]
+                                        };
+
+                                        let product_categories = serde_json::to_value(prod_cats).ok();
+
+                                        let update_store = UpdateStore {
+                                            product_categories,
+                                            ..Default::default()
+                                        };
+                                        stores_repo.update(store.id, update_store).map(|_| ())
+                                    } else {
+                                        Ok(())
+                                    }
+                                })
+                                .and_then(|_| base_products_repo.update(product_id, payload.clone()))
+                                .map_err(ServiceError::from)
+                        } else {
+                            base_products_repo
+                                .update(product_id, payload.clone())
+                                .map_err(ServiceError::from)
+                        }
                     })
                 })
         }))

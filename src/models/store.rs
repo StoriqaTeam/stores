@@ -28,6 +28,9 @@ table! {
         updated_at -> Timestamp,
         default_language -> VarChar,
         slogan -> Nullable<VarChar>,
+        rating -> Double,
+        country -> Nullable<VarChar>,
+        product_categories -> Nullable<Jsonb>,
     }
 }
 
@@ -53,6 +56,9 @@ pub struct Store {
     pub updated_at: SystemTime,
     pub default_language: String,
     pub slogan: Option<String>,
+    pub rating: f64,
+    pub country: Option<String>,
+    pub product_categories: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -98,10 +104,11 @@ pub struct NewStore {
     #[validate(custom = "validate_lang")]
     pub default_language: String,
     pub slogan: Option<String>,
+    pub country: Option<String>,
 }
 
 /// Payload for updating users
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Debug)]
+#[derive(Default, Serialize, Deserialize, Insertable, Validate, AsChangeset, Debug)]
 #[table_name = "stores"]
 pub struct UpdateStore {
     #[validate(custom = "validate_translation")]
@@ -125,9 +132,34 @@ pub struct UpdateStore {
     #[validate(custom = "validate_lang")]
     pub default_language: Option<String>,
     pub slogan: Option<String>,
+    pub rating: Option<f64>,
+    pub country: Option<String>,
+    pub product_categories: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchStore {
     pub name: String,
+    pub options: Option<StoresSearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct StoresSearchOptions {
+    pub category_id: Option<i32>,
+    pub country: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProductCategories {
+    pub category_id: i32,
+    pub count: i32,
+}
+
+impl ProductCategories {
+    pub fn new(category_id: i32) -> Self {
+        Self {
+            category_id,
+            count: 1,
+        }
+    }
 }

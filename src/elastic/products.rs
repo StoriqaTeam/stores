@@ -47,7 +47,7 @@ impl ProductsElasticImpl {
         }
     }
 
-    fn create_elastic_filters(options: Option<SearchOptions>) -> Vec<serde_json::Value> {
+    fn create_elastic_filters(options: Option<ProductsSearchOptions>) -> Vec<serde_json::Value> {
         let mut filters: Vec<serde_json::Value> = vec![];
         let (attr_filters, category_id, price_filters) = if let Some(options) = options {
             let attr_filters = options.attr_filters.map(|attrs| {

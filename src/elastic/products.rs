@@ -71,7 +71,7 @@ impl ProductsElasticImpl {
                     })
                     .collect::<Vec<serde_json::Value>>()
             });
-            (attr_filters, options.category_id, options.price_range)
+            (attr_filters, options.category_id, options.price_filter)
         } else {
             (None, None, None)
         };

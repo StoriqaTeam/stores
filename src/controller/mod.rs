@@ -462,11 +462,10 @@ impl<
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
                         .and_then(move |update_product| {
-                            update_product
-                                .product
-                                .validate()
-                                .map_err(Error::Validate)
-                                .into_future()
+                            let validation = if let Some(product) = update_product.product.clone() {
+                                product.validate().map_err(Error::Validate).into_future()
+                            } else { future::ok(()) };
+                            validation
                                 .and_then(move |_| {
                                     products_service
                                         .update(product_id, update_product)

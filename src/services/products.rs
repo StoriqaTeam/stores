@@ -12,7 +12,7 @@ use r2d2::{ManageConnection, Pool};
 
 use models::*;
 use super::types::ServiceFuture;
-use repos::ReposFactory;
+use repos::{ReposFactory, error::RepoError};
 use super::error::ServiceError;
 
 pub trait ProductsService {
@@ -234,30 +234,37 @@ impl<
                     let attributes = payload.attributes;
 
                     conn.transaction::<(Product), ServiceError, _>(move || {
-                        products_repo
-                            .update(product_id, product)
-                            .map_err(ServiceError::from)
+                        let prod = if let Some(product) = product {
+                                products_repo
+                                    .update(product_id, product)
+                            } else {
+                                products_repo
+                                    .find(product_id)
+                            };
+                        prod
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
-                                let product_id = product.id;
-                                let base_product_id = product.base_product_id;
-                                let res: Result<Vec<ProdAttr>, ServiceError> = attributes
-                                    .into_iter()
-                                    .map(|attr_value| {
-                                        let update_attr = UpdateProdAttr::new(
-                                            product_id,
-                                            base_product_id,
-                                            attr_value.attr_id,
-                                            attr_value.value,
-                                            attr_value.meta_field,
-                                        );
-                                        prod_attr_repo
-                                            .update(update_attr)
-                                            .map_err(ServiceError::from)
-                                    })
-                                    .collect();
-                                res.and_then(|_| Ok(product))
+                                if let Some(attributes) = attributes {
+                                    let product_id = product.id;
+                                    let base_product_id = product.base_product_id;
+                                    let res: Result<Vec<ProdAttr>, RepoError> = attributes
+                                        .into_iter()
+                                        .map(|attr_value| {
+                                            let update_attr = UpdateProdAttr::new(
+                                                product_id,
+                                                base_product_id,
+                                                attr_value.attr_id,
+                                                attr_value.value,
+                                                attr_value.meta_field,
+                                            );
+                                            prod_attr_repo
+                                                .update(update_attr)
+                                        })
+                                        .collect();
+                                    res.and_then(|_| Ok(product))
+                                } else { Ok(product)}
                             })
+                            .map_err(ServiceError::from)
                     })
                 })
         }))
@@ -411,8 +418,8 @@ pub mod tests {
 
     pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
         UpdateProductWithAttributes {
-            product: create_update_product(),
-            attributes: vec![],
+            product: Some(create_update_product()),
+            attributes: Some(vec![]),
         }
     }
 

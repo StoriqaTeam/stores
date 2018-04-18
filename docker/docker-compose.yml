@@ -10,7 +10,7 @@ services:
     command: ["sh", "-c", "/utils/wait_for_it.sh stores-pg:5432 ; /utils/wait_for_it.sh stores-es:9200 ; diesel migration run ; cargo run"]
     volumes:
       - ..:/app
-      - stores_cargo_cache:/usr/local/cargo
+      - stq_cargo_cache:/usr/local/cargo
     environment:
       - DATABASE_URL=postgresql://stores:stores@stores-pg/stores
       - RUST_LOG=main=debug
@@ -212,7 +212,7 @@ services:
     
 
 volumes:
-  stores_cargo_cache:
+  stq_cargo_cache:
   stq-stores-postgres-data:
   stq-stores-elastic-data:
 

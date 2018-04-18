@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use validator::Validate;
 use serde_json;
 
-use models::{AttrValue, AttributeFilter, Category, RangeFilter};
+use models::{AttrValue, AttributeFilter, RangeFilter};
 use models::validation_rules::*;
 
 /// diesel table for products
@@ -89,15 +89,8 @@ pub struct UpdateProductWithAttributes {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
-    pub price_range: Option<RangeFilter>,
+    pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct SearchFilters {
-    pub price_range: Option<RangeFilter>,
-    pub attr_filters: Option<Vec<AttributeFilter>>,
-    pub categories: Category,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

@@ -82,8 +82,8 @@ pub struct UpdateProduct {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateProductWithAttributes {
-    pub product: UpdateProduct,
-    pub attributes: Vec<AttrValue>,
+    pub product: Option<UpdateProduct>,
+    pub attributes: Option<Vec<AttrValue>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

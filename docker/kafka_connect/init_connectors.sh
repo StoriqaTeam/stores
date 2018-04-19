@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "Waiting for kafka-connect"
-sleep 120
+sleep 40
 
 echo "Initializing connectors"
 KAFKA_CONNECT_ADDR=$1
@@ -19,13 +19,13 @@ cat << EOF > pg-connector.json
     "name": "stores-pg-connector",
     "database.server.name": "stores-pg",
     "database.port": "5432",
-    "transforms"="Reroute",
-    "transforms.Reroute.type"="io.debezium.transforms.ByLogicalTableRouter",
-    "transforms.Reroute.topic.regex"=".*",
-    "transforms.Reroute.topic.replacement"="stores-pg",
-    "transforms.Reroute.key.field.name"="table",
-    "transforms.Reroute.key.field.regex"="(.*)\\\.(.*)\\\.(.*)",
-    "transforms.Reroute.key.field.replacement"="$3"
+    "transforms": "Reroute",
+    "transforms.Reroute.type": "io.debezium.transforms.ByLogicalTableRouter",
+    "transforms.Reroute.topic.regex": ".*",
+    "transforms.Reroute.topic.replacement": "stores-pg",
+    "transforms.Reroute.key.field.name": "table",
+    "transforms.Reroute.key.field.regex": "(.*)\\\.(.*)\\\.(.*)",
+    "transforms.Reroute.key.field.replacement": "\$3"
   }
 }
 EOF
@@ -41,7 +41,8 @@ cat << EOF > stores-connector.json
     "tasks.max": "1",
     "type.name": "_doc",
     "elastic.url": "stores-es",
-    "elastic.port": "9200"
+    "elastic.port": "9200",
+    "index.name": "products"
   }
 }
 EOF

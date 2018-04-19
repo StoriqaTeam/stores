@@ -266,32 +266,67 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        Box::new(
-            products_el
-                .aggregate_categories(search_prod.name.clone())
-                .map_err(ServiceError::from)
-                .and_then(move |cats| {
-                    cpu_pool.spawn_fn(move || {
-                        db_pool
-                            .get()
-                            .map_err(|e| {
-                                error!(
-                                    "Could not get connection to db from pool! {}",
-                                    e.to_string()
-                                );
-                                ServiceError::Connection(e.into())
-                            })
-                            .and_then(move |conn| {
-                                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                                categories_repo.get_all().map_err(ServiceError::from)
-                            })
-                            .and_then(|category| {
-                                let new_cat = remove_unused_categories(category, &cats, 2);
-                                Ok(new_cat)
-                            })
+        if search_prod.name.is_empty() {
+            let category_id = search_prod
+                .options
+                .map(|options| options.category_id)
+                .and_then(|c| c);
+            Box::new(cpu_pool.spawn_fn(move || {
+                db_pool
+                    .get()
+                    .map_err(|e| {
+                        error!(
+                            "Could not get connection to db from pool! {}",
+                            e.to_string()
+                        );
+                        ServiceError::Connection(e.into())
                     })
-                }),
-        )
+                    .and_then(move |conn| {
+                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                        categories_repo
+                            .get_all()
+                            .and_then(|category| {
+                                if let Some(category_id) = category_id {
+                                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                                    categories_repo.find(category_id).and_then(|cat| {
+                                        let new_cat = remove_unused_categories(category, &[cat.parent_id.unwrap_or_default()], cat.level - 2);
+                                        Ok(new_cat)
+                                    })
+                                } else {
+                                    Ok(category)
+                                }
+                            })
+                            .map_err(ServiceError::from)
+                    })
+            }))
+        } else {
+            Box::new(
+                products_el
+                    .aggregate_categories(search_prod.name.clone())
+                    .map_err(ServiceError::from)
+                    .and_then(move |cats| {
+                        cpu_pool.spawn_fn(move || {
+                            db_pool
+                                .get()
+                                .map_err(|e| {
+                                    error!(
+                                        "Could not get connection to db from pool! {}",
+                                        e.to_string()
+                                    );
+                                    ServiceError::Connection(e.into())
+                                })
+                                .and_then(move |conn| {
+                                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                                    categories_repo.get_all().map_err(ServiceError::from)
+                                })
+                                .and_then(|category| {
+                                    let new_cat = remove_unused_categories(category, &cats, 2);
+                                    Ok(new_cat)
+                                })
+                        })
+                    }),
+            )
+        }
     }
 
     /// search filters

@@ -79,12 +79,12 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/stores/search/filters/count$", || {
         Route::StoresSearchFiltersCount
     });
-    
+
     // Stores Search filter country route
     router.add_route(r"^/stores/search/filters/country$", || {
         Route::StoresSearchFiltersCountry
     });
-    
+
     // Stores Search filter  route
     router.add_route(r"^/stores/search/filters/category$", || {
         Route::StoresSearchFiltersCategory

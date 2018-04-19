@@ -559,7 +559,10 @@ impl<
                                             .children
                                             .into_iter()
                                             .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
-                                            .ok_or_else(|| RepoError::NotFound)
+                                            .ok_or_else(|| {
+                                                error!("There is no such 3rd level category in db");
+                                                RepoError::NotFound
+                                            })
                                     })
                                     .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
                                     .and_then(|(store, cat)| {

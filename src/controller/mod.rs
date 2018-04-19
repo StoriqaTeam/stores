@@ -258,7 +258,7 @@ impl<
                         }),
                 )
             }
-            
+
             // POST /stores/search/filters/country
             (&Post, Some(Route::StoresSearchFiltersCountry)) => {
                 debug!(
@@ -278,7 +278,7 @@ impl<
                         }),
                 )
             }
-            
+
             // POST /stores/search/filters/category
             (&Post, Some(Route::StoresSearchFiltersCategory)) => {
                 debug!(
@@ -464,13 +464,14 @@ impl<
                         .and_then(move |update_product| {
                             let validation = if let Some(product) = update_product.product.clone() {
                                 product.validate().map_err(Error::Validate).into_future()
-                            } else { future::ok(()) };
-                            validation
-                                .and_then(move |_| {
-                                    products_service
-                                        .update(product_id, update_product)
-                                        .map_err(Error::from)
-                                })
+                            } else {
+                                future::ok(())
+                            };
+                            validation.and_then(move |_| {
+                                products_service
+                                    .update(product_id, update_product)
+                                    .map_err(Error::from)
+                            })
                         }),
                 )
             }

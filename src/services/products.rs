@@ -235,14 +235,11 @@ impl<
 
                     conn.transaction::<(Product), ServiceError, _>(move || {
                         let prod = if let Some(product) = product {
-                                products_repo
-                                    .update(product_id, product)
-                            } else {
-                                products_repo
-                                    .find(product_id)
-                            };
-                        prod
-                            .map(move |product| (product, attributes))
+                            products_repo.update(product_id, product)
+                        } else {
+                            products_repo.find(product_id)
+                        };
+                        prod.map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 if let Some(attributes) = attributes {
                                     let product_id = product.id;
@@ -257,12 +254,13 @@ impl<
                                                 attr_value.value,
                                                 attr_value.meta_field,
                                             );
-                                            prod_attr_repo
-                                                .update(update_attr)
+                                            prod_attr_repo.update(update_attr)
                                         })
                                         .collect();
                                     res.and_then(|_| Ok(product))
-                                } else { Ok(product)}
+                                } else {
+                                    Ok(product)
+                                }
                             })
                             .map_err(ServiceError::from)
                     })

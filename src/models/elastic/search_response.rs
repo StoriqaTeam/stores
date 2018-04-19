@@ -219,8 +219,8 @@ pub struct Hit<T> {
     source: Option<T>,
     #[serde(rename = "_routing")]
     routing: Option<String>,
-    inner_hits: Option<Value>,
-    fields: Option<Value>
+    inner_hits: Option<Map<String, Value>>,
+    fields: Option<Map<String, Value>>,
 }
 
 impl<T> Hit<T> {
@@ -254,8 +254,12 @@ impl<T> Hit<T> {
         self.score
     }
 
-    pub fn inner_hits(&self) -> &Option<Value> {
+    pub fn inner_hits(&self) -> &Option<Map<String, Value>> {
         &self.inner_hits
+    }
+
+    pub fn fields(&self) -> &Option<Map<String, Value>> {
+        &self.fields
     }
 }
 

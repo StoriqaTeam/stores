@@ -6,7 +6,30 @@ sleep 120
 echo "Initializing connectors"
 KAFKA_CONNECT_ADDR=$1
 
-curl -X POST -H "Accept:application/json" -H "Content-Type:application/json" $KAFKA_CONNECT_ADDR/connectors/ -d '{ "name": "stores-pg-connector", "config": { "connector.class": "io.debezium.connector.postgresql.PostgresConnector", "database.user": "stores", "database.dbname": "stores", "database.hostname": "stores-pg", "database.password": "stores", "name": "stores-pg-connector", "database.server.name": "stores-pg", "database.port": "5432" } }'
+sleep 5
+cat << EOF > pg-connector.json
+{
+  "name": "stores-pg-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.user": "stores",
+    "database.dbname": "stores",
+    "database.hostname": "stores-pg",
+    "database.password": "stores",
+    "name": "stores-pg-connector",
+    "database.server.name": "stores-pg",
+    "database.port": "5432",
+    "transforms": "Reroute",
+    "transforms.Reroute.type": "io.debezium.transforms.ByLogicalTableRouter",
+    "transforms.Reroute.topic.regex": ".*",
+    "transforms.Reroute.topic.replacement": "stores-pg",
+    "transforms.Reroute.key.field.name": "table",
+    "transforms.Reroute.key.field.regex": "(.*)\\\.(.*)\\\.(.*)",
+    "transforms.Reroute.key.field.replacement": "\$3"
+  }
+}
+EOF
+curl -X POST -H "Accept:application/json" -H "Content-Type:application/json"  -d @pg-connector.json $KAFKA_CONNECT_ADDR/connectors
 
 sleep 5
 cat << EOF > stores-connector.json
@@ -14,34 +37,15 @@ cat << EOF > stores-connector.json
   "name": "stores-connector",
   "config": {
     "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
-    "topics": "stores-pg.public.stores",
+    "topics": "stores-pg",
     "tasks.max": "1",
     "type.name": "_doc",
     "elastic.url": "stores-es",
-    "index.name": "stores",
     "elastic.port": "9200"
   }
 }
 EOF
 curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d @stores-connector.json $KAFKA_CONNECT_ADDR/connectors
-
-sleep 5
-cat << EOF > products-connector.json
-{
-  "name": "products-connector",
-  "config": {
-    "connector.class": "com.skynyrd.kafka.ElasticSinkConnector",
-    "topics": "stores-pg.public.base_products,stores-pg.public.products,stores-pg.public.prod_attr_values",
-    "tasks.max": "1",
-    "type.name": "_doc",
-    "elastic.url": "stores-es",
-    "index.name": "products",
-    "elastic.port": "9200"
-  }
-}
-EOF
-curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" -d @products-connector.json $KAFKA_CONNECT_ADDR/connectors
-
 
 sleep 5
 echo "Initializing Elastic indices"

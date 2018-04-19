@@ -89,7 +89,7 @@ impl ProductsElasticImpl {
                 "path":"variants.attrs",
                 "query":{  
                     "bool":{  
-                        "must":attr_filters
+                        "should":attr_filters
                     }
                 }
             }

@@ -42,7 +42,7 @@ impl StoresElasticImpl {
 
     fn create_elastic_filters(options: Option<StoresSearchOptions>) -> Vec<serde_json::Value> {
         let mut filters: Vec<serde_json::Value> = vec![];
-        let (category_id, country) = if let Some(options) = options {
+        let (_category_id, country) = if let Some(options) = options {
             (options.category_id, options.country)
         } else {
             (None, None)
@@ -55,15 +55,15 @@ impl StoresElasticImpl {
             filters.push(country);
         }
 
-        if let Some(id) = category_id {
-            let category = json!({
-                "nested" : {
-                    "path" : "product_categories",
-                    "query" : { "bool" : {"must": { "term": { "product_categories.category_id": id}}}}
-                    }
-            });
-            filters.push(category);
-        }
+        // if let Some(id) = category_id {
+        //     let category = json!({
+        //         "nested" : {
+        //             "path" : "product_categories",
+        //             "query" : { "bool" : {"must": { "term": { "product_categories.category_id": id}}}}
+        //             }
+        //     });
+        //     filters.push(category);
+        // }
 
         filters
     }
@@ -100,11 +100,11 @@ impl StoresElastic for StoresElasticImpl {
             "from" : offset, "size" : count,
             "query": {
                 "bool" : query_map
-            },
-            "sort" : [
-                { "rating" : { "order" : "desc"} },
-                { "product_categories" : {"missing" : "_last"} }
-            ]
+            }
+            // "sort" : [
+            //     { "rating" : { "order" : "desc"} },
+            //     { "product_categories" : {"missing" : "_last"} }
+            // ]
         }).to_string();
 
         let url = format!(
@@ -262,64 +262,67 @@ impl StoresElastic for StoresElasticImpl {
     }
 
     /// Aggregate categories
-    fn aggregate_categories(&self, search_store: SearchStore) -> RepoFuture<Vec<i32>> {
-        log_elastic_req(&search_store);
-        let name_query = json!({
-            "nested" : {
-                    "path" : "name",
-                    "query" : {
-                        "match": {
-                            "name.text" : search_store.name
-                        }
-                    }
-                }
-        });
+    fn aggregate_categories(&self, _search_store: SearchStore) -> RepoFuture<Vec<i32>> {
+        let categories_ids = vec![1,2];
+        Box::new(future::ok(categories_ids))
+        
+        // log_elastic_req(&search_store);
+        // let name_query = json!({
+        //     "nested" : {
+        //             "path" : "name",
+        //             "query" : {
+        //                 "match": {
+        //                     "name.text" : search_store.name
+        //                 }
+        //             }
+        //         }
+        // });
 
-        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        // let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        if !search_store.name.is_empty() {
-            query_map.insert("must".to_string(), name_query);
-        }
+        // if !search_store.name.is_empty() {
+        //     query_map.insert("must".to_string(), name_query);
+        // }
 
-        let query = json!({
-        "size": 0,
-        "query": {
-                "bool" : query_map
-            },
-        "aggregations": {
-            "product_categories" : {
-                "nested" : {
-                    "path" : "product_categories"
-                },
-                "aggs" : {
-                    "category" : { "terms" : { "field" : "product_categories.category_id" } },
-                }
-            }
-        }
-        }).to_string();
+        // let query = json!({
+        // "size": 0,
+        // "query": {
+        //         "bool" : query_map
+        //     },
+        // "aggregations": {
+        //     "product_categories" : {
+        //         "nested" : {
+        //             "path" : "product_categories"
+        //         },
+        //         "aggs" : {
+        //             "category" : { "terms" : { "field" : "product_categories.category_id" } },
+        //         }
+        //     }
+        // }
+        // }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Store
-        );
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set(ContentLength(query.len() as u64));
-        Box::new(
-            self.client_handle
-                .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
-                .inspect(|ref res| log_elastic_resp(res))
-                .and_then(|res| {
-                    let mut categories_ids = vec![];
-                    if let Some(aggs_raw) = res.aggs_raw() {
-                        if let Some(id) = aggs_raw["product_categories"]["category"]["value"].as_i64() {
-                            categories_ids.push(id as i32);
-                        };
-                    }
-                    future::ok(categories_ids)
-                }),
-        )
+        // let url = format!(
+        //     "http://{}/{}/_search",
+        //     self.elastic_address,
+        //     ElasticIndex::Store
+        // );
+        // let mut headers = Headers::new();
+        // headers.set(ContentType::json());
+        // headers.set(ContentLength(query.len() as u64));
+        // Box::new(
+        //     self.client_handle
+        //         .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
+        //         .map_err(Error::from)
+        //         .inspect(|ref res| log_elastic_resp(res))
+        //         .and_then(|res| {
+        //             let mut categories_ids = vec![];
+        //             if let Some(aggs_raw) = res.aggs_raw() {
+        //                 if let Some(id) = aggs_raw["product_categories"]["category"]["value"].as_i64() {
+        //                     categories_ids.push(id as i32);
+        //                 };
+        //             }
+        //             future::ok(categories_ids)
+        //         }),
+        // )
     }
 }

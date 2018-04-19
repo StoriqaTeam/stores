@@ -49,6 +49,9 @@ impl ProductsElasticImpl {
 
     fn create_elastic_filters(options: Option<ProductsSearchOptions>) -> Vec<serde_json::Value> {
         let mut filters: Vec<serde_json::Value> = vec![];
+        let mut variants_map = serde_json::Map::<String, serde_json::Value>::new();
+        let mut variants_filters: Vec<serde_json::Value> = vec![];
+        let mut variants_must: Vec<serde_json::Value> = vec![];
         let (attr_filters, category_id, price_filters) = if let Some(options) = options {
             let attr_filters = options.attr_filters.map(|attrs| {
                 attrs
@@ -64,7 +67,11 @@ impl ProductsElasticImpl {
                             }
                             json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": range_map}}]}})
                         } else if let Some(equal) = attr.equal {
-                            let lower_case_values = equal.values.into_iter().map(|val| val.to_lowercase()).collect::<Vec<String>>();
+                            let lower_case_values = equal
+                                .values
+                                .into_iter()
+                                .map(|val| val.to_lowercase())
+                                .collect::<Vec<String>>();
                             json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": lower_case_values}}]}})
                         } else {
                             json!({})
@@ -77,37 +84,21 @@ impl ProductsElasticImpl {
             (None, None, None)
         };
 
-        let attr_filter = json!({
-                "nested" : {
-                    "path" : "variants",
-                    "query" : {
-                        "bool" : {
-                            "must" : {
-                                    "nested": {
-                                        "path": "variants.attrs",
-                                        "query": {
-                                            "bool" : {
-                                                "must" : attr_filters 
-                                                    }
-                                                }
-                                            }
-                                    }
-                                }
-                            }
+        let variant_attr_filter = json!({
+            "nested":{  
+                "path":"variants.attrs",
+                "query":{  
+                    "bool":{  
+                        "must":attr_filters
                     }
+                }
+            }
         });
 
         if let Some(attr_filters) = attr_filters {
             if !attr_filters.is_empty() {
-                filters.push(attr_filter);
+                variants_must.push(variant_attr_filter);
             }
-        }
-
-        if let Some(id) = category_id {
-            let category = json!({
-                "term": {"category_id": id}
-            });
-            filters.push(category);
         }
 
         if let Some(price_filters) = price_filters {
@@ -118,31 +109,44 @@ impl ProductsElasticImpl {
             if let Some(max) = price_filters.max_value {
                 range_map.insert("lte".to_string(), json!(max));
             }
-            let price_filter = json!({
-                "nested" : {
-                    "path" : "variants",
-                    "query" : { "bool" : {"must": { "range": { "variants.price": range_map}}}}
-                    }
-            });
-            filters.push(price_filter);
-        }
-
-        let variants_exists = json!({
-                "nested": {
-                    "path": "variants",
-                    "query": {
-                    "bool": {
-                        "filter": {
-                        "exists": {
-                            "field": "variants"
-                        }
-                        }
-                    }
-                    }
+            let variant_price_filter = json!({
+                "range":{  
+                    "variants.price":range_map
                 }
             });
+            variants_must.push(variant_price_filter);
+        }
 
-        filters.push(variants_exists);
+        let variant_exists = json!({
+                "exists":{  
+                    "field":"variants"
+                }
+        });
+        variants_filters.push(variant_exists);
+
+        variants_map.insert("must".to_string(), serde_json::Value::Array(variants_must));
+        variants_map.insert(
+            "filter".to_string(),
+            serde_json::Value::Array(variants_filters),
+        );
+
+        let variants = json!({
+            "nested":{  
+                "path":"variants",
+                "query":{  
+                    "bool": variants_map
+                }
+            }
+        });
+
+        filters.push(variants);
+
+        if let Some(id) = category_id {
+            let category = json!({
+                "term": {"category_id": id}
+            });
+            filters.push(category);
+        }
 
         filters
     }

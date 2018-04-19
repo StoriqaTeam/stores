@@ -11,7 +11,7 @@ use serde_json;
 use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
 
-use models::{NewStore, SearchStore, Store, UpdateStore, Category};
+use models::{Category, NewStore, SearchStore, Store, UpdateStore};
 use elastic::{StoresElastic, StoresElasticImpl};
 use super::types::ServiceFuture;
 use repos::remove_unused_categories;
@@ -158,7 +158,7 @@ impl<
     }
 
     /// search filters country
-    fn search_filters_country(&self, search_store: SearchStore) -> ServiceFuture<Vec<String>>{
+    fn search_filters_country(&self, search_store: SearchStore) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let search_filters = {
@@ -170,9 +170,9 @@ impl<
 
         Box::new(search_filters)
     }
-    
+
     /// search filters category
-    fn search_filters_category(&self, search_store: SearchStore) -> ServiceFuture<Category>{
+    fn search_filters_category(&self, search_store: SearchStore) -> ServiceFuture<Category> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let stores_el = StoresElasticImpl::new(client_handle, address);
@@ -181,30 +181,32 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(stores_el
+        Box::new(
+            stores_el
                 .aggregate_categories(search_store)
                 .map_err(ServiceError::from)
-                .and_then( move |categories_ids| {
-                cpu_pool.spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| {
-                            error!(
-                                "Could not get connection to db from pool! {}",
-                                e.to_string()
-                            );
-                            ServiceError::Connection(e.into())
-                        })
-                        .and_then(move |conn| {
+                .and_then(move |categories_ids| {
+                    cpu_pool.spawn_fn(move || {
+                        db_pool
+                            .get()
+                            .map_err(|e| {
+                                error!(
+                                    "Could not get connection to db from pool! {}",
+                                    e.to_string()
+                                );
+                                ServiceError::Connection(e.into())
+                            })
+                            .and_then(move |conn| {
                                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                 categories_repo.get_all().map_err(ServiceError::from)
                             })
-                        .and_then(|category| {
-                            let new_cat = remove_unused_categories(category, &categories_ids, 0);
-                            Ok(new_cat)
-                        })
-                })
-        }))
+                            .and_then(|category| {
+                                let new_cat = remove_unused_categories(category, &categories_ids, 0);
+                                Ok(new_cat)
+                            })
+                    })
+                }),
+        )
     }
 
     /// Returns store by ID

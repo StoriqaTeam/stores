@@ -41,8 +41,7 @@ cat << EOF > stores-connector.json
     "tasks.max": "1",
     "type.name": "_doc",
     "elastic.url": "stores-es",
-    "elastic.port": "9200",
-    "index.name": "products"
+    "elastic.port": "9200"
   }
 }
 EOF

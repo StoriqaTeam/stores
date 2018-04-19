@@ -117,7 +117,7 @@ pub struct ElasticProduct {
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub views: i32,
-    pub rating: f64,
+    pub rating: Option<f64>,
     pub variants: Vec<ElasticVariant>,
     pub category_id: i32,
 }

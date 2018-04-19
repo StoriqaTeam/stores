@@ -64,7 +64,8 @@ impl ProductsElasticImpl {
                             }
                             json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": range_map}}]}})
                         } else if let Some(equal) = attr.equal {
-                            json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": equal.values}}]}})
+                            let lower_case_values = equal.values.into_iter().map(|val| val.to_lowercase()).collect::<Vec<String>>();
+                            json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": lower_case_values}}]}})
                         } else {
                             json!({})
                         }

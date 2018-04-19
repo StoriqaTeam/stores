@@ -25,6 +25,7 @@ table! {
         views -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
+        rating -> Double,
     }
 }
 
@@ -45,6 +46,7 @@ pub struct BaseProduct {
     pub views: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
+    pub rating: f64,
 }
 
 /// Payload for creating base_products
@@ -82,6 +84,7 @@ pub struct UpdateBaseProduct {
     pub seo_description: Option<serde_json::Value>,
     pub currency_id: Option<i32>,
     pub category_id: Option<i32>,
+    pub rating: Option<f64>,
 }
 
 /// Payload for updating views on base product
@@ -114,6 +117,7 @@ pub struct ElasticProduct {
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub views: i32,
+    pub rating: f64,
     pub variants: Vec<ElasticVariant>,
     pub category_id: i32,
 }

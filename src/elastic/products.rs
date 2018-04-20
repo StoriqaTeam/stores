@@ -52,7 +52,7 @@ impl ProductsElasticImpl {
         let mut variants_map = serde_json::Map::<String, serde_json::Value>::new();
         let mut variants_filters: Vec<serde_json::Value> = vec![];
         let mut variants_must: Vec<serde_json::Value> = vec![];
-        let (attr_filters, category_id, price_filters) = if let Some(options) = options {
+        let (attr_filters, categories_ids, price_filters) = if let Some(options) = options {
             let attr_filters = options.attr_filters.map(|attrs| {
                 attrs
                     .into_iter()
@@ -79,7 +79,7 @@ impl ProductsElasticImpl {
                     })
                     .collect::<Vec<serde_json::Value>>()
             });
-            (attr_filters, options.category_id, options.price_filter)
+            (attr_filters, options.categories_ids, options.price_filter)
         } else {
             (None, None, None)
         };
@@ -141,9 +141,9 @@ impl ProductsElasticImpl {
 
         filters.push(variants);
 
-        if let Some(id) = category_id {
+        if let Some(ids) = categories_ids {
             let category = json!({
-                "term": {"category_id": id}
+                "terms": {"category_id": ids}
             });
             filters.push(category);
         }
@@ -460,9 +460,9 @@ impl ProductsElastic for ProductsElasticImpl {
         }
 
         if let Some(prod_options) = prod.options {
-            if let Some(prod_options_category_id) = prod_options.category_id {
+            if let Some(prod_options_category_id) = prod_options.categories_ids {
                 let category = json!({
-                    "term": {"category_id": prod_options_category_id}
+                    "terms": {"category_id": prod_options_category_id}
                 });
                 query_map.insert("filter".to_string(), category);
             }

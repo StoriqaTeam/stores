@@ -205,16 +205,43 @@ pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32], 
     cat
 }
 
-pub fn get_parent_category(cat: &Category, child_id: i32, child_level: i32) -> Option<Category> {
-    if child_level != 0 {
+pub fn clear_child_categories(mut cat: Category, stack_level: i32) -> Category {
+    if stack_level == 0 {
+        cat.children.clear();
+    } else {
+        let mut cats = vec![];
+        for cat_child in cat.children.into_iter() {
+            let new_cat = clear_child_categories(cat_child, stack_level - 1);
+            cats.push(new_cat);
+        }
+        cat.children = cats;
+    }
+    cat
+}
+
+pub fn get_parent_category(cat: &Category, child_id: i32, stack_level: i32) -> Option<Category> {
+    if stack_level != 0 {
         cat.children
             .iter()
-            .find(|cat_child| get_parent_category(cat_child, child_id, child_level - 1).is_some())
+            .find(|cat_child| get_parent_category(cat_child, child_id, stack_level - 1).is_some())
             .and_then(|_| Some(cat.clone()))
     } else if cat.id == child_id {
         Some(cat.clone())
     } else {
         None
+    }
+}
+
+pub fn get_all_children_till_the_end(cat: Category) -> Vec<Category> {
+    if cat.children.is_empty() {
+        vec![cat]
+    } else {
+        let mut kids = vec![];
+        for cat_child in cat.children.into_iter() {
+            let mut children_kids = get_all_children_till_the_end(cat_child);
+            kids.append(&mut children_kids);
+        }
+        kids
     }
 }
 

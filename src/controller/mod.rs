@@ -217,7 +217,6 @@ impl<
                     "User with id = '{:?}' is requesting  // POST /stores/search",
                     user_id
                 );
-                println!("req body - {:?}", req.body_ref());
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<SearchStore>(req.body())

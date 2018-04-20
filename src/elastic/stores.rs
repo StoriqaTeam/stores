@@ -263,9 +263,9 @@ impl StoresElastic for StoresElasticImpl {
 
     /// Aggregate categories
     fn aggregate_categories(&self, _search_store: SearchStore) -> RepoFuture<Vec<i32>> {
-        let categories_ids = vec![1,2];
+        let categories_ids = vec![1, 2];
         Box::new(future::ok(categories_ids))
-        
+
         // log_elastic_req(&search_store);
         // let name_query = json!({
         //     "nested" : {

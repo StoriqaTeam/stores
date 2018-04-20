@@ -91,6 +91,7 @@ pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
     pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
+    pub categories_ids: Option<Vec<i32>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

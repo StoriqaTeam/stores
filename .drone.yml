@@ -77,6 +77,18 @@ pipeline:
     #when:
       #branch: master
       #event: push
+  deploy2stable:
+    image: quay.io/honestbee/drone-kubernetes
+    kubernetes_server: https://api.stable.stq.cloud
+    kubernetes_token: vhkzUYmnPSI7MtJO3Et9KczuGoS0goqV
+    namespace: default
+    deployment: stores
+    repo: storiqateam/stq-stores
+    container: stores
+    tag: ${DRONE_BRANCH/\//_}${DRONE_BUILD_NUMBER}
+    when:
+      branch: feature/cd
+      event: push
   deploy2stage:
     image: quay.io/honestbee/drone-kubernetes
     kubernetes_server: https://api.stage.stq.cloud

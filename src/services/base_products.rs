@@ -254,9 +254,11 @@ impl<
                                                                     .iter()
                                                                     .map(|id| products_repo.find(*id))
                                                                     .collect::<RepoResult<Vec<Product>>>()
-                                                                    .and_then(|variants| Ok(BaseProductWithVariants::new(base_product,variants)))
+                                                                    .and_then(|variants| {
+                                                                        Ok(BaseProductWithVariants::new(base_product, variants))
+                                                                    })
                                                             } else {
-                                                                Ok(BaseProductWithVariants::new(base_product,vec![]))
+                                                                Ok(BaseProductWithVariants::new(base_product, vec![]))
                                                             }
                                                         })
                                                         .map_err(ServiceError::from)
@@ -934,6 +936,7 @@ pub mod tests {
             seo_description: None,
             currency_id: Some(1),
             category_id: Some(1),
+            rating: None
         }
     }
 

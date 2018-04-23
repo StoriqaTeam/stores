@@ -279,7 +279,7 @@ mod tests {
         }
 
         let used = vec![5, 6];
-        let new_cat = remove_unused_categories(cat, &used, 2);
+        let new_cat = remove_unused_categories(cat, &used, 1);
         assert_eq!(new_cat.children[0].children[0].id, 5);
         assert_eq!(new_cat.children[0].children[1].id, 6);
     }

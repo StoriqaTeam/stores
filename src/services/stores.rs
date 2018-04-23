@@ -480,6 +480,7 @@ pub mod tests {
             slogan: None,
             rating: None,
             country: None,
+            product_categories: None
         }
     }
 

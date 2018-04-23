@@ -33,7 +33,7 @@ pub fn create_update_base_product(name: &str) -> UpdateBaseProduct {
         seo_description: None,
         currency_id: Some(1),
         category_id: Some(1),
-        rating: None
+        rating: None,
     }
 }
 

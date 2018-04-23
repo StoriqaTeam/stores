@@ -16,7 +16,7 @@ table! {
         discount -> Nullable<Double>,
         photo_main -> Nullable<VarChar>,
         additional_photos -> Nullable<Jsonb>,
-        vendor_code -> Nullable<VarChar>,
+        vendor_code -> VarChar,
         cashback -> Nullable<Double>,
         price -> Double,
         created_at -> Timestamp, // UTC 0, generated at db level
@@ -33,7 +33,7 @@ pub struct Product {
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
     pub additional_photos: Option<serde_json::Value>,
-    pub vendor_code: Option<String>,
+    pub vendor_code: String,
     pub cashback: Option<f64>,
     pub price: f64,
     pub created_at: SystemTime,
@@ -50,7 +50,7 @@ pub struct NewProduct {
     pub photo_main: Option<String>,
     #[validate(custom = "validate_urls")]
     pub additional_photos: Option<serde_json::Value>,
-    pub vendor_code: Option<String>,
+    pub vendor_code: String,
     #[validate(custom = "validate_non_negative")]
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative")]

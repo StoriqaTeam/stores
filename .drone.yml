@@ -70,7 +70,7 @@ pipeline:
   test_release:
     image: jackthestripper/drone_k8s_rollout_test:2018042301
     user: admin
-    token: 32txou6YhrlD3sHcpxsiCmP1m7taE1fY
+    token: vhkzUYmnPSI7MtJO3Et9KczuGoS0goqV
     addr: https://api.stable.stq.cloud
     object: stores
     kind: deployment

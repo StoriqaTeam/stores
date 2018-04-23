@@ -13,7 +13,7 @@ use r2d2::{ManageConnection, Pool};
 use models::*;
 use elastic::{ProductsElastic, ProductsElasticImpl};
 use super::types::ServiceFuture;
-use repos::ReposFactory;
+use repos::{RepoResult, ReposFactory};
 use repos::remove_unused_categories;
 use repos::get_parent_category;
 use repos::clear_child_categories;
@@ -27,7 +27,7 @@ const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
@@ -205,7 +205,12 @@ impl<
     F: ReposFactory<T>,
 > BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
-    fn search_by_name(&self, mut search_product: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_by_name(
+        &self,
+        mut search_product: SearchProductsByName,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
@@ -237,11 +242,25 @@ impl<
                                         })
                                         .and_then(move |conn| {
                                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                                             el_products
                                                 .into_iter()
                                                 .map(|el_product| {
                                                     base_products_repo
                                                         .find(el_product.id)
+                                                        .and_then(|base_product| {
+                                                            if let Some(matched) = el_product.matched_variants_ids {
+                                                                matched
+                                                                    .iter()
+                                                                    .map(|id| products_repo.find(*id))
+                                                                    .collect::<RepoResult<Vec<Product>>>()
+                                                                    .and_then(|variants| {
+                                                                        Ok(BaseProductWithVariants::new(base_product, variants))
+                                                                    })
+                                                            } else {
+                                                                Ok(BaseProductWithVariants::new(base_product, vec![]))
+                                                            }
+                                                        })
                                                         .map_err(ServiceError::from)
                                                 })
                                                 .collect()
@@ -917,6 +936,7 @@ pub mod tests {
             seo_description: None,
             currency_id: Some(1),
             category_id: Some(1),
+            rating: None
         }
     }
 

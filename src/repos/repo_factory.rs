@@ -321,6 +321,7 @@ pub mod tests {
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
+                rating: 0f64
             })
         }
 
@@ -340,6 +341,7 @@ pub mod tests {
                     currency_id: 1,
                     category_id: 1,
                     views: 1,
+                    rating: 0f64,
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
                 };
@@ -372,6 +374,7 @@ pub mod tests {
                     views: 1,
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
+                    rating: 0f64,
                 };
                 base_products.push(base_product);
             }
@@ -399,6 +402,7 @@ pub mod tests {
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
+                rating: 0f64,
             })
         }
 
@@ -418,6 +422,7 @@ pub mod tests {
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
+                rating: 0f64,
             })
         }
 
@@ -437,6 +442,7 @@ pub mod tests {
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
+                rating: 0f64,
             })
         }
     }
@@ -624,7 +630,8 @@ pub mod tests {
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
             country: None,
-            rating: None,
+            rating: 0f64,
+            product_categories: Some(serde_json::from_str("{}").unwrap())
         }
     }
 
@@ -646,6 +653,7 @@ pub mod tests {
             default_language: "en".to_string(),
             slogan: Some("fdsf".to_string()),
             country: None,
+
         }
     }
 
@@ -667,6 +675,7 @@ pub mod tests {
             slogan: None,
             rating: None,
             country: None,
+            product_categories: None
         }
     }
 

@@ -135,6 +135,10 @@ impl ProductsElasticImpl {
                 "path":"variants",
                 "query":{  
                     "bool": variants_map
+                },
+                "inner_hits": {
+                    "_source" : false,
+                    "docvalue_fields" : ["variants.prod_id"]
                 }
             }
         });
@@ -217,7 +221,38 @@ impl ProductsElastic for ProductsElasticImpl {
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
-                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticProduct>>())),
+                .and_then(|res| {
+                    let mut prods = vec![];
+                    for hit in res.into_hits() {
+                        let ids = {
+                            hit.inner_hits().clone().and_then(|m| {
+                                m.get("variants").and_then(|v| {
+                                    v["hits"]["hits"].as_array().and_then(|hh| {
+                                        let mut variant_ids = vec![];
+                                        for h in hh {
+                                            let ids = h["fields"]["variants.prod_id"].as_array();
+                                            if let Some(ids) = ids {
+                                                for id in ids {
+                                                    if let Some(id) = id.as_i64() {
+                                                        variant_ids.push(id as i32);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Some(variant_ids)
+                                    })
+                                })
+                            })
+                        };
+
+                        let mut prod = hit.into_document();
+                        if let Some(mut prod) = prod {
+                            prod.matched_variants_ids = ids;
+                            prods.push(prod);
+                        }
+                    }
+                    future::ok(prods)
+                }),
         )
     }
 

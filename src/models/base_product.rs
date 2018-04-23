@@ -6,7 +6,7 @@ use validator::Validate;
 use serde_json;
 
 use super::Store;
-use models::{AttrValue, Product};
+use models::Product;
 use models::validation_rules::*;
 
 /// diesel table for base_products
@@ -120,6 +120,7 @@ pub struct ElasticProduct {
     pub rating: Option<f64>,
     pub variants: Vec<ElasticVariant>,
     pub category_id: i32,
+    pub matched_variants_ids: Option<Vec<i32>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -139,27 +140,41 @@ pub struct ElasticAttrValue {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseProductWithVariants {
-    pub base_product: BaseProduct,
-    pub variants: Vec<VariantsWithAttributes>,
+    pub id: i32,
+    pub is_active: bool,
+    pub store_id: i32,
+    pub name: serde_json::Value,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
+    pub seo_title: Option<serde_json::Value>,
+    pub seo_description: Option<serde_json::Value>,
+    pub currency_id: i32,
+    pub category_id: i32,
+    pub views: i32,
+    pub created_at: SystemTime,
+    pub updated_at: SystemTime,
+    pub rating: f64,
+    pub variants: Vec<Product>,
 }
 
 impl BaseProductWithVariants {
-    pub fn new(base_product: BaseProduct, variants: Vec<VariantsWithAttributes>) -> Self {
+    pub fn new(base_product: BaseProduct, variants: Vec<Product>) -> Self {
         Self {
-            base_product,
+            id: base_product.id,
+            is_active: base_product.is_active,
+            store_id: base_product.store_id,
+            name: base_product.name,
+            short_description: base_product.short_description,
+            long_description: base_product.long_description,
+            seo_title: base_product.seo_title,
+            seo_description: base_product.seo_description,
+            currency_id: base_product.currency_id,
+            category_id: base_product.category_id,
+            views: base_product.views,
+            created_at: base_product.created_at,
+            updated_at: base_product.updated_at,
+            rating: base_product.rating,
             variants,
         }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct VariantsWithAttributes {
-    pub product: Product,
-    pub attrs: Vec<AttrValue>,
-}
-
-impl VariantsWithAttributes {
-    pub fn new(product: Product, attrs: Vec<AttrValue>) -> Self {
-        Self { product, attrs }
     }
 }

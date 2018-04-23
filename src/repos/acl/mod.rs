@@ -169,7 +169,8 @@ mod tests {
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
             country: None,
-            rating: None,
+            rating: 0f64,
+            product_categories: Some(serde_json::from_str("{}").unwrap())
         }
     }
 

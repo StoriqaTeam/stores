@@ -45,13 +45,14 @@ pub struct Product {
 #[table_name = "products"]
 pub struct NewProduct {
     pub base_product_id: i32,
-    #[validate(custom = "validate_non_negative")]
+    #[validate(range(min = "0.0", max = "1.0"))]
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
     #[validate(custom = "validate_urls")]
     pub additional_photos: Option<serde_json::Value>,
+    #[validate(length(min = "1"))]
     pub vendor_code: String,
-    #[validate(custom = "validate_non_negative")]
+    #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative")]
     pub price: f64,

@@ -128,7 +128,7 @@ impl ProductsElasticImpl {
         let mut filters: Vec<serde_json::Value> = vec![];
 
         let variants_map = ProductsElasticImpl::create_variants_map_filters(options.clone());
-        let categories_ids = options.map(|o| o.categories_ids);
+        let categories_ids = options.and_then(|o| o.categories_ids);
 
         let variants = json!({
             "nested":{  

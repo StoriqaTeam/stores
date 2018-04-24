@@ -1,9 +1,9 @@
 //! CategoryCache is a module that caches received from db information about user and his categories
 use std::sync::{Arc, Mutex};
 
-use repos::types::RepoResult;
 use models::Category;
 use repos::error::RepoError;
+use repos::types::RepoResult;
 
 #[derive(Clone, Default)]
 pub struct CategoryCacheImpl {

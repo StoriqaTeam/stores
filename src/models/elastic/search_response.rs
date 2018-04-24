@@ -1,11 +1,11 @@
-use std::str::FromStr;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::slice::Iter;
+use std::str::FromStr;
 use std::vec::IntoIter;
 
-use serde_json::{Map, Value};
 use models::elastic::Shards;
+use serde_json::{Map, Value};
 
 #[derive(Deserialize, Debug)]
 pub struct SearchResponse<T> {
@@ -127,9 +127,7 @@ pub struct Hits<'a, T: 'a> {
 
 impl<'a, T: 'a> Hits<'a, T> {
     fn new(hits: &'a HitsWrapper<T>) -> Self {
-        Hits {
-            inner: hits.inner.iter(),
-        }
+        Hits { inner: hits.inner.iter() }
     }
 }
 
@@ -169,9 +167,7 @@ pub struct Documents<'a, T: 'a> {
 
 impl<'a, T: 'a> Documents<'a, T> {
     fn new(hits: &'a HitsWrapper<T>) -> Self {
-        Documents {
-            inner: hits.inner.iter(),
-        }
+        Documents { inner: hits.inner.iter() }
     }
 }
 
@@ -453,28 +449,19 @@ impl<T> SuggestOption<T> {
 impl<T> SuggestWrapper<T> {
     /** Get vector of source document. */
     pub fn get_documents(&self) -> Vec<&T> {
-        self.options
-            .iter()
-            .filter_map(|op| op.document())
-            .collect::<Vec<&T>>()
+        self.options.iter().filter_map(|op| op.document()).collect::<Vec<&T>>()
     }
 
     /** Get vector of source document. */
     pub fn get_suggested_text(&self) -> Vec<String> {
-        self.options
-            .iter()
-            .map(|op| op.text())
-            .collect::<Vec<String>>()
+        self.options.iter().map(|op| op.text()).collect::<Vec<String>>()
     }
 }
 
 impl<T> Suggest<T> {
     /** Get vector of source document. */
     pub fn get_documents(&self) -> Vec<&T> {
-        self.inner
-            .iter()
-            .flat_map(|wrapper| wrapper.get_documents())
-            .collect::<Vec<&T>>()
+        self.inner.iter().flat_map(|wrapper| wrapper.get_documents()).collect::<Vec<&T>>()
     }
 
     /** Get vector of source document. */

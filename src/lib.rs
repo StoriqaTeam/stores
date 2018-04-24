@@ -44,37 +44,37 @@ extern crate validator_derive;
 
 #[macro_use]
 pub mod macros;
+pub mod config;
 pub mod controller;
+pub mod elastic;
 pub mod models;
 pub mod repos;
-pub mod elastic;
 pub mod services;
-pub mod config;
 pub mod types;
 
-use std::sync::Arc;
-use std::process;
 use std::env;
 use std::io::Write;
+use std::process;
+use std::sync::Arc;
 
 use chrono::prelude::*;
-use futures::{Future, Stream};
+use diesel::pg::PgConnection;
+use env_logger::Builder as LogBuilder;
 use futures::future;
+use futures::{Future, Stream};
 use futures_cpupool::CpuPool;
 use hyper::server::Http;
-use diesel::pg::PgConnection;
+use log::LevelFilter as LogLevelFilter;
 use r2d2_diesel::ConnectionManager;
 use tokio_core::reactor::Core;
-use env_logger::Builder as LogBuilder;
-use log::LevelFilter as LogLevelFilter;
 
-use stq_http::controller::Application;
 use stq_http::client::Config as HttpConfig;
+use stq_http::controller::Application;
 
 use config::Config;
 use repos::acl::RolesCacheImpl;
-use repos::categories::CategoryCacheImpl;
 use repos::attributes::AttributeCacheImpl;
+use repos::categories::CategoryCacheImpl;
 use repos::repo_factory::ReposFactoryImpl;
 
 /// Starts new web service from provided `Config`
@@ -83,13 +83,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     builder
         .format(|formatter, record| {
             let now = Utc::now();
-            writeln!(
-                formatter,
-                "{} - {} - {}",
-                now.to_rfc3339(),
-                record.level(),
-                record.args()
-            )
+            writeln!(formatter, "{} - {} - {}", now.to_rfc3339(), record.level(), record.args())
         })
         .filter(None, LogLevelFilter::Info);
 
@@ -114,15 +108,9 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     handle.spawn(client_stream.for_each(|_| Ok(())));
 
     // Prepare database pool
-    let database_url: String = config
-        .server
-        .database
-        .parse()
-        .expect("Database URL must be set in configuration");
+    let database_url: String = config.server.database.parse().expect("Database URL must be set in configuration");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
-    let r2d2_pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create connection pool");
+    let r2d2_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
 
     let thread_count = config.server.thread_count;
 
@@ -132,9 +120,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     // Prepare server
     let address = {
         let port = port.as_ref().unwrap_or(&config.server.port);
-        format!("{}:{}", config.server.host, port)
-            .parse()
-            .expect("Could not parse address")
+        format!("{}:{}", config.server.host, port).parse().expect("Could not parse address")
     };
 
     // Roles cache
@@ -173,10 +159,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     handle.spawn(
         serve
             .for_each(move |conn| {
-                handle_arc2.spawn(
-                    conn.map(|_| ())
-                        .map_err(|why| error!("Server Error: {}", why)),
-                );
+                handle_arc2.spawn(conn.map(|_| ()).map_err(|why| error!("Server Error: {}", why)));
                 Ok(())
             })
             .map_err(|_| ()),

@@ -2,20 +2,20 @@
 use std::convert::From;
 
 use diesel;
-use diesel::prelude::*;
-use diesel::query_dsl::RunQueryDsl;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::prelude::*;
+use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 
 use stq_acl::{Acl, CheckScope};
 
-use models::{Attribute, NewAttribute, UpdateAttribute};
 use models::attribute::attributes::dsl::*;
 use models::authorization::*;
+use models::{Attribute, NewAttribute, UpdateAttribute};
+use repos::acl;
 use repos::error::RepoError as Error;
 use repos::types::RepoResult;
-use repos::acl;
 
 pub mod attributes_cache;
 
@@ -44,11 +44,7 @@ pub trait AttributesRepo {
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepoImpl<'a, T> {
     pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>, cache: AttributeCacheImpl) -> Self {
-        Self {
-            db_conn,
-            acl,
-            cache,
-        }
+        Self { db_conn, acl, cache }
     }
 }
 
@@ -64,13 +60,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .first::<Attribute>(self.db_conn)
                 .map_err(Error::from)
                 .and_then(|attribute: Attribute| {
-                    acl::check(
-                        &*self.acl,
-                        &Resource::Attributes,
-                        &Action::Read,
-                        self,
-                        Some(&attribute),
-                    ).and_then(|_| {
+                    acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute)).and_then(|_| {
                         self.cache.add_attribute(id_arg, attribute.clone());
                         Ok(attribute)
                     })
@@ -88,13 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(Error::from)
             .and_then(|attributes_vec: Vec<Attribute>| {
                 for attribute in &attributes_vec {
-                    acl::check(
-                        &*self.acl,
-                        &Resource::Attributes,
-                        &Action::Read,
-                        self,
-                        Some(&attribute),
-                    )?;
+                    acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
                 }
                 Ok(attributes_vec)
             })
@@ -108,13 +92,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<Attribute>(self.db_conn)
             .map_err(Error::from)
             .and_then(|attribute| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Attributes,
-                    &Action::Create,
-                    self,
-                    Some(&attribute),
-                ).and_then(|_| {
+                acl::check(&*self.acl, &Resource::Attributes, &Action::Create, self, Some(&attribute)).and_then(|_| {
                     self.cache.add_attribute(attribute.id, attribute.clone());
                     Ok(attribute)
                 })
@@ -123,31 +101,18 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Updates specific attribute
     fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
-        debug!(
-            "Updating attribute with id {} and payload {:?}.",
-            attribute_id_arg, payload
-        );
+        debug!("Updating attribute with id {} and payload {:?}.", attribute_id_arg, payload);
         let query = attributes.find(attribute_id_arg);
 
         query
             .first::<Attribute>(self.db_conn)
             .map_err(Error::from)
-            .and_then(|attribute| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Attributes,
-                    &Action::Update,
-                    self,
-                    Some(&attribute),
-                )
-            })
+            .and_then(|attribute| acl::check(&*self.acl, &Resource::Attributes, &Action::Update, self, Some(&attribute)))
             .and_then(|_| {
                 self.cache.remove(attribute_id_arg);
                 let filter = attributes.filter(id.eq(attribute_id_arg));
                 let query = diesel::update(filter).set(&payload);
-                query
-                    .get_result::<Attribute>(self.db_conn)
-                    .map_err(Error::from)
+                query.get_result::<Attribute>(self.db_conn).map_err(Error::from)
             })
     }
 }

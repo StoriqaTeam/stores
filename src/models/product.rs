@@ -1,11 +1,11 @@
 //! Module containg product model for query, insert, update
 use std::time::SystemTime;
 
-use validator::Validate;
 use serde_json;
+use validator::Validate;
 
-use models::{AttrValue, AttributeFilter, RangeFilter};
 use models::validation_rules::*;
+use models::{AttrValue, AttributeFilter, RangeFilter};
 
 /// diesel table for products
 table! {

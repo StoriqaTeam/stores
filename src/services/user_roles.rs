@@ -7,9 +7,9 @@ use diesel::pg::Pg;
 use diesel::Connection;
 use r2d2::{ManageConnection, Pool};
 
-use models::{NewUserRole, OldUserRole, Role, UserRole};
-use super::types::ServiceFuture;
 use super::error::ServiceError;
+use super::types::ServiceFuture;
+use models::{NewUserRole, OldUserRole, Role, UserRole};
 use repos::ReposFactory;
 
 pub trait UserRolesService {
@@ -37,10 +37,10 @@ pub struct UserRolesServiceImpl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> UserRolesServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > UserRolesServiceImpl<T, M, F>
 {
     pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, repo_factory: F) -> Self {
         Self {
@@ -52,10 +52,10 @@ impl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> UserRolesService for UserRolesServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > UserRolesService for UserRolesServiceImpl<T, M, F>
 {
     /// Returns role by user ID
     fn get_roles(&self, user_id: i32) -> ServiceFuture<Vec<Role>> {
@@ -66,17 +66,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
-                    user_roles_repo
-                        .list_for_user(user_id)
-                        .map_err(ServiceError::from)
+                    user_roles_repo.list_for_user(user_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -90,10 +85,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -112,17 +104,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
-                    user_roles_repo
-                        .create(new_user_role)
-                        .map_err(ServiceError::from)
+                    user_roles_repo.create(new_user_role).map_err(ServiceError::from)
                 })
         }))
     }
@@ -136,17 +123,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
-                    user_roles_repo
-                        .delete_by_user_id(user_id_arg)
-                        .map_err(ServiceError::from)
+                    user_roles_repo.delete_by_user_id(user_id_arg).map_err(ServiceError::from)
                 })
         }))
     }
@@ -160,10 +142,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -172,9 +151,7 @@ impl<
                         role: Role::User,
                     };
                     let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
-                    user_roles_repo
-                        .create(defaul_role)
-                        .map_err(ServiceError::from)
+                    user_roles_repo.create(defaul_role).map_err(ServiceError::from)
                 })
         }))
     }
@@ -183,18 +160,16 @@ impl<
 #[cfg(test)]
 pub mod tests {
     use futures_cpupool::CpuPool;
-    use tokio_core::reactor::Core;
     use r2d2;
+    use tokio_core::reactor::Core;
 
+    use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-    use models::*;
 
     fn create_user_roles_service() -> UserRolesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create connection pool");
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         UserRolesServiceImpl {

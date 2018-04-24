@@ -1,15 +1,15 @@
 //! Categories Services, presents CRUD operations with categories
 
-use futures_cpupool::CpuPool;
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
+use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use models::{Category, NewCategory, UpdateCategory};
-use models::{Attribute, NewCatAttr, OldCatAttr};
-use super::types::ServiceFuture;
 use super::error::ServiceError;
+use super::types::ServiceFuture;
+use models::{Attribute, NewCatAttr, OldCatAttr};
+use models::{Category, NewCategory, UpdateCategory};
 use repos::types::RepoResult;
 use repos::ReposFactory;
 
@@ -43,10 +43,10 @@ pub struct CategoriesServiceImpl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> CategoriesServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > CategoriesServiceImpl<T, M, F>
 {
     pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
@@ -59,10 +59,10 @@ impl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> CategoriesService for CategoriesServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > CategoriesService for CategoriesServiceImpl<T, M, F>
 {
     /// Returns category by ID
     fn get(&self, category_id: i32) -> ServiceFuture<Category> {
@@ -74,17 +74,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    categories_repo
-                        .find(category_id)
-                        .map_err(ServiceError::from)
+                    categories_repo.find(category_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -99,18 +94,13 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                     conn.transaction::<(Category), ServiceError, _>(move || {
-                        categories_repo
-                            .create(new_category)
-                            .map_err(ServiceError::from)
+                        categories_repo.create(new_category).map_err(ServiceError::from)
                     })
                 })
         }))
@@ -127,17 +117,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    categories_repo
-                        .update(category_id, payload)
-                        .map_err(ServiceError::from)
+                    categories_repo.update(category_id, payload).map_err(ServiceError::from)
                 })
         }))
     }
@@ -152,10 +137,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -176,10 +158,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -210,17 +189,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
-                    category_attrs_repo
-                        .create(payload)
-                        .map_err(ServiceError::from)
+                    category_attrs_repo.create(payload).map_err(ServiceError::from)
                 })
         }))
     }
@@ -236,17 +210,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
-                    category_attrs_repo
-                        .delete(payload)
-                        .map_err(ServiceError::from)
+                    category_attrs_repo.delete(payload).map_err(ServiceError::from)
                 })
         }))
     }
@@ -254,20 +223,18 @@ impl<
 
 #[cfg(test)]
 pub mod tests {
-    use serde_json;
     use futures_cpupool::CpuPool;
-    use tokio_core::reactor::Core;
     use r2d2;
+    use serde_json;
+    use tokio_core::reactor::Core;
 
+    use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-    use models::*;
 
     fn create_categories_service(user_id: Option<i32>) -> CategoriesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create connection pool");
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         CategoriesServiceImpl {

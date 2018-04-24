@@ -12,11 +12,11 @@ use diesel::Connection;
 
 use stq_acl::*;
 
+use super::error::RepoError as Error;
+use super::types::RepoResult;
 use models::authorization::*;
 use models::user_role::user_roles::dsl::*;
 use models::{NewUserRole, OldUserRole, Role, UserRole};
-use super::error::RepoError as Error;
-use super::types::RepoResult;
 use repos::RolesCacheImpl;
 
 /// UserRoles repository for handling UserRoles
@@ -63,10 +63,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .get_results::<UserRole>(self.db_conn)
                 .map_err(Error::from)
                 .and_then(|user_roles_arg| {
-                    let roles = user_roles_arg
-                        .into_iter()
-                        .map(|user_role| user_role.role)
-                        .collect::<Vec<Role>>();
+                    let roles = user_roles_arg.into_iter().map(|user_role| user_role.role).collect::<Vec<Role>>();
                     Ok(roles)
                 })
                 .and_then(|roles| {
@@ -86,9 +83,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
         debug!("delete user role {:?}.", payload);
         self.cached_roles.remove(payload.user_id);
-        let filtered = user_roles
-            .filter(user_id.eq(payload.user_id))
-            .filter(role.eq(payload.role));
+        let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role));
         let query = diesel::delete(filtered);
         query.get_result(self.db_conn).map_err(Error::from)
     }

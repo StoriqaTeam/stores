@@ -2,20 +2,20 @@
 use std::convert::From;
 
 use diesel;
-use diesel::prelude::*;
-use diesel::query_dsl::RunQueryDsl;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::prelude::*;
+use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 
 use stq_acl::{Acl, CheckScope};
 
-use models::{Category, NewCategory, RawCategory, UpdateCategory};
-use models::category::categories::dsl::*;
 use models::authorization::*;
-use repos::types::RepoResult;
-use repos::error::RepoError as Error;
+use models::category::categories::dsl::*;
+use models::{Category, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
+use repos::error::RepoError as Error;
+use repos::types::RepoResult;
 
 pub mod category_attrs;
 pub mod category_cache;
@@ -46,11 +46,7 @@ pub trait CategoriesRepo {
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepoImpl<'a, T> {
     pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Category>>, cache: CategoryCacheImpl) -> Self {
-        Self {
-            db_conn,
-            acl,
-            cache,
-        }
+        Self { db_conn, acl, cache }
     }
 }
 
@@ -93,43 +89,24 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(result)
             })
             .and_then(|category| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Categories,
-                    &Action::Create,
-                    self,
-                    Some(&category),
-                ).and_then(|_| Ok(category))
+                acl::check(&*self.acl, &Resource::Categories, &Action::Create, self, Some(&category)).and_then(|_| Ok(category))
             })
     }
 
     /// Updates specific category
     fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category> {
-        debug!(
-            "Updating category with id {} and payload {:?}.",
-            category_id_arg, payload
-        );
+        debug!("Updating category with id {} and payload {:?}.", category_id_arg, payload);
         self.cache.clear();
         let query = categories.find(category_id_arg);
         query
             .first::<RawCategory>(self.db_conn)
             .map_err(Error::from)
-            .and_then(|_| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Categories,
-                    &Action::Update,
-                    self,
-                    None,
-                )
-            })
+            .and_then(|_| acl::check(&*self.acl, &Resource::Categories, &Action::Update, self, None))
             .and_then(|_| {
                 let filter = categories.filter(id.eq(category_id_arg));
 
                 let query = diesel::update(filter).set(&payload);
-                query
-                    .get_result::<RawCategory>(self.db_conn)
-                    .map_err(Error::from)
+                query.get_result::<RawCategory>(self.db_conn).map_err(Error::from)
             })
             .and_then(|updated_category| {
                 categories
@@ -152,11 +129,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             self.cache.get()
         } else {
             acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
-                .and_then(|_| {
-                    categories
-                        .load::<RawCategory>(self.db_conn)
-                        .map_err(Error::from)
-                })
+                .and_then(|_| categories.load::<RawCategory>(self.db_conn).map_err(Error::from))
                 .and_then(|cats| {
                     let mut root = Category::default();
                     let children = create_tree(&cats, None);
@@ -188,10 +161,7 @@ pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32], 
     let mut children = vec![];
     for cat_child in cat.children.into_iter() {
         if stack_level == 0 {
-            if used_categories_ids
-                .iter()
-                .any(|used_id| cat_child.id == *used_id)
-            {
+            if used_categories_ids.iter().any(|used_id| cat_child.id == *used_id) {
                 children.push(cat_child);
             }
         } else {

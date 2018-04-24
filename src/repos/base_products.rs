@@ -1,23 +1,23 @@
 use std::convert::From;
 
 use diesel;
-use diesel::prelude::*;
-use diesel::query_dsl::RunQueryDsl;
-use diesel::query_dsl::LoadQuery;
-use diesel::dsl::exists;
 use diesel::connection::AnsiTransactionManager;
+use diesel::dsl::exists;
 use diesel::pg::Pg;
+use diesel::prelude::*;
+use diesel::query_dsl::LoadQuery;
+use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 
 use stq_acl::*;
 
-use models::{BaseProduct, NewBaseProduct, Store, UpdateBaseProduct, UpdateBaseProductViews};
-use models::base_product::base_products::dsl::*;
-use models::store::stores::dsl as Stores;
-use repos::error::RepoError as Error;
+use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use super::acl;
+use models::base_product::base_products::dsl::*;
+use models::store::stores::dsl as Stores;
+use models::{BaseProduct, NewBaseProduct, Store, UpdateBaseProduct, UpdateBaseProductViews};
+use repos::error::RepoError as Error;
 
 /// BaseProducts repository, responsible for handling base_products
 pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -75,24 +75,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         debug!("Find in base products with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::BaseProducts,
-                    &Action::Read,
-                    self,
-                    Some(&base_product),
-                ).and_then(|_| {
-                    debug!(
-                        "Updating views of base product with id {}.",
-                        base_product_id_arg
-                    );
+                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product)).and_then(|_| {
+                    debug!("Updating views of base product with id {}.", base_product_id_arg);
                     let filter = base_products.filter(id.eq(base_product.id));
                     let payload: UpdateBaseProductViews = base_product.into();
 
                     let query = diesel::update(filter).set(&payload);
-                    query
-                        .get_result::<BaseProduct>(self.db_conn)
-                        .map_err(Error::from)
+                    query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
                 })
             })
     }
@@ -100,19 +89,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Counts products by store id
     fn count_with_store_id(&self, store_id_arg: i32) -> RepoResult<i32> {
         debug!("Counts products with store id {}.", store_id_arg);
-        let query = base_products
-            .filter(is_active.eq(true))
-            .filter(store_id.eq(store_id_arg))
-            .count();
+        let query = base_products.filter(is_active.eq(true)).filter(store_id.eq(store_id_arg)).count();
 
         self.execute_query(query).and_then(|count: i64| {
-            acl::check(
-                &*self.acl,
-                &Resource::BaseProducts,
-                &Action::Read,
-                self,
-                None,
-            )?;
+            acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None)?;
             Ok(count as i32)
         })
     }
@@ -125,22 +105,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<BaseProduct>(self.db_conn)
             .map_err(Error::from)
             .and_then(|base_prod| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::BaseProducts,
-                    &Action::Create,
-                    self,
-                    Some(&base_prod),
-                ).and_then(|_| Ok(base_prod))
+                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
             })
     }
 
     /// Returns list of base_products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
-        debug!(
-            "Find in base products with ids from {} count {}.",
-            from, count
-        );
+        debug!("Find in base products with ids from {} count {}.", from, count);
         let query = base_products
             .filter(is_active.eq(true))
             .filter(id.ge(from))
@@ -152,28 +123,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(Error::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
-                    acl::check(
-                        &*self.acl,
-                        &Resource::BaseProducts,
-                        &Action::Read,
-                        self,
-                        Some(&base_product),
-                    )?;
+                    acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
                 }
                 base_products_res
                     .iter()
                     .map(|base_product| {
-                        debug!(
-                            "Updating views of base product with id {}.",
-                            base_product.id
-                        );
+                        debug!("Updating views of base product with id {}.", base_product.id);
                         let filter = base_products.filter(id.eq(base_product.id));
                         let payload: UpdateBaseProductViews = base_product.into();
 
                         let query = diesel::update(filter).set(&payload);
-                        query
-                            .get_result::<BaseProduct>(self.db_conn)
-                            .map_err(Error::from)
+                        query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
                     })
                     .collect::<RepoResult<Vec<BaseProduct>>>()
             })
@@ -215,28 +175,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(Error::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
-                    acl::check(
-                        &*self.acl,
-                        &Resource::BaseProducts,
-                        &Action::Read,
-                        self,
-                        Some(&base_product),
-                    )?;
+                    acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
                 }
                 base_products_res
                     .iter()
                     .map(|base_product| {
-                        debug!(
-                            "Updating views of base product with id {}.",
-                            base_product.id
-                        );
+                        debug!("Updating views of base product with id {}.", base_product.id);
                         let filter = base_products.filter(id.eq(base_product.id));
                         let payload: UpdateBaseProductViews = base_product.into();
 
                         let query = diesel::update(filter).set(&payload);
-                        query
-                            .get_result::<BaseProduct>(self.db_conn)
-                            .map_err(Error::from)
+                        query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
                     })
                     .collect::<RepoResult<Vec<BaseProduct>>>()
             })
@@ -244,29 +193,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Updates specific base_product
     fn update(&self, base_product_id_arg: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
-        debug!(
-            "Updating base product with id {} and payload {:?}.",
-            base_product_id_arg, payload
-        );
+        debug!("Updating base product with id {} and payload {:?}.", base_product_id_arg, payload);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::BaseProducts,
-                    &Action::Update,
-                    self,
-                    Some(&base_product),
-                )
+                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Update, self, Some(&base_product))
             })
             .and_then(|_| {
-                let filter = base_products
-                    .filter(id.eq(base_product_id_arg))
-                    .filter(is_active.eq(true));
+                let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query
-                    .get_result::<BaseProduct>(self.db_conn)
-                    .map_err(Error::from)
+                query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
             })
     }
 
@@ -275,18 +211,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         debug!("Deactivate base product with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::BaseProducts,
-                    &Action::Delete,
-                    self,
-                    Some(&base_product),
-                )
+                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Delete, self, Some(&base_product))
             })
             .and_then(|_| {
-                let filter = base_products
-                    .filter(id.eq(base_product_id_arg))
-                    .filter(is_active.eq(true));
+                let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })
@@ -298,15 +226,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(Error::from)
-            .and_then(|exists| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::BaseProducts,
-                    &Action::Read,
-                    self,
-                    None,
-                ).and_then(|_| Ok(exists))
-            })
+            .and_then(|exists| acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None).and_then(|_| Ok(exists)))
     }
 }
 

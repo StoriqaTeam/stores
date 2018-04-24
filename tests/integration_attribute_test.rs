@@ -5,9 +5,9 @@ use std::str::FromStr;
 
 use futures::future;
 use futures::Future;
+use hyper::header::{ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
-use hyper::header::{ContentLength, ContentType};
 
 use stores_lib::models::*;
 
@@ -45,12 +45,7 @@ fn attributes_crud() {
 
     let mut code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -60,12 +55,7 @@ fn attributes_crud() {
     req = Request::new(Method::Get, url.clone());
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -73,9 +63,7 @@ fn attributes_crud() {
     url = Uri::from_str(&format!("{}/attributes/1", context.base_url)).unwrap();
 
     let update_attribute = create_update_attribute(serde_json::from_str(MOCK_ATTRIBUTE_NAME_JSON).unwrap());
-    body = serde_json::to_string(&update_attribute)
-        .unwrap()
-        .to_string();
+    body = serde_json::to_string(&update_attribute).unwrap().to_string();
 
     req = Request::new(Method::Put, url.clone());
     req.headers_mut().set(ContentType::json());
@@ -84,12 +72,7 @@ fn attributes_crud() {
 
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -99,12 +82,7 @@ fn attributes_crud() {
     req = Request::new(Method::Delete, url.clone());
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 }

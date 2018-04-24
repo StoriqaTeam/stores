@@ -5,9 +5,9 @@ use std::str::FromStr;
 
 use futures::future;
 use futures::Future;
+use hyper::header::{ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
-use hyper::header::{ContentLength, ContentType};
 
 use stores_lib::models::*;
 
@@ -48,12 +48,7 @@ fn categories_crud() {
 
     let mut code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -63,12 +58,7 @@ fn categories_crud() {
     req = Request::new(Method::Get, url.clone());
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -85,12 +75,7 @@ fn categories_crud() {
 
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -100,12 +85,7 @@ fn categories_crud() {
     req = Request::new(Method::Delete, url.clone());
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 }

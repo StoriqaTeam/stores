@@ -2,23 +2,23 @@
 use std::convert::From;
 
 use diesel;
-use diesel::prelude::*;
-use diesel::query_dsl::RunQueryDsl;
-use diesel::query_dsl::LoadQuery;
-use diesel::dsl::exists;
 use diesel::connection::AnsiTransactionManager;
+use diesel::dsl::exists;
 use diesel::pg::Pg;
+use diesel::prelude::*;
+use diesel::query_dsl::LoadQuery;
+use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 
 use stq_acl::*;
 use stq_static_resources::Translation;
 
-use models::{NewStore, Store, UpdateStore};
-use models::store::stores::dsl::*;
+use super::acl;
 use super::error::RepoError as Error;
 use super::types::RepoResult;
 use models::authorization::*;
-use super::acl;
+use models::store::stores::dsl::*;
+use models::{NewStore, Store, UpdateStore};
 
 /// Stores repository, responsible for handling stores
 pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -64,15 +64,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find(&self, store_id_arg: i32) -> RepoResult<Store> {
         debug!("Find in stores with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Read,
-                    self,
-                    Some(&store),
-                ).and_then(|_| Ok(store))
-            })
+            .and_then(|store: Store| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, Some(&store)).and_then(|_| Ok(store)))
     }
 
     /// Creates new store
@@ -82,38 +74,20 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query_store
             .get_result::<Store>(self.db_conn)
             .map_err(Error::from)
-            .and_then(|store| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Create,
-                    self,
-                    Some(&store),
-                ).and_then(|_| Ok(store))
-            })
+            .and_then(|store| acl::check(&*self.acl, &Resource::Stores, &Action::Create, self, Some(&store)).and_then(|_| Ok(store)))
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Store>> {
         debug!("Find in stores with ids from {} count {}.", from, count);
-        let query = stores
-            .filter(is_active.eq(true))
-            .filter(id.gt(from))
-            .order(id)
-            .limit(count.into());
+        let query = stores.filter(is_active.eq(true)).filter(id.gt(from)).order(id).limit(count.into());
 
         query
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|stores_res: Vec<Store>| {
                 for store in &stores_res {
-                    acl::check(
-                        &*self.acl,
-                        &Resource::Stores,
-                        &Action::Read,
-                        self,
-                        Some(&store),
-                    )?;
+                    acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, Some(&store))?;
                 }
                 Ok(stores_res.clone())
             })
@@ -121,24 +95,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Updates specific store
     fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
-        debug!(
-            "Updating store with id {} and payload {:?}.",
-            store_id_arg, payload
-        );
+        debug!("Updating store with id {} and payload {:?}.", store_id_arg, payload);
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Update,
-                    self,
-                    Some(&store),
-                )
-            })
+            .and_then(|store: Store| acl::check(&*self.acl, &Resource::Stores, &Action::Update, self, Some(&store)))
             .and_then(|_| {
-                let filter = stores
-                    .filter(id.eq(store_id_arg))
-                    .filter(is_active.eq(true));
+                let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<Store>(self.db_conn).map_err(Error::from)
@@ -149,19 +110,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
         debug!("Deactivate store with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::Stores,
-                    &Action::Delete,
-                    self,
-                    Some(&store),
-                )
-            })
+            .and_then(|store: Store| acl::check(&*self.acl, &Resource::Stores, &Action::Delete, self, Some(&store)))
             .and_then(|_| {
-                let filter = stores
-                    .filter(id.eq(store_id_arg))
-                    .filter(is_active.eq(true));
+                let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })

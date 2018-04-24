@@ -5,21 +5,21 @@ extern crate stores_lib;
 extern crate stq_http;
 extern crate tokio_core;
 
+use std::io::{Read, Write};
+use std::net::TcpListener;
+use std::str::from_utf8;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use std::net::TcpListener;
-use std::io::{Read, Write};
-use std::str::from_utf8;
 
+use futures::sync::oneshot;
+use futures::{Future, Stream};
 use hyper::Method;
 use tokio_core::reactor::Core;
-use futures::{Future, Stream};
-use futures::sync::oneshot;
 
-use stq_http::client::{Client, Error};
-use stq_http::client::Config as HttpConfig;
 use stores_lib::config::Config;
+use stq_http::client::Config as HttpConfig;
+use stq_http::client::{Client, Error};
 
 #[test]
 fn test_request() {
@@ -51,11 +51,7 @@ fn test_request() {
                 };
             }
 
-            let out = format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-                message_str.len(),
-                message_str
-            );
+            let out = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", message_str.len(), message_str);
             inc.write_all(out.as_ref()).unwrap();
             let _ = tx.send(());
         })

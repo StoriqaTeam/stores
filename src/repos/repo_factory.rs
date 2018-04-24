@@ -2,13 +2,12 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
 
-use repos::*;
 use models::*;
-use stq_acl::{Acl, SystemACL};
 use repos::error::RepoError;
+use repos::*;
+use stq_acl::{Acl, SystemACL};
 
-pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>
-    : Clone + Send + 'static {
+pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>: Clone + Send + 'static {
     fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<AttributesRepo + 'a>;
     fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoriesRepo + 'a>;
     fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a>;
@@ -40,10 +39,7 @@ impl ReposFactoryImpl {
         id: i32,
         db_conn: &'a C,
     ) -> Vec<Role> {
-        self.create_user_roles_repo(db_conn)
-            .list_for_user(id)
-            .ok()
-            .unwrap_or_default()
+        self.create_user_roles_repo(db_conn).list_for_user(id).ok().unwrap_or_default()
     }
 
     fn get_acl<'a, T, C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>(
@@ -64,19 +60,11 @@ impl ReposFactoryImpl {
 impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ReposFactory<C> for ReposFactoryImpl {
     fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<AttributesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
-        Box::new(AttributesRepoImpl::new(
-            db_conn,
-            acl,
-            self.attribute_cache.clone(),
-        )) as Box<AttributesRepo>
+        Box::new(AttributesRepoImpl::new(db_conn, acl, self.attribute_cache.clone())) as Box<AttributesRepo>
     }
     fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoriesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
-        Box::new(CategoriesRepoImpl::new(
-            db_conn,
-            acl,
-            self.category_cache.clone(),
-        )) as Box<CategoriesRepo>
+        Box::new(CategoriesRepoImpl::new(db_conn, acl, self.category_cache.clone())) as Box<CategoriesRepo>
     }
     fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
@@ -110,37 +98,37 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
 #[cfg(test)]
 pub mod tests {
 
-    use std::time::SystemTime;
-    use std::sync::Arc;
     use std::error::Error;
     use std::fmt;
+    use std::sync::Arc;
+    use std::time::SystemTime;
 
-    use serde_json;
-    use futures_cpupool::CpuPool;
-    use tokio_core::reactor::Handle;
-    use r2d2;
-    use r2d2::ManageConnection;
+    use diesel::connection::AnsiTransactionManager;
+    use diesel::connection::SimpleConnection;
+    use diesel::deserialize::QueryableByName;
+    use diesel::pg::Pg;
+    use diesel::query_builder::AsQuery;
+    use diesel::query_builder::QueryFragment;
+    use diesel::query_builder::QueryId;
+    use diesel::sql_types::HasSqlType;
     use diesel::Connection;
     use diesel::ConnectionResult;
     use diesel::QueryResult;
-    use diesel::query_builder::AsQuery;
-    use diesel::query_builder::QueryFragment;
-    use diesel::pg::Pg;
-    use diesel::query_builder::QueryId;
-    use diesel::sql_types::HasSqlType;
     use diesel::Queryable;
-    use diesel::deserialize::QueryableByName;
-    use diesel::connection::AnsiTransactionManager;
-    use diesel::connection::SimpleConnection;
+    use futures_cpupool::CpuPool;
+    use r2d2;
+    use r2d2::ManageConnection;
+    use serde_json;
+    use tokio_core::reactor::Handle;
 
-    use stq_static_resources::Translation;
-    use stq_http::client::Config as HttpConfig;
     use stq_http;
+    use stq_http::client::Config as HttpConfig;
+    use stq_static_resources::Translation;
 
+    use config::Config;
+    use models::*;
     use repos::*;
     use services::*;
-    use models::*;
-    use config::Config;
 
     pub const MOCK_REPO_FACTORY: ReposFactoryMock = ReposFactoryMock {};
     pub static MOCK_USER_ID: i32 = 1;
@@ -281,13 +269,11 @@ pub mod tests {
     impl CategoryAttrsRepo for CategoryAttrsRepoMock {
         /// Find category attributes by category ID
         fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
-            Ok(vec![
-                CatAttr {
-                    id: 1,
-                    cat_id: category_id_arg,
-                    attr_id: 1,
-                },
-            ])
+            Ok(vec![CatAttr {
+                id: 1,
+                cat_id: category_id_arg,
+                attr_id: 1,
+            }])
         }
 
         /// Creates new category_attribute
@@ -322,6 +308,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
+                slug: "slug".to_string(),
             })
         }
 
@@ -344,6 +331,7 @@ pub mod tests {
                     rating: 0f64,
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
+                    slug: "slug".to_string(),
                 };
                 base_products.push(base_product);
             }
@@ -375,6 +363,7 @@ pub mod tests {
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
                     rating: 0f64,
+                    slug: "slug".to_string(),
                 };
                 base_products.push(base_product);
             }
@@ -384,6 +373,10 @@ pub mod tests {
         /// Find specific base_product by ID
         fn count_with_store_id(&self, store_id: i32) -> RepoResult<i32> {
             Ok(store_id)
+        }
+
+        fn slug_exists(&self, _slug_arg: String) -> RepoResult<bool> {
+            Ok(false)
         }
 
         /// Creates new base_product
@@ -403,6 +396,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
+                slug: "slug".to_string(),
             })
         }
 
@@ -423,6 +417,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
+                slug: "slug".to_string(),
             })
         }
 
@@ -443,6 +438,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
+                slug: "slug".to_string(),
             })
         }
     }
@@ -453,17 +449,15 @@ pub mod tests {
     impl ProductAttrsRepo for ProductAttrsRepoMock {
         /// Find product attributes by product ID
         fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
-            Ok(vec![
-                ProdAttr {
-                    id: 1,
-                    prod_id: product_id_arg,
-                    base_prod_id: 1,
-                    attr_id: 1,
-                    value: "value".to_string(),
-                    value_type: AttributeType::Str,
-                    meta_field: None,
-                },
-            ])
+            Ok(vec![ProdAttr {
+                id: 1,
+                prod_id: product_id_arg,
+                base_prod_id: 1,
+                attr_id: 1,
+                value: "value".to_string(),
+                value_type: AttributeType::Str,
+                meta_field: None,
+            }])
         }
 
         /// Creates new product_attribute
@@ -534,10 +528,7 @@ pub mod tests {
 
     impl StoresRepo for StoresRepoMock {
         fn find(&self, store_id: i32) -> RepoResult<Store> {
-            let store = create_store(
-                store_id,
-                serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap(),
-            );
+            let store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             Ok(store)
         }
 
@@ -570,10 +561,7 @@ pub mod tests {
         }
 
         fn deactivate(&self, store_id: i32) -> RepoResult<Store> {
-            let mut store = create_store(
-                store_id,
-                serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap(),
-            );
+            let mut store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             store.is_active = false;
             Ok(store)
         }
@@ -585,9 +573,7 @@ pub mod tests {
         handle: Arc<Handle>,
     ) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create connection pool");
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         let config = Config::new().unwrap();
@@ -820,7 +806,7 @@ pub mod tests {
             is_active: true,
             discount: None,
             photo_main: None,
-            vendor_code: None,
+            vendor_code: "vendor_code".to_string(),
             cashback: None,
             additional_photos: None,
             price: 0f64,

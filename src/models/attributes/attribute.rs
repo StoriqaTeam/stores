@@ -2,8 +2,8 @@
 use serde_json;
 use validator::Validate;
 
-use models::*;
 use models::validation_rules::*;
+use models::*;
 
 table! {
     attributes {
@@ -70,14 +70,14 @@ mod diesel_impl {
     use std::io::Write;
     use std::str;
 
-    use diesel::pg::Pg;
-    use diesel::row::Row;
+    use diesel::deserialize::Queryable;
     use diesel::expression::bound::Bound;
     use diesel::expression::AsExpression;
-    use diesel::types::{FromSqlRow, IsNull, NotNull, SingleValue, ToSql};
+    use diesel::pg::Pg;
+    use diesel::row::Row;
     use diesel::serialize::Output;
-    use diesel::deserialize::Queryable;
     use diesel::sql_types::VarChar;
+    use diesel::types::{FromSqlRow, IsNull, NotNull, SingleValue, ToSql};
 
     use super::AttributeType;
 

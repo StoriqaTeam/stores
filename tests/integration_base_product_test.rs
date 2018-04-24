@@ -5,9 +5,9 @@ use std::str::FromStr;
 
 use futures::future;
 use futures::Future;
+use hyper::header::{ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
-use hyper::header::{ContentLength, ContentType};
 
 use stores_lib::models::*;
 
@@ -21,6 +21,7 @@ pub fn create_new_base_product(name: &str) -> NewBaseProduct {
         seo_description: None,
         currency_id: 1,
         category_id: 1,
+        slug: "slug".to_string(),
     }
 }
 
@@ -34,6 +35,7 @@ pub fn create_update_base_product(name: &str) -> UpdateBaseProduct {
         currency_id: Some(1),
         category_id: Some(1),
         rating: None,
+        slug: None,
     }
 }
 
@@ -47,9 +49,7 @@ fn base_products_crud() {
     let mut url = Uri::from_str(&format!("{}/base_products", context.base_url)).unwrap();
 
     let new_base_product = create_new_base_product(serde_json::from_str(MOCK_BASE_PRODUCT_NAME_JSON).unwrap());
-    let mut body: String = serde_json::to_string(&new_base_product)
-        .unwrap()
-        .to_string();
+    let mut body: String = serde_json::to_string(&new_base_product).unwrap().to_string();
 
     let mut req = Request::new(Method::Post, url.clone());
     req.headers_mut().set(ContentType::json());
@@ -58,12 +58,7 @@ fn base_products_crud() {
 
     let mut code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -73,12 +68,7 @@ fn base_products_crud() {
     req = Request::new(Method::Get, url.clone());
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -86,9 +76,7 @@ fn base_products_crud() {
     url = Uri::from_str(&format!("{}/base_products/1", context.base_url)).unwrap();
 
     let update_base_product = create_update_base_product(serde_json::from_str(MOCK_BASE_PRODUCT_NAME_JSON).unwrap());
-    body = serde_json::to_string(&update_base_product)
-        .unwrap()
-        .to_string();
+    body = serde_json::to_string(&update_base_product).unwrap().to_string();
 
     req = Request::new(Method::Put, url.clone());
     req.headers_mut().set(ContentType::json());
@@ -97,12 +85,7 @@ fn base_products_crud() {
 
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 
@@ -112,12 +95,7 @@ fn base_products_crud() {
     req = Request::new(Method::Delete, url.clone());
     code = context
         .core
-        .run(
-            context
-                .client
-                .request(req)
-                .and_then(|res| future::ok(res.status().as_u16())),
-        )
+        .run(context.client.request(req).and_then(|res| future::ok(res.status().as_u16())))
         .unwrap();
     assert!(code >= 200 && code <= 299);
 }

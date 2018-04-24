@@ -1,17 +1,17 @@
 //! StoresSearch repo, presents CRUD operations with db for users
 use std::convert::From;
 
-use hyper::header::{ContentLength, ContentType, Headers};
-use hyper::Method;
 use future;
 use futures::Future;
+use hyper::header::{ContentLength, ContentType, Headers};
+use hyper::Method;
 use serde_json;
 use stq_http::client::ClientHandle;
 
+use super::{log_elastic_req, log_elastic_resp};
 use models::{CountResponse, ElasticIndex, ElasticStore, SearchResponse, SearchStore, StoresSearchOptions};
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
-use super::{log_elastic_req, log_elastic_resp};
 
 /// StoresSearch repository, responsible for handling stores
 pub struct StoresElasticImpl {
@@ -107,11 +107,7 @@ impl StoresElastic for StoresElasticImpl {
             ]
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Store
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -140,11 +136,7 @@ impl StoresElastic for StoresElasticImpl {
             }
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Store
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -183,11 +175,7 @@ impl StoresElastic for StoresElasticImpl {
             }
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_count",
-            self.elastic_address,
-            ElasticIndex::Store
-        );
+        let url = format!("http://{}/{}/_count", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -234,11 +222,7 @@ impl StoresElastic for StoresElasticImpl {
         }
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Store
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -298,11 +282,7 @@ impl StoresElastic for StoresElasticImpl {
         }
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Store
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));

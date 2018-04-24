@@ -7,12 +7,12 @@ pub mod roles_cache;
 
 pub use self::roles_cache::RolesCacheImpl;
 
-use std::rc::Rc;
 use std::collections::HashMap;
+use std::rc::Rc;
 
-use stq_acl::{Acl, CheckScope};
 use models::authorization::*;
 use repos::error::RepoError;
+use stq_acl::{Acl, CheckScope};
 
 pub fn check<T>(
     acl: &Acl<Resource, Action, Scope, RepoError, T>,
@@ -21,15 +21,14 @@ pub fn check<T>(
     scope_checker: &CheckScope<Scope, T>,
     obj: Option<&T>,
 ) -> Result<(), RepoError> {
-    acl.allows(resource, action, scope_checker, obj)
-        .and_then(|allowed| {
-            if allowed {
-                Ok(())
-            } else {
-                info!("Received authorized request to {} on {}!", resource, action);
-                Err(RepoError::Unauthorized(*resource, *action))
-            }
-        })
+    acl.allows(resource, action, scope_checker, obj).and_then(|allowed| {
+        if allowed {
+            Ok(())
+        } else {
+            info!("Received authorized request to {} on {}!", resource, action);
+            Err(RepoError::Unauthorized(*resource, *action))
+        }
+    })
 }
 
 /// ApplicationAcl contains main logic for manipulation with recources
@@ -128,10 +127,7 @@ impl<T> Acl<Resource, Action, Scope, RepoError, T> for UnauthorizedAcl {
                 _ => Ok(false),
             }
         } else {
-            info!(
-                "Received unauthorized request to {} on {}!",
-                resource, action
-            );
+            info!("Received unauthorized request to {} on {}!", resource, action);
             Ok(false)
         }
     }
@@ -141,11 +137,11 @@ impl<T> Acl<Resource, Action, Scope, RepoError, T> for UnauthorizedAcl {
 mod tests {
     use std::time::SystemTime;
 
-    use stq_acl::{Acl, CheckScope};
     use serde_json;
+    use stq_acl::{Acl, CheckScope};
 
-    use repos::*;
     use models::*;
+    use repos::*;
 
     fn create_store() -> Store {
         Store {
@@ -212,21 +208,9 @@ mod tests {
         let acl = ApplicationAcl::new(vec![Role::Superuser], 1232);
         let s = ScopeChecker::default();
         let resource = create_store();
-        assert_eq!(
-            acl.allows(&Resource::Stores, &Action::All, &s, Some(&resource))
-                .unwrap(),
-            true
-        );
-        assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Read, &s, Some(&resource))
-                .unwrap(),
-            true
-        );
-        assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Create, &s, Some(&resource))
-                .unwrap(),
-            true
-        );
+        assert_eq!(acl.allows(&Resource::Stores, &Action::All, &s, Some(&resource)).unwrap(), true);
+        assert_eq!(acl.allows(&Resource::Stores, &Action::Read, &s, Some(&resource)).unwrap(), true);
+        assert_eq!(acl.allows(&Resource::Stores, &Action::Create, &s, Some(&resource)).unwrap(), true);
     }
 
     #[test]
@@ -235,21 +219,9 @@ mod tests {
         let s = ScopeChecker::default();
         let resource = create_store();
 
-        assert_eq!(
-            acl.allows(&Resource::Stores, &Action::All, &s, Some(&resource))
-                .unwrap(),
-            false
-        );
-        assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Read, &s, Some(&resource))
-                .unwrap(),
-            true
-        );
-        assert_eq!(
-            acl.allows(&Resource::Stores, &Action::Create, &s, Some(&resource))
-                .unwrap(),
-            false
-        );
+        assert_eq!(acl.allows(&Resource::Stores, &Action::All, &s, Some(&resource)).unwrap(), false);
+        assert_eq!(acl.allows(&Resource::Stores, &Action::Read, &s, Some(&resource)).unwrap(), true);
+        assert_eq!(acl.allows(&Resource::Stores, &Action::Create, &s, Some(&resource)).unwrap(), false);
     }
 
     #[test]
@@ -263,19 +235,10 @@ mod tests {
             role: Role::User,
         };
 
+        assert_eq!(acl.allows(&Resource::UserRoles, &Action::All, &s, Some(&resource)).unwrap(), true);
+        assert_eq!(acl.allows(&Resource::UserRoles, &Action::Read, &s, Some(&resource)).unwrap(), true);
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::All, &s, Some(&resource))
-                .unwrap(),
-            true
-        );
-        assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Read, &s, Some(&resource))
-                .unwrap(),
-            true
-        );
-        assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Create, &s, Some(&resource))
-                .unwrap(),
+            acl.allows(&Resource::UserRoles, &Action::Create, &s, Some(&resource)).unwrap(),
             true
         );
     }
@@ -291,19 +254,10 @@ mod tests {
             role: Role::User,
         };
 
+        assert_eq!(acl.allows(&Resource::UserRoles, &Action::All, &s, Some(&resource)).unwrap(), false);
+        assert_eq!(acl.allows(&Resource::UserRoles, &Action::Read, &s, Some(&resource)).unwrap(), false);
         assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::All, &s, Some(&resource))
-                .unwrap(),
-            false
-        );
-        assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Read, &s, Some(&resource))
-                .unwrap(),
-            false
-        );
-        assert_eq!(
-            acl.allows(&Resource::UserRoles, &Action::Create, &s, Some(&resource))
-                .unwrap(),
+            acl.allows(&Resource::UserRoles, &Action::Create, &s, Some(&resource)).unwrap(),
             false
         );
     }

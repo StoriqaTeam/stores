@@ -196,16 +196,30 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters = ProductsElasticImpl::create_elastic_filters(prod.options);
+        let filters = ProductsElasticImpl::create_elastic_filters(prod.options.clone());
         if !filters.is_empty() {
             query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+        }
+
+        let mut sorting: Vec<serde_json::Value> = vec![];
+        if let Some(options) = prod.options {
+            if let Some(sort_by) = options.sort_by {
+                let sort = match sort_by {
+                    ProductsSorting::PriceAsc => json!({ "variants.price" : { "order" : "asc", "mode" : "min"} }),
+                    ProductsSorting::PriceDesc => json!({ "variants.price" : { "order" : "desc", "mode" : "max"} }),
+                    ProductsSorting::Views => json!({ "views" : { "order" : "desc"} }),
+                    ProductsSorting::Discount => json!({ "variants.discount" : { "order" : "desc", "missing" : "_last"}}),
+                };
+                sorting.push(sort);
+            }
         }
 
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
                 "bool" : query_map
-            }
+            },
+            "sort" : sorting
         }).to_string();
 
         let url = format!(

@@ -93,6 +93,7 @@ pub struct ProductsSearchOptions {
     pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
     pub categories_ids: Option<Vec<i32>>,
+    pub sort_by: Option<ProductsSorting>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -104,6 +105,14 @@ pub struct SearchProductsByName {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MostViewedProducts {
     pub options: Option<ProductsSearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum ProductsSorting {
+    Views,
+    PriceAsc,
+    PriceDesc,
+    Discount,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

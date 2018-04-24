@@ -388,8 +388,28 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     stores_repo
                         .find(store_id)
-                        .and_then(move |_user| stores_repo.update(store_id, payload))
                         .map_err(ServiceError::from)
+                        .and_then(|_| {
+                            if let Some(slug) = payload.slug.clone() {
+                                stores_repo.slug_exists(slug).map_err(ServiceError::from)
+                            } else {
+                                Ok(false)
+                            }
+                        })
+                        .and_then(|exists| {
+                            if exists {
+                                Err(ServiceError::Validate(
+                                    validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                ))
+                            } else {
+                                Ok(())
+                            }
+                        })
+                        .and_then(move |_| {
+                            stores_repo
+                                .update(store_id, payload)
+                                .map_err(ServiceError::from)
+                        })
                 })
         }))
     }
@@ -480,7 +500,7 @@ pub mod tests {
             slogan: None,
             rating: None,
             country: None,
-            product_categories: None
+            product_categories: None,
         }
     }
 

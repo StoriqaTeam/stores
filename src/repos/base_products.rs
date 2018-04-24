@@ -4,6 +4,7 @@ use diesel;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::query_dsl::LoadQuery;
+use diesel::dsl::exists;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
@@ -51,6 +52,9 @@ pub trait BaseProductsRepo {
 
     /// Deactivates specific base_product
     fn deactivate(&self, base_product_id: i32) -> RepoResult<BaseProduct>;
+
+    /// Checks that slug already exists
+    fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepoImpl<'a, T> {
@@ -285,6 +289,23 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
+            })
+    }
+
+    fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
+        debug!("Check if store slug {} exists.", slug_arg);
+        let query = diesel::select(exists(base_products.filter(slug.eq(slug_arg))));
+        query
+            .get_result(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|exists| {
+                acl::check(
+                    &*self.acl,
+                    &Resource::BaseProducts,
+                    &Action::Read,
+                    self,
+                    None,
+                ).and_then(|_| Ok(exists))
             })
     }
 }

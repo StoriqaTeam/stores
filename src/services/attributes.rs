@@ -7,10 +7,10 @@ use diesel::pg::Pg;
 use diesel::Connection;
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
-use services::types::ServiceFuture;
-use services::error::ServiceError;
 use r2d2::{ManageConnection, Pool};
 use repos::ReposFactory;
+use services::error::ServiceError;
+use services::types::ServiceFuture;
 
 pub trait AttributesService {
     /// Returns attribute by ID
@@ -36,10 +36,10 @@ pub struct AttributesServiceImpl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    F: ReposFactory<T>,
-    M: ManageConnection<Connection = T>,
-> AttributesServiceImpl<T, F, M>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        F: ReposFactory<T>,
+        M: ManageConnection<Connection = T>,
+    > AttributesServiceImpl<T, F, M>
 {
     pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
@@ -52,10 +52,10 @@ impl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    F: ReposFactory<T>,
-    M: ManageConnection<Connection = T>,
-> AttributesService for AttributesServiceImpl<T, F, M>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        F: ReposFactory<T>,
+        M: ManageConnection<Connection = T>,
+    > AttributesService for AttributesServiceImpl<T, F, M>
 {
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Attribute> {
@@ -67,17 +67,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    attributes_repo
-                        .find(attribute_id)
-                        .map_err(ServiceError::from)
+                    attributes_repo.find(attribute_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -92,10 +87,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -115,18 +107,13 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     conn.transaction::<(Attribute), ServiceError, _>(move || {
-                        attributes_repo
-                            .create(new_attribute)
-                            .map_err(ServiceError::from)
+                        attributes_repo.create(new_attribute).map_err(ServiceError::from)
                     })
                 })
         }))
@@ -142,17 +129,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    attributes_repo
-                        .update(attribute_id, payload)
-                        .map_err(ServiceError::from)
+                    attributes_repo.update(attribute_id, payload).map_err(ServiceError::from)
                 })
         }))
     }
@@ -162,15 +144,15 @@ impl<
 pub mod tests {
     use std::sync::Arc;
 
-    use serde_json;
     use futures_cpupool::CpuPool;
-    use tokio_core::reactor::Handle;
-    use tokio_core::reactor::Core;
     use r2d2;
+    use serde_json;
+    use tokio_core::reactor::Core;
+    use tokio_core::reactor::Handle;
 
+    use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-    use models::*;
 
     #[allow(unused)]
     fn create_attribute_service(
@@ -178,9 +160,7 @@ pub mod tests {
         handle: Arc<Handle>,
     ) -> AttributesServiceImpl<MockConnection, ReposFactoryMock, MockConnectionManager> {
         let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create connection pool");
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         AttributesServiceImpl {

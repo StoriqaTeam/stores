@@ -50,10 +50,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Stores/:id route
     router.add_route_with_params(r"^/stores/(\d+)$", |params| {
-        params
-            .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(Route::Store)
+        params.get(0).and_then(|string_id| string_id.parse::<i32>().ok()).map(Route::Store)
     });
 
     // Stores/:id/products route
@@ -76,19 +73,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/stores/search$", || Route::StoresSearch);
 
     // Stores Search filter count route
-    router.add_route(r"^/stores/search/filters/count$", || {
-        Route::StoresSearchFiltersCount
-    });
+    router.add_route(r"^/stores/search/filters/count$", || Route::StoresSearchFiltersCount);
 
     // Stores Search filter country route
-    router.add_route(r"^/stores/search/filters/country$", || {
-        Route::StoresSearchFiltersCountry
-    });
+    router.add_route(r"^/stores/search/filters/country$", || Route::StoresSearchFiltersCountry);
 
     // Stores Search filter  route
-    router.add_route(r"^/stores/search/filters/category$", || {
-        Route::StoresSearchFiltersCategory
-    });
+    router.add_route(r"^/stores/search/filters/category$", || Route::StoresSearchFiltersCategory);
 
     // Stores auto complete route
     router.add_route(r"^/stores/auto_complete$", || Route::StoresAutoComplete);
@@ -132,9 +123,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
     });
 
     // Base products with variants routes
-    router.add_route(r"^/base_products/with_variants$", || {
-        Route::BaseProductWithVariants
-    });
+    router.add_route(r"^/base_products/with_variants$", || Route::BaseProductWithVariants);
 
     // Base products/:id/with_variants route
     router.add_route_with_params(r"^/base_products/(\d+)/with_variants$", |params| {
@@ -148,24 +137,16 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/base_products/search$", || Route::BaseProductsSearch);
 
     // BaseProducts auto complete route
-    router.add_route(r"^/base_products/auto_complete$", || {
-        Route::BaseProductsAutoComplete
-    });
+    router.add_route(r"^/base_products/auto_complete$", || Route::BaseProductsAutoComplete);
 
     // BaseProducts with most discount
-    router.add_route(r"^/base_products/most_discount$", || {
-        Route::BaseProductsMostDiscount
-    });
+    router.add_route(r"^/base_products/most_discount$", || Route::BaseProductsMostDiscount);
 
     // BaseProducts with most viewed
-    router.add_route(r"^/base_products/most_viewed$", || {
-        Route::BaseProductsMostViewed
-    });
+    router.add_route(r"^/base_products/most_viewed$", || Route::BaseProductsMostViewed);
 
     // BaseProducts search filters price route
-    router.add_route(r"^/base_products/search/filters/price$", || {
-        Route::BaseProductsSearchFiltersPrice
-    });
+    router.add_route(r"^/base_products/search/filters/price$", || Route::BaseProductsSearchFiltersPrice);
 
     // BaseProducts search filters category route
     router.add_route(r"^/base_products/search/filters/category", || {

@@ -7,11 +7,11 @@ extern crate tokio_core;
 
 use std::thread;
 
-use tokio_core::reactor::Core;
-use std::sync::mpsc::channel;
-use hyper::Client;
 use hyper::client::HttpConnector;
+use hyper::Client;
 use rand::Rng;
+use std::sync::mpsc::channel;
+use tokio_core::reactor::Core;
 
 type HttpClient = Client<HttpConnector>;
 

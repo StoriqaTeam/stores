@@ -1,17 +1,17 @@
 //! ProductsSearch repo, presents CRUD operations with db for users
 use std::convert::From;
 
-use hyper::header::{ContentLength, ContentType, Headers};
-use hyper::Method;
 use future;
 use futures::Future;
+use hyper::header::{ContentLength, ContentType, Headers};
+use hyper::Method;
 use serde_json;
 use stq_http::client::ClientHandle;
 
+use super::{log_elastic_req, log_elastic_resp};
 use models::*;
 use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
-use super::{log_elastic_req, log_elastic_resp};
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsElasticImpl {
@@ -47,12 +47,11 @@ impl ProductsElasticImpl {
         }
     }
 
-    fn create_elastic_filters(options: Option<ProductsSearchOptions>) -> Vec<serde_json::Value> {
-        let mut filters: Vec<serde_json::Value> = vec![];
+    fn create_variants_map_filters(options: Option<ProductsSearchOptions>) -> serde_json::Map<String, serde_json::Value> {
         let mut variants_map = serde_json::Map::<String, serde_json::Value>::new();
         let mut variants_filters: Vec<serde_json::Value> = vec![];
         let mut variants_must: Vec<serde_json::Value> = vec![];
-        let (attr_filters, categories_ids, price_filters) = if let Some(options) = options {
+        let (attr_filters, price_filters) = if let Some(options) = options {
             let attr_filters = options.attr_filters.map(|attrs| {
                 attrs
                     .into_iter()
@@ -67,11 +66,7 @@ impl ProductsElasticImpl {
                             }
                             json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}}, { "range": { "variants.attrs.float_val": range_map}}]}})
                         } else if let Some(equal) = attr.equal {
-                            let lower_case_values = equal
-                                .values
-                                .into_iter()
-                                .map(|val| val.to_lowercase())
-                                .collect::<Vec<String>>();
+                            let lower_case_values = equal.values.into_iter().map(|val| val.to_lowercase()).collect::<Vec<String>>();
                             json!({ "bool" : {"must": [{"term": {"variants.attrs.attr_id": attr.id}},{"terms": {"variants.attrs.str_val": lower_case_values}}]}})
                         } else {
                             json!({})
@@ -79,9 +74,9 @@ impl ProductsElasticImpl {
                     })
                     .collect::<Vec<serde_json::Value>>()
             });
-            (attr_filters, options.categories_ids, options.price_filter)
+            (attr_filters, options.price_filter)
         } else {
-            (None, None, None)
+            (None, None)
         };
 
         let variant_attr_filter = json!({
@@ -89,7 +84,7 @@ impl ProductsElasticImpl {
                 "path":"variants.attrs",
                 "query":{  
                     "bool":{  
-                        "should":attr_filters
+                        "should": attr_filters
                     }
                 }
             }
@@ -125,10 +120,15 @@ impl ProductsElasticImpl {
         variants_filters.push(variant_exists);
 
         variants_map.insert("must".to_string(), serde_json::Value::Array(variants_must));
-        variants_map.insert(
-            "filter".to_string(),
-            serde_json::Value::Array(variants_filters),
-        );
+        variants_map.insert("filter".to_string(), serde_json::Value::Array(variants_filters));
+        variants_map
+    }
+
+    fn create_elastic_filters(options: Option<ProductsSearchOptions>) -> Vec<serde_json::Value> {
+        let mut filters: Vec<serde_json::Value> = vec![];
+
+        let variants_map = ProductsElasticImpl::create_variants_map_filters(options.clone());
+        let categories_ids = options.map(|o| o.categories_ids);
 
         let variants = json!({
             "nested":{  
@@ -196,23 +196,69 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters = ProductsElasticImpl::create_elastic_filters(prod.options);
+        let filters = ProductsElasticImpl::create_elastic_filters(prod.options.clone());
         if !filters.is_empty() {
             query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+        }
+
+        let mut sorting: Vec<serde_json::Value> = vec![];
+        let variants_map = ProductsElasticImpl::create_variants_map_filters(prod.options.clone());
+        if let Some(options) = prod.options {
+            if let Some(sort_by) = options.sort_by {
+                let sort = match sort_by {
+                    ProductsSorting::PriceAsc => json!(
+                        {
+                            "variants.price" : {
+                                "mode" :  "min",
+                                "order" : "asc",
+                                "nested": {
+                                    "path": "variants",
+                                    "filter":{  
+                                        "bool": variants_map
+                                    }
+                                }
+                            }
+                        }
+                    ),
+                    ProductsSorting::PriceDesc => json!({
+                            "variants.price" : {
+                                "mode" :  "max",
+                                "order" : "desc",
+                                "nested": {
+                                    "path": "variants",
+                                    "filter":{  
+                                        "bool": variants_map
+                                    }
+                                }
+                            }
+                        }),
+                    ProductsSorting::Views => json!({ "views" : { "order" : "desc"} }),
+                    ProductsSorting::Discount => json!({
+                            "variants.discount" : {
+                                "mode" :  "max",
+                                "order" : "desc",
+                                "nested": {
+                                    "path": "variants",
+                                    "filter":{  
+                                        "bool": variants_map
+                                    }
+                                }
+                            }
+                        }),
+                };
+                sorting.push(sort);
+            }
         }
 
         let query = json!({
             "from" : offset, "size" : count,
             "query": {
                 "bool" : query_map
-            }
+            },
+            "sort" : sorting
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Product
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -275,11 +321,7 @@ impl ProductsElastic for ProductsElasticImpl {
             "sort" : [{ "views" : { "order" : "desc"} }]
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Product
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -327,11 +369,7 @@ impl ProductsElastic for ProductsElasticImpl {
             "sort" : [{ "variants.discount" : { "order" : "desc"} }]
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Product
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -358,11 +396,7 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Product
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -428,11 +462,7 @@ impl ProductsElastic for ProductsElasticImpl {
         }
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Product
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
@@ -521,11 +551,7 @@ impl ProductsElastic for ProductsElasticImpl {
         }
         }).to_string();
 
-        let url = format!(
-            "http://{}/{}/_search",
-            self.elastic_address,
-            ElasticIndex::Product
-        );
+        let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));

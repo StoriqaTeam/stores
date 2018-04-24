@@ -11,12 +11,7 @@ fn healthcheck_returns_ok() {
     let url = Uri::from_str(&format!("{}/healthcheck", context.base_url)).unwrap();
     let response = context
         .core
-        .run(
-            context
-                .client
-                .get(url)
-                .and_then(|resp| read_body(resp.body())),
-        )
+        .run(context.client.get(url).and_then(|resp| read_body(resp.body())))
         .unwrap();
     assert_eq!(response, "\"Ok\"");
 }

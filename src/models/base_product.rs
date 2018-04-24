@@ -6,8 +6,8 @@ use validator::Validate;
 use serde_json;
 
 use super::Store;
-use models::Product;
 use models::validation_rules::*;
+use models::Product;
 
 /// diesel table for base_products
 table! {

@@ -1,22 +1,22 @@
 use std::convert::From;
 
 use diesel;
-use diesel::prelude::*;
-use diesel::query_dsl::RunQueryDsl;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::prelude::*;
+use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 
 use stq_acl::*;
 
-use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
-use models::attribute_product::prod_attr_values::dsl::*;
-use models::store::stores::dsl as Stores;
-use models::base_product::base_products::dsl as BaseProducts;
-use repos::error::RepoError as Error;
-use super::types::RepoResult;
-use models::authorization::*;
 use super::acl;
+use super::types::RepoResult;
+use models::attribute_product::prod_attr_values::dsl::*;
+use models::authorization::*;
+use models::base_product::base_products::dsl as BaseProducts;
+use models::store::stores::dsl as Stores;
+use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
+use repos::error::RepoError as Error;
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -47,22 +47,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific product_attributes by product ID
     fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
         debug!("Find all attributes of product id {}.", product_id_arg);
-        let query = prod_attr_values
-            .filter(prod_id.eq(product_id_arg))
-            .order(id);
+        let query = prod_attr_values.filter(prod_id.eq(product_id_arg)).order(id);
 
         query
             .get_results(self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
-                    acl::check(
-                        &*self.acl,
-                        &Resource::ProductAttrs,
-                        &Action::Read,
-                        self,
-                        Some(&prod_attr),
-                    )?;
+                    acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res.clone())
             })
@@ -76,13 +68,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<ProdAttr>(self.db_conn)
             .map_err(Error::from)
             .and_then(|prod_attr| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::ProductAttrs,
-                    &Action::Create,
-                    self,
-                    Some(&prod_attr),
-                ).and_then(|_| Ok(prod_attr))
+                acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Create, self, Some(&prod_attr)).and_then(|_| Ok(prod_attr))
             })
     }
 
@@ -95,24 +81,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .first::<ProdAttr>(self.db_conn)
             .map_err(Error::from)
-            .and_then(|prod_attr: ProdAttr| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::ProductAttrs,
-                    &Action::Update,
-                    self,
-                    Some(&prod_attr),
-                )
-            })
+            .and_then(|prod_attr: ProdAttr| acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Update, self, Some(&prod_attr)))
             .and_then(|_| {
                 let filter = prod_attr_values
                     .filter(prod_id.eq(payload.prod_id))
                     .filter(attr_id.eq(payload.attr_id));
 
                 let query = diesel::update(filter).set(&payload);
-                query
-                    .get_result::<ProdAttr>(self.db_conn)
-                    .map_err(Error::from)
+                query.get_result::<ProdAttr>(self.db_conn).map_err(Error::from)
             })
     }
 }

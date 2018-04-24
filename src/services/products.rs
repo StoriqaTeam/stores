@@ -1,7 +1,7 @@
 //! Products Services, presents CRUD operations with product
 
-use futures_cpupool::CpuPool;
 use diesel::Connection;
+use futures_cpupool::CpuPool;
 
 use stq_http::client::ClientHandle;
 
@@ -10,10 +10,10 @@ use diesel::pg::Pg;
 
 use r2d2::{ManageConnection, Pool};
 
-use models::*;
-use super::types::ServiceFuture;
-use repos::{ReposFactory, error::RepoError};
 use super::error::ServiceError;
+use super::types::ServiceFuture;
+use models::*;
+use repos::{error::RepoError, ReposFactory};
 
 pub trait ProductsService {
     /// Returns product by ID
@@ -47,10 +47,10 @@ pub struct ProductsServiceImpl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> ProductsServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > ProductsServiceImpl<T, M, F>
 {
     pub fn new(
         db_pool: Pool<M>,
@@ -72,10 +72,10 @@ impl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> ProductsService for ProductsServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > ProductsService for ProductsServiceImpl<T, M, F>
 {
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product> {
@@ -87,10 +87,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -111,17 +108,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo
-                        .deactivate(product_id)
-                        .map_err(ServiceError::from)
+                    products_repo.deactivate(product_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -137,10 +129,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -162,10 +151,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -221,10 +207,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -279,17 +262,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo
-                        .find_with_base_id(base_product_id)
-                        .map_err(ServiceError::from)
+                    products_repo.find_with_base_id(base_product_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -305,10 +283,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -324,30 +299,28 @@ impl<
 
 #[cfg(test)]
 pub mod tests {
-    use std::time::SystemTime;
     use std::sync::Arc;
+    use std::time::SystemTime;
 
     use futures_cpupool::CpuPool;
-    use tokio_core::reactor::Handle;
     use r2d2;
+    use tokio_core::reactor::Handle;
 
-    use stq_http::client::Config as HttpConfig;
     use stq_http;
+    use stq_http::client::Config as HttpConfig;
     use tokio_core::reactor::Core;
 
+    use config::Config;
+    use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-    use models::*;
-    use config::Config;
 
     fn create_product_service(
         user_id: Option<i32>,
         handle: Arc<Handle>,
     ) -> ProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create connection pool");
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         let config = Config::new().unwrap();
@@ -375,7 +348,7 @@ pub mod tests {
             is_active: true,
             discount: None,
             photo_main: None,
-            vendor_code: None,
+            vendor_code: "vendor_code".to_string(),
             cashback: None,
             additional_photos: None,
             price: 0f64,
@@ -396,7 +369,7 @@ pub mod tests {
             base_product_id: base_product_id,
             discount: None,
             photo_main: None,
-            vendor_code: None,
+            vendor_code: "vendor_code".to_string(),
             cashback: None,
             additional_photos: None,
             price: 0f64,

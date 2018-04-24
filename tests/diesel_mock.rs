@@ -17,9 +17,7 @@ pub fn connection() -> TestConnection {
 
 pub fn connection_with_stores_db_with_stores_table() -> TestConnection {
     let connection = connection();
-    sql_query("DROP TABLE IF EXISTS stores CASCADE")
-        .execute(&connection)
-        .unwrap();
+    sql_query("DROP TABLE IF EXISTS stores CASCADE").execute(&connection).unwrap();
     sql_query(
         "CREATE TABLE stores ( \
          id SERIAL PRIMARY KEY, \

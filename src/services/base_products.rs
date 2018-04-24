@@ -1,25 +1,25 @@
 //! Base product service
 use std::collections::{HashMap, HashSet};
 
-use futures::future::*;
-use futures::future;
-use futures_cpupool::CpuPool;
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use serde_json;
+use diesel::Connection;
+use futures::future;
+use futures::future::*;
+use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
+use serde_json;
 
-use models::*;
-use elastic::{ProductsElastic, ProductsElasticImpl};
-use super::types::ServiceFuture;
-use repos::{RepoResult, ReposFactory};
-use repos::remove_unused_categories;
-use repos::get_parent_category;
-use repos::clear_child_categories;
-use repos::get_all_children_till_the_end;
 use super::error::ServiceError;
+use super::types::ServiceFuture;
+use elastic::{ProductsElastic, ProductsElasticImpl};
+use models::*;
+use repos::clear_child_categories;
 use repos::error::RepoError;
+use repos::get_all_children_till_the_end;
+use repos::get_parent_category;
+use repos::remove_unused_categories;
+use repos::{RepoResult, ReposFactory};
 
 use stq_http::client::ClientHandle;
 
@@ -75,10 +75,10 @@ pub struct BaseProductsServiceImpl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> BaseProductsServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > BaseProductsServiceImpl<T, M, F>
 {
     pub fn new(
         db_pool: Pool<M>,
@@ -104,10 +104,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        let category_id = options
-            .clone()
-            .map(|options| options.category_id)
-            .and_then(|c| c);
+        let category_id = options.clone().map(|options| options.category_id).and_then(|c| c);
 
         Box::new(cpu_pool.spawn_fn({
             let db_pool = db_pool.clone();
@@ -116,10 +113,7 @@ impl<
                 db_pool
                     .get()
                     .map_err(|e| {
-                        error!(
-                            "Could not get connection to db from pool! {}",
-                            e.to_string()
-                        );
+                        error!("Could not get connection to db from pool! {}", e.to_string());
                         ServiceError::Connection(e.into())
                     })
                     .and_then(move |conn| {
@@ -129,10 +123,7 @@ impl<
                                 let cats_ids = if cat.children.is_empty() {
                                     vec![category_id]
                                 } else {
-                                    get_all_children_till_the_end(cat)
-                                        .into_iter()
-                                        .map(|c| c.id)
-                                        .collect()
+                                    get_all_children_till_the_end(cat).into_iter().map(|c| c.id).collect()
                                 };
                                 let options = options.map(|mut options| {
                                     options.categories_ids = Some(cats_ids);
@@ -157,10 +148,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        let category_id = options
-            .clone()
-            .map(|options| options.category_id)
-            .and_then(|c| c);
+        let category_id = options.clone().map(|options| options.category_id).and_then(|c| c);
 
         Box::new(cpu_pool.spawn_fn({
             let db_pool = db_pool.clone();
@@ -169,21 +157,14 @@ impl<
                 db_pool
                     .get()
                     .map_err(|e| {
-                        error!(
-                            "Could not get connection to db from pool! {}",
-                            e.to_string()
-                        );
+                        error!("Could not get connection to db from pool! {}", e.to_string());
                         ServiceError::Connection(e.into())
                     })
                     .and_then(move |conn| {
                         if let Some(category_id) = category_id {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.find(category_id).and_then(|cat| {
-                                let cats_ids = if cat.children.is_empty() {
-                                    Some(vec![category_id])
-                                } else {
-                                    None
-                                };
+                                let cats_ids = if cat.children.is_empty() { Some(vec![category_id]) } else { None };
                                 let options = options.map(|mut options| {
                                     options.categories_ids = cats_ids;
                                     options
@@ -200,10 +181,10 @@ impl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> BaseProductsService for BaseProductsServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
     fn search_by_name(
         &self,
@@ -219,57 +200,49 @@ impl<
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        Box::new(
-            self.linearize_categories(search_product.options.clone())
-                .and_then(move |options| {
-                    search_product.options = options;
-                    products_el
-                        .search_by_name(search_product, count, offset)
-                        .map_err(ServiceError::from)
-                        .and_then({
-                            let db_pool = db_pool.clone();
-                            let repo_factory = repo_factory.clone();
-                            move |el_products| {
-                                cpu_pool.spawn_fn(move || {
-                                    db_pool
-                                        .get()
-                                        .map_err(|e| {
-                                            error!(
-                                                "Could not get connection to db from pool! {}",
-                                                e.to_string()
-                                            );
-                                            ServiceError::Connection(e.into())
-                                        })
-                                        .and_then(move |conn| {
-                                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                            el_products
-                                                .into_iter()
-                                                .map(|el_product| {
-                                                    base_products_repo
-                                                        .find(el_product.id)
-                                                        .and_then(|base_product| {
-                                                            if let Some(matched) = el_product.matched_variants_ids {
-                                                                matched
-                                                                    .iter()
-                                                                    .map(|id| products_repo.find(*id))
-                                                                    .collect::<RepoResult<Vec<Product>>>()
-                                                                    .and_then(|variants| {
-                                                                        Ok(BaseProductWithVariants::new(base_product, variants))
-                                                                    })
-                                                            } else {
-                                                                Ok(BaseProductWithVariants::new(base_product, vec![]))
-                                                            }
-                                                        })
-                                                        .map_err(ServiceError::from)
-                                                })
-                                                .collect()
-                                        })
+        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
+            search_product.options = options;
+            products_el
+                .search_by_name(search_product, count, offset)
+                .map_err(ServiceError::from)
+                .and_then({
+                    let db_pool = db_pool.clone();
+                    let repo_factory = repo_factory.clone();
+                    move |el_products| {
+                        cpu_pool.spawn_fn(move || {
+                            db_pool
+                                .get()
+                                .map_err(|e| {
+                                    error!("Could not get connection to db from pool! {}", e.to_string());
+                                    ServiceError::Connection(e.into())
                                 })
-                            }
+                                .and_then(move |conn| {
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                                    el_products
+                                        .into_iter()
+                                        .map(|el_product| {
+                                            base_products_repo
+                                                .find(el_product.id)
+                                                .and_then(|base_product| {
+                                                    if let Some(matched) = el_product.matched_variants_ids {
+                                                        matched
+                                                            .iter()
+                                                            .map(|id| products_repo.find(*id))
+                                                            .collect::<RepoResult<Vec<Product>>>()
+                                                            .and_then(|variants| Ok(BaseProductWithVariants::new(base_product, variants)))
+                                                    } else {
+                                                        Ok(BaseProductWithVariants::new(base_product, vec![]))
+                                                    }
+                                                })
+                                                .map_err(ServiceError::from)
+                                        })
+                                        .collect()
+                                })
                         })
-                }),
-        )
+                    }
+                })
+        }))
     }
 
     /// Find product by views limited by `count` and `offset` parameters
@@ -282,41 +255,33 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(
-            self.linearize_categories(search_product.options.clone())
-                .and_then(move |options| {
-                    search_product.options = options;
-                    products_el
-                        .search_most_viewed(search_product, count, offset)
-                        .map_err(ServiceError::from)
-                        .and_then({
-                            move |el_products| {
-                                cpu_pool.spawn_fn(move || {
-                                    db_pool
-                                        .get()
-                                        .map_err(|e| {
-                                            error!(
-                                                "Could not get connection to db from pool! {}",
-                                                e.to_string()
-                                            );
-                                            ServiceError::Connection(e.into())
-                                        })
-                                        .and_then(move |conn| {
-                                            el_products
-                                                .into_iter()
-                                                .map(|el_product| {
-                                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                                    base_products_repo
-                                                        .find(el_product.id)
-                                                        .map_err(ServiceError::from)
-                                                })
-                                                .collect()
-                                        })
+        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
+            search_product.options = options;
+            products_el
+                .search_most_viewed(search_product, count, offset)
+                .map_err(ServiceError::from)
+                .and_then({
+                    move |el_products| {
+                        cpu_pool.spawn_fn(move || {
+                            db_pool
+                                .get()
+                                .map_err(|e| {
+                                    error!("Could not get connection to db from pool! {}", e.to_string());
+                                    ServiceError::Connection(e.into())
                                 })
-                            }
+                                .and_then(move |conn| {
+                                    el_products
+                                        .into_iter()
+                                        .map(|el_product| {
+                                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                            base_products_repo.find(el_product.id).map_err(ServiceError::from)
+                                        })
+                                        .collect()
+                                })
                         })
-                }),
-        )
+                    }
+                })
+        }))
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
@@ -329,41 +294,33 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(
-            self.linearize_categories(search_product.options.clone())
-                .and_then(move |options| {
-                    search_product.options = options;
-                    products_el
-                        .search_most_discount(search_product, count, offset)
-                        .map_err(ServiceError::from)
-                        .and_then({
-                            move |el_products| {
-                                cpu_pool.spawn_fn(move || {
-                                    db_pool
-                                        .get()
-                                        .map_err(|e| {
-                                            error!(
-                                                "Could not get connection to db from pool! {}",
-                                                e.to_string()
-                                            );
-                                            ServiceError::Connection(e.into())
-                                        })
-                                        .and_then(move |conn| {
-                                            el_products
-                                                .into_iter()
-                                                .map(|el_product| {
-                                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                                    base_products_repo
-                                                        .find(el_product.id)
-                                                        .map_err(ServiceError::from)
-                                                })
-                                                .collect()
-                                        })
+        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
+            search_product.options = options;
+            products_el
+                .search_most_discount(search_product, count, offset)
+                .map_err(ServiceError::from)
+                .and_then({
+                    move |el_products| {
+                        cpu_pool.spawn_fn(move || {
+                            db_pool
+                                .get()
+                                .map_err(|e| {
+                                    error!("Could not get connection to db from pool! {}", e.to_string());
+                                    ServiceError::Connection(e.into())
                                 })
-                            }
+                                .and_then(move |conn| {
+                                    el_products
+                                        .into_iter()
+                                        .map(|el_product| {
+                                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                            base_products_repo.find(el_product.id).map_err(ServiceError::from)
+                                        })
+                                        .collect()
+                                })
                         })
-                }),
-        )
+                    }
+                })
+        }))
     }
 
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
@@ -371,9 +328,7 @@ impl<
         let address = self.elastic_address.clone();
         let products_names = {
             let products_el = ProductsElasticImpl::new(client_handle, address);
-            products_el
-                .auto_complete(name, count, offset)
-                .map_err(ServiceError::from)
+            products_el.auto_complete(name, count, offset).map_err(ServiceError::from)
         };
 
         Box::new(products_names)
@@ -384,15 +339,10 @@ impl<
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        Box::new(
-            self.linearize_categories(search_product.options.clone())
-                .and_then(move |options| {
-                    search_product.options = options;
-                    products_el
-                        .aggregate_price(search_product)
-                        .map_err(ServiceError::from)
-                }),
-        )
+        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
+            search_product.options = options;
+            products_el.aggregate_price(search_product).map_err(ServiceError::from)
+        }))
     }
 
     /// search filters
@@ -406,18 +356,12 @@ impl<
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
         if search_prod.name.is_empty() {
-            let category_id = search_prod
-                .options
-                .map(|options| options.category_id)
-                .and_then(|c| c);
+            let category_id = search_prod.options.map(|options| options.category_id).and_then(|c| c);
             Box::new(cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
                     .map_err(|e| {
-                        error!(
-                            "Could not get connection to db from pool! {}",
-                            e.to_string()
-                        );
+                        error!("Could not get connection to db from pool! {}", e.to_string());
                         ServiceError::Connection(e.into())
                     })
                     .and_then(move |conn| {
@@ -429,11 +373,8 @@ impl<
                                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                     categories_repo.find(category_id).and_then(|cat| {
                                         if cat.children.is_empty() {
-                                            let new_cat = remove_unused_categories(
-                                                category,
-                                                &[cat.parent_id.unwrap_or_default()],
-                                                cat.level - 2,
-                                            );
+                                            let new_cat =
+                                                remove_unused_categories(category, &[cat.parent_id.unwrap_or_default()], cat.level - 2);
                                             Ok(new_cat)
                                         } else {
                                             let new_cat = remove_unused_categories(category, &[cat.id], cat.level - 1);
@@ -458,10 +399,7 @@ impl<
                             db_pool
                                 .get()
                                 .map_err(|e| {
-                                    error!(
-                                        "Could not get connection to db from pool! {}",
-                                        e.to_string()
-                                    );
+                                    error!("Could not get connection to db from pool! {}", e.to_string());
                                     ServiceError::Connection(e.into())
                                 })
                                 .and_then(move |conn| {
@@ -485,60 +423,57 @@ impl<
         let products_el = ProductsElasticImpl::new(client_handle, address);
         Box::new(
             self.accept_only_categories_without_children(search_product.options.clone())
-                .and_then(
-                    move |options| -> ServiceFuture<Option<Vec<AttributeFilter>>> {
-                        search_product.options = options;
-                        if let Some(options) = search_product.options.clone() {
-                            if options.categories_ids.is_some() {
-                                return Box::new(
-                                    products_el
-                                        .search_by_name(search_product, MAX_PRODUCTS_SEARCH_COUNT, 0)
-                                        .map_err(ServiceError::from)
-                                        .and_then(|el_products| {
-                                            let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
-                                            let mut range_attrs = HashMap::<i32, RangeFilter>::default();
+                .and_then(move |options| -> ServiceFuture<Option<Vec<AttributeFilter>>> {
+                    search_product.options = options;
+                    if let Some(options) = search_product.options.clone() {
+                        if options.categories_ids.is_some() {
+                            return Box::new(
+                                products_el
+                                    .search_by_name(search_product, MAX_PRODUCTS_SEARCH_COUNT, 0)
+                                    .map_err(ServiceError::from)
+                                    .and_then(|el_products| {
+                                        let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
+                                        let mut range_attrs = HashMap::<i32, RangeFilter>::default();
 
-                                            for product in el_products {
-                                                for variant in product.variants {
-                                                    for attr_value in variant.attrs {
-                                                        if let Some(value) = attr_value.str_val {
-                                                            let equal = equal_attrs
-                                                                .entry(attr_value.attr_id)
-                                                                .or_insert_with(HashSet::<String>::default);
-                                                            equal.insert(value);
-                                                        }
-                                                        if let Some(value) = attr_value.float_val {
-                                                            let range = range_attrs
-                                                                .entry(attr_value.attr_id)
-                                                                .or_insert_with(RangeFilter::default);
-                                                            range.add_value(value);
-                                                        }
+                                        for product in el_products {
+                                            for variant in product.variants {
+                                                for attr_value in variant.attrs {
+                                                    if let Some(value) = attr_value.str_val {
+                                                        let equal = equal_attrs
+                                                            .entry(attr_value.attr_id)
+                                                            .or_insert_with(HashSet::<String>::default);
+                                                        equal.insert(value);
+                                                    }
+                                                    if let Some(value) = attr_value.float_val {
+                                                        let range =
+                                                            range_attrs.entry(attr_value.attr_id).or_insert_with(RangeFilter::default);
+                                                        range.add_value(value);
                                                     }
                                                 }
                                             }
+                                        }
 
-                                            let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                                                id: k,
-                                                equal: Some(EqualFilter {
-                                                    values: v.iter().cloned().collect(),
-                                                }),
-                                                range: None,
-                                            });
+                                        let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                            id: k,
+                                            equal: Some(EqualFilter {
+                                                values: v.iter().cloned().collect(),
+                                            }),
+                                            range: None,
+                                        });
 
-                                            let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                                                id: k,
-                                                equal: None,
-                                                range: Some(v),
-                                            });
+                                        let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                            id: k,
+                                            equal: None,
+                                            range: Some(v),
+                                        });
 
-                                            future::ok(Some(eq_filters.chain(range_filters).collect()))
-                                        }),
-                                );
-                            }
+                                        future::ok(Some(eq_filters.chain(range_filters).collect()))
+                                    }),
+                            );
                         }
-                        return Box::new(future::ok(None));
-                    },
-                ),
+                    }
+                    return Box::new(future::ok(None));
+                }),
         )
     }
 
@@ -552,17 +487,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo
-                        .find(product_id)
-                        .map_err(ServiceError::from)
+                    base_products_repo.find(product_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -577,10 +507,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -641,17 +568,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo
-                        .list(from, count)
-                        .map_err(ServiceError::from)
+                    base_products_repo.list(from, count).map_err(ServiceError::from)
                 })
         }))
     }
@@ -672,10 +594,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -697,10 +616,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -788,10 +704,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -844,9 +757,7 @@ impl<
                                                 .map(|new_cat| (new_cat, old_cat, old_prod))
                                         })
                                         .and_then(|(new_cat, old_cat, old_prod)| {
-                                            stores_repo
-                                                .find(old_prod.store_id)
-                                                .map(|store| (store, new_cat, old_cat))
+                                            stores_repo.find(old_prod.store_id).map(|store| (store, new_cat, old_cat))
                                         })
                                         .and_then(|(store, new_cat, old_cat)| {
                                             if new_cat.id != old_cat.id {
@@ -888,9 +799,7 @@ impl<
                                         .and_then(|_| base_products_repo.update(product_id, payload.clone()))
                                         .map_err(ServiceError::from)
                                 } else {
-                                    base_products_repo
-                                        .update(product_id, payload.clone())
-                                        .map_err(ServiceError::from)
+                                    base_products_repo.update(product_id, payload.clone()).map_err(ServiceError::from)
                                 }
                             })
                     })
@@ -904,18 +813,18 @@ pub mod tests {
     use std::sync::Arc;
 
     use futures_cpupool::CpuPool;
-    use tokio_core::reactor::Handle;
-    use tokio_core::reactor::Core;
     use r2d2;
     use serde_json;
+    use tokio_core::reactor::Core;
+    use tokio_core::reactor::Handle;
 
-    use stq_http::client::Config as HttpConfig;
     use stq_http;
+    use stq_http::client::Config as HttpConfig;
 
+    use config::Config;
+    use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-    use models::*;
-    use config::Config;
 
     #[allow(unused)]
     fn create_base_product_service(
@@ -923,9 +832,7 @@ pub mod tests {
         handle: Arc<Handle>,
     ) -> BaseProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create connection pool");
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         let config = Config::new().unwrap();
@@ -956,6 +863,7 @@ pub mod tests {
             seo_description: None,
             currency_id: 1,
             category_id: 1,
+            slug: "slug".to_string(),
         }
     }
 
@@ -969,6 +877,7 @@ pub mod tests {
             currency_id: Some(1),
             category_id: Some(1),
             rating: None,
+            slug: None,
         }
     }
 

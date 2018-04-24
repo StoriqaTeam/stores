@@ -1,8 +1,8 @@
 //! Module containg store model for query, insert, update
 use std::time::SystemTime;
 
-use validator::Validate;
 use serde_json;
+use validator::Validate;
 
 use models::validation_rules::*;
 
@@ -157,9 +157,6 @@ pub struct ProductCategories {
 
 impl ProductCategories {
     pub fn new(category_id: i32) -> Self {
-        Self {
-            category_id,
-            count: 1,
-        }
+        Self { category_id, count: 1 }
     }
 }

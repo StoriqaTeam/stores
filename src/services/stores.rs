@@ -1,22 +1,22 @@
 //! Stores Services, presents CRUD operations with stores
 
-use futures_cpupool::CpuPool;
-use futures::prelude::*;
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
+use futures::prelude::*;
+use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
 use serde_json;
-use stq_static_resources::Translation;
 use stq_http::client::ClientHandle;
+use stq_static_resources::Translation;
 
-use models::{Category, NewStore, SearchStore, Store, UpdateStore};
-use elastic::{StoresElastic, StoresElasticImpl};
+use super::error::ServiceError;
 use super::types::ServiceFuture;
+use elastic::{StoresElastic, StoresElasticImpl};
+use models::{Category, NewStore, SearchStore, Store, UpdateStore};
 use repos::remove_unused_categories;
 use repos::ReposFactory;
-use super::error::ServiceError;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -58,10 +58,10 @@ pub struct StoresServiceImpl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> StoresServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > StoresServiceImpl<T, M, F>
 {
     pub fn new(
         db_pool: Pool<M>,
@@ -83,19 +83,17 @@ impl<
 }
 
 impl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> StoresService for StoresServiceImpl<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > StoresService for StoresServiceImpl<T, M, F>
 {
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let stores_names = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el
-                .auto_complete(name, count, offset)
-                .map_err(ServiceError::from)
+            stores_el.auto_complete(name, count, offset).map_err(ServiceError::from)
         };
 
         Box::new(stores_names)
@@ -107,9 +105,7 @@ impl<
         let address = self.elastic_address.clone();
         let stores = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el
-                .find_by_name(search_store, count, offset)
-                .map_err(ServiceError::from)
+            stores_el.find_by_name(search_store, count, offset).map_err(ServiceError::from)
         };
 
         Box::new(stores.and_then({
@@ -123,10 +119,7 @@ impl<
                     db_pool
                         .get()
                         .map_err(|e| {
-                            error!(
-                                "Could not get connection to db from pool! {}",
-                                e.to_string()
-                            );
+                            error!("Could not get connection to db from pool! {}", e.to_string());
                             ServiceError::Connection(e.into())
                         })
                         .and_then(move |conn| {
@@ -149,9 +142,7 @@ impl<
         let address = self.elastic_address.clone();
         let search_filters = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el
-                .search_count(search_store)
-                .map_err(ServiceError::from)
+            stores_el.search_count(search_store).map_err(ServiceError::from)
         };
 
         Box::new(search_filters)
@@ -163,9 +154,7 @@ impl<
         let address = self.elastic_address.clone();
         let search_filters = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el
-                .aggregate_countries(search_store)
-                .map_err(ServiceError::from)
+            stores_el.aggregate_countries(search_store).map_err(ServiceError::from)
         };
 
         Box::new(search_filters)
@@ -190,10 +179,7 @@ impl<
                         db_pool
                             .get()
                             .map_err(|e| {
-                                error!(
-                                    "Could not get connection to db from pool! {}",
-                                    e.to_string()
-                                );
+                                error!("Could not get connection to db from pool! {}", e.to_string());
                                 ServiceError::Connection(e.into())
                             })
                             .and_then(move |conn| {
@@ -220,10 +206,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -244,17 +227,12 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo
-                        .count_with_store_id(store_id)
-                        .map_err(ServiceError::from)
+                    base_products_repo.count_with_store_id(store_id).map_err(ServiceError::from)
                 })
         }))
     }
@@ -270,10 +248,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -294,10 +269,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -319,10 +291,7 @@ impl<
                 db_pool
                     .get()
                     .map_err(|e| {
-                        error!(
-                            "Could not get connection to db from pool! {}",
-                            e.to_string()
-                        );
+                        error!("Could not get connection to db from pool! {}", e.to_string());
                         ServiceError::Connection(e.into())
                     })
                     .and_then(move |conn| {
@@ -378,10 +347,7 @@ impl<
             db_pool
                 .get()
                 .map_err(|e| {
-                    error!(
-                        "Could not get connection to db from pool! {}",
-                        e.to_string()
-                    );
+                    error!("Could not get connection to db from pool! {}", e.to_string());
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
@@ -405,11 +371,7 @@ impl<
                                 Ok(())
                             }
                         })
-                        .and_then(move |_| {
-                            stores_repo
-                                .update(store_id, payload)
-                                .map_err(ServiceError::from)
-                        })
+                        .and_then(move |_| stores_repo.update(store_id, payload).map_err(ServiceError::from))
                 })
         }))
     }
@@ -419,28 +381,26 @@ impl<
 pub mod tests {
     use std::sync::Arc;
 
-    use serde_json;
     use futures_cpupool::CpuPool;
-    use tokio_core::reactor::Handle;
-    use tokio_core::reactor::Core;
     use r2d2;
+    use serde_json;
+    use tokio_core::reactor::Core;
+    use tokio_core::reactor::Handle;
 
-    use stq_http::client::Config as HttpConfig;
     use stq_http;
+    use stq_http::client::Config as HttpConfig;
 
+    use config::Config;
+    use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-    use models::*;
-    use config::Config;
 
     fn create_store_service(
         user_id: Option<i32>,
         handle: Arc<Handle>,
     ) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder()
-            .build(manager)
-            .expect("Failed to create connection pool");
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         let config = Config::new().unwrap();

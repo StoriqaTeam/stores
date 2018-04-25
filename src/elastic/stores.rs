@@ -103,7 +103,7 @@ impl StoresElastic for StoresElasticImpl {
             },
             "sort" : [
                 { "rating" : { "order" : "desc"} },
-                { "product_categories" : {"missing" : "_last"} }
+                { "product_categories" : {"missing" : "_last", "unmapped_type" : "long"} }
             ]
         }).to_string();
 

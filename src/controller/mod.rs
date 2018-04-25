@@ -133,7 +133,7 @@ impl<
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
             (&Get, Some(Route::Healthcheck)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /healthcheck", user_id);
+                trace!("User with id = '{:?}' is requesting  // GET /healthcheck", user_id);
                 serialize_future(system_service.healthcheck().map_err(Error::from))
             }
 

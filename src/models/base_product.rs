@@ -68,7 +68,7 @@ pub struct NewBaseProduct {
     pub seo_description: Option<serde_json::Value>,
     pub currency_id: i32,
     pub category_id: i32,
-    pub slug: String,
+    pub slug: Option<String>,
 }
 
 /// Payload for updating base_products

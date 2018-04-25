@@ -426,7 +426,11 @@ impl<
                             })
                             .map_err(ServiceError::from)
                     })
-            }))
+            })
+            .and_then(|mut cat| {
+                    cat.id = -1; //for Relay: root category and searched category must not have equal id
+                    future::ok(cat)
+                }))
         } else {
             Box::new(
                 products_el
@@ -449,7 +453,11 @@ impl<
                                     Ok(new_cat)
                                 })
                         })
-                    }),
+                    })
+                    .and_then(|mut cat| {
+                        cat.id = -1; //for Relay: root category and searched category must not have equal id
+                        future::ok(cat)
+                    })
             )
         }
     }

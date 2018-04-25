@@ -51,12 +51,12 @@ impl ProductsElasticImpl {
         let mut prods = vec![];
         for hit in res.into_hits() {
             let ids = {
-                hit.inner_hits().clone().and_then(|m| {
-                    m.get("variants").and_then(|v| {
-                        v["hits"]["hits"].as_array().and_then(|hh| {
+                hit.inner_hits().clone().and_then(|inner_hits| {
+                    inner_hits.get("variants").and_then(|variants| {
+                        variants["hits"]["hits"].as_array().and_then(|hits_inside_inner_hits| {
                             let mut variant_ids = vec![];
-                            for h in hh {
-                                let ids = h["fields"]["variants.prod_id"].as_array();
+                            for hit_inside_inner_hits in hits_inside_inner_hits {
+                                let ids = hit_inside_inner_hits["fields"]["variants.prod_id"].as_array();
                                 if let Some(ids) = ids {
                                     for id in ids {
                                         if let Some(id) = id.as_i64() {
@@ -154,16 +154,13 @@ impl ProductsElasticImpl {
 
         if let Some(options) = options.clone() {
             if let Some(sort_by) = options.sort_by {
-                match sort_by {
-                    ProductsSorting::Discount => {
-                        let variant_discount_exists = json!({
-                            "exists": {
-                                "field": "variants.discount"
-                            }
-                        });
-                        variants_filters.push(variant_discount_exists);
-                    },
-                    _ => {}
+                if sort_by == ProductsSorting::Discount {
+                    let variant_discount_exists = json!({
+                        "exists": {
+                            "field": "variants.discount"
+                        }
+                    });
+                    variants_filters.push(variant_discount_exists);
                 }
             }
         }
@@ -188,7 +185,6 @@ impl ProductsElasticImpl {
 
     fn create_sorting(
         options: Option<ProductsSearchOptions>,
-        variants_map: serde_json::Map<String, serde_json::Value>,
     ) -> Vec<serde_json::Value> {
         let mut sorting: Vec<serde_json::Value> = vec![];
         if let Some(options) = options {
@@ -200,10 +196,7 @@ impl ProductsElasticImpl {
                                 "mode" :  "min",
                                 "order" : "asc",
                                 "nested": {
-                                    "path": "variants",
-                                    "filter":{  
-                                        "bool": variants_map
-                                    }
+                                    "path": "variants"
                                 }
                             }
                         }
@@ -213,10 +206,7 @@ impl ProductsElasticImpl {
                                 "mode" :  "max",
                                 "order" : "desc",
                                 "nested": {
-                                    "path": "variants",
-                                    "filter":{  
-                                        "bool": variants_map
-                                    }
+                                    "path": "variants"
                                 }
                             }
                         }),
@@ -226,10 +216,7 @@ impl ProductsElasticImpl {
                                 "mode" :  "max",
                                 "order" : "desc",
                                 "nested": {
-                                    "path": "variants",
-                                    "filter":{  
-                                        "bool": variants_map
-                                    }
+                                    "path": "variants"
                                 }
                             }
                         }),
@@ -283,6 +270,22 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let mut filters: Vec<serde_json::Value> = vec![];
         let variants_map = ProductsElasticImpl::create_variants_map_filters(prod.options.clone());
+
+        let sorting_in_variants = prod.options.clone().and_then(|options| options.sort_by).map(|sort_by|{
+            match sort_by {
+                    ProductsSorting::PriceAsc => json!(
+                        [{"variants.price" : "asc"}]
+                    ),
+                    ProductsSorting::PriceDesc => json!(
+                        [{"variants.price" : "desc"}]
+                        ),
+                    ProductsSorting::Views => json!([]),
+                    ProductsSorting::Discount => json!(
+                        [{"variants.discount" : "desc"}]
+                    ),
+            }
+        }).unwrap_or(json!([]));
+
         let variants = json!({
             "nested":{  
                 "path":"variants",
@@ -291,7 +294,8 @@ impl ProductsElastic for ProductsElasticImpl {
                 },
                 "inner_hits": {
                     "_source" : false,
-                    "docvalue_fields" : ["variants.prod_id"]
+                    "docvalue_fields" : ["variants.prod_id"],
+                    "sort" : sorting_in_variants
                 }
             }
         });
@@ -306,7 +310,7 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
         }
 
-        let sorting = ProductsElasticImpl::create_sorting(prod.options.clone(), variants_map);
+        let sorting = ProductsElasticImpl::create_sorting(prod.options.clone());
 
         let query = json!({
             "from" : offset, "size" : count,

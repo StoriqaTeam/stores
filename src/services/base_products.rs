@@ -624,20 +624,20 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                     conn.transaction::<(BaseProduct), ServiceError, _>(move || {
-                        stores_repo
-                            .slug_exists(payload.slug.to_string())
-                            .map(move |exists| (payload, exists))
-                            .map_err(ServiceError::from)
-                            .and_then(|(payload, exists)| {
-                                if exists {
-                                    Err(ServiceError::Validate(
-                                        validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                                    ))
-                                } else {
-                                    Ok(payload)
-                                }
-                            })
-                            .and_then(|payload| {
+                        // stores_repo
+                        //     .slug_exists(payload.slug.to_string())
+                        //     .map(move |exists| (payload, exists))
+                        //     .map_err(ServiceError::from)
+                        //     .and_then(|(payload, exists)| {
+                        //         if exists {
+                        //             Err(ServiceError::Validate(
+                        //                 validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
+                        //             ))
+                        //         } else {
+                        //             Ok(payload)
+                        //         }
+                        //     })
+                        //     .and_then(|payload| {
                                 base_products_repo
                                     .create(payload)
                                     .and_then(|prod| {
@@ -687,7 +687,7 @@ impl<
                                             .and_then(|_| Ok(prod))
                                     })
                                     .map_err(ServiceError::from)
-                            })
+                            // })
                     })
                 })
         }))

@@ -107,7 +107,7 @@ pub struct MostViewedProducts {
     pub options: Option<ProductsSearchOptions>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum ProductsSorting {
     Views,
     PriceAsc,

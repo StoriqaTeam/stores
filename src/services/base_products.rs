@@ -29,9 +29,9 @@ pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
     fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>>;
+    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
@@ -246,7 +246,12 @@ impl<
     }
 
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, mut search_product: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_most_viewed(
+        &self,
+        mut search_product: MostViewedProducts,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
@@ -270,11 +275,25 @@ impl<
                                     ServiceError::Connection(e.into())
                                 })
                                 .and_then(move |conn| {
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                                     el_products
                                         .into_iter()
                                         .map(|el_product| {
-                                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                            base_products_repo.find(el_product.id).map_err(ServiceError::from)
+                                            base_products_repo
+                                                .find(el_product.id)
+                                                .and_then(|base_product| {
+                                                    if let Some(matched) = el_product.matched_variants_ids {
+                                                        matched
+                                                            .iter()
+                                                            .map(|id| products_repo.find(*id))
+                                                            .collect::<RepoResult<Vec<Product>>>()
+                                                            .and_then(|variants| Ok(BaseProductWithVariants::new(base_product, variants)))
+                                                    } else {
+                                                        Ok(BaseProductWithVariants::new(base_product, vec![]))
+                                                    }
+                                                })
+                                                .map_err(ServiceError::from)
                                         })
                                         .collect()
                                 })
@@ -285,7 +304,12 @@ impl<
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, mut search_product: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProduct>> {
+    fn search_most_discount(
+        &self,
+        mut search_product: MostDiscountProducts,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
@@ -309,11 +333,25 @@ impl<
                                     ServiceError::Connection(e.into())
                                 })
                                 .and_then(move |conn| {
+                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                                     el_products
                                         .into_iter()
                                         .map(|el_product| {
-                                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                            base_products_repo.find(el_product.id).map_err(ServiceError::from)
+                                            base_products_repo
+                                                .find(el_product.id)
+                                                .and_then(|base_product| {
+                                                    if let Some(matched) = el_product.matched_variants_ids {
+                                                        matched
+                                                            .iter()
+                                                            .map(|id| products_repo.find(*id))
+                                                            .collect::<RepoResult<Vec<Product>>>()
+                                                            .and_then(|variants| Ok(BaseProductWithVariants::new(base_product, variants)))
+                                                    } else {
+                                                        Ok(BaseProductWithVariants::new(base_product, vec![]))
+                                                    }
+                                                })
+                                                .map_err(ServiceError::from)
                                         })
                                         .collect()
                                 })

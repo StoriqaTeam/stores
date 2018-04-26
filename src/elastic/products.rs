@@ -165,7 +165,6 @@ impl ProductsElasticImpl {
             }
         }
 
-
         if !variants_must.is_empty() {
             variants_map.insert("must".to_string(), serde_json::Value::Array(variants_must));
         }
@@ -183,9 +182,7 @@ impl ProductsElasticImpl {
         })
     }
 
-    fn create_sorting(
-        options: Option<ProductsSearchOptions>,
-    ) -> Vec<serde_json::Value> {
+    fn create_sorting(options: Option<ProductsSearchOptions>) -> Vec<serde_json::Value> {
         let mut sorting: Vec<serde_json::Value> = vec![];
         if let Some(options) = options {
             if let Some(sort_by) = options.sort_by {
@@ -271,20 +268,22 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut filters: Vec<serde_json::Value> = vec![];
         let variants_map = ProductsElasticImpl::create_variants_map_filters(prod.options.clone());
 
-        let sorting_in_variants = prod.options.clone().and_then(|options| options.sort_by).map(|sort_by|{
-            match sort_by {
-                    ProductsSorting::PriceAsc => json!(
+        let sorting_in_variants = prod.options
+            .clone()
+            .and_then(|options| options.sort_by)
+            .map(|sort_by| match sort_by {
+                ProductsSorting::PriceAsc => json!(
                         [{"variants.price" : "asc"}]
                     ),
-                    ProductsSorting::PriceDesc => json!(
+                ProductsSorting::PriceDesc => json!(
                         [{"variants.price" : "desc"}]
                         ),
-                    ProductsSorting::Views => json!([]),
-                    ProductsSorting::Discount => json!(
+                ProductsSorting::Views => json!([]),
+                ProductsSorting::Discount => json!(
                         [{"variants.discount" : "desc"}]
                     ),
-            }
-        }).unwrap_or(json!([]));
+            })
+            .unwrap_or(json!([]));
 
         let variants = json!({
             "nested":{  

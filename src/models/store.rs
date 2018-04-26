@@ -5,6 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use models::validation_rules::*;
+use models::BaseProductWithVariants;
 
 /// diesel table for stores
 table! {
@@ -158,5 +159,54 @@ pub struct ProductCategories {
 impl ProductCategories {
     pub fn new(category_id: i32) -> Self {
         Self { category_id, count: 1 }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct StoreWithBaseProducts {
+    pub id: i32,
+    pub name: serde_json::Value,
+    pub is_active: bool,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
+    pub slug: String,
+    pub cover: Option<String>,
+    pub logo: Option<String>,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+    pub address: Option<String>,
+    pub facebook_url: Option<String>,
+    pub twitter_url: Option<String>,
+    pub instagram_url: Option<String>,
+    pub default_language: String,
+    pub slogan: Option<String>,
+    pub rating: f64,
+    pub country: Option<String>,
+    pub base_products: Vec<BaseProductWithVariants>,
+}
+
+impl StoreWithBaseProducts {
+    pub fn new(store: Store, base_products: Vec<BaseProductWithVariants>) -> Self {
+        Self {
+            id: store.id,
+            name: store.name,
+            is_active: store.is_active,
+            short_description: store.short_description,
+            long_description: store.long_description,
+            slug: store.slug,
+            cover: store.cover,
+            logo: store.logo,
+            phone: store.phone,
+            email: store.email,
+            address: store.address,
+            facebook_url: store.facebook_url,
+            twitter_url: store.twitter_url,
+            instagram_url: store.instagram_url,
+            default_language: store.default_language,
+            slogan: store.slogan,
+            rating: store.rating,
+            country: store.country,
+            base_products,
+        }
     }
 }

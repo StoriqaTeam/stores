@@ -426,11 +426,7 @@ impl<
                             })
                             .map_err(ServiceError::from)
                     })
-            })
-            .and_then(|mut cat| {
-                    cat.id = -1; //for Relay: root category and searched category must not have equal id
-                    future::ok(cat)
-                }))
+            }))
         } else {
             Box::new(
                 products_el
@@ -453,11 +449,7 @@ impl<
                                     Ok(new_cat)
                                 })
                         })
-                    })
-                    .and_then(|mut cat| {
-                        cat.id = -1; //for Relay: root category and searched category must not have equal id
-                        future::ok(cat)
-                    })
+                    }),
             )
         }
     }
@@ -684,56 +676,56 @@ impl<
                         //         }
                         //     })
                         //     .and_then(|payload| {
-                                base_products_repo
-                                    .create(payload)
-                                    .and_then(|prod| {
-                                        categories_repo
-                                            .get_all()
-                                            .and_then(|category_root| {
-                                                category_root
-                                                    .children
-                                                    .into_iter()
-                                                    .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
-                                                    .ok_or_else(|| {
-                                                        error!("There is no such 3rd level category in db");
-                                                        RepoError::NotFound
-                                                    })
+                        base_products_repo
+                            .create(payload)
+                            .and_then(|prod| {
+                                categories_repo
+                                    .get_all()
+                                    .and_then(|category_root| {
+                                        category_root
+                                            .children
+                                            .into_iter()
+                                            .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
+                                            .ok_or_else(|| {
+                                                error!("There is no such 3rd level category in db");
+                                                RepoError::NotFound
                                             })
-                                            .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
-                                            .and_then(|(store, cat)| {
-                                                let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
-                                                    let mut product_categories =
-                                                        serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
-                                                    let mut new_prod_cats = vec![];
-                                                    let mut cat_exists = false;
-                                                    for pc in product_categories.iter_mut() {
-                                                        if pc.category_id == cat.id {
-                                                            pc.count += 1;
-                                                            cat_exists = true;
-                                                        }
-                                                        new_prod_cats.push(pc.clone());
-                                                    }
-                                                    if !cat_exists {
-                                                        new_prod_cats.push(ProductCategories::new(cat.id));
-                                                    }
-                                                    new_prod_cats
-                                                } else {
-                                                    let pc = ProductCategories::new(cat.id);
-                                                    vec![pc]
-                                                };
-
-                                                let product_categories = serde_json::to_value(prod_cats).ok();
-
-                                                let update_store = UpdateStore {
-                                                    product_categories,
-                                                    ..Default::default()
-                                                };
-                                                stores_repo.update(store.id, update_store)
-                                            })
-                                            .and_then(|_| Ok(prod))
                                     })
-                                    .map_err(ServiceError::from)
-                            // })
+                                    .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
+                                    .and_then(|(store, cat)| {
+                                        let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
+                                            let mut product_categories =
+                                                serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+                                            let mut new_prod_cats = vec![];
+                                            let mut cat_exists = false;
+                                            for pc in product_categories.iter_mut() {
+                                                if pc.category_id == cat.id {
+                                                    pc.count += 1;
+                                                    cat_exists = true;
+                                                }
+                                                new_prod_cats.push(pc.clone());
+                                            }
+                                            if !cat_exists {
+                                                new_prod_cats.push(ProductCategories::new(cat.id));
+                                            }
+                                            new_prod_cats
+                                        } else {
+                                            let pc = ProductCategories::new(cat.id);
+                                            vec![pc]
+                                        };
+
+                                        let product_categories = serde_json::to_value(prod_cats).ok();
+
+                                        let update_store = UpdateStore {
+                                            product_categories,
+                                            ..Default::default()
+                                        };
+                                        stores_repo.update(store.id, update_store)
+                                    })
+                                    .and_then(|_| Ok(prod))
+                            })
+                            .map_err(ServiceError::from)
+                        // })
                     })
                 })
         }))

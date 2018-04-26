@@ -5,7 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use models::validation_rules::*;
-use models::{AttrValue, AttributeFilter, RangeFilter};
+use models::{AttrValue, AttributeFilter, BaseProduct, RangeFilter};
 
 /// diesel table for products
 table! {
@@ -26,6 +26,7 @@ table! {
 
 /// Payload for querying products
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
+#[belongs_to(BaseProduct)]
 pub struct Product {
     pub id: i32,
     pub base_product_id: i32,
@@ -118,4 +119,15 @@ pub enum ProductsSorting {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MostDiscountProducts {
     pub options: Option<ProductsSearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CartProduct {
+    pub product_id: i32,
+    pub quantity: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Cart {
+    pub inner: Vec<CartProduct>,
 }

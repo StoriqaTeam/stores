@@ -5,11 +5,12 @@ use stq_router::RouteParser;
 pub enum Route {
     Healthcheck,
     Stores,
+    StoresAutoComplete,
     StoresSearch,
     StoresSearchFiltersCount,
     StoresSearchFiltersCountry,
     StoresSearchFiltersCategory,
-    StoresAutoComplete,
+    StoresCart,
     Store(i32),
     StoreProducts(i32),
     StoreProductsCount(i32),
@@ -69,6 +70,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::StoreProductsCount)
     });
 
+    // Stores Cart route
+    router.add_route(r"^/stores/cart$", || Route::StoresCart);
+    
     // Stores Search route
     router.add_route(r"^/stores/search$", || Route::StoresSearch);
 

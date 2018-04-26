@@ -177,6 +177,19 @@ impl<
                 serialize_future(stores_service.get_products_count(store_id))
             }
 
+            // POST /stores/cart
+            (&Post, Some(Route::StoresCart)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /stores/cart", user_id);
+                serialize_future(
+                    parse_body::<Cart>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /stores/cart in Cart failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |cart| stores_service.find_by_cart(cart).map_err(Error::from)),
+                )
+            }
+            
             // POST /stores/search
             (&Post, Some(Route::StoresSearch)) => {
                 debug!("User with id = '{:?}' is requesting  // POST /stores/search", user_id);

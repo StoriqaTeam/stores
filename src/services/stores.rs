@@ -1,4 +1,5 @@
 //! Stores Services, presents CRUD operations with stores
+use std::collections::HashMap;
 
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -14,9 +15,9 @@ use stq_static_resources::Translation;
 use super::error::ServiceError;
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
-use models::{Category, NewStore, SearchStore, Store, UpdateStore};
+use models::{Category, NewStore, SearchStore, Store, UpdateStore, StoreWithBaseProducts, Cart, Product, BaseProductWithVariants};
 use repos::remove_unused_categories;
-use repos::ReposFactory;
+use repos::{ReposFactory, RepoResult};
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -41,6 +42,8 @@ pub trait StoresService {
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Store>>;
     /// Updates specific store
     fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store>;
+    /// Cart
+    fn find_by_cart(&self, cart: Cart) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
 }
 
 /// Stores services, responsible for Store-related CRUD operations
@@ -372,6 +375,67 @@ impl<
                             }
                         })
                         .and_then(move |_| stores_repo.update(store_id, payload).map_err(ServiceError::from))
+                })
+        }))
+    }
+
+    /// Find by cart
+    fn find_by_cart(&self, cart: Cart) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| {
+                    error!("Could not get connection to db from pool! {}", e.to_string());
+                    ServiceError::Connection(e.into())
+                })
+                .and_then(move |conn| {
+                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                    let products = cart.inner.into_iter().map(|cart_product|{
+                        products_repo.find(cart_product.product_id)
+                    }).collect::<RepoResult<Vec<Product>>>();
+                    products
+                        .and_then(|products|{
+                            let mut group_by_base_product_id = HashMap::<i32, Vec<Product>>::default();
+                            for product in products {
+                                let p = group_by_base_product_id
+                                    .entry(product.base_product_id)
+                                    .or_insert(vec![]);
+                                p.push(product);
+                            }
+                            group_by_base_product_id
+                                .into_iter()
+                                .map(|(base_product_id, products)| {
+                                    base_products_repo
+                                        .find(base_product_id)
+                                        .map(|base_product| BaseProductWithVariants::new(base_product, products))
+                                })
+                                .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
+                        })
+                        .and_then(|base_products|{
+                            let mut group_by_store_id = HashMap::<i32, Vec<BaseProductWithVariants>>::default();
+                            for base_product in base_products {
+                                let bp = group_by_store_id
+                                    .entry(base_product.store_id)
+                                    .or_insert(vec![]);
+                                bp.push(base_product);
+                            }
+                            group_by_store_id
+                                .into_iter()
+                                .map(|(store_id, base_products)| {
+                                    stores_repo
+                                        .find(store_id)
+                                        .map(|store| StoreWithBaseProducts::new(store, base_products))
+                                })
+                                .collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
+                        })
+                        .map_err(ServiceError::from)
                 })
         }))
     }

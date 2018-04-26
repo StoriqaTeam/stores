@@ -15,9 +15,9 @@ use stq_static_resources::Translation;
 use super::error::ServiceError;
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
-use models::{Category, NewStore, SearchStore, Store, UpdateStore, StoreWithBaseProducts, Cart, Product, BaseProductWithVariants};
+use models::{BaseProductWithVariants, Cart, Category, NewStore, Product, SearchStore, Store, StoreWithBaseProducts, UpdateStore};
 use repos::remove_unused_categories;
-use repos::{ReposFactory, RepoResult};
+use repos::{RepoResult, ReposFactory};
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -397,16 +397,15 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let products = cart.inner.into_iter().map(|cart_product|{
-                        products_repo.find(cart_product.product_id)
-                    }).collect::<RepoResult<Vec<Product>>>();
+                    let products = cart.inner
+                        .into_iter()
+                        .map(|cart_product| products_repo.find(cart_product.product_id))
+                        .collect::<RepoResult<Vec<Product>>>();
                     products
-                        .and_then(|products|{
+                        .and_then(|products| {
                             let mut group_by_base_product_id = HashMap::<i32, Vec<Product>>::default();
                             for product in products {
-                                let p = group_by_base_product_id
-                                    .entry(product.base_product_id)
-                                    .or_insert(vec![]);
+                                let p = group_by_base_product_id.entry(product.base_product_id).or_insert(vec![]);
                                 p.push(product);
                             }
                             group_by_base_product_id
@@ -418,12 +417,10 @@ impl<
                                 })
                                 .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
                         })
-                        .and_then(|base_products|{
+                        .and_then(|base_products| {
                             let mut group_by_store_id = HashMap::<i32, Vec<BaseProductWithVariants>>::default();
                             for base_product in base_products {
-                                let bp = group_by_store_id
-                                    .entry(base_product.store_id)
-                                    .or_insert(vec![]);
+                                let bp = group_by_store_id.entry(base_product.store_id).or_insert(vec![]);
                                 bp.push(base_product);
                             }
                             group_by_store_id

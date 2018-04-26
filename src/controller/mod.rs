@@ -189,7 +189,7 @@ impl<
                         .and_then(move |cart| stores_service.find_by_cart(cart).map_err(Error::from)),
                 )
             }
-            
+
             // POST /stores/search
             (&Post, Some(Route::StoresSearch)) => {
                 debug!("User with id = '{:?}' is requesting  // POST /stores/search", user_id);

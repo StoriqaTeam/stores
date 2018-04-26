@@ -72,7 +72,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Stores Cart route
     router.add_route(r"^/stores/cart$", || Route::StoresCart);
-    
+
     // Stores Search route
     router.add_route(r"^/stores/search$", || Route::StoresSearch);
 

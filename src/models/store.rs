@@ -162,7 +162,6 @@ impl ProductCategories {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StoreWithBaseProducts {
     pub id: i32,

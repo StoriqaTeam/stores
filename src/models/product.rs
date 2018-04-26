@@ -5,7 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use models::validation_rules::*;
-use models::{AttrValue, AttributeFilter, RangeFilter, BaseProduct};
+use models::{AttrValue, AttributeFilter, BaseProduct, RangeFilter};
 
 /// diesel table for products
 table! {
@@ -129,5 +129,5 @@ pub struct CartProduct {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Cart {
-    pub inner: Vec<CartProduct>
+    pub inner: Vec<CartProduct>,
 }

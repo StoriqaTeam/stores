@@ -15,7 +15,7 @@ use stq_static_resources::Translation;
 use super::error::ServiceError;
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
-use models::{BaseProductWithVariants, Cart, Category, NewStore, Product, SearchStore, Store, StoreWithBaseProducts, UpdateStore};
+use models::{BaseProductWithVariants, CartProduct, Category, NewStore, Product, SearchStore, Store, StoreWithBaseProducts, UpdateStore};
 use repos::remove_unused_categories;
 use repos::{RepoResult, ReposFactory};
 
@@ -43,7 +43,7 @@ pub trait StoresService {
     /// Updates specific store
     fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store>;
     /// Cart
-    fn find_by_cart(&self, cart: Cart) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
+    fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
 }
 
 /// Stores services, responsible for Store-related CRUD operations
@@ -380,7 +380,7 @@ impl<
     }
 
     /// Find by cart
-    fn find_by_cart(&self, cart: Cart) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
+    fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -397,7 +397,7 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let products = cart.inner
+                    let products = cart
                         .into_iter()
                         .map(|cart_product| products_repo.find(cart_product.product_id))
                         .collect::<RepoResult<Vec<Product>>>();

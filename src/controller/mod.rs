@@ -181,12 +181,12 @@ impl<
             (&Post, Some(Route::StoresCart)) => {
                 debug!("User with id = '{:?}' is requesting  // POST /stores/cart", user_id);
                 serialize_future(
-                    parse_body::<Cart>(req.body())
+                    parse_body::<Vec<CartProduct>>(req.body())
                         .map_err(|_| {
-                            error!("Parsing body // POST /stores/cart in Cart failed!");
+                            error!("Parsing body // POST /stores/cart in Vec<CartProduct> failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |cart| stores_service.find_by_cart(cart).map_err(Error::from)),
+                        .and_then(move |cart_products| stores_service.find_by_cart(cart_products).map_err(Error::from)),
                 )
             }
 

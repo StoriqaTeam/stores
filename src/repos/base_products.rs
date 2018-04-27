@@ -16,7 +16,7 @@ use super::types::RepoResult;
 use models::authorization::*;
 use models::base_product::base_products::dsl::*;
 use models::store::stores::dsl as Stores;
-use models::{BaseProduct, NewBaseProduct, Store, UpdateBaseProduct, UpdateBaseProductViews};
+use models::{BaseProduct, NewBaseProduct, Store, UpdateBaseProduct};
 use repos::error::RepoError as Error;
 
 /// BaseProducts repository, responsible for handling base_products
@@ -74,16 +74,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
         debug!("Find in base products with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
-            .and_then(|base_product: BaseProduct| {
-                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product)).and_then(|_| {
-                    debug!("Updating views of base product with id {}.", base_product_id_arg);
-                    let filter = base_products.filter(id.eq(base_product.id));
-                    let payload: UpdateBaseProductViews = base_product.into();
+            // .and_then(|base_product: BaseProduct| {
+            //     acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product)).and_then(|_| {
+            //         debug!("Updating views of base product with id {}.", base_product_id_arg);
+            //         let filter = base_products.filter(id.eq(base_product.id));
+            //         let payload: UpdateBaseProductViews = base_product.into();
 
-                    let query = diesel::update(filter).set(&payload);
-                    query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
-                })
-            })
+            //         let query = diesel::update(filter).set(&payload);
+            //         query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
+            //     })
+            // })
     }
 
     /// Counts products by store id
@@ -125,17 +125,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 for base_product in &base_products_res {
                     acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
                 }
-                base_products_res
-                    .iter()
-                    .map(|base_product| {
-                        debug!("Updating views of base product with id {}.", base_product.id);
-                        let filter = base_products.filter(id.eq(base_product.id));
-                        let payload: UpdateBaseProductViews = base_product.into();
+                Ok(base_products_res)
+                    // .iter()
+                    // .map(|base_product| {
+                    //     debug!("Updating views of base product with id {}.", base_product.id);
+                    //     let filter = base_products.filter(id.eq(base_product.id));
+                    //     let payload: UpdateBaseProductViews = base_product.into();
 
-                        let query = diesel::update(filter).set(&payload);
-                        query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
-                    })
-                    .collect::<RepoResult<Vec<BaseProduct>>>()
+                    //     let query = diesel::update(filter).set(&payload);
+                    //     query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
+                    // })
+                    // .collect::<RepoResult<Vec<BaseProduct>>>()
             })
     }
 
@@ -177,17 +177,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 for base_product in &base_products_res {
                     acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
                 }
-                base_products_res
-                    .iter()
-                    .map(|base_product| {
-                        debug!("Updating views of base product with id {}.", base_product.id);
-                        let filter = base_products.filter(id.eq(base_product.id));
-                        let payload: UpdateBaseProductViews = base_product.into();
+                Ok(base_products_res)
+                    // .iter()
+                    // .map(|base_product| {
+                    //     debug!("Updating views of base product with id {}.", base_product.id);
+                    //     let filter = base_products.filter(id.eq(base_product.id));
+                    //     let payload: UpdateBaseProductViews = base_product.into();
 
-                        let query = diesel::update(filter).set(&payload);
-                        query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
-                    })
-                    .collect::<RepoResult<Vec<BaseProduct>>>()
+                    //     let query = diesel::update(filter).set(&payload);
+                    //     query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
+                    // })
+                    // .collect::<RepoResult<Vec<BaseProduct>>>()
             })
     }
 

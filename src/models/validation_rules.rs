@@ -25,10 +25,10 @@ pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
 
 pub fn validate_slug(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {
-        static ref PHONE_VALIDATION_RE: Regex = Regex::new(r"^[a-z][-a-z0-9]*$").unwrap();
+        static ref SLUG_VALIDATION_RE: Regex = Regex::new(r"^[a-z0-9]+(?:-[a-z0-9]+)*$").unwrap();
     }
 
-    if PHONE_VALIDATION_RE.is_match(phone) {
+    if SLUG_VALIDATION_RE.is_match(phone) {
         Ok(())
     } else {
         Err(ValidationError {

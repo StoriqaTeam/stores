@@ -126,8 +126,3 @@ pub struct CartProduct {
     pub product_id: i32,
     pub quantity: i32,
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Cart {
-    pub inner: Vec<CartProduct>,
-}

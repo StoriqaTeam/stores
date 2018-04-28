@@ -358,9 +358,13 @@ impl<
                     stores_repo
                         .find(store_id)
                         .map_err(ServiceError::from)
-                        .and_then(|_| {
+                        .and_then(|s| {
                             if let Some(slug) = payload.slug.clone() {
-                                stores_repo.slug_exists(slug).map_err(ServiceError::from)
+                                if s.slug == slug { // if updated slug equal store slug
+                                    Ok(false)
+                                } else { // if updated slug equal other stores slug
+                                    stores_repo.slug_exists(slug).map_err(ServiceError::from)
+                                }
                             } else {
                                 Ok(false)
                             }

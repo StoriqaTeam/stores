@@ -230,6 +230,42 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 mod tests {
     use super::*;
     use models::*;
+    use serde_json;
+
+    fn create_mock_categories() -> Category {
+        let cat_3 = Category {
+            id: 3,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![],
+            level: 3,
+            parent_id: Some(2),
+        };
+        let cat_2 = Category {
+            id: 2,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![cat_3],
+            level: 2,
+            parent_id: Some(1),
+        };
+        let cat_1 = Category {
+            id: 1,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![cat_2],
+            level: 1,
+            parent_id: Some(0),
+        };
+        Category {
+            id: 0,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![cat_1],
+            level: 0,
+            parent_id: None,
+        }
+    }
 
     #[test]
     fn test_unused() {
@@ -252,5 +288,16 @@ mod tests {
         let new_cat = remove_unused_categories(cat, &used, 1);
         assert_eq!(new_cat.children[0].children[0].id, 5);
         assert_eq!(new_cat.children[0].children[1].id, 6);
+    }
+
+    #[test]
+    fn test_parent_categories() {
+        let cat = create_mock_categories();
+        let child_id = 3;
+        let new_cat = cat.children
+            .into_iter()
+            .find(|cat_child| get_parent_category(&cat_child, child_id, 2).is_some())
+            .unwrap();
+        assert_eq!(new_cat.id, 1);
     }
 }

@@ -22,7 +22,7 @@ pub fn create_new_base_product(name: &str) -> NewBaseProduct {
         seo_description: None,
         currency_id: 1,
         category_id: 1,
-        slug: "slug".to_string(),
+        slug: Some("slug".to_string()),
     }
 }
 pub fn create_product(id: i32, base_product_id: i32) -> Product {

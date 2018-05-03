@@ -737,6 +737,10 @@ pub mod tests {
             product.is_active = false;
             Ok(product)
         }
+
+        fn update_currency_id(&self, _currency_id_arg: i32, _base_product_id_arg: i32) -> RepoResult<usize> {
+            Ok(1)
+        }
     }
 
     #[derive(Default)]
@@ -842,6 +846,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: 0f64,
+            currency_id: None,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
         }

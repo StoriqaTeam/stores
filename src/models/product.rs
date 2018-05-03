@@ -19,6 +19,7 @@ table! {
         vendor_code -> VarChar,
         cashback -> Nullable<Double>,
         price -> Double,
+        currency_id -> Nullable<Integer>,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -37,6 +38,7 @@ pub struct Product {
     pub vendor_code: String,
     pub cashback: Option<f64>,
     pub price: f64,
+    pub currency_id: Option<i32>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -57,6 +59,7 @@ pub struct NewProduct {
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative")]
     pub price: f64,
+    pub currency_id: Option<i32>,
 }
 
 /// Payload for creating products and attributes
@@ -67,7 +70,7 @@ pub struct NewProductWithAttributes {
 }
 
 /// Payload for updating products
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone, Debug)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone, Debug, Default)]
 #[table_name = "products"]
 pub struct UpdateProduct {
     #[validate(custom = "validate_non_negative")]
@@ -80,6 +83,7 @@ pub struct UpdateProduct {
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative")]
     pub price: Option<f64>,
+    pub currency_id: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

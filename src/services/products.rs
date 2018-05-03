@@ -155,16 +155,24 @@ impl<
                     ServiceError::Connection(e.into())
                 })
                 .and_then(move |conn| {
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                     let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    let product = payload.product;
+                    let mut product = payload.product;
                     let attributes = payload.attributes;
 
                     conn.transaction::<(Product), ServiceError, _>(move || {
-                        products_repo
-                            .create(product)
+                        // fill currency id taken from base_product first
+                        base_products_repo
+                            .find(product.base_product_id)
                             .map_err(ServiceError::from)
+                            .map(move |base_product| {
+                                let currency_id = base_product.currency_id;
+                                product.currency_id = Some(currency_id);
+                                product
+                            })
+                            .and_then(|product| products_repo.create(product).map_err(ServiceError::from))
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
@@ -352,6 +360,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: 0f64,
+            currency_id: None,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
         }
@@ -373,6 +382,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: 0f64,
+            currency_id: None,
         }
     }
 
@@ -384,6 +394,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: None,
+            currency_id: None,
         }
     }
 

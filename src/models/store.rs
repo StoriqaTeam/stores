@@ -138,6 +138,40 @@ pub struct UpdateStore {
     pub product_categories: Option<serde_json::Value>,
 }
 
+impl UpdateStore {
+    pub fn update_product_categories(product_categories: Option<serde_json::Value>, old_cat_id: i32, new_cat_id: i32) -> Self {
+        let prod_cats = if let Some(prod_cats) = product_categories {
+            let mut product_categories = serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+            let mut new_prod_cats = vec![];
+            let mut new_cat_exists = false;
+            for pc in product_categories.iter_mut() {
+                if pc.category_id == new_cat_id {
+                    pc.count += 1;
+                    new_cat_exists = true;
+                }
+                if pc.category_id == old_cat_id {
+                    pc.count -= 1;
+                }
+                new_prod_cats.push(pc.clone());
+            }
+            if !new_cat_exists {
+                new_prod_cats.push(ProductCategories::new(new_cat_id));
+            }
+            new_prod_cats
+        } else {
+            let pc = ProductCategories::new(new_cat_id);
+            vec![pc]
+        };
+
+        let product_categories = serde_json::to_value(prod_cats).ok();
+
+        Self {
+            product_categories,
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchStore {
     pub name: String,

@@ -21,7 +21,7 @@ pub fn create_new_base_product(name: &str) -> NewBaseProduct {
         seo_description: None,
         currency_id: 1,
         category_id: 1,
-        slug: "slug".to_string(),
+        slug: Some("slug".to_string()),
     }
 }
 

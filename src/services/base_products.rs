@@ -562,7 +562,10 @@ impl<
                                         .children
                                         .into_iter()
                                         .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
-                                        .ok_or_else(|| RepoError::NotFound)
+                                        .ok_or_else(|| {
+                                            error!("There is no such 3rd level category in db - {}", prod.category_id);
+                                            RepoError::NotFound
+                                        })
                                 })
                                 .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
                                 .and_then(|(store, cat)| {
@@ -750,38 +753,47 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                     conn.transaction::<(BaseProduct), ServiceError, _>(move || {
-                        let exists = if let Some(slug) = payload.slug.clone() {
-                            stores_repo.slug_exists(slug).map_err(ServiceError::from)
-                        } else {
-                            Ok(false)
-                        };
-                        exists
-                            .and_then(|exists| {
-                                if exists {
-                                    Err(ServiceError::Validate(
-                                        validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                                    ))
+                        base_products_repo
+                            .find(product_id)
+                            .map_err(ServiceError::from)
+                            .and_then(|old_prod| {
+                                let exists = if let Some(slug) = payload.slug.clone() {
+                                    if old_prod.slug == slug {
+                                        // if updated slug equal base_product slug
+                                        Ok(false)
+                                    } else {
+                                        // if updated slug equal other base_product slug
+                                        base_products_repo.slug_exists(slug).map_err(ServiceError::from)
+                                    }
                                 } else {
-                                    Ok(())
-                                }
+                                    Ok(false)
+                                };
+                                exists.and_then(|exists| {
+                                    if exists {
+                                        Err(ServiceError::Validate(
+                                            validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
+                                        ))
+                                    } else {
+                                        Ok(old_prod)
+                                    }
+                                })
                             })
-                            .and_then(|_| {
+                            .and_then(|old_prod| {
                                 if let Some(new_cat_id) = payload.category_id {
-                                    base_products_repo
-                                        .find(product_id)
-                                        .and_then(|old_prod| {
-                                            let old_cat_id = old_prod.category_id;
-                                            categories_repo
-                                                .get_all()
-                                                .and_then(|category_root| {
-                                                    category_root
-                                                        .children
-                                                        .into_iter()
-                                                        .find(|cat_child| get_parent_category(&cat_child, old_cat_id, 2).is_some())
-                                                        .ok_or_else(|| RepoError::NotFound)
+                                    let old_cat_id = old_prod.category_id;
+                                    categories_repo
+                                        .get_all()
+                                        .and_then(|category_root| {
+                                            category_root
+                                                .children
+                                                .into_iter()
+                                                .find(|cat_child| get_parent_category(&cat_child, old_cat_id, 2).is_some())
+                                                .ok_or_else(|| {
+                                                    error!("There is no such 3rd level category in db - {}", old_cat_id);
+                                                    RepoError::NotFound
                                                 })
-                                                .map(|old_cat| (old_cat, old_prod))
                                         })
+                                        .map(|old_cat| (old_cat, old_prod))
                                         .and_then(|(old_cat, old_prod)| {
                                             categories_repo
                                                 .get_all()
@@ -790,7 +802,10 @@ impl<
                                                         .children
                                                         .into_iter()
                                                         .find(|cat_child| get_parent_category(&cat_child, new_cat_id, 2).is_some())
-                                                        .ok_or_else(|| RepoError::NotFound)
+                                                        .ok_or_else(|| {
+                                                            error!("There is no such 3rd level category in db - {}", new_cat_id);
+                                                            RepoError::NotFound
+                                                        })
                                                 })
                                                 .map(|new_cat| (new_cat, old_cat, old_prod))
                                         })
@@ -900,8 +915,8 @@ pub mod tests {
             seo_title: None,
             seo_description: None,
             currency_id: 1,
-            category_id: 1,
-            slug: "slug".to_string(),
+            category_id: 3,
+            slug: Some("slug".to_string()),
         }
     }
 
@@ -913,7 +928,7 @@ pub mod tests {
             seo_title: None,
             seo_description: None,
             currency_id: Some(1),
-            category_id: Some(1),
+            category_id: None,
             rating: None,
             slug: None,
         }

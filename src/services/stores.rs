@@ -360,9 +360,11 @@ impl<
                         .map_err(ServiceError::from)
                         .and_then(|s| {
                             if let Some(slug) = payload.slug.clone() {
-                                if s.slug == slug { // if updated slug equal store slug
+                                if s.slug == slug {
+                                    // if updated slug equal store slug
                                     Ok(false)
-                                } else { // if updated slug equal other stores slug
+                                } else {
+                                    // if updated slug equal other stores slug
                                     stores_repo.slug_exists(slug).map_err(ServiceError::from)
                                 }
                             } else {
@@ -401,8 +403,7 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let products = cart
-                        .into_iter()
+                    let products = cart.into_iter()
                         .map(|cart_product| products_repo.find(cart_product.product_id))
                         .collect::<RepoResult<Vec<Product>>>();
                     products

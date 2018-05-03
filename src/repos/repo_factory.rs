@@ -221,8 +221,8 @@ pub mod tests {
                 name: serde_json::from_str("{}").unwrap(),
                 meta_field: None,
                 children: vec![],
-                level: 0,
-                parent_id: Some(0),
+                level: id_arg,
+                parent_id: Some(id_arg - 1),
             })
         }
 
@@ -252,14 +252,42 @@ pub mod tests {
 
         /// Returns all categories as a tree
         fn get_all(&self) -> RepoResult<Category> {
-            Ok(Category {
-                id: 1,
-                name: serde_json::from_str("{}").unwrap(),
-                meta_field: None,
-                children: vec![],
-                level: 0,
-                parent_id: Some(0),
-            })
+            Ok(create_mock_categories())
+        }
+    }
+
+    fn create_mock_categories() -> Category {
+        let cat_3 = Category {
+            id: 3,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![],
+            level: 3,
+            parent_id: Some(2),
+        };
+        let cat_2 = Category {
+            id: 2,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![cat_3],
+            level: 2,
+            parent_id: Some(1),
+        };
+        let cat_1 = Category {
+            id: 1,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![cat_2],
+            level: 1,
+            parent_id: Some(0),
+        };
+        Category {
+            id: 0,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![cat_1],
+            level: 0,
+            parent_id: None,
         }
     }
 
@@ -406,13 +434,13 @@ pub mod tests {
                 id: base_product_id,
                 is_active: true,
                 store_id: 1,
-                name: payload.name.unwrap(),
-                short_description: payload.short_description.unwrap(),
+                name: serde_json::from_str("{}").unwrap(),
+                short_description: serde_json::from_str("{}").unwrap(),
                 long_description: payload.long_description,
                 seo_title: payload.seo_title,
                 seo_description: payload.seo_description,
-                currency_id: payload.currency_id.unwrap(),
-                category_id: payload.category_id.unwrap(),
+                currency_id: 1,
+                category_id: 3,
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
@@ -433,7 +461,7 @@ pub mod tests {
                 seo_title: None,
                 seo_description: None,
                 currency_id: 1,
-                category_id: 1,
+                category_id: 3,
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
@@ -555,8 +583,12 @@ pub mod tests {
         }
 
         fn update(&self, store_id: i32, payload: UpdateStore) -> RepoResult<Store> {
-            let store = create_store(store_id, payload.name.unwrap());
-
+            let name = if let Some(payload_name) = payload.name {
+                payload_name
+            } else {
+                serde_json::from_str("{}").unwrap()
+            };
+            let store = create_store(store_id, name);
             Ok(store)
         }
 

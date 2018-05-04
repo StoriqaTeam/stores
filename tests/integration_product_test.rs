@@ -36,6 +36,7 @@ pub fn create_product(id: i32, base_product_id: i32) -> Product {
         cashback: None,
         additional_photos: None,
         price: 0f64,
+        currency_id: None,
         created_at: SystemTime::now(),
         updated_at: SystemTime::now(),
     }
@@ -57,6 +58,7 @@ pub fn create_new_product(base_product_id: i32) -> NewProduct {
         cashback: None,
         additional_photos: None,
         price: 0f64,
+        currency_id: None,
     }
 }
 
@@ -68,6 +70,7 @@ pub fn create_update_product() -> UpdateProduct {
         cashback: None,
         additional_photos: None,
         price: None,
+        currency_id: None,
     }
 }
 

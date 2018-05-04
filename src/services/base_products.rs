@@ -679,9 +679,12 @@ impl<
                         //         }
                         //     })
                         //     .and_then(|payload| {
+
+                        // create base_product
                         base_products_repo
                             .create(payload)
                             .and_then(|prod| {
+                                // update product categories of the store
                                 categories_repo
                                     .get_all()
                                     .and_then(|category_root| {
@@ -752,6 +755,7 @@ impl<
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     conn.transaction::<(BaseProduct), ServiceError, _>(move || {
                         base_products_repo
                             .find(product_id)
@@ -779,80 +783,58 @@ impl<
                                 })
                             })
                             .and_then(|old_prod| {
+                                base_products_repo
+                                    .update(product_id, payload.clone())
+                                    .map_err(ServiceError::from)
+                                    .map(|updated_prod| (old_prod, updated_prod))
+                            })
+                            .and_then(|(old_prod, updated_prod)| {
                                 if let Some(new_cat_id) = payload.category_id {
+                                    // updating product categories of the store
                                     let old_cat_id = old_prod.category_id;
+                                    let old_prod_store_id = old_prod.store_id;
                                     categories_repo
                                         .get_all()
                                         .and_then(|category_root| {
-                                            category_root
+                                            let old_cat_id = category_root
                                                 .children
+                                                .clone()
                                                 .into_iter()
                                                 .find(|cat_child| get_parent_category(&cat_child, old_cat_id, 2).is_some())
-                                                .ok_or_else(|| {
-                                                    error!("There is no such 3rd level category in db - {}", old_cat_id);
-                                                    RepoError::NotFound
-                                                })
-                                        })
-                                        .map(|old_cat| (old_cat, old_prod))
-                                        .and_then(|(old_cat, old_prod)| {
-                                            categories_repo
-                                                .get_all()
-                                                .and_then(|category_root| {
-                                                    category_root
-                                                        .children
-                                                        .into_iter()
-                                                        .find(|cat_child| get_parent_category(&cat_child, new_cat_id, 2).is_some())
-                                                        .ok_or_else(|| {
-                                                            error!("There is no such 3rd level category in db - {}", new_cat_id);
-                                                            RepoError::NotFound
-                                                        })
-                                                })
-                                                .map(|new_cat| (new_cat, old_cat, old_prod))
-                                        })
-                                        .and_then(|(new_cat, old_cat, old_prod)| {
-                                            stores_repo.find(old_prod.store_id).map(|store| (store, new_cat, old_cat))
-                                        })
-                                        .and_then(|(store, new_cat, old_cat)| {
-                                            if new_cat.id != old_cat.id {
-                                                let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
-                                                    let mut product_categories =
-                                                        serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
-                                                    let mut new_prod_cats = vec![];
-                                                    let mut new_cat_exists = false;
-                                                    for pc in product_categories.iter_mut() {
-                                                        if pc.category_id == new_cat.id {
-                                                            pc.count += 1;
-                                                            new_cat_exists = true;
-                                                        }
-                                                        if pc.category_id == old_cat.id {
-                                                            pc.count -= 1;
-                                                        }
-                                                        new_prod_cats.push(pc.clone());
-                                                    }
-                                                    if !new_cat_exists {
-                                                        new_prod_cats.push(ProductCategories::new(new_cat.id));
-                                                    }
-                                                    new_prod_cats
+                                                .map(|c| c.id);
+                                            let new_cat_id = category_root
+                                                .children
+                                                .into_iter()
+                                                .find(|cat_child| get_parent_category(&cat_child, new_cat_id, 2).is_some())
+                                                .map(|c| c.id);
+                                            if let (Some(old_cat_id), Some(new_cat_id)) = (old_cat_id, new_cat_id) {
+                                                if new_cat_id != old_cat_id {
+                                                    stores_repo.find(old_prod_store_id).and_then(|store| {
+                                                        let update_store = UpdateStore::update_product_categories(
+                                                            store.product_categories.clone(),
+                                                            old_cat_id,
+                                                            new_cat_id,
+                                                        );
+                                                        stores_repo.update(store.id, update_store).map(|_| ())
+                                                    })
                                                 } else {
-                                                    let pc = ProductCategories::new(new_cat.id);
-                                                    vec![pc]
-                                                };
-
-                                                let product_categories = serde_json::to_value(prod_cats).ok();
-
-                                                let update_store = UpdateStore {
-                                                    product_categories,
-                                                    ..Default::default()
-                                                };
-                                                stores_repo.update(store.id, update_store).map(|_| ())
+                                                    Ok(())
+                                                }
                                             } else {
-                                                Ok(())
+                                                error!("Could not update store product categories because there is no such 3rd level category in db.");
+                                                Err(RepoError::NotFound)
                                             }
                                         })
-                                        .and_then(|_| base_products_repo.update(product_id, payload.clone()))
+                                        .and_then(|_| Ok(updated_prod))
+                                        .map_err(ServiceError::from)
+                                } else if let Some(currency_id) = payload.currency_id {
+                                    // updating currency_id of base_products variants
+                                    products_repo
+                                        .update_currency_id(currency_id, updated_prod.id)
+                                        .map(|_| updated_prod)
                                         .map_err(ServiceError::from)
                                 } else {
-                                    base_products_repo.update(product_id, payload.clone()).map_err(ServiceError::from)
+                                    Ok(updated_prod)
                                 }
                             })
                     })

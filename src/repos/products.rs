@@ -44,6 +44,9 @@ pub trait ProductsRepo {
 
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> RepoResult<Product>;
+
+    /// Update currency_id on all prodouct with base_product_id
+    fn update_currency_id(&self, currency_id: i32, base_product_id: i32) -> RepoResult<usize>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepoImpl<'a, T> {
@@ -113,7 +116,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Updates specific product
     fn update(&self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
-        debug!("Updating base product with id {} and payload {:?}.", product_id_arg, payload);
+        debug!("Updating product with id {} and payload {:?}.", product_id_arg, payload);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| acl::check(&*self.acl, &Resource::Products, &Action::Update, self, Some(&product)))
             .and_then(|_| {
@@ -126,13 +129,41 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Deactivates specific product
     fn deactivate(&self, product_id_arg: i32) -> RepoResult<Product> {
-        debug!("Deactivate base product with id {}.", product_id_arg);
+        debug!("Deactivate product with id {}.", product_id_arg);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| acl::check(&*self.acl, &Resource::Products, &Action::Delete, self, Some(&product)))
             .and_then(|_| {
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
+            })
+    }
+
+    /// Update currency_id on all product with base_product_id
+    fn update_currency_id(&self, currency_id_arg: i32, base_product_id_arg: i32) -> RepoResult<usize> {
+        debug!(
+            "Setting currency_id {} on all product with base_product_id {}.",
+            currency_id_arg, base_product_id_arg
+        );
+
+        let query = products.filter(base_product_id.eq(base_product_id_arg)).filter(is_active.eq(true));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|products_res: Vec<Product>| {
+                for product in &products_res {
+                    acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product))?;
+                }
+                Ok(())
+            })
+            .and_then(|_| {
+                diesel::update(products)
+                    .filter(base_product_id.eq(base_product_id_arg))
+                    .filter(is_active.eq(true))
+                    .set(currency_id.eq(currency_id_arg))
+                    .execute(self.db_conn)
+                    .map_err(Error::from)
             })
     }
 }

@@ -18,6 +18,8 @@ use repos::{error::RepoError, ReposFactory};
 pub trait ProductsService {
     /// Returns product by ID
     fn get(&self, product_id: i32) -> ServiceFuture<Product>;
+    /// Returns store_id by ID
+    fn get_store_id(&self, product_id: i32) -> ServiceFuture<i32>;
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> ServiceFuture<Product>;
     /// Creates base product
@@ -93,6 +95,34 @@ impl<
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     products_repo.find(product_id).map_err(ServiceError::from)
+                })
+        }))
+    }
+
+    /// Returns store_id by ID
+    fn get_store_id(&self, product_id: i32) -> ServiceFuture<i32> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| {
+                    error!("Could not get connection to db from pool! {}", e.to_string());
+                    ServiceError::Connection(e.into())
+                })
+                .and_then(move |conn| {
+                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    products_repo
+                        .find(product_id)
+                        .and_then(move |product| {
+                            base_products_repo
+                                .find(product.base_product_id)
+                                .map(|base_product| base_product.store_id)
+                        })
+                        .map_err(ServiceError::from)
                 })
         }))
     }

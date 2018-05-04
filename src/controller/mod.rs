@@ -356,6 +356,19 @@ impl<
                 }
             }
 
+            // GET /products/store_id
+            (&Get, Some(Route::ProductStoreId)) => {
+                debug!("User with id = '{:?}' is requesting  // GET /products/store_id", user_id);
+                if let Some(product_id) = parse_query!(req.query().unwrap_or_default(), "product_id" => i32) {
+                    serialize_future(products_service.get_store_id(product_id))
+                } else {
+                    error!("Parsing query parameters // GET /products/store_id failed!");
+                    Box::new(future::err(Error::UnprocessableEntity(format_err!(
+                        "Error parsing request from gateway body"
+                    ))))
+                }
+            }
+
             // POST /products
             (&Post, Some(Route::Products)) => {
                 debug!("User with id = '{:?}' is requesting  // POST /products", user_id);
@@ -409,6 +422,15 @@ impl<
                     user_id, base_product_id
                 );
                 serialize_future(base_products_service.get(base_product_id))
+            }
+
+            // GET base_products/by_product/<product_id>
+            (&Get, Some(Route::BaseProductByProduct(product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET base_products/by_product/{}",
+                    user_id, product_id
+                );
+                serialize_future(base_products_service.get_by_product(product_id))
             }
 
             // GET /base_products

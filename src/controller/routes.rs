@@ -4,17 +4,14 @@ use stq_router::RouteParser;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Route {
     Healthcheck,
-    Stores,
-    StoresAutoComplete,
-    StoresSearch,
-    StoresSearchFiltersCount,
-    StoresSearchFiltersCountry,
-    StoresSearchFiltersCategory,
-    StoresCart,
-    Store(i32),
-    StoreProducts(i32),
-    StoreProductsCount(i32),
-    Products,
+    Attributes,
+    Attribute(i32),
+    Categories,
+    Category(i32),
+    CategoryAttrs,
+    CategoryAttr(i32),
+    BaseProducts,
+    BaseProductWithVariants,
     BaseProductsSearch,
     BaseProductsAutoComplete,
     BaseProductsMostViewed,
@@ -22,22 +19,27 @@ pub enum Route {
     BaseProductsSearchFiltersPrice,
     BaseProductsSearchFiltersCategory,
     BaseProductsSearchFiltersAttributes,
+    BaseProduct(i32),
+    BaseProductByProduct(i32),
+    BaseProductWithVariant(i32),
+    Products,
+    ProductStoreId,
     Product(i32),
     ProductAttributes(i32),
     ProductsByBaseProduct(i32),
-    BaseProducts,
-    BaseProductWithVariants,
-    BaseProduct(i32),
-    BaseProductWithVariant(i32),
+    Stores,
+    StoresSearch,
+    StoresAutoComplete,
+    StoresSearchFiltersCount,
+    StoresSearchFiltersCountry,
+    StoresSearchFiltersCategory,
+    StoresCart,
+    Store(i32),
+    StoreProducts(i32),
+    StoreProductsCount(i32),
     UserRoles,
     UserRole(i32),
     DefaultRole(i32),
-    Attributes,
-    Attribute(i32),
-    Categories,
-    Category(i32),
-    CategoryAttrs,
-    CategoryAttr(i32),
 }
 
 pub fn create_route_parser() -> RouteParser<Route> {
@@ -91,6 +93,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Products Routes
     router.add_route(r"^/products$", || Route::Products);
 
+    // Product Store Id Routes
+    router.add_route(r"^/products/store_id$", || Route::ProductStoreId);
+
     // Products/:id route
     router.add_route_with_params(r"^/products/(\d+)$", |params| {
         params
@@ -135,6 +140,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(Route::BaseProductWithVariant)
+    });
+
+    // base_products/by_product/:id route
+    router.add_route_with_params(r"^/base_products/by_product/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(Route::BaseProductByProduct)
     });
 
     // BaseProducts Search route

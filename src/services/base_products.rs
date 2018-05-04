@@ -41,9 +41,11 @@ pub trait BaseProductsService {
     /// search filters
     fn search_filters_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>>;
     /// Returns product by ID
-    fn get(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
+    fn get(&self, base_product_id: i32) -> ServiceFuture<BaseProduct>;
+    /// Returns base_product by product ID
+    fn get_by_product(&self, product_id: i32) -> ServiceFuture<BaseProductWithVariants>;
     /// Deactivates specific product
-    fn deactivate(&self, product_id: i32) -> ServiceFuture<BaseProduct>;
+    fn deactivate(&self, base_product_id: i32) -> ServiceFuture<BaseProduct>;
     /// Creates base product
     fn create(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Lists base products limited by `from` and `count` parameters
@@ -531,6 +533,34 @@ impl<
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     base_products_repo.find(product_id).map_err(ServiceError::from)
+                })
+        }))
+    }
+
+    /// Returns base_product by product ID
+    fn get_by_product(&self, product_id: i32) -> ServiceFuture<BaseProductWithVariants> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(self.cpu_pool.spawn_fn(move || {
+            db_pool
+                .get()
+                .map_err(|e| {
+                    error!("Could not get connection to db from pool! {}", e.to_string());
+                    ServiceError::Connection(e.into())
+                })
+                .and_then(move |conn| {
+                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                    products_repo
+                        .find(product_id)
+                        .and_then(move |product| {
+                            base_products_repo
+                                .find(product.base_product_id)
+                                .map(|base_product| BaseProductWithVariants::new(base_product, vec![product]))
+                        })
+                        .map_err(ServiceError::from)
                 })
         }))
     }

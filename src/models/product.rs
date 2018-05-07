@@ -95,6 +95,8 @@ pub struct UpdateProductWithAttributes {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
+    pub currency_id: Option<i32>,
+    pub currency_map: Option<serde_json::Value>,
     pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
     pub categories_ids: Option<Vec<i32>>,

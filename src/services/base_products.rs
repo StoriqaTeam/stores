@@ -1,4 +1,5 @@
 //! Base product service
+use std::str::FromStr;
 use std::collections::{HashMap, HashSet};
 
 use diesel::connection::AnsiTransactionManager;
@@ -22,12 +23,13 @@ use repos::remove_unused_categories;
 use repos::{RepoResult, ReposFactory};
 
 use stq_http::client::ClientHandle;
+use stq_static_resources::Currency;
 
 const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_by_name(self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
@@ -35,7 +37,7 @@ pub trait BaseProductsService {
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
-    fn search_filters_price(&self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
+    fn search_filters_price(self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
     /// search filters
     fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
     /// search filters
@@ -106,7 +108,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        let category_id = options.clone().map(|options| options.category_id).and_then(|c| c);
+        let category_id = options.clone().and_then(|options| options.category_id);
 
         Box::new(cpu_pool.spawn_fn({
             let db_pool = db_pool.clone();
@@ -150,7 +152,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        let category_id = options.clone().map(|options| options.category_id).and_then(|c| c);
+        let category_id = options.clone().and_then(|options| options.category_id);
 
         Box::new(cpu_pool.spawn_fn({
             let db_pool = db_pool.clone();
@@ -180,6 +182,65 @@ impl<
             }
         }))
     }
+
+    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
+        let cpu_pool = self.cpu_pool.clone();
+        let db_pool = self.db_pool.clone();
+        let repo_factory = self.repo_factory.clone();
+        let user_id = self.user_id;
+
+        let currency_id = options.clone().and_then(|options| options.currency_id);
+
+        Box::new(cpu_pool.spawn_fn({
+            let db_pool = db_pool.clone();
+            let repo_factory = repo_factory.clone();
+            move || {
+                db_pool
+                    .get()
+                    .map_err(|e| {
+                        error!("Could not get connection to db from pool! {}", e.to_string());
+                        ServiceError::Connection(e.into())
+                    })
+                    .and_then(move |conn| {
+                        if let Some(currency_id) = currency_id {
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            currency_exchange.get_latest().and_then(|currencies| {
+                                let currencies_map = match currency_id {
+                                    x if x == (Currency::Rouble as i32) => currencies.rouble,
+                                    x if x == (Currency::Euro as i32) => currencies.euro,
+                                    x if x == (Currency::Dollar as i32) => currencies.dollar,
+                                    x if x == (Currency::Bitcoin as i32) => currencies.bitcoin,
+                                    x if x == (Currency::Etherium as i32) => currencies.etherium,
+                                    x if x == (Currency::Stq as i32) => currencies.stq,
+                                    c => {
+                                        error!("Not found such currency_id : {}", c);
+                                        return Err(RepoError::NotFound);
+                                    }
+                                }
+                                .as_object()
+                                .map(|m|{
+                                    let mut map = serde_json::Map::<String, serde_json::Value>::new();
+                                    for (key, val) in m {
+                                        if let Some(key) = Currency::from_str(key).ok(){
+                                            map.insert(key.to_string(), val.clone());
+                                        }
+                                    }
+                                    map.into()
+                                });
+
+                                let options = options.map(|mut options| {
+                                    options.currency_map = currencies_map;
+                                    options
+                                });
+                                Ok(options)
+                            })
+                        } else {
+                            Ok(options)
+                        }.map_err(ServiceError::from)
+                    })
+            }
+        }))
+    }
 }
 
 impl<
@@ -189,7 +250,7 @@ impl<
     > BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
     fn search_by_name(
-        &self,
+        self,
         mut search_product: SearchProductsByName,
         count: i32,
         offset: i32,
@@ -202,7 +263,9 @@ impl<
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
+        Box::new(self.linearize_categories(search_product.options.clone())
+            .and_then(move |options| self.create_currency_map(options))
+            .and_then(move |options| {
             search_product.options = options;
             products_el
                 .search_by_name(search_product, count, offset)
@@ -374,15 +437,17 @@ impl<
         Box::new(products_names)
     }
 
-    fn search_filters_price(&self, mut search_product: SearchProductsByName) -> ServiceFuture<RangeFilter> {
+    fn search_filters_price(self, mut search_product: SearchProductsByName) -> ServiceFuture<RangeFilter> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
-            search_product.options = options;
-            products_el.aggregate_price(search_product).map_err(ServiceError::from)
-        }))
+        Box::new(self.linearize_categories(search_product.options.clone())
+            .and_then(move |options| self.create_currency_map(options))
+            .and_then(move |options| {
+                search_product.options = options;
+                products_el.aggregate_price(search_product).map_err(ServiceError::from)
+            }))
     }
 
     /// search filters

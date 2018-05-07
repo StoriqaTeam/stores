@@ -87,7 +87,7 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
         let acl = self.get_acl(db_conn, user_id);
         Box::new(StoresRepoImpl::new(db_conn, acl)) as Box<StoresRepo>
     }
-    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a>{
+    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CurrencyExchangeRepoImpl::new(db_conn, acl)) as Box<CurrencyExchangeRepo>
     }
@@ -170,7 +170,7 @@ pub mod tests {
         fn create_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<StoresRepo + 'a> {
             Box::new(StoresRepoMock::default()) as Box<StoresRepo>
         }
-        fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a>{
+        fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
             Box::new(CurrencyExchangeRepoMock::default()) as Box<CurrencyExchangeRepo>
         }
         fn create_user_roles_repo<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {

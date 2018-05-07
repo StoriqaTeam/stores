@@ -11,9 +11,9 @@ use stq_acl::*;
 
 use super::acl;
 use super::types::RepoResult;
-use models::currency_exchange::currency_exchange::dsl::*;
 use models::authorization::*;
-use models::{CurrencyExchange,NewCurrencyExchange};
+use models::currency_exchange::currency_exchange::dsl::*;
+use models::{CurrencyExchange, NewCurrencyExchange};
 use repos::error::RepoError as Error;
 
 /// CurrencyExchange repository, responsible for handling prod_attr_values
@@ -42,10 +42,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Get latest currency exchanges
     fn get_latest(&self) -> RepoResult<CurrencyExchange> {
         debug!("Find latest currency.");
-        let query = 
-            currency_exchange
-                .order_by(id.desc())
-                .limit(1);
+        let query = currency_exchange.order_by(id.desc()).limit(1);
 
         query
             .get_results(self.db_conn)
@@ -61,18 +58,23 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Adds latest currency to table
-    fn update(&self, payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange>{
+    fn update(&self, payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange> {
         debug!("Add latest currency to table: {:?}.", payload);
         let query = diesel::insert_into(currency_exchange).values(&payload);
         query
             .get_result::<CurrencyExchange>(self.db_conn)
             .map_err(Error::from)
             .and_then(|currency_exchange_arg| {
-                acl::check(&*self.acl, &Resource::CurrencyExchange, &Action::Create, self, Some(&currency_exchange_arg))?;
+                acl::check(
+                    &*self.acl,
+                    &Resource::CurrencyExchange,
+                    &Action::Create,
+                    self,
+                    Some(&currency_exchange_arg),
+                )?;
                 Ok(currency_exchange_arg)
             })
     }
-
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, CurrencyExchange>
@@ -81,7 +83,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn is_in_scope(&self, _user_id: i32, scope: &Scope, _obj: Option<&CurrencyExchange>) -> bool {
         match *scope {
             Scope::All => true,
-            Scope::Owned => false
+            Scope::Owned => false,
         }
     }
 }

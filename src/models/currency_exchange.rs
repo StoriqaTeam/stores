@@ -7,11 +7,11 @@ table! {
     currency_exchange (id) {
         id -> Integer,
         rouble -> Jsonb,
-        euro -> Jsonb, 
-        dollar -> Jsonb, 
-        bitcoin -> Jsonb, 
-        etherium -> Jsonb, 
-        stq -> Jsonb, 
+        euro -> Jsonb,
+        dollar -> Jsonb,
+        bitcoin -> Jsonb,
+        etherium -> Jsonb,
+        stq -> Jsonb,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }

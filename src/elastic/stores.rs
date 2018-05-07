@@ -216,7 +216,7 @@ impl StoresElastic for StoresElasticImpl {
         "aggregations": {
             "my_agg": {
                 "terms": {
-                    "field": "country"
+                    "field": "country.keyword"
                 }
             }
         }
@@ -294,10 +294,14 @@ impl StoresElastic for StoresElasticImpl {
                 .and_then(|res| {
                     let mut categories_ids = vec![];
                     if let Some(aggs_raw) = res.aggs_raw() {
-                        if let Some(id) = aggs_raw["product_categories"]["category"]["value"].as_i64() {
-                            categories_ids.push(id as i32);
-                        };
-                    }
+                        if let Some(buckets) = aggs_raw["product_categories"]["category"]["buckets"].as_array() {
+                            for bucket in buckets {
+                                if let Some(key) = bucket["key"].as_i64() {
+                                    categories_ids.push(key as i32);
+                                }
+                            }
+                        }
+                    };
                     future::ok(categories_ids)
                 }),
         )

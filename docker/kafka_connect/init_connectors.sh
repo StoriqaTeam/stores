@@ -73,7 +73,12 @@ curl -XPUT 'stores-es:9200/stores?pretty' -H 'Content-Type: application/json' -d
                   "type": "double"
                },
                "country": {
-                  "type": "text"
+                  "type": "text",
+                  "fields": {
+                    "keyword": { 
+                      "type": "keyword"
+                    }
+                  }
                },
                "id": {
                   "type": "integer"

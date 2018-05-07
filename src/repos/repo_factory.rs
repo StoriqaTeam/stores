@@ -15,6 +15,7 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
     fn create_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductsRepo + 'a>;
     fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a>;
     fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a>;
+    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a>;
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a>;
 }
 
@@ -85,6 +86,10 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
     fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(StoresRepoImpl::new(db_conn, acl)) as Box<StoresRepo>
+    }
+    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(CurrencyExchangeRepoImpl::new(db_conn, acl)) as Box<CurrencyExchangeRepo>
     }
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
         Box::new(UserRolesRepoImpl::new(
@@ -164,6 +169,9 @@ pub mod tests {
         }
         fn create_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<StoresRepo + 'a> {
             Box::new(StoresRepoMock::default()) as Box<StoresRepo>
+        }
+        fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
+            Box::new(CurrencyExchangeRepoMock::default()) as Box<CurrencyExchangeRepo>
         }
         fn create_user_roles_repo<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
             Box::new(UserRolesRepoMock::default()) as Box<UserRolesRepo>
@@ -312,6 +320,41 @@ pub mod tests {
         /// Delete attr from category
         fn delete(&self, _payload: OldCatAttr) -> RepoResult<()> {
             Ok(())
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct CurrencyExchangeRepoMock;
+
+    impl CurrencyExchangeRepo for CurrencyExchangeRepoMock {
+        /// Get latest currency exchanges
+        fn get_latest(&self) -> RepoResult<CurrencyExchange> {
+            Ok(CurrencyExchange {
+                id: 1,
+                rouble: serde_json::from_str("{}").unwrap(),
+                euro: serde_json::from_str("{}").unwrap(),
+                dollar: serde_json::from_str("{}").unwrap(),
+                bitcoin: serde_json::from_str("{}").unwrap(),
+                etherium: serde_json::from_str("{}").unwrap(),
+                stq: serde_json::from_str("{}").unwrap(),
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            })
+        }
+
+        /// Adds latest currency to table
+        fn update(&self, _payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange> {
+            Ok(CurrencyExchange {
+                id: 1,
+                rouble: serde_json::from_str("{}").unwrap(),
+                euro: serde_json::from_str("{}").unwrap(),
+                dollar: serde_json::from_str("{}").unwrap(),
+                bitcoin: serde_json::from_str("{}").unwrap(),
+                etherium: serde_json::from_str("{}").unwrap(),
+                stq: serde_json::from_str("{}").unwrap(),
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            })
         }
     }
 

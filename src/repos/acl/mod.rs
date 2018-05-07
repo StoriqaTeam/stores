@@ -53,6 +53,7 @@ impl ApplicationAcl {
                 permission!(Resource::Attributes),
                 permission!(Resource::Categories),
                 permission!(Resource::CategoryAttrs),
+                permission!(Resource::CurrencyExchange),
             ],
         );
         hash.insert(
@@ -70,6 +71,7 @@ impl ApplicationAcl {
                 permission!(Resource::Attributes, Action::Read),
                 permission!(Resource::Categories, Action::Read),
                 permission!(Resource::CategoryAttrs, Action::Read),
+                permission!(Resource::CurrencyExchange, Action::Read),
             ],
         );
 
@@ -123,6 +125,7 @@ impl<T> Acl<Resource, Action, Scope, RepoError, T> for UnauthorizedAcl {
                 | Resource::BaseProducts
                 | Resource::ProductAttrs
                 | Resource::Attributes
+                | Resource::CurrencyExchange
                 | Resource::CategoryAttrs => Ok(true),
                 _ => Ok(false),
             }

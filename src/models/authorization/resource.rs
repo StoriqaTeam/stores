@@ -11,6 +11,7 @@ pub enum Resource {
     UserRoles,
     Categories,
     CategoryAttrs,
+    CurrencyExchange,
 }
 
 impl fmt::Display for Resource {
@@ -24,6 +25,7 @@ impl fmt::Display for Resource {
             Resource::UserRoles => write!(f, "user roles"),
             Resource::CategoryAttrs => write!(f, "cat attrs"),
             Resource::Categories => write!(f, "categories"),
+            Resource::CurrencyExchange => write!(f, "currency_exchange"),
         }
     }
 }

@@ -219,13 +219,15 @@ impl<
                                 }
                                 .as_object()
                                 .map(|m|{
-                                    let mut map = serde_json::Map::<String, serde_json::Value>::new();
+                                    let mut map = HashMap::<i32, f64>::new();
                                     for (key, val) in m {
                                         if let Some(key) = Currency::from_str(key).ok(){
-                                            map.insert(key.to_string(), val.clone());
+                                            if let Some(val) = val.as_f64() {
+                                                map.insert(key as i32, val);
+                                            }
                                         }
                                     }
-                                    map.into()
+                                    map
                                 });
 
                                 let options = options.map(|mut options| {
@@ -266,6 +268,7 @@ impl<
         Box::new(self.linearize_categories(search_product.options.clone())
             .and_then(move |options| self.create_currency_map(options))
             .and_then(move |options| {
+            let currency_map = options.clone().and_then(|o|o.currency_map); 
             search_product.options = options;
             products_el
                 .search_by_name(search_product, count, offset)
@@ -292,10 +295,19 @@ impl<
                                                 .and_then(|base_product| {
                                                     if let Some(matched) = el_product.matched_variants_ids {
                                                         matched
-                                                            .iter()
-                                                            .map(|id| products_repo.find(*id))
+                                                            .into_iter()
+                                                            .map(|id| products_repo.find(id))
                                                             .collect::<RepoResult<Vec<Product>>>()
-                                                            .and_then(|variants| Ok(BaseProductWithVariants::new(base_product, variants)))
+                                                            .and_then(|mut variants| {
+                                                                    if let Some (currency_map) = currency_map.clone() {
+                                                                        for mut variant in variants.iter_mut() {
+                                                                            if let Some(currency_id) = variant.currency_id {
+                                                                                variant.price = variant.price * currency_map[&currency_id];
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    Ok(BaseProductWithVariants::new(base_product, variants))
+                                                                })
                                                     } else {
                                                         Ok(BaseProductWithVariants::new(base_product, vec![]))
                                                     }

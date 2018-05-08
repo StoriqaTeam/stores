@@ -133,7 +133,7 @@ impl ProductsElasticImpl {
                 let variant_price_filter = json!({
                     "script" : {
                         "script" : {
-                            "inline" : "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; def price = doc['variants.price'].value * koef; return (params.min == null || price >= params.min) && (params.max == null || price <= params.max);",
+                            "source" : "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; def price = doc['variants.price'].value * koef; return (params.min == null || price >= params.min) && (params.max == null || price <= params.max);",
                             "lang"   : "painless",
                             "params" : {
                                 "cur_map" : currency_map,

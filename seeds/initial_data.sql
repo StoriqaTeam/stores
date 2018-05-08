@@ -110,17 +110,17 @@ INSERT INTO base_products (store_id, name, short_description, currency_id, categ
 (9, '[{"lang": "en", "text": "test product 04.09_120727"}, {"lang": "ru", "text": "тест продукт 04.09_120727"}]','[{"lang": "en", "text": "test"}]',2,18,59),
 (10, '[{"lang": "en", "text": "test product 14"}, {"lang": "ru", "text": "тест продукт 14"}]','[{"lang": "en", "text": "test"}]',2,19, 806);
 
-INSERT INTO products (discount, base_product_id, price, photo_main) VALUES
-(0.2, 1,100, 'https://image.ibb.co/k66QZn/1.jpg'),
-(0.25, 2,200, 'https://image.ibb.co/k66QZn/1.jpg'),
-(0.25, 3,200, 'https://image.ibb.co/k66QZn/1.jpg'),
-(0.25, 4,200, 'https://image.ibb.co/k66QZn/1.jpg'),
-(0.25, 5,200, 'https://image.ibb.co/bWz177/3.jpg'),
-(0.35, 6,200, 'https://image.ibb.co/bWz177/3.jpg'),
-(0.25, 7,200, 'https://image.ibb.co/bWz177/3.jpg'),
-(0.25, 8,200, 'https://image.ibb.co/eRz177/2.jpg'),
-(0.15, 9,200, 'https://image.ibb.co/eRz177/2.jpg'),
-(0.25, 10,200, 'https://image.ibb.co/eRz177/2.jpg');
+INSERT INTO products (discount, base_product_id, price, photo_main, currency_id) VALUES
+(0.2, 1,100, 'https://image.ibb.co/k66QZn/1.jpg', 1),
+(0.25, 2,200, 'https://image.ibb.co/k66QZn/1.jpg', 1),
+(0.25, 3,200, 'https://image.ibb.co/k66QZn/1.jpg', 1),
+(0.25, 4,200, 'https://image.ibb.co/k66QZn/1.jpg', 1),
+(0.25, 5,200, 'https://image.ibb.co/bWz177/3.jpg', 1),
+(0.35, 6,200, 'https://image.ibb.co/bWz177/3.jpg', 1),
+(0.25, 7,200, 'https://image.ibb.co/bWz177/3.jpg', 1),
+(0.25, 8,200, 'https://image.ibb.co/eRz177/2.jpg', 1),
+(0.15, 9,200, 'https://image.ibb.co/eRz177/2.jpg', 1),
+(0.25, 10,200, 'https://image.ibb.co/eRz177/2.jpg', 1);
 
 INSERT INTO prod_attr_values (prod_id, attr_id, value, value_type, meta_field, base_prod_id) VALUES
 (1,1,'44','str','dfasfas',1),

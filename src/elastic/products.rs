@@ -83,7 +83,7 @@ impl ProductsElasticImpl {
     fn create_variants_map_filters(options: Option<ProductsSearchOptions>) -> serde_json::Map<String, serde_json::Value> {
         let mut variants_map = serde_json::Map::<String, serde_json::Value>::new();
         let mut variants_must: Vec<serde_json::Value> = vec![];
-        let (attr_filters, price_filters) = if let Some(options) = options.clone() {
+        let (attr_filters, price_filters, currency_map) = if let Some(options) = options.clone() {
             let attr_filters = options.attr_filters.map(|attrs| {
                 attrs
                     .into_iter()
@@ -106,9 +106,9 @@ impl ProductsElasticImpl {
                     })
                     .collect::<Vec<serde_json::Value>>()
             });
-            (attr_filters, options.price_filter)
+            (attr_filters, options.price_filter, options.currency_map)
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         let variant_attr_filter = json!({
@@ -129,19 +129,36 @@ impl ProductsElasticImpl {
         }
 
         if let Some(price_filters) = price_filters {
-            let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
-            if let Some(min) = price_filters.min_value {
-                range_map.insert("gte".to_string(), json!(min));
-            }
-            if let Some(max) = price_filters.max_value {
-                range_map.insert("lte".to_string(), json!(max));
-            }
-            let variant_price_filter = json!({
-                "range":{  
-                    "variants.price":range_map
+            if let Some(currency_map) = currency_map {
+                let variant_price_filter = json!({
+                    "script" : {
+                        "script" : {
+                            "inline" : "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; def price = doc['variants.price'].value * koef; return (params.min == null || price >= params.min) && (params.max == null || price <= params.max);",
+                            "lang"   : "painless",
+                            "params" : {
+                                "cur_map" : currency_map,
+                                "min" : price_filters.min_value,
+                                "max" : price_filters.max_value
+                            }
+                        }
+                    }
+                });
+                variants_must.push(variant_price_filter);
+            } else {
+                let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
+                if let Some(min) = price_filters.min_value {
+                    range_map.insert("gte".to_string(), json!(min));
                 }
-            });
-            variants_must.push(variant_price_filter);
+                if let Some(max) = price_filters.max_value {
+                    range_map.insert("lte".to_string(), json!(max));
+                }
+                let variant_price_filter = json!({
+                    "range":{  
+                        "variants.price":range_map
+                    }
+                });
+                variants_must.push(variant_price_filter);
+            }
         }
 
         let mut variants_filters: Vec<serde_json::Value> = vec![];

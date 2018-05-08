@@ -6,10 +6,6 @@ pub enum Route {
     Healthcheck,
     Attributes,
     Attribute(i32),
-    Categories,
-    Category(i32),
-    CategoryAttrs,
-    CategoryAttr(i32),
     BaseProducts,
     BaseProductWithVariants,
     BaseProductsSearch,
@@ -22,6 +18,11 @@ pub enum Route {
     BaseProduct(i32),
     BaseProductByProduct(i32),
     BaseProductWithVariant(i32),
+    Categories,
+    Category(i32),
+    CategoryAttrs,
+    CategoryAttr(i32),
+    CurrencyExchange,
     Products,
     ProductStoreId,
     Product(i32),
@@ -226,6 +227,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(Route::CategoryAttr)
     });
+
+     // Currency exchange Routes
+    router.add_route(r"^/currency_exchange$", || Route::CurrencyExchange);
 
     router
 }

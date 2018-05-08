@@ -50,7 +50,7 @@ impl StoresElasticImpl {
 
         if let Some(country_name) = country {
             let country = json!({
-                "term": {"country": country_name}
+                "term": {"country.keyword": country_name}
             });
             filters.push(country);
         }

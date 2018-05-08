@@ -1,6 +1,6 @@
 //! Module containg product model for query, insert, update
-use std::time::SystemTime;
 use std::collections::HashMap;
+use std::time::SystemTime;
 
 use serde_json;
 use validator::Validate;

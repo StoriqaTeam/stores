@@ -633,7 +633,7 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        if let Some(prod_options) = prod.options {
+        if let Some(prod_options) = prod.options.clone() {
             if let Some(prod_options_category_id) = prod_options.categories_ids {
                 let category = json!({
                     "terms": {"category_id": prod_options_category_id}
@@ -642,23 +642,61 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         }
 
-        let query = json!({
-        "size": 0,
-        "query": {
-                "bool" : query_map
-            },
-        "aggregations": {
-            "variants" : {
-                "nested" : {
-                    "path" : "variants"
-                },
-                "aggs" : {
-                    "min_price" : { "min" : { "field" : "variants.price" } },
-                    "max_price" : { "max" : { "field" : "variants.price" } }
+        let currency_map = prod.options.and_then(|o| o.currency_map);
+
+        let query = if let Some(currency_map) = currency_map {
+            json!({
+                "size": 0,
+                "query": {
+                        "bool" : query_map
+                    },
+                "aggregations": {
+                    "variants" : {
+                        "nested" : {
+                            "path" : "variants"
+                        },
+                        "aggs" : {
+                            "min_price" : { 
+                                "min" : { 
+                                "script": {
+                                            "lang": "painless",
+                                            "params": { "cur_map": currency_map },
+                                            "source": "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; return doc['variants.price'].value * koef;"
+                                        }
+                                    }
+                            },
+                            "max_price" : { 
+                                "max" : { 
+                                "script": {
+                                            "lang": "painless",
+                                            "params": { "cur_map": currency_map },
+                                            "source": "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; return doc['variants.price'].value * koef;"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }).to_string()
+        } else {
+            json!({
+                "size": 0,
+                "query": {
+                        "bool" : query_map
+                    },
+                "aggregations": {
+                    "variants" : {
+                        "nested" : {
+                            "path" : "variants"
+                        },
+                        "aggs" : {
+                            "min_price" : { "min" : { "field" : "variants.price" } },
+                            "max_price" : { "max" : { "field" : "variants.price" } }
+                        }
+                    }
                 }
-            }
-        }
-        }).to_string();
+            }).to_string()
+        };
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();

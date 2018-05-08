@@ -51,7 +51,6 @@ pub struct NewCurrencyExchange {
     pub stq: serde_json::Value,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CurrencyExchangeValue {
     pub rouble: f64,

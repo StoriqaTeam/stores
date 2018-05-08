@@ -38,6 +38,7 @@ use repos::repo_factory::*;
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
+use services::currency_exchange::{CurrencyExchangeService, CurrencyExchangeServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::system::{SystemService, SystemServiceImpl};
@@ -129,6 +130,9 @@ impl<
 
         let categories_service =
             CategoriesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
+
+        let currency_exchange_service =
+            CurrencyExchangeServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
@@ -813,6 +817,27 @@ impl<
                             categories_service
                                 .delete_attribute_from_category(old_category_attr)
                                 .map_err(Error::from)
+                        }),
+                )
+            }
+
+            // GET /currency_exchange
+            (&Get, Some(Route::CurrencyExchange)) => {
+                debug!("User with id = '{:?}' is requesting  // GET /currency_exchange", user_id);
+                serialize_future(currency_exchange_service.get_latest())
+            }
+
+            // POST /currency_exchange
+            (&Post, Some(Route::CurrencyExchange)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /currency_exchange", user_id);
+                serialize_future(
+                    parse_body::<NewCurrencyExchange>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /currency_exchange in NewCurrencyExchange failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |new_currency_exchange| {
+                            currency_exchange_service.update(new_currency_exchange).map_err(Error::from)
                         }),
                 )
             }

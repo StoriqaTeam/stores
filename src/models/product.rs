@@ -1,4 +1,5 @@
 //! Module containg product model for query, insert, update
+use std::collections::HashMap;
 use std::time::SystemTime;
 
 use serde_json;
@@ -95,6 +96,8 @@ pub struct UpdateProductWithAttributes {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
+    pub currency_id: Option<i32>,
+    pub currency_map: Option<HashMap<i32, f64>>,
     pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
     pub categories_ids: Option<Vec<i32>>,

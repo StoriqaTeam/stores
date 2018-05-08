@@ -161,6 +161,9 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                      "prod_id": {
                         "type": "integer"
                      },
+                     "currency_id": {
+                        "type": "integer"
+                     },
                      "discount": {
                         "type": "double"
                      },

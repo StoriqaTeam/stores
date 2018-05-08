@@ -59,7 +59,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Adds latest currency to table
     fn update(&self, payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange> {
-        debug!("Add latest currency to table: {:?}.", payload);
+        debug!("Add latest currency {:?}.", payload);
         let query = diesel::insert_into(currency_exchange).values(&payload);
         query
             .get_result::<CurrencyExchange>(self.db_conn)

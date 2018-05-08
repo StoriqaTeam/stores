@@ -83,7 +83,7 @@ impl ProductsElasticImpl {
     fn create_variants_map_filters(options: Option<ProductsSearchOptions>) -> serde_json::Map<String, serde_json::Value> {
         let mut variants_map = serde_json::Map::<String, serde_json::Value>::new();
         let mut variants_must: Vec<serde_json::Value> = vec![];
-        let (attr_filters, price_filters) = if let Some(options) = options.clone() {
+        let (attr_filters, price_filters, currency_map) = if let Some(options) = options.clone() {
             let attr_filters = options.attr_filters.map(|attrs| {
                 attrs
                     .into_iter()
@@ -106,9 +106,9 @@ impl ProductsElasticImpl {
                     })
                     .collect::<Vec<serde_json::Value>>()
             });
-            (attr_filters, options.price_filter)
+            (attr_filters, options.price_filter, options.currency_map)
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         let variant_attr_filter = json!({
@@ -129,19 +129,36 @@ impl ProductsElasticImpl {
         }
 
         if let Some(price_filters) = price_filters {
-            let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
-            if let Some(min) = price_filters.min_value {
-                range_map.insert("gte".to_string(), json!(min));
-            }
-            if let Some(max) = price_filters.max_value {
-                range_map.insert("lte".to_string(), json!(max));
-            }
-            let variant_price_filter = json!({
-                "range":{  
-                    "variants.price":range_map
+            if let Some(currency_map) = currency_map {
+                let variant_price_filter = json!({
+                    "script" : {
+                        "script" : {
+                            "source" : "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; def price = doc['variants.price'].value * koef; return (params.min == null || price >= params.min) && (params.max == null || price <= params.max);",
+                            "lang"   : "painless",
+                            "params" : {
+                                "cur_map" : currency_map,
+                                "min" : price_filters.min_value,
+                                "max" : price_filters.max_value
+                            }
+                        }
+                    }
+                });
+                variants_must.push(variant_price_filter);
+            } else {
+                let mut range_map = serde_json::Map::<String, serde_json::Value>::new();
+                if let Some(min) = price_filters.min_value {
+                    range_map.insert("gte".to_string(), json!(min));
                 }
-            });
-            variants_must.push(variant_price_filter);
+                if let Some(max) = price_filters.max_value {
+                    range_map.insert("lte".to_string(), json!(max));
+                }
+                let variant_price_filter = json!({
+                    "range":{  
+                        "variants.price":range_map
+                    }
+                });
+                variants_must.push(variant_price_filter);
+            }
         }
 
         let mut variants_filters: Vec<serde_json::Value> = vec![];
@@ -616,7 +633,7 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        if let Some(prod_options) = prod.options {
+        if let Some(prod_options) = prod.options.clone() {
             if let Some(prod_options_category_id) = prod_options.categories_ids {
                 let category = json!({
                     "terms": {"category_id": prod_options_category_id}
@@ -625,23 +642,61 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         }
 
-        let query = json!({
-        "size": 0,
-        "query": {
-                "bool" : query_map
-            },
-        "aggregations": {
-            "variants" : {
-                "nested" : {
-                    "path" : "variants"
-                },
-                "aggs" : {
-                    "min_price" : { "min" : { "field" : "variants.price" } },
-                    "max_price" : { "max" : { "field" : "variants.price" } }
+        let currency_map = prod.options.and_then(|o| o.currency_map);
+
+        let query = if let Some(currency_map) = currency_map {
+            json!({
+                "size": 0,
+                "query": {
+                        "bool" : query_map
+                    },
+                "aggregations": {
+                    "variants" : {
+                        "nested" : {
+                            "path" : "variants"
+                        },
+                        "aggs" : {
+                            "min_price" : { 
+                                "min" : { 
+                                "script": {
+                                            "lang": "painless",
+                                            "params": { "cur_map": currency_map },
+                                            "source": "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; return doc['variants.price'].value * koef;"
+                                        }
+                                    }
+                            },
+                            "max_price" : { 
+                                "max" : { 
+                                "script": {
+                                            "lang": "painless",
+                                            "params": { "cur_map": currency_map },
+                                            "source": "def cur_id = doc['variants.currency_id'].value; def koef = params.cur_map[cur_id.toString()]; return doc['variants.price'].value * koef;"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }).to_string()
+        } else {
+            json!({
+                "size": 0,
+                "query": {
+                        "bool" : query_map
+                    },
+                "aggregations": {
+                    "variants" : {
+                        "nested" : {
+                            "path" : "variants"
+                        },
+                        "aggs" : {
+                            "min_price" : { "min" : { "field" : "variants.price" } },
+                            "max_price" : { "max" : { "field" : "variants.price" } }
+                        }
+                    }
                 }
-            }
-        }
-        }).to_string();
+            }).to_string()
+        };
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();

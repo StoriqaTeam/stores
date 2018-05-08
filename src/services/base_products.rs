@@ -1,5 +1,6 @@
 //! Base product service
 use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -22,12 +23,13 @@ use repos::remove_unused_categories;
 use repos::{RepoResult, ReposFactory};
 
 use stq_http::client::ClientHandle;
+use stq_static_resources::Currency;
 
 const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_by_name(self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
@@ -35,7 +37,7 @@ pub trait BaseProductsService {
     /// auto complete limited by `count` and `offset` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
-    fn search_filters_price(&self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
+    fn search_filters_price(self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
     /// search filters
     fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
     /// search filters
@@ -106,7 +108,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        let category_id = options.clone().map(|options| options.category_id).and_then(|c| c);
+        let category_id = options.clone().and_then(|options| options.category_id);
 
         Box::new(cpu_pool.spawn_fn({
             let db_pool = db_pool.clone();
@@ -150,7 +152,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        let category_id = options.clone().map(|options| options.category_id).and_then(|c| c);
+        let category_id = options.clone().and_then(|options| options.category_id);
 
         Box::new(cpu_pool.spawn_fn({
             let db_pool = db_pool.clone();
@@ -180,6 +182,66 @@ impl<
             }
         }))
     }
+
+    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
+        let cpu_pool = self.cpu_pool.clone();
+        let db_pool = self.db_pool.clone();
+        let repo_factory = self.repo_factory.clone();
+        let user_id = self.user_id;
+
+        let currency_id = options.clone().and_then(|options| options.currency_id);
+
+        Box::new(cpu_pool.spawn_fn({
+            let db_pool = db_pool.clone();
+            let repo_factory = repo_factory.clone();
+            move || {
+                db_pool
+                    .get()
+                    .map_err(|e| {
+                        error!("Could not get connection to db from pool! {}", e.to_string());
+                        ServiceError::Connection(e.into())
+                    })
+                    .and_then(move |conn| {
+                        if let Some(currency_id) = currency_id {
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            currency_exchange.get_latest().and_then(|currencies| {
+                                let currencies_map = match currency_id {
+                                    x if x == (Currency::Rouble as i32) => currencies.rouble,
+                                    x if x == (Currency::Euro as i32) => currencies.euro,
+                                    x if x == (Currency::Dollar as i32) => currencies.dollar,
+                                    x if x == (Currency::Bitcoin as i32) => currencies.bitcoin,
+                                    x if x == (Currency::Etherium as i32) => currencies.etherium,
+                                    x if x == (Currency::Stq as i32) => currencies.stq,
+                                    c => {
+                                        error!("Not found such currency_id : {}", c);
+                                        return Err(RepoError::NotFound);
+                                    }
+                                }.as_object()
+                                    .map(|m| {
+                                        let mut map = HashMap::<i32, f64>::new();
+                                        for (key, val) in m {
+                                            if let Some(key) = Currency::from_str(key).ok() {
+                                                if let Some(val) = val.as_f64() {
+                                                    map.insert(key as i32, val);
+                                                }
+                                            }
+                                        }
+                                        map
+                                    });
+
+                                let options = options.map(|mut options| {
+                                    options.currency_map = currencies_map;
+                                    options
+                                });
+                                Ok(options)
+                            })
+                        } else {
+                            Ok(options)
+                        }.map_err(ServiceError::from)
+                    })
+            }
+        }))
+    }
 }
 
 impl<
@@ -189,7 +251,7 @@ impl<
     > BaseProductsService for BaseProductsServiceImpl<T, M, F>
 {
     fn search_by_name(
-        &self,
+        self,
         mut search_product: SearchProductsByName,
         count: i32,
         offset: i32,
@@ -202,49 +264,64 @@ impl<
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
-            search_product.options = options;
-            products_el
-                .search_by_name(search_product, count, offset)
-                .map_err(ServiceError::from)
-                .and_then({
-                    let db_pool = db_pool.clone();
-                    let repo_factory = repo_factory.clone();
-                    move |el_products| {
-                        cpu_pool.spawn_fn(move || {
-                            db_pool
-                                .get()
-                                .map_err(|e| {
-                                    error!("Could not get connection to db from pool! {}", e.to_string());
-                                    ServiceError::Connection(e.into())
-                                })
-                                .and_then(move |conn| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                    el_products
-                                        .into_iter()
-                                        .map(|el_product| {
-                                            base_products_repo
-                                                .find(el_product.id)
-                                                .and_then(|base_product| {
-                                                    if let Some(matched) = el_product.matched_variants_ids {
-                                                        matched
-                                                            .iter()
-                                                            .map(|id| products_repo.find(*id))
-                                                            .collect::<RepoResult<Vec<Product>>>()
-                                                            .and_then(|variants| Ok(BaseProductWithVariants::new(base_product, variants)))
-                                                    } else {
-                                                        Ok(BaseProductWithVariants::new(base_product, vec![]))
-                                                    }
-                                                })
-                                                .map_err(ServiceError::from)
+        Box::new(
+            self.linearize_categories(search_product.options.clone())
+                .and_then(move |options| self.create_currency_map(options))
+                .and_then(move |options| {
+                    let currency_map = options.clone().and_then(|o| o.currency_map);
+                    search_product.options = options;
+                    products_el
+                        .search_by_name(search_product, count, offset)
+                        .map_err(ServiceError::from)
+                        .and_then({
+                            let db_pool = db_pool.clone();
+                            let repo_factory = repo_factory.clone();
+                            move |el_products| {
+                                cpu_pool.spawn_fn(move || {
+                                    db_pool
+                                        .get()
+                                        .map_err(|e| {
+                                            error!("Could not get connection to db from pool! {}", e.to_string());
+                                            ServiceError::Connection(e.into())
                                         })
-                                        .collect()
+                                        .and_then(move |conn| {
+                                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                                            el_products
+                                                .into_iter()
+                                                .map(|el_product| {
+                                                    base_products_repo
+                                                        .find(el_product.id)
+                                                        .and_then(|base_product| {
+                                                            if let Some(matched) = el_product.matched_variants_ids {
+                                                                matched
+                                                                    .into_iter()
+                                                                    .map(|id| products_repo.find(id))
+                                                                    .collect::<RepoResult<Vec<Product>>>()
+                                                                    .and_then(|mut variants| {
+                                                                        if let Some(currency_map) = currency_map.clone() {
+                                                                            for mut variant in variants.iter_mut() {
+                                                                                if let Some(currency_id) = variant.currency_id {
+                                                                                    variant.price =
+                                                                                        variant.price * currency_map[&currency_id];
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                        Ok(BaseProductWithVariants::new(base_product, variants))
+                                                                    })
+                                                            } else {
+                                                                Ok(BaseProductWithVariants::new(base_product, vec![]))
+                                                            }
+                                                        })
+                                                        .map_err(ServiceError::from)
+                                                })
+                                                .collect()
+                                        })
                                 })
+                            }
                         })
-                    }
-                })
-        }))
+                }),
+        )
     }
 
     /// Find product by views limited by `count` and `offset` parameters
@@ -374,15 +451,19 @@ impl<
         Box::new(products_names)
     }
 
-    fn search_filters_price(&self, mut search_product: SearchProductsByName) -> ServiceFuture<RangeFilter> {
+    fn search_filters_price(self, mut search_product: SearchProductsByName) -> ServiceFuture<RangeFilter> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
-        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
-            search_product.options = options;
-            products_el.aggregate_price(search_product).map_err(ServiceError::from)
-        }))
+        Box::new(
+            self.linearize_categories(search_product.options.clone())
+                .and_then(move |options| self.create_currency_map(options))
+                .and_then(move |options| {
+                    search_product.options = options;
+                    products_el.aggregate_price(search_product).map_err(ServiceError::from)
+                }),
+        )
     }
 
     /// search filters

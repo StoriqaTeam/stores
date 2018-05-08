@@ -228,7 +228,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::CategoryAttr)
     });
 
-     // Currency exchange Routes
+    // Currency exchange Routes
     router.add_route(r"^/currency_exchange$", || Route::CurrencyExchange);
 
     router

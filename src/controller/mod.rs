@@ -38,11 +38,11 @@ use repos::repo_factory::*;
 use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
+use services::currency_exchange::{CurrencyExchangeService, CurrencyExchangeServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::system::{SystemService, SystemServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
-use services::currency_exchange::{CurrencyExchangeService, CurrencyExchangeServiceImpl};
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
@@ -130,7 +130,7 @@ impl<
 
         let categories_service =
             CategoriesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-        
+
         let currency_exchange_service =
             CurrencyExchangeServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
 

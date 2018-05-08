@@ -54,7 +54,7 @@ impl<
     > CurrencyExchangeService for CurrencyExchangeServiceImpl<T, M, F>
 {
     /// Returns latest currencies exchange
-    fn get_latest(&self) -> ServiceFuture<CurrencyExchange>{
+    fn get_latest(&self) -> ServiceFuture<CurrencyExchange> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
@@ -73,7 +73,7 @@ impl<
         }))
     }
     /// Updates currencies exchange
-    fn update(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange>{
+    fn update(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
@@ -98,6 +98,7 @@ pub mod tests {
     use futures_cpupool::CpuPool;
     use r2d2;
     use tokio_core::reactor::Core;
+    use serde_json;
 
     use models::*;
     use repos::repo_factory::tests::*;
@@ -112,6 +113,7 @@ pub mod tests {
             db_pool: db_pool,
             cpu_pool: cpu_pool,
             repo_factory: MOCK_REPO_FACTORY,
+            user_id: Some(1),
         }
     }
 

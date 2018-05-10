@@ -65,12 +65,13 @@ pipeline:
     volumes:
       - /tmp/stores:/cache
   deploy2nightly:
-    image: jackthestripper/drone_k8s_rollout:20180507
+    image: jackthestripper/drone_k8s_rollout:20180510
     user: admin
     token: 32txou6YhrlD3sHcpxsiCmP1m7taE1fY
     addr: https://api.nightly.stq.cloud
     object: stores
     kind: deployment
+    namespace: default
     img_names:
       - storiqateam/stq-stores
     img_cnts:
@@ -82,12 +83,13 @@ pipeline:
       branch: master
       event: push
   deploy2stable:
-    image: jackthestripper/drone_k8s_rollout:20180507
+    image: jackthestripper/drone_k8s_rollout:20180510
     addr: https://api.stable.stq.cloud
     token: vhkzUYmnPSI7MtJO3Et9KczuGoS0goqV
     user: admin
     object: stores
     kind: deployment
+    namespace: default
     img_names:
       - storiqateam/stq-stores
     img_cnts:
@@ -99,12 +101,13 @@ pipeline:
       branch: master
       event: push
   deploy2stage:
-    image: jackthestripper/drone_k8s_rollout:20180507
+    image: jackthestripper/drone_k8s_rollout:20180510
     addr: https://api.stage.stq.cloud
     token: PW2clI0vKqLi3eywlN776rMyE7hk1pgX
     user: admin
     object: stores
     kind: deployment
+    namespace: default
     img_names:
       - storiqateam/stq-stores
     img_cnts:

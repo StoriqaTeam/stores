@@ -164,8 +164,22 @@ impl<
                         ServiceError::Connection(e.into())
                     })
                     .and_then(move |conn| {
-                        let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
-                        wizard_stores_repo.update(user_id, payload).map_err(ServiceError::from)
+                        if let Some(slug) = payload.slug.clone() {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, Some(user_id));
+                            stores_repo.slug_exists(slug).map_err(ServiceError::from).and_then(|exists| {
+                                if exists {
+                                    Err(ServiceError::Validate(
+                                        validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                    ))
+                                } else {
+                                    let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
+                                    wizard_stores_repo.update(user_id, payload).map_err(ServiceError::from)
+                                }
+                            })
+                        } else {
+                            let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
+                            wizard_stores_repo.update(user_id, payload).map_err(ServiceError::from)
+                        }
                     })
             }))
         } else {

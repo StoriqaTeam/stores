@@ -5,7 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use models::validation_rules::*;
-use models::BaseProductWithVariants;
+use models::{BaseProductWithVariants, Status};
 
 /// diesel table for stores
 table! {
@@ -32,6 +32,7 @@ table! {
         rating -> Double,
         country -> Nullable<VarChar>,
         product_categories -> Nullable<Jsonb>,
+        status -> VarChar,
     }
 }
 
@@ -60,6 +61,7 @@ pub struct Store {
     pub rating: f64,
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
+    pub status: Status,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -136,6 +138,7 @@ pub struct UpdateStore {
     pub rating: Option<f64>,
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
+    pub status: Option<Status>,
 }
 
 impl UpdateStore {
@@ -216,6 +219,7 @@ pub struct StoreWithBaseProducts {
     pub slogan: Option<String>,
     pub rating: f64,
     pub country: Option<String>,
+    pub status: Status,
     pub base_products: Vec<BaseProductWithVariants>,
 }
 
@@ -240,6 +244,7 @@ impl StoreWithBaseProducts {
             slogan: store.slogan,
             rating: store.rating,
             country: store.country,
+            status: store.status,
             base_products,
         }
     }

@@ -11,6 +11,7 @@ pub mod stores;
 pub mod system;
 pub mod types;
 pub mod user_roles;
+pub mod wizard_stores;
 
 pub use self::attributes::*;
 pub use self::base_products::*;
@@ -20,3 +21,4 @@ pub use self::products::*;
 pub use self::stores::*;
 pub use self::system::*;
 pub use self::user_roles::*;
+pub use self::wizard_stores::*;

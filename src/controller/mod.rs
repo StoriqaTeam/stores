@@ -43,6 +43,7 @@ use services::products::{ProductsService, ProductsServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::system::{SystemService, SystemServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
+use services::wizard_stores::{WizardStoresService, WizardStoresServiceImpl};
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
@@ -133,6 +134,9 @@ impl<
 
         let currency_exchange_service =
             CurrencyExchangeServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
+
+        let wizard_store_service =
+            WizardStoresServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
@@ -840,6 +844,37 @@ impl<
                             currency_exchange_service.update(new_currency_exchange).map_err(Error::from)
                         }),
                 )
+            }
+
+            // GET /wizard_stores
+            (&Get, Some(Route::WizardStores)) => {
+                debug!("User with id = '{:?}' is requesting  // GET /wizard_stores", user_id);
+                serialize_future(wizard_store_service.get())
+            }
+
+            // POST /wizard_stores
+            (&Post, Some(Route::WizardStores)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /wizard_stores", user_id);
+                serialize_future(wizard_store_service.create())
+            }
+
+            // PUT /wizard_stores
+            (&Put, Some(Route::WizardStores)) => {
+                debug!("User with id = '{:?}' is requesting  // PUT /wizard_stores", user_id);
+                serialize_future(
+                    parse_body::<UpdateWizardStore>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |update_wizard| wizard_store_service.update(update_wizard).map_err(Error::from)),
+                )
+            }
+
+            // DELETE /wizard_stores
+            (&Delete, Some(Route::WizardStores)) => {
+                debug!("User with id = '{:?}' is requesting  // DELETE /wizard_stores", user_id);
+                serialize_future(wizard_store_service.delete())
             }
 
             // Fallback

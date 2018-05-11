@@ -12,6 +12,7 @@ pub mod repo_factory;
 pub mod stores;
 pub mod types;
 pub mod user_roles;
+pub mod wizard_stores;
 
 pub use self::acl::*;
 pub use self::attributes::*;
@@ -24,3 +25,4 @@ pub use self::repo_factory::*;
 pub use self::stores::*;
 pub use self::types::*;
 pub use self::user_roles::*;
+pub use self::wizard_stores::*;

@@ -1,0 +1,1 @@
+ALTER TABLE stores ADD COLUMN status VARCHAR NOT NULL DEFAULT 'draft';

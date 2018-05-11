@@ -170,6 +170,7 @@ mod tests {
             country: None,
             rating: 0f64,
             product_categories: Some(serde_json::from_str("{}").unwrap()),
+            status: Status::Published,
         }
     }
 

@@ -41,6 +41,7 @@ pub enum Route {
     UserRoles,
     UserRole(i32),
     DefaultRole(i32),
+    WizardStores,
 }
 
 pub fn create_route_parser() -> RouteParser<Route> {
@@ -230,6 +231,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Currency exchange Routes
     router.add_route(r"^/currency_exchange$", || Route::CurrencyExchange);
+
+    // Wizard store Routes
+    router.add_route(r"^/wizard_stores$", || Route::WizardStores);
 
     router
 }

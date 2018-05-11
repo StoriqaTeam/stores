@@ -36,6 +36,7 @@ pub fn create_update_base_product(name: &str) -> UpdateBaseProduct {
         category_id: Some(1),
         rating: None,
         slug: None,
+        status: None,
     }
 }
 

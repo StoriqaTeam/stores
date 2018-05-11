@@ -527,6 +527,7 @@ pub mod tests {
             rating: None,
             country: None,
             product_categories: None,
+            status: None,
         }
     }
 

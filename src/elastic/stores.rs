@@ -92,9 +92,8 @@ impl StoresElastic for StoresElasticImpl {
         }
 
         let filters = StoresElasticImpl::create_elastic_filters(search_store.options);
-        if !filters.is_empty() {
-            query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
-        }
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
             "from" : offset, "size" : count,
@@ -169,6 +168,10 @@ impl StoresElastic for StoresElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
+        let filters: Vec<serde_json::Value> = vec![];
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+
         let query = json!({
             "query": {
                 "bool" : query_map
@@ -207,6 +210,10 @@ impl StoresElastic for StoresElasticImpl {
         if !search_store.name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
+
+        let filters: Vec<serde_json::Value> = vec![];
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
         "size": 0,
@@ -264,6 +271,10 @@ impl StoresElastic for StoresElasticImpl {
         if !search_store.name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
+
+        let filters: Vec<serde_json::Value> = vec![];
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
         "size": 0,

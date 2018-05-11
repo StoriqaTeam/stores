@@ -83,6 +83,9 @@ curl -XPUT 'stores-es:9200/stores?pretty' -H 'Content-Type: application/json' -d
                "id": {
                   "type": "integer"
                },
+               "status": {
+                  "type": "keyword"
+               },
                "product_categories": {
                   "type": "nested",
                   "properties": {
@@ -154,6 +157,9 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                },
                "rating": {
                   "type": "double"
+               },
+               "status": {
+                  "type": "keyword"
                },
                "variants": {
                   "type": "nested",

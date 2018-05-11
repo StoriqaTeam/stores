@@ -322,9 +322,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        if !filters.is_empty() {
-            query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
-        }
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let sorting = ProductsElasticImpl::create_sorting(prod.options.clone());
 
@@ -378,9 +377,9 @@ impl ProductsElastic for ProductsElasticImpl {
         if let Some(categories_filter) = categories_filter {
             filters.push(categories_filter);
         }
-        if !filters.is_empty() {
-            query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
-        }
+
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
             "from" : offset, "size" : count,
@@ -455,9 +454,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        if !filters.is_empty() {
-            query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
-        }
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
             "from" : offset, "size" : count,
@@ -557,6 +555,10 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
+        let filters: Vec<serde_json::Value> = vec![];
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+
         let query = json!({
         "size": 0,
         "query": {
@@ -633,14 +635,19 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
+        let mut filters: Vec<serde_json::Value> = vec![];
+
         if let Some(prod_options) = prod.options.clone() {
             if let Some(prod_options_category_id) = prod_options.categories_ids {
                 let category = json!({
                     "terms": {"category_id": prod_options_category_id}
                 });
-                query_map.insert("filter".to_string(), category);
+                filters.push(category);
             }
         }
+
+        //filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let currency_map = prod.options.and_then(|o| o.currency_map);
 

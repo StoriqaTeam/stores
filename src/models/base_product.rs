@@ -7,7 +7,7 @@ use serde_json;
 
 use super::Store;
 use models::validation_rules::*;
-use models::Product;
+use models::{Product, Status};
 
 /// diesel table for base_products
 table! {
@@ -27,6 +27,7 @@ table! {
         updated_at -> Timestamp, // UTC 0, generated at db level
         rating -> Double,
         slug -> VarChar,
+        status -> VarChar,
     }
 }
 
@@ -49,6 +50,7 @@ pub struct BaseProduct {
     pub updated_at: SystemTime,
     pub rating: f64,
     pub slug: String,
+    pub status: Status,
 }
 
 /// Payload for creating base_products
@@ -89,6 +91,7 @@ pub struct UpdateBaseProduct {
     pub category_id: Option<i32>,
     pub rating: Option<f64>,
     pub slug: Option<String>,
+    pub status: Option<Status>,
 }
 
 /// Payload for updating views on base product
@@ -159,6 +162,7 @@ pub struct BaseProductWithVariants {
     pub updated_at: SystemTime,
     pub rating: f64,
     pub slug: String,
+    pub status: Status,
     pub variants: Vec<Product>,
 }
 
@@ -180,6 +184,7 @@ impl BaseProductWithVariants {
             updated_at: base_product.updated_at,
             rating: base_product.rating,
             slug: base_product.slug,
+            status: base_product.status,
             variants,
         }
     }

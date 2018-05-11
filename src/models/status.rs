@@ -5,7 +5,7 @@ pub enum Status {
     Draft,
     Moderation,
     Decline,
-    Published
+    Published,
 }
 
 mod diesel_impl {

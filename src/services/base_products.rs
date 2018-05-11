@@ -1024,7 +1024,7 @@ pub mod tests {
             category_id: None,
             rating: None,
             slug: None,
-            status: None
+            status: None,
         }
     }
 

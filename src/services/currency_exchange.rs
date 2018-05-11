@@ -97,8 +97,8 @@ impl<
 pub mod tests {
     use futures_cpupool::CpuPool;
     use r2d2;
-    use tokio_core::reactor::Core;
     use serde_json;
+    use tokio_core::reactor::Core;
 
     use models::*;
     use repos::repo_factory::tests::*;

@@ -231,7 +231,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Currency exchange Routes
     router.add_route(r"^/currency_exchange$", || Route::CurrencyExchange);
-    
+
     // Wizard store Routes
     router.add_route(r"^/wizard_stores$", || Route::WizardStores);
 

@@ -162,6 +162,7 @@ pub struct BaseProductWithVariants {
     pub updated_at: SystemTime,
     pub rating: f64,
     pub slug: String,
+    pub status: Status,
     pub variants: Vec<Product>,
 }
 
@@ -183,6 +184,7 @@ impl BaseProductWithVariants {
             updated_at: base_product.updated_at,
             rating: base_product.rating,
             slug: base_product.slug,
+            status: base_product.status,
             variants,
         }
     }

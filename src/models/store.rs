@@ -219,6 +219,7 @@ pub struct StoreWithBaseProducts {
     pub slogan: Option<String>,
     pub rating: f64,
     pub country: Option<String>,
+    pub status: Status,
     pub base_products: Vec<BaseProductWithVariants>,
 }
 
@@ -243,6 +244,7 @@ impl StoreWithBaseProducts {
             slogan: store.slogan,
             rating: store.rating,
             country: store.country,
+            status: store.status,
             base_products,
         }
     }

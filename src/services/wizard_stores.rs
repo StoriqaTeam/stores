@@ -2,8 +2,8 @@
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
-use futures_cpupool::CpuPool;
 use future;
+use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
 use super::error::ServiceError;
@@ -40,12 +40,7 @@ impl<
         F: ReposFactory<T>,
     > WizardStoresServiceImpl<T, M, F>
 {
-    pub fn new(
-        db_pool: Pool<M>,
-        cpu_pool: CpuPool,
-        user_id: Option<i32>,
-        repo_factory: F,
-    ) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -62,7 +57,7 @@ impl<
     > WizardStoresService for WizardStoresServiceImpl<T, M, F>
 {
     /// Returns wizard store by user iD
-    fn get(&self) -> ServiceFuture<WizardStore>{
+    fn get(&self) -> ServiceFuture<WizardStore> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -81,12 +76,14 @@ impl<
                     })
             }))
         } else {
-            Box::new(future::err(ServiceError::Unauthorized("Could not get stores wizard for unauthorized user".to_string())))
+            Box::new(future::err(ServiceError::Unauthorized(
+                "Could not get stores wizard for unauthorized user".to_string(),
+            )))
         }
     }
 
     /// Delete specific wizard store
-    fn delete(&self) -> ServiceFuture<WizardStore>{
+    fn delete(&self) -> ServiceFuture<WizardStore> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -106,12 +103,14 @@ impl<
                     })
             }))
         } else {
-            Box::new(future::err(ServiceError::Unauthorized("Colud not delete stores wizard for unauthorized user".to_string())))
+            Box::new(future::err(ServiceError::Unauthorized(
+                "Colud not delete stores wizard for unauthorized user".to_string(),
+            )))
         }
     }
 
     /// Creates new wizard store
-    fn create(&self) -> ServiceFuture<WizardStore>{
+    fn create(&self) -> ServiceFuture<WizardStore> {
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
@@ -143,12 +142,14 @@ impl<
                 })
             })
         } else {
-            Box::new(future::err(ServiceError::Unauthorized("Colud not create stores wizard for unauthorized user".to_string())))
+            Box::new(future::err(ServiceError::Unauthorized(
+                "Colud not create stores wizard for unauthorized user".to_string(),
+            )))
         }
     }
 
     /// Updates specific wizard store
-    fn update(&self, payload: UpdateWizardStore) -> ServiceFuture<WizardStore>{
+    fn update(&self, payload: UpdateWizardStore) -> ServiceFuture<WizardStore> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -168,7 +169,9 @@ impl<
                     })
             }))
         } else {
-            Box::new(future::err(ServiceError::Unauthorized("Colud not update stores wizard for unauthorized user".to_string())))
+            Box::new(future::err(ServiceError::Unauthorized(
+                "Colud not update stores wizard for unauthorized user".to_string(),
+            )))
         }
     }
 }
@@ -205,7 +208,7 @@ pub mod tests {
     pub fn create_update_store(name: String) -> UpdateWizardStore {
         UpdateWizardStore {
             name: Some(name),
-            .. Default::default()
+            ..Default::default()
         }
     }
 
@@ -218,7 +221,6 @@ pub mod tests {
         let result = core.run(work).unwrap();
         assert_eq!(result.user_id, MOCK_USER_ID);
     }
-
 
     #[test]
     fn test_create_store() {

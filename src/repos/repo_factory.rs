@@ -347,12 +347,12 @@ pub mod tests {
         fn create(&self, user_id: i32) -> RepoResult<WizardStore> {
             Ok(WizardStore {
                 user_id,
-                .. Default::default()
+                ..Default::default()
             })
         }
 
         /// Updates specific wizard store
-        fn update(&self, user_id: i32, payload: UpdateWizardStore) -> RepoResult<WizardStore>{
+        fn update(&self, user_id: i32, payload: UpdateWizardStore) -> RepoResult<WizardStore> {
             Ok(WizardStore {
                 user_id,
                 id: 1,
@@ -497,7 +497,7 @@ pub mod tests {
                     updated_at: SystemTime::now(),
                     rating: 0f64,
                     slug: "slug".to_string(),
-                    status: Status::Published
+                    status: Status::Published,
                 };
                 base_products.push(base_product);
             }
@@ -531,7 +531,7 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published
+                status: Status::Published,
             })
         }
 
@@ -553,7 +553,7 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published
+                status: Status::Published,
             })
         }
 
@@ -575,7 +575,7 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published
+                status: Status::Published,
             })
         }
     }
@@ -759,7 +759,7 @@ pub mod tests {
             country: None,
             rating: 0f64,
             product_categories: Some(serde_json::from_str("{}").unwrap()),
-            status: Status::Published
+            status: Status::Published,
         }
     }
 
@@ -803,7 +803,7 @@ pub mod tests {
             rating: None,
             country: None,
             product_categories: None,
-            status: None
+            status: None,
         }
     }
 

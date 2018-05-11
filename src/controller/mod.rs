@@ -43,7 +43,7 @@ use services::products::{ProductsService, ProductsServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::system::{SystemService, SystemServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
-use services::wizard_stores::{WizardStoresServiceImpl, WizardStoresService};
+use services::wizard_stores::{WizardStoresService, WizardStoresServiceImpl};
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
@@ -134,7 +134,7 @@ impl<
 
         let currency_exchange_service =
             CurrencyExchangeServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-        
+
         let wizard_store_service =
             WizardStoresServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
 
@@ -867,9 +867,7 @@ impl<
                             error!("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |update_wizard| {
-                                wizard_store_service.update(update_wizard).map_err(Error::from)
-                        }),
+                        .and_then(move |update_wizard| wizard_store_service.update(update_wizard).map_err(Error::from)),
                 )
             }
 

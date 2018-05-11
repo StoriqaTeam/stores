@@ -1,0 +1,1 @@
+ALTER TABLE base_products ADD COLUMN status VARCHAR NOT NULL DEFAULT 'draft';

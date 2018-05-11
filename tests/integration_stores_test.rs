@@ -51,6 +51,7 @@ pub fn create_update_store(name: serde_json::Value) -> UpdateStore {
         rating: None,
         country: None,
         product_categories: None,
+        status: None
     }
 }
 

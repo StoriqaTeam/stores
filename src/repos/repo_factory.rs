@@ -15,6 +15,7 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
     fn create_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductsRepo + 'a>;
     fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a>;
     fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a>;
+    fn create_wizard_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<WizardStoresRepo + 'a>;
     fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a>;
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a>;
 }
@@ -86,6 +87,10 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
     fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(StoresRepoImpl::new(db_conn, acl)) as Box<StoresRepo>
+    }
+    fn create_wizard_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<WizardStoresRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(WizardStoresRepoImpl::new(db_conn, acl)) as Box<WizardStoresRepo>
     }
     fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
@@ -169,6 +174,9 @@ pub mod tests {
         }
         fn create_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<StoresRepo + 'a> {
             Box::new(StoresRepoMock::default()) as Box<StoresRepo>
+        }
+        fn create_wizard_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<WizardStoresRepo + 'a> {
+            Box::new(WizardStoresRepoMock::default()) as Box<WizardStoresRepo>
         }
         fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
             Box::new(CurrencyExchangeRepoMock::default()) as Box<CurrencyExchangeRepo>
@@ -324,6 +332,58 @@ pub mod tests {
     }
 
     #[derive(Clone, Default)]
+    pub struct WizardStoresRepoMock;
+
+    impl WizardStoresRepo for WizardStoresRepoMock {
+        /// Find specific store by user ID
+        fn find_by_user_id(&self, user_id: i32) -> RepoResult<WizardStore> {
+            Ok(WizardStore {
+                user_id,
+                ..Default::default()
+            })
+        }
+
+        /// Creates new wizard store
+        fn create(&self, user_id: i32) -> RepoResult<WizardStore> {
+            Ok(WizardStore {
+                user_id,
+                .. Default::default()
+            })
+        }
+
+        /// Updates specific wizard store
+        fn update(&self, user_id: i32, payload: UpdateWizardStore) -> RepoResult<WizardStore>{
+            Ok(WizardStore {
+                user_id,
+                id: 1,
+                store_id: payload.store_id,
+                name: payload.name,
+                short_description: payload.short_description,
+                default_language: payload.default_language,
+                slug: payload.slug,
+                country: payload.country,
+                address: payload.address,
+            })
+        }
+
+        /// Delete specific wizard store
+        fn delete(&self, user_id: i32) -> RepoResult<WizardStore> {
+            Ok(WizardStore {
+                user_id,
+                ..Default::default()
+            })
+        }
+
+        fn wizard_exists(&self, user_id: i32) -> RepoResult<bool> {
+            if user_id == MOCK_USER_ID {
+                Ok(false)
+            } else {
+                Ok(true)
+            }
+        }
+    }
+
+    #[derive(Clone, Default)]
     pub struct CurrencyExchangeRepoMock;
 
     impl CurrencyExchangeRepo for CurrencyExchangeRepoMock {
@@ -380,6 +440,7 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
+                status: Status::Published,
             })
         }
 
@@ -403,6 +464,7 @@ pub mod tests {
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
                     slug: "slug".to_string(),
+                    status: Status::Published,
                 };
                 base_products.push(base_product);
             }
@@ -435,6 +497,7 @@ pub mod tests {
                     updated_at: SystemTime::now(),
                     rating: 0f64,
                     slug: "slug".to_string(),
+                    status: Status::Published
                 };
                 base_products.push(base_product);
             }
@@ -468,6 +531,7 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
+                status: Status::Published
             })
         }
 
@@ -489,6 +553,7 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
+                status: Status::Published
             })
         }
 
@@ -510,6 +575,7 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
+                status: Status::Published
             })
         }
     }
@@ -693,6 +759,7 @@ pub mod tests {
             country: None,
             rating: 0f64,
             product_categories: Some(serde_json::from_str("{}").unwrap()),
+            status: Status::Published
         }
     }
 
@@ -736,6 +803,7 @@ pub mod tests {
             rating: None,
             country: None,
             product_categories: None,
+            status: None
         }
     }
 

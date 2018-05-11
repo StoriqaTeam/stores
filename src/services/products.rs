@@ -13,7 +13,8 @@ use r2d2::{ManageConnection, Pool};
 use super::error::ServiceError;
 use super::types::ServiceFuture;
 use models::*;
-use repos::{error::RepoError, ReposFactory};
+use repos::error::RepoError;
+use repos::ReposFactory;
 
 pub trait ProductsService {
     /// Returns product by ID

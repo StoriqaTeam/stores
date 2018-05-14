@@ -39,6 +39,7 @@ use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
 use services::currency_exchange::{CurrencyExchangeService, CurrencyExchangeServiceImpl};
+use services::moderator_comments::{ModeratorCommentsService, ModeratorCommentsServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::system::{SystemService, SystemServiceImpl};
@@ -137,6 +138,9 @@ impl<
 
         let wizard_store_service =
             WizardStoresServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
+
+        let moderator_comments_service =
+            ModeratorCommentsServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
 
         match (req.method(), self.route_parser.test(req.path())) {
             // GET /healthcheck
@@ -875,6 +879,50 @@ impl<
             (&Delete, Some(Route::WizardStores)) => {
                 debug!("User with id = '{:?}' is requesting  // DELETE /wizard_stores", user_id);
                 serialize_future(wizard_store_service.delete())
+            }
+
+            // GET /moderator_product_comments/<base_product_id>
+            (&Get, Some(Route::ModeratorProductComment(base_product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /moderator_product_comments/{}",
+                    user_id, base_product_id
+                );
+                serialize_future(moderator_comments_service.get_latest_for_product(base_product_id))
+            }
+
+            // POST /moderator_product_comments
+            (&Post, Some(Route::ModeratorProductComments)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /moderator_product_comments", user_id);
+                serialize_future(
+                    parse_body::<NewModeratorProductComments>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments).map_err(Error::from)),
+                )
+            }
+
+            // GET /moderator_store_comments/<store_id>
+            (&Get, Some(Route::ModeratorStoreComment(store_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /moderator_store_comments/{}",
+                    user_id, store_id
+                );
+                serialize_future(moderator_comments_service.get_latest_for_store(store_id))
+            }
+
+            // POST /moderator_store_comments
+            (&Post, Some(Route::ModeratorStoreComments)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /moderator_store_comments", user_id);
+                serialize_future(
+                    parse_body::<NewModeratorStoreComments>(req.body())
+                        .map_err(|_| {
+                            error!("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!");
+                            Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
+                        })
+                        .and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments).map_err(Error::from)),
+                )
             }
 
             // Fallback

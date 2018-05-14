@@ -22,7 +22,7 @@ pub trait WizardStoresService {
     fn update(&self, payload: UpdateWizardStore) -> ServiceFuture<WizardStore>;
 }
 
-/// WizardStores services, responsible for Store-related CRUD operations
+/// WizardStores services
 pub struct WizardStoresServiceImpl<
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,

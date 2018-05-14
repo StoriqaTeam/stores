@@ -16,6 +16,8 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
     fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a>;
     fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a>;
     fn create_wizard_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<WizardStoresRepo + 'a>;
+    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a>;
+    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a>;
     fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a>;
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a>;
 }
@@ -95,6 +97,14 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
     fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CurrencyExchangeRepoImpl::new(db_conn, acl)) as Box<CurrencyExchangeRepo>
+    }
+    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(ModeratorProductRepoImpl::new(db_conn, acl)) as Box<ModeratorProductRepo>
+    }
+    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(ModeratorStoreRepoImpl::new(db_conn, acl)) as Box<ModeratorStoreRepo>
     }
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
         Box::new(UserRolesRepoImpl::new(
@@ -180,6 +190,12 @@ pub mod tests {
         }
         fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
             Box::new(CurrencyExchangeRepoMock::default()) as Box<CurrencyExchangeRepo>
+        }
+        fn create_moderator_product_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a> {
+            Box::new(ModeratorProductRepoMock::default()) as Box<ModeratorProductRepo>
+        }
+        fn create_moderator_store_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a> {
+            Box::new(ModeratorStoreRepoMock::default()) as Box<ModeratorStoreRepo>
         }
         fn create_user_roles_repo<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
             Box::new(UserRolesRepoMock::default()) as Box<UserRolesRepo>
@@ -328,6 +344,58 @@ pub mod tests {
         /// Delete attr from category
         fn delete(&self, _payload: OldCatAttr) -> RepoResult<()> {
             Ok(())
+        }
+    }
+    #[derive(Clone, Default)]
+    pub struct ModeratorProductRepoMock;
+
+    impl ModeratorProductRepo for ModeratorProductRepoMock {
+        /// Find specific comments by base_product ID
+        fn find_by_base_product_id(&self, base_product_id: i32) -> RepoResult<ModeratorProductComments> {
+            Ok(ModeratorProductComments {
+                id: 1,
+                moderator_id: 1,
+                base_product_id: base_product_id,
+                comments: "comments".to_string(),
+                created_at: SystemTime::now(),
+            })
+        }
+
+        /// Creates new comment
+        fn create(&self, payload: NewModeratorProductComments) -> RepoResult<ModeratorProductComments> {
+            Ok(ModeratorProductComments {
+                id: 1,
+                moderator_id: payload.moderator_id,
+                base_product_id: payload.base_product_id,
+                comments: payload.comments,
+                created_at: SystemTime::now(),
+            })
+        }
+    }
+    #[derive(Clone, Default)]
+    pub struct ModeratorStoreRepoMock;
+
+    impl ModeratorStoreRepo for ModeratorStoreRepoMock {
+        /// Find specific comments by store ID
+        fn find_by_store_id(&self, store_id: i32) -> RepoResult<ModeratorStoreComments> {
+            Ok(ModeratorStoreComments {
+                id: 1,
+                moderator_id: 1,
+                store_id: store_id,
+                comments: "comments".to_string(),
+                created_at: SystemTime::now(),
+            })
+        }
+
+        /// Creates new comment
+        fn create(&self, payload: NewModeratorStoreComments) -> RepoResult<ModeratorStoreComments> {
+            Ok(ModeratorStoreComments {
+                id: 1,
+                moderator_id: payload.moderator_id,
+                store_id: payload.store_id,
+                comments: payload.comments,
+                created_at: SystemTime::now(),
+            })
         }
     }
 

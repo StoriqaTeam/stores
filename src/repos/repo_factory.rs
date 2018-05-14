@@ -98,11 +98,11 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CurrencyExchangeRepoImpl::new(db_conn, acl)) as Box<CurrencyExchangeRepo>
     }
-    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a>{
+    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(ModeratorProductRepoImpl::new(db_conn, acl)) as Box<ModeratorProductRepo>
     }
-    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a>{
+    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(ModeratorStoreRepoImpl::new(db_conn, acl)) as Box<ModeratorStoreRepo>
     }
@@ -191,10 +191,10 @@ pub mod tests {
         fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
             Box::new(CurrencyExchangeRepoMock::default()) as Box<CurrencyExchangeRepo>
         }
-        fn create_moderator_product_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a>{
+        fn create_moderator_product_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a> {
             Box::new(ModeratorProductRepoMock::default()) as Box<ModeratorProductRepo>
         }
-        fn create_moderator_store_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a>{
+        fn create_moderator_store_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a> {
             Box::new(ModeratorStoreRepoMock::default()) as Box<ModeratorStoreRepo>
         }
         fn create_user_roles_repo<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
@@ -355,7 +355,7 @@ pub mod tests {
             Ok(ModeratorProductComments {
                 id: 1,
                 moderator_id: 1,
-                base_product_id : base_product_id,
+                base_product_id: base_product_id,
                 comments: "comments".to_string(),
                 created_at: SystemTime::now(),
             })
@@ -366,7 +366,7 @@ pub mod tests {
             Ok(ModeratorProductComments {
                 id: 1,
                 moderator_id: payload.moderator_id,
-                base_product_id : payload.base_product_id,
+                base_product_id: payload.base_product_id,
                 comments: payload.comments,
                 created_at: SystemTime::now(),
             })
@@ -381,18 +381,18 @@ pub mod tests {
             Ok(ModeratorStoreComments {
                 id: 1,
                 moderator_id: 1,
-                store_id : store_id,
+                store_id: store_id,
                 comments: "comments".to_string(),
                 created_at: SystemTime::now(),
             })
         }
 
         /// Creates new comment
-        fn create(&self, payload: NewModeratorStoreComments) -> RepoResult<ModeratorStoreComments>{
+        fn create(&self, payload: NewModeratorStoreComments) -> RepoResult<ModeratorStoreComments> {
             Ok(ModeratorStoreComments {
                 id: 1,
                 moderator_id: payload.moderator_id,
-                store_id : payload.store_id,
+                store_id: payload.store_id,
                 comments: payload.comments,
                 created_at: SystemTime::now(),
             })

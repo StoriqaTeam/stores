@@ -56,7 +56,7 @@ impl<
     > ModeratorCommentsService for ModeratorCommentsServiceImpl<T, M, F>
 {
     /// Returns latest moderator product comment by base product iD
-    fn get_latest_for_product(&self, base_product_id: i32) -> ServiceFuture<ModeratorProductComments>{
+    fn get_latest_for_product(&self, base_product_id: i32) -> ServiceFuture<ModeratorProductComments> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -70,13 +70,15 @@ impl<
                 })
                 .and_then(move |conn| {
                     let moderator_product_repo = repo_factory.create_moderator_product_comments_repo(&*conn, user_id);
-                    moderator_product_repo.find_by_base_product_id(base_product_id).map_err(ServiceError::from)
+                    moderator_product_repo
+                        .find_by_base_product_id(base_product_id)
+                        .map_err(ServiceError::from)
                 })
         }))
     }
 
     /// Creates new moderator product comment
-    fn create_product_comment(&self, payload: NewModeratorProductComments) -> ServiceFuture<ModeratorProductComments>{
+    fn create_product_comment(&self, payload: NewModeratorProductComments) -> ServiceFuture<ModeratorProductComments> {
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
@@ -100,7 +102,7 @@ impl<
     }
 
     /// Returns latest moderator comment by store iD
-    fn get_latest_for_store(&self, store_id: i32) -> ServiceFuture<ModeratorStoreComments>{
+    fn get_latest_for_store(&self, store_id: i32) -> ServiceFuture<ModeratorStoreComments> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -120,7 +122,7 @@ impl<
     }
 
     /// Creates new moderator store comment
-    fn create_store_comment(&self, payload: NewModeratorStoreComments) -> ServiceFuture<ModeratorStoreComments>{
+    fn create_store_comment(&self, payload: NewModeratorStoreComments) -> ServiceFuture<ModeratorStoreComments> {
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
@@ -142,7 +144,6 @@ impl<
             })
         })
     }
-
 }
 
 #[cfg(test)]
@@ -155,7 +156,9 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    fn create_moderator_comments_service(user_id: Option<i32>) -> ModeratorCommentsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+    fn create_moderator_comments_service(
+        user_id: Option<i32>,
+    ) -> ModeratorCommentsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
         let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
@@ -175,7 +178,7 @@ pub mod tests {
             comments: "new comment".to_string(),
         }
     }
-    
+
     fn create_store_comments_payload() -> NewModeratorStoreComments {
         NewModeratorStoreComments {
             moderator_id: MOCK_USER_ID,
@@ -202,7 +205,7 @@ pub mod tests {
         let result = core.run(work).unwrap();
         assert_eq!(result.comments, payload.comments);
     }
-    
+
     #[test]
     fn test_get_store_comment() {
         let mut core = Core::new().unwrap();

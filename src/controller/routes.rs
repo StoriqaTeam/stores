@@ -249,7 +249,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(Route::ModeratorProductComment)
     });
-    
+
     // Moderator Store Comments Routes
     router.add_route(r"^/moderator_store_comments$", || Route::ModeratorStoreComments);
 

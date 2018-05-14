@@ -39,12 +39,12 @@ use services::attributes::{AttributesService, AttributesServiceImpl};
 use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
 use services::categories::{CategoriesService, CategoriesServiceImpl};
 use services::currency_exchange::{CurrencyExchangeService, CurrencyExchangeServiceImpl};
+use services::moderator_comments::{ModeratorCommentsService, ModeratorCommentsServiceImpl};
 use services::products::{ProductsService, ProductsServiceImpl};
 use services::stores::{StoresService, StoresServiceImpl};
 use services::system::{SystemService, SystemServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::wizard_stores::{WizardStoresService, WizardStoresServiceImpl};
-use services::moderator_comments::{ModeratorCommentsService, ModeratorCommentsServiceImpl};
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
@@ -138,7 +138,7 @@ impl<
 
         let wizard_store_service =
             WizardStoresServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-        
+
         let moderator_comments_service =
             ModeratorCommentsServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
 
@@ -899,12 +899,10 @@ impl<
                             error!("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |new_comments| {
-                            moderator_comments_service.create_product_comment(new_comments).map_err(Error::from)
-                        }),
+                        .and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments).map_err(Error::from)),
                 )
             }
-            
+
             // GET /moderator_store_comments/<store_id>
             (&Get, Some(Route::ModeratorStoreComment(store_id))) => {
                 debug!(
@@ -923,9 +921,7 @@ impl<
                             error!("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |new_comments| {
-                            moderator_comments_service.create_store_comment(new_comments).map_err(Error::from)
-                        }),
+                        .and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments).map_err(Error::from)),
                 )
             }
 

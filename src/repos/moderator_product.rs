@@ -16,7 +16,7 @@ use super::error::RepoError as Error;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::moderator_product_comment::moderator_product_comments::dsl::*;
-use models::{NewModeratorProductComments, ModeratorProductComments};
+use models::{ModeratorProductComments, NewModeratorProductComments};
 
 /// Moderator product comments repository
 pub struct ModeratorProductRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -30,7 +30,6 @@ pub trait ModeratorProductRepo {
 
     /// Creates new comment
     fn create(&self, payload: NewModeratorProductComments) -> RepoResult<ModeratorProductComments>;
-
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ModeratorProductRepoImpl<'a, T> {
@@ -47,26 +46,35 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for ModeratorProductRepoImpl<'a, T>
 {
     /// Find specific comments by base_product ID
-    fn find_by_base_product_id(&self, base_product_id_arg: i32) -> RepoResult<ModeratorProductComments>{
+    fn find_by_base_product_id(&self, base_product_id_arg: i32) -> RepoResult<ModeratorProductComments> {
         debug!("Find moderator comments for base product id {}.", base_product_id_arg);
-        self.execute_query(moderator_product_comments.filter(base_product_id.eq(base_product_id_arg)).order_by(id.desc()).limit(1))
-            .and_then(|comment: ModeratorProductComments| {
-                acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Read, self, Some(&comment)).and_then(|_| Ok(comment))
-            })
+        self.execute_query(
+            moderator_product_comments
+                .filter(base_product_id.eq(base_product_id_arg))
+                .order_by(id.desc())
+                .limit(1),
+        ).and_then(|comment: ModeratorProductComments| {
+            acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Read, self, Some(&comment)).and_then(|_| Ok(comment))
+        })
     }
 
     /// Creates new comment
-    fn create(&self, payload: NewModeratorProductComments) -> RepoResult<ModeratorProductComments>{
+    fn create(&self, payload: NewModeratorProductComments) -> RepoResult<ModeratorProductComments> {
         debug!("Create moderator comments for base product {:?}.", payload);
         let query_store = diesel::insert_into(moderator_product_comments).values(&payload);
         query_store
             .get_result::<ModeratorProductComments>(self.db_conn)
             .map_err(Error::from)
             .and_then(|comment| {
-                acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Create, self, Some(&comment)).and_then(|_| Ok(comment))
+                acl::check(
+                    &*self.acl,
+                    &Resource::ModeratorProductComments,
+                    &Action::Create,
+                    self,
+                    Some(&comment),
+                ).and_then(|_| Ok(comment))
             })
     }
-
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, ModeratorProductComments>

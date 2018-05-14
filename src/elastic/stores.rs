@@ -102,7 +102,7 @@ impl StoresElastic for StoresElasticImpl {
             },
             "sort" : [
                 { "rating" : { "order" : "desc"} },
-                { "product_categories" : {"missing" : "_last", "unmapped_type" : "long"} }
+                { "product_categories.count" : {"order": "desc", "unmapped_type":"long", "nested_path" : "product_categories"}}
             ]
         }).to_string();
 

@@ -12,6 +12,9 @@ pub enum Resource {
     Categories,
     CategoryAttrs,
     CurrencyExchange,
+    WizardStores,
+    ModeratorProductComments,
+    ModeratorStoreComments,
 }
 
 impl fmt::Display for Resource {
@@ -26,6 +29,9 @@ impl fmt::Display for Resource {
             Resource::CategoryAttrs => write!(f, "cat attrs"),
             Resource::Categories => write!(f, "categories"),
             Resource::CurrencyExchange => write!(f, "currency_exchange"),
+            Resource::WizardStores => write!(f, "wizard_stores"),
+            Resource::ModeratorProductComments => write!(f, "moderator_product_comments"),
+            Resource::ModeratorStoreComments => write!(f, "moderator_store_comments"),
         }
     }
 }

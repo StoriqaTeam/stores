@@ -8,3 +8,4 @@ CREATE TABLE moderator_store_comments (
 );
 
 CREATE UNIQUE INDEX moderator_product_comments_store_id_idx ON moderator_store_comments (store_id);
+CREATE UNIQUE INDEX moderator_product_comments_id_idx ON moderator_store_comments (id);

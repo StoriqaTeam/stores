@@ -3,7 +3,6 @@ use std::convert::From;
 
 use diesel;
 use diesel::connection::AnsiTransactionManager;
-use diesel::dsl::exists;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
@@ -51,8 +50,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find_by_base_product_id(&self, base_product_id_arg: i32) -> RepoResult<ModeratorProductComments>{
         debug!("Find moderator comments for base product id {}.", base_product_id_arg);
         self.execute_query(moderator_product_comments.filter(base_product_id.eq(base_product_id_arg)).order_by(id.desc()).limit(1))
-            .and_then(|comments: ModeratorProductComments| {
-                acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, Some(&comments)).and_then(|_| Ok(comments))
+            .and_then(|comment: ModeratorProductComments| {
+                acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Read, self, Some(&comment)).and_then(|_| Ok(comment))
             })
     }
 
@@ -63,8 +62,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query_store
             .get_result::<ModeratorProductComments>(self.db_conn)
             .map_err(Error::from)
-            .and_then(|comments| {
-                acl::check(&*self.acl, &Resource::Stores, &Action::Create, self, Some(&comments)).and_then(|_| Ok(comments))
+            .and_then(|comment| {
+                acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Create, self, Some(&comment)).and_then(|_| Ok(comment))
             })
     }
 
@@ -77,8 +76,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         match *scope {
             Scope::All => true,
             Scope::Owned => {
-                if let Some(moderator_product_comments) = obj {
-                    moderator_product_comments.moderator_id == user_id_arg
+                if let Some(comment) = obj {
+                    comment.moderator_id == user_id_arg
                 } else {
                     false
                 }

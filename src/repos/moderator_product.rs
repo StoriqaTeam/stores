@@ -25,7 +25,7 @@ pub struct ModeratorProductRepoImpl<'a, T: Connection<Backend = Pg, TransactionM
 }
 
 pub trait ModeratorProductRepo {
-    /// Find specific comments by base_product ID
+    /// Find comments by base_product ID
     fn find_by_base_product_id(&self, base_product_id: i32) -> RepoResult<ModeratorProductComments>;
 
     /// Creates new comment
@@ -45,7 +45,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ModeratorProductRepo
     for ModeratorProductRepoImpl<'a, T>
 {
-    /// Find specific comments by base_product ID
+    /// Find comments by base_product ID
     fn find_by_base_product_id(&self, base_product_id_arg: i32) -> RepoResult<ModeratorProductComments> {
         debug!("Find moderator comments for base product id {}.", base_product_id_arg);
         self.execute_query(

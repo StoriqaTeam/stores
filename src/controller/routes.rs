@@ -243,7 +243,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/moderator_product_comments$", || Route::ModeratorProductComments);
 
     // Moderator Product Comment/:base_product_id Route
-    router.add_route_with_params(r"^/moderator_product_comments$/(\d+)$", |params| {
+    router.add_route_with_params(r"^/moderator_product_comments/(\d+)$", |params| {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
@@ -253,8 +253,8 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Moderator Store Comments Routes
     router.add_route(r"^/moderator_store_comments$", || Route::ModeratorStoreComments);
 
-    // Moderator Product Comment/:base_product_id Route
-    router.add_route_with_params(r"^/moderator_store_comments$/(\d+)$", |params| {
+    // Moderator Store Comment/:store_id Route
+    router.add_route_with_params(r"^/moderator_store_comments/(\d+)$", |params| {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())

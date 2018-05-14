@@ -687,8 +687,12 @@ impl<
                                         for pc in product_categories.iter_mut() {
                                             if pc.category_id == cat.id {
                                                 pc.count -= 1;
+                                                if pc.count > 0 {
+                                                    new_prod_cats.push(pc.clone());
+                                                }
+                                            } else {
+                                                new_prod_cats.push(pc.clone());
                                             }
-                                            new_prod_cats.push(pc.clone());
                                         }
                                         new_prod_cats
                                     } else {

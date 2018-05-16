@@ -431,6 +431,13 @@ pub mod tests {
                 slug: payload.slug,
                 country: payload.country,
                 address: payload.address,
+                administrative_area_level_1: payload.administrative_area_level_1,
+                administrative_area_level_2: payload.administrative_area_level_2,
+                locality: payload.locality,
+                political: payload.political,
+                postal_code: payload.postal_code,
+                route: payload.route,
+                street_number: payload.street_number,
             })
         }
 

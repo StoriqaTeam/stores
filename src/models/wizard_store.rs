@@ -12,6 +12,13 @@ table! {
         slug -> Nullable<VarChar>,
         country -> Nullable<VarChar>,
         address -> Nullable<VarChar>,
+        administrative_area_level_1 -> Nullable<VarChar>,
+        administrative_area_level_2 -> Nullable<VarChar>,
+        locality -> Nullable<VarChar>,
+        political -> Nullable<VarChar>,
+        postal_code -> Nullable<VarChar>,
+        route -> Nullable<VarChar>,
+        street_number -> Nullable<VarChar>,
     }
 }
 
@@ -28,6 +35,13 @@ pub struct WizardStore {
     pub slug: Option<String>,
     pub country: Option<String>,
     pub address: Option<String>,
+    pub administrative_area_level_1: Option<String>,
+    pub administrative_area_level_2: Option<String>,
+    pub locality: Option<String>,
+    pub political: Option<String>,
+    pub postal_code: Option<String>,
+    pub route: Option<String>,
+    pub street_number: Option<String>,
 }
 
 /// Payload for creating wizard_stores
@@ -48,4 +62,11 @@ pub struct UpdateWizardStore {
     pub slug: Option<String>,
     pub country: Option<String>,
     pub address: Option<String>,
+    pub administrative_area_level_1: Option<String>,
+    pub administrative_area_level_2: Option<String>,
+    pub locality: Option<String>,
+    pub political: Option<String>,
+    pub postal_code: Option<String>,
+    pub route: Option<String>,
+    pub street_number: Option<String>,
 }

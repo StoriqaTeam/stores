@@ -29,6 +29,13 @@ fn create_new_store(name: serde_json::Value) -> NewStore {
         country: None,
         default_language: "en".to_string(),
         slogan: Some("fdsf".to_string()),
+        administrative_area_level_1: None,
+        administrative_area_level_2: None,
+        locality: None,
+        political: None,
+        postal_code: None,
+        route: None,
+        street_number: None,
     }
 }
 
@@ -52,6 +59,13 @@ pub fn create_update_store(name: serde_json::Value) -> UpdateStore {
         country: None,
         product_categories: None,
         status: None,
+        administrative_area_level_1: None,
+        administrative_area_level_2: None,
+        locality: None,
+        political: None,
+        postal_code: None,
+        route: None,
+        street_number: None,
     }
 }
 

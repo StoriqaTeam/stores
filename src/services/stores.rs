@@ -505,6 +505,13 @@ pub mod tests {
             default_language: "en".to_string(),
             slogan: Some("fdsf".to_string()),
             country: None,
+            administrative_area_level_1: None,
+            administrative_area_level_2: None,
+            locality: None,
+            political: None,
+            postal_code: None,
+            route: None,
+            street_number: None,
         }
     }
 
@@ -528,6 +535,13 @@ pub mod tests {
             country: None,
             product_categories: None,
             status: None,
+            administrative_area_level_1: None,
+            administrative_area_level_2: None,
+            locality: None,
+            political: None,
+            postal_code: None,
+            route: None,
+            street_number: None,
         }
     }
 

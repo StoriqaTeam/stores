@@ -33,6 +33,13 @@ table! {
         country -> Nullable<VarChar>,
         product_categories -> Nullable<Jsonb>,
         status -> VarChar,
+        administrative_area_level_1 -> Nullable<VarChar>,
+        administrative_area_level_2 -> Nullable<VarChar>,
+        locality -> Nullable<VarChar>,
+        political -> Nullable<VarChar>,
+        postal_code -> Nullable<VarChar>,
+        route -> Nullable<VarChar>,
+        street_number -> Nullable<VarChar>,
     }
 }
 
@@ -62,6 +69,13 @@ pub struct Store {
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
     pub status: Status,
+    pub administrative_area_level_1: Option<String>,
+    pub administrative_area_level_2: Option<String>,
+    pub locality: Option<String>,
+    pub political: Option<String>,
+    pub postal_code: Option<String>,
+    pub route: Option<String>,
+    pub street_number: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -108,6 +122,13 @@ pub struct NewStore {
     pub default_language: String,
     pub slogan: Option<String>,
     pub country: Option<String>,
+    pub administrative_area_level_1: Option<String>,
+    pub administrative_area_level_2: Option<String>,
+    pub locality: Option<String>,
+    pub political: Option<String>,
+    pub postal_code: Option<String>,
+    pub route: Option<String>,
+    pub street_number: Option<String>,
 }
 
 /// Payload for updating users
@@ -139,6 +160,13 @@ pub struct UpdateStore {
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
     pub status: Option<Status>,
+    pub administrative_area_level_1: Option<String>,
+    pub administrative_area_level_2: Option<String>,
+    pub locality: Option<String>,
+    pub political: Option<String>,
+    pub postal_code: Option<String>,
+    pub route: Option<String>,
+    pub street_number: Option<String>,
 }
 
 impl UpdateStore {
@@ -220,6 +248,13 @@ pub struct StoreWithBaseProducts {
     pub rating: f64,
     pub country: Option<String>,
     pub status: Status,
+    pub administrative_area_level_1: Option<String>,
+    pub administrative_area_level_2: Option<String>,
+    pub locality: Option<String>,
+    pub political: Option<String>,
+    pub postal_code: Option<String>,
+    pub route: Option<String>,
+    pub street_number: Option<String>,
     pub base_products: Vec<BaseProductWithVariants>,
 }
 
@@ -245,6 +280,13 @@ impl StoreWithBaseProducts {
             rating: store.rating,
             country: store.country,
             status: store.status,
+            administrative_area_level_1: store.administrative_area_level_1,
+            administrative_area_level_2: store.administrative_area_level_2,
+            locality: store.locality,
+            political: store.political,
+            postal_code: store.postal_code,
+            route: store.route,
+            street_number: store.street_number,
             base_products,
         }
     }

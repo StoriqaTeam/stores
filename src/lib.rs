@@ -7,7 +7,7 @@
 //! E.g. `Service` layer will only deal with `Repo` and `HttpClient` errors and will only return
 //! `ServiceError`. That way Controller will only have to deal with ServiceError, but not with `Repo`
 //! or `HttpClient` repo.
-
+#![recursion_limit = "128"]
 extern crate chrono;
 extern crate config as config_crate;
 #[macro_use]

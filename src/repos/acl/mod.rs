@@ -183,6 +183,13 @@ mod tests {
             rating: 0f64,
             product_categories: Some(serde_json::from_str("{}").unwrap()),
             status: Status::Published,
+            administrative_area_level_1: None,
+            administrative_area_level_2: None,
+            locality: None,
+            political: None,
+            postal_code: None,
+            route: None,
+            street_number: None,
         }
     }
 

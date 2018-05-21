@@ -632,6 +632,28 @@ pub mod tests {
             })
         }
 
+        /// Update views on specific base_product
+        fn update_views(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct>{
+            Ok(BaseProduct {
+                id: base_product_id_arg,
+                is_active: true,
+                store_id: 1,
+                name: serde_json::from_str("{}").unwrap(),
+                short_description: serde_json::from_str("{}").unwrap(),
+                long_description: None,
+                seo_title: None,
+                seo_description: None,
+                currency_id: 1,
+                category_id: 3,
+                views: 100,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+                rating: 0f64,
+                slug: "slug".to_string(),
+                status: Status::Published,
+            })
+        }
+
         /// Deactivates specific base_product
         fn deactivate(&self, base_product_id: i32) -> RepoResult<BaseProduct> {
             Ok(BaseProduct {

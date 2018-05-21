@@ -166,7 +166,20 @@ impl<
                     .and_then(move |conn| {
                         if let Some(slug) = payload.slug.clone() {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, Some(user_id));
-                            stores_repo.slug_exists(slug).map_err(ServiceError::from).and_then(|exists| {
+                            let slug_exist = if let Some(store_id) = payload.store_id {
+                                stores_repo.find(store_id).and_then(|s| {
+                                    if s.slug == slug {
+                                        // if updated slug equal wizard stores store slug
+                                        Ok(false)
+                                    } else {
+                                        // if updated slug equal other stores slug
+                                        stores_repo.slug_exists(slug)
+                                    }
+                                })
+                            } else {
+                                stores_repo.slug_exists(slug)
+                            };
+                            slug_exist.map_err(ServiceError::from).and_then(|exists| {
                                 if exists {
                                     Err(ServiceError::Validate(
                                         validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),

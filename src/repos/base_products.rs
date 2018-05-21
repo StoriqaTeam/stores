@@ -184,10 +184,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         debug!("Updating views of base product with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {
-                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Update, self, Some(&base_product))?;
-                Ok(base_product)
-            })
-            .and_then(|base_product| {
                 let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
                 let payload: UpdateBaseProductViews = base_product.into();
 

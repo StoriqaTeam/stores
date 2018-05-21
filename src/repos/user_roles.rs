@@ -67,7 +67,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Ok(roles)
                 })
                 .and_then(|roles| {
-                    self.cached_roles.add_roles(user_id_value, &roles);
+                    if !roles.is_empty() {
+                        self.cached_roles.add_roles(user_id_value, &roles);
+                    }
                     Ok(roles)
                 })
         }

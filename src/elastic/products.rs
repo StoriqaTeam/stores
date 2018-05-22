@@ -322,7 +322,7 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let sorting = ProductsElasticImpl::create_sorting(prod.options.clone());
@@ -378,7 +378,7 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -454,7 +454,7 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -555,8 +555,8 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters: Vec<serde_json::Value> = vec![];
-        //filters.push(json!({ "term": {"status": "published"}}));
+        let mut filters: Vec<serde_json::Value> = vec![];
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -646,7 +646,7 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let currency_map = prod.options.and_then(|o| o.currency_map);

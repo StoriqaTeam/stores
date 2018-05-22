@@ -613,9 +613,7 @@ impl<
                 })
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo
-                        .update_views(product_id)
-                        .map_err(ServiceError::from)
+                    base_products_repo.update_views(product_id).map_err(ServiceError::from)
                 })
         }))
     }

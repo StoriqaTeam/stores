@@ -111,7 +111,7 @@ services:
       - kafka-rest-proxy
 
   kafka-connect:
-    image: confluentinc/cp-kafka-connect:4.0.0
+    image: storiqateam/kafka-connect:master
     hostname: kafka-connect
     ports:
       - "8083:8083"
@@ -135,8 +135,6 @@ services:
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_PLUGIN_PATH: /etc/kafka-connect/plugins
-    volumes:
-      - "./kafka_connect/kc-plugins:/etc/kafka-connect/plugins"
     depends_on:
       - zoo1
       - kafka1

@@ -91,8 +91,8 @@ impl StoresElastic for StoresElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters = StoresElasticImpl::create_elastic_filters(search_store.options);
-        //filters.push(json!({ "term": {"status": "published"}}));
+        let mut filters = StoresElasticImpl::create_elastic_filters(search_store.options);
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -168,8 +168,8 @@ impl StoresElastic for StoresElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters: Vec<serde_json::Value> = vec![];
-        //filters.push(json!({ "term": {"status": "published"}}));
+        let mut filters: Vec<serde_json::Value> = vec![];
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -211,8 +211,8 @@ impl StoresElastic for StoresElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters: Vec<serde_json::Value> = vec![];
-        //filters.push(json!({ "term": {"status": "published"}}));
+        let mut filters: Vec<serde_json::Value> = vec![];
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -272,8 +272,8 @@ impl StoresElastic for StoresElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters: Vec<serde_json::Value> = vec![];
-        //filters.push(json!({ "term": {"status": "published"}}));
+        let mut filters: Vec<serde_json::Value> = vec![];
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({

@@ -285,7 +285,8 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut filters: Vec<serde_json::Value> = vec![];
         let variants_map = ProductsElasticImpl::create_variants_map_filters(prod.options.clone());
 
-        let sorting_in_variants = prod.options
+        let sorting_in_variants = prod
+            .options
             .clone()
             .and_then(|options| options.sort_by)
             .map(|sort_by| match sort_by {
@@ -322,7 +323,7 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let sorting = ProductsElasticImpl::create_sorting(prod.options.clone());
@@ -378,7 +379,7 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -454,7 +455,7 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -555,8 +556,8 @@ impl ProductsElastic for ProductsElasticImpl {
             query_map.insert("must".to_string(), name_query);
         }
 
-        let filters: Vec<serde_json::Value> = vec![];
-        //filters.push(json!({ "term": {"status": "published"}}));
+        let mut filters: Vec<serde_json::Value> = vec![];
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -646,7 +647,7 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         }
 
-        //filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let currency_map = prod.options.and_then(|o| o.currency_map);

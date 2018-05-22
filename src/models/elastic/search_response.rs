@@ -277,7 +277,8 @@ impl<'a> Aggs<'a> {
     fn new(aggregations: Option<&'a AggsWrapper>) -> Aggs<'a> {
         let iter_stack = {
             match aggregations.and_then(|aggs| aggs.0.as_object()) {
-                Some(o) => o.into_iter()
+                Some(o) => o
+                    .into_iter()
                     .filter_map(|(key, child)| {
                         child
                             .as_object()

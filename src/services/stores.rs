@@ -403,7 +403,8 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let products = cart.into_iter()
+                    let products = cart
+                        .into_iter()
                         .map(|cart_product| products_repo.find(cart_product.product_id))
                         .collect::<RepoResult<Vec<Product>>>();
                     products

@@ -49,7 +49,7 @@ pub trait BaseProductsRepo {
 
     /// Updates specific base_product
     fn update(&self, base_product_id: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct>;
-    
+
     /// Update views on specific base_product
     fn update_views(&self, base_product_id: i32) -> RepoResult<BaseProduct>;
 
@@ -178,9 +178,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query.get_result::<BaseProduct>(self.db_conn).map_err(Error::from)
             })
     }
-    
+
     /// Update views on specific base_product
-    fn update_views(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct>{
+    fn update_views(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
         debug!("Updating views of base product with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| {

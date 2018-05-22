@@ -633,7 +633,7 @@ pub mod tests {
         }
 
         /// Update views on specific base_product
-        fn update_views(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct>{
+        fn update_views(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
             Ok(BaseProduct {
                 id: base_product_id_arg,
                 is_active: true,

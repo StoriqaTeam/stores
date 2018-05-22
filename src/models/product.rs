@@ -74,13 +74,13 @@ pub struct NewProductWithAttributes {
 #[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone, Debug, Default)]
 #[table_name = "products"]
 pub struct UpdateProduct {
-    #[validate(custom = "validate_non_negative")]
+    #[validate(range(min = "0.0", max = "1.0"))]
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
     #[validate(custom = "validate_urls")]
     pub additional_photos: Option<serde_json::Value>,
     pub vendor_code: Option<String>,
-    #[validate(custom = "validate_non_negative")]
+    #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative")]
     pub price: Option<f64>,

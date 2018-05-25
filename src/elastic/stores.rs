@@ -101,8 +101,17 @@ impl StoresElastic for StoresElasticImpl {
                 "bool" : query_map
             },
             "sort" : [
-                { "rating" : { "order" : "desc"} },
-                { "product_categories.count" : {"order": "desc", "unmapped_type":"long", "nested_path" : "product_categories"}}
+                {
+                    "_script" : {
+                        "type" : "number",
+                        "script" : {
+                            "lang": "painless",
+                            "source": "if (params._source['product_categories'].size() > 0) {return 1;} else {return 0;}",
+                        },
+                        "order" : "desc"
+                    }
+                },
+                { "rating" : { "order" : "desc"} }
             ]
         }).to_string();
 

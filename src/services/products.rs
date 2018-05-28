@@ -252,6 +252,7 @@ impl<
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+                    let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     let product = payload.product;
                     let attributes = payload.attributes;
 
@@ -266,20 +267,25 @@ impl<
                                 if let Some(attributes) = attributes {
                                     let product_id = product.id;
                                     let base_product_id = product.base_product_id;
-                                    let res: Result<Vec<ProdAttr>, RepoError> = attributes
-                                        .into_iter()
-                                        .map(|attr_value| {
-                                            let update_attr = UpdateProdAttr::new(
-                                                product_id,
-                                                base_product_id,
-                                                attr_value.attr_id,
-                                                attr_value.value,
-                                                attr_value.meta_field,
-                                            );
-                                            prod_attr_repo.update(update_attr)
-                                        })
-                                        .collect();
-                                    res.and_then(|_| Ok(product))
+                                    prod_attr_repo.delete_all_attributes(product_id).and_then(|_| {
+                                        let res: Result<Vec<ProdAttr>, RepoError> = attributes
+                                            .into_iter()
+                                            .map(|attr_value| {
+                                                attr_repo.find(attr_value.attr_id).and_then(|attr| {
+                                                    let new_prod_attr = NewProdAttr::new(
+                                                        product_id,
+                                                        base_product_id,
+                                                        attr_value.attr_id,
+                                                        attr_value.value,
+                                                        attr.value_type,
+                                                        attr_value.meta_field,
+                                                    );
+                                                    prod_attr_repo.create(new_prod_attr)
+                                                })
+                                            })
+                                            .collect();
+                                        res.and_then(|_| Ok(product))
+                                    })
                                 } else {
                                     Ok(product)
                                 }

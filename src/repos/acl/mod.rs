@@ -25,7 +25,6 @@ pub fn check<T>(
         if allowed {
             Ok(())
         } else {
-            info!("Received authorized request to {} on {}!", resource, action);
             Err(RepoError::Unauthorized(*resource, *action))
         }
     })
@@ -111,7 +110,12 @@ impl<T> Acl<Resource, Action, Scope, RepoError, T> for ApplicationAcl {
             })
             .filter(|permission| scope_checker.is_in_scope(*user_id, &permission.scope, obj));
 
-        Ok(acls.count() > 0)
+        if acls.count() > 0 {
+            Ok(true)
+        } else {
+            error!("Denied request from user {} to do {} on {}.", user_id, action, resource);
+            Ok(false)
+        }
     }
 }
 
@@ -143,7 +147,7 @@ impl<T> Acl<Resource, Action, Scope, RepoError, T> for UnauthorizedAcl {
                 _ => Ok(false),
             }
         } else {
-            info!("Received unauthorized request to {} on {}!", resource, action);
+            error!("Denied unauthorized request to do {} on {}.", action, resource);
             Ok(false)
         }
     }

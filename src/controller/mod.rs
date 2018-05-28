@@ -92,10 +92,10 @@ impl<
     fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();
         let auth_header = headers.get::<Authorization<String>>();
-        let user_id = auth_header.map(move |auth| auth.0.clone()).and_then(|id| i32::from_str(&id).ok());
+        let user_id = auth_header.map(|auth| auth.0.clone()).and_then(|id| i32::from_str(&id).ok());
 
         let uuid_header = headers.get::<Cookie>();
-        let uuid = uuid_header.map(move |cookie| cookie.get("UUID"));
+        let uuid = uuid_header.and_then(|cookie| cookie.get("UUID"));
 
         debug!("User with id = '{:?}' and uuid = {:?} is requesting {}", user_id, uuid, req.path());
 

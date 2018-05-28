@@ -33,6 +33,15 @@ pub trait ProductAttrsRepo {
 
     /// Updates specific product_attribute
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
+
+    /// Delete all attributes values from product
+    fn delete_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>>;
+
+    /// Delete all attributes values from product not in the list
+    fn delete_all_attributes_not_in_list(&self, product_id_arg: i32, attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>>;
+
+    /// Delete attribute value
+    fn delete(&self, id_arg: i32) -> RepoResult<ProdAttr>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepoImpl<'a, T> {
@@ -90,6 +99,55 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<ProdAttr>(self.db_conn).map_err(Error::from)
             })
+    }
+
+    /// Delete all attributes values from product
+    fn delete_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+        debug!("Delete all attributes of product id {}.", product_id_arg);
+        let filtered = prod_attr_values.filter(prod_id.eq(product_id_arg));
+
+        let query = diesel::delete(filtered);
+        query
+            .get_results(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|prod_attrs_res: Vec<ProdAttr>| {
+                for prod_attr in &prod_attrs_res {
+                    acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
+                }
+                Ok(prod_attrs_res.clone())
+            })
+    }
+
+    /// Delete all attributes values from product not in the list
+    fn delete_all_attributes_not_in_list(&self, product_id_arg: i32, attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>> {
+        debug!(
+            "Delete all attributes of product id {} not in the list {:?}.",
+            product_id_arg, attr_values
+        );
+        let filtered = prod_attr_values.filter(prod_id.eq(product_id_arg)).filter(id.ne_all(attr_values));
+
+        let query = diesel::delete(filtered);
+        query
+            .get_results(self.db_conn)
+            .map_err(Error::from)
+            .and_then(|prod_attrs_res: Vec<ProdAttr>| {
+                for prod_attr in &prod_attrs_res {
+                    acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
+                }
+                Ok(prod_attrs_res.clone())
+            })
+    }
+
+    /// Delete attribute value
+    fn delete(&self, id_arg: i32) -> RepoResult<ProdAttr> {
+        debug!("Delete attribute value by id {}.", id_arg);
+        let filtered = prod_attr_values.filter(id.eq(id_arg));
+
+        let query = diesel::delete(filtered);
+        query.get_result(self.db_conn).map_err(Error::from).and_then(|prod_attr: ProdAttr| {
+            acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
+            Ok(prod_attr)
+        })
     }
 }
 

@@ -720,6 +720,26 @@ pub mod tests {
                 meta_field: payload.meta_field,
             })
         }
+
+        fn delete(&self, id: i32) -> RepoResult<ProdAttr> {
+            Ok(ProdAttr {
+                id: id,
+                prod_id: 1,
+                base_prod_id: 1,
+                attr_id: 1,
+                value: "value".to_string(),
+                value_type: AttributeType::Str,
+                meta_field: None,
+            })
+        }
+
+        fn delete_all_attributes(&self, _product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+            Ok(vec![])
+        }
+
+        fn delete_all_attributes_not_in_list(&self, _product_id_arg: i32, _attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>> {
+            Ok(vec![])
+        }
     }
 
     #[derive(Clone, Default)]

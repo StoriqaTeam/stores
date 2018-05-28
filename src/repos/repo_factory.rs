@@ -438,6 +438,7 @@ pub mod tests {
                 postal_code: payload.postal_code,
                 route: payload.route,
                 street_number: payload.street_number,
+                place_id: payload.place_id,
             })
         }
 
@@ -864,6 +865,7 @@ pub mod tests {
             postal_code: None,
             route: None,
             street_number: None,
+            place_id: None,
         }
     }
 
@@ -892,6 +894,7 @@ pub mod tests {
             postal_code: None,
             route: None,
             street_number: None,
+            place_id: None,
         }
     }
 
@@ -922,6 +925,7 @@ pub mod tests {
             postal_code: None,
             route: None,
             street_number: None,
+            place_id: None,
         }
     }
 

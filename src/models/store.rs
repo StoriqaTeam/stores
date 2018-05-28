@@ -40,6 +40,7 @@ table! {
         postal_code -> Nullable<VarChar>,
         route -> Nullable<VarChar>,
         street_number -> Nullable<VarChar>,
+        place_id -> Nullable<VarChar>,
     }
 }
 
@@ -76,6 +77,7 @@ pub struct Store {
     pub postal_code: Option<String>,
     pub route: Option<String>,
     pub street_number: Option<String>,
+    pub place_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -129,6 +131,7 @@ pub struct NewStore {
     pub postal_code: Option<String>,
     pub route: Option<String>,
     pub street_number: Option<String>,
+    pub place_id: Option<String>,
 }
 
 /// Payload for updating users
@@ -167,6 +170,7 @@ pub struct UpdateStore {
     pub postal_code: Option<String>,
     pub route: Option<String>,
     pub street_number: Option<String>,
+    pub place_id: Option<String>,
 }
 
 impl UpdateStore {
@@ -255,6 +259,7 @@ pub struct StoreWithBaseProducts {
     pub postal_code: Option<String>,
     pub route: Option<String>,
     pub street_number: Option<String>,
+    pub place_id: Option<String>,
     pub base_products: Vec<BaseProductWithVariants>,
 }
 
@@ -287,6 +292,7 @@ impl StoreWithBaseProducts {
             postal_code: store.postal_code,
             route: store.route,
             street_number: store.street_number,
+            place_id: store.place_id,
             base_products,
         }
     }

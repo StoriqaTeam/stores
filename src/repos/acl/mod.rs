@@ -191,6 +191,7 @@ mod tests {
             postal_code: None,
             route: None,
             street_number: None,
+            place_id: None,
         }
     }
 

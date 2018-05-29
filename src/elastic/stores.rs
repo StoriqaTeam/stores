@@ -93,6 +93,21 @@ impl StoresElastic for StoresElasticImpl {
 
         let mut filters = StoresElasticImpl::create_elastic_filters(search_store.options);
         filters.push(json!({ "term": {"status": "published"}}));
+        let product_categories = json!({
+            "nested":{  
+                "path": "product_categories",
+                "query": {
+                    "bool": {
+                        "filter": {
+                            "exists": {
+                                "field": "product_categories"
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        filters.push(product_categories);
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -101,16 +116,6 @@ impl StoresElastic for StoresElasticImpl {
                 "bool" : query_map
             },
             "sort" : [
-                {
-                    "_script" : {
-                        "type" : "number",
-                        "script" : {
-                            "lang": "painless",
-                            "source": "if (params._source['product_categories'].size() > 0) {return 1;} else {return 0;}",
-                        },
-                        "order" : "desc"
-                    }
-                },
                 { "rating" : { "order" : "desc"} }
             ]
         }).to_string();
@@ -283,23 +288,28 @@ impl StoresElastic for StoresElasticImpl {
 
         let mut filters: Vec<serde_json::Value> = vec![];
         filters.push(json!({ "term": {"status": "published"}}));
+        let product_categories = json!({
+            "nested":{  
+                "path": "product_categories",
+                "query": {
+                    "bool": {
+                        "filter": {
+                            "exists": {
+                                "field": "product_categories"
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        filters.push(product_categories);
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
-        "size": 0,
-        "query": {
+            "size": 0,
+            "query": {
                 "bool" : query_map
-            },
-        "aggregations": {
-            "product_categories" : {
-                "nested" : {
-                    "path" : "product_categories"
-                },
-                "aggs" : {
-                    "category" : { "terms" : { "field" : "product_categories.category_id" } },
-                }
             }
-        }
         }).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);

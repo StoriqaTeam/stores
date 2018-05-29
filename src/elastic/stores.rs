@@ -309,7 +309,17 @@ impl StoresElastic for StoresElasticImpl {
             "size": 0,
             "query": {
                 "bool" : query_map
-            }
+            },
+            "aggregations": { 
+                "product_categories" : { 
+                    "nested" : { 
+                        "path" : "product_categories" 
+                    }, 
+                    "aggs" : { 
+                        "category" : { "terms" : { "field" : "product_categories.category_id" } }, 
+                    } 
+                } 
+            } 
         }).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);

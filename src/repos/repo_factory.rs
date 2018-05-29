@@ -695,6 +695,19 @@ pub mod tests {
             }])
         }
 
+        /// Find product attributes by product ID
+        fn find_all_attributes_by_base(&self, base_product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+            Ok(vec![ProdAttr {
+                id: 1,
+                prod_id: 1,
+                base_prod_id: base_product_id_arg,
+                attr_id: 1,
+                value: "value".to_string(),
+                value_type: AttributeType::Str,
+                meta_field: None,
+            }])
+        }
+
         /// Creates new product_attribute
         fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
             Ok(ProdAttr {

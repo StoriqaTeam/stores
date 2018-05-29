@@ -411,7 +411,7 @@ impl<
                         .and_then(|products| {
                             let mut group_by_base_product_id = HashMap::<i32, Vec<Product>>::default();
                             for product in products {
-                                let p = group_by_base_product_id.entry(product.base_product_id).or_insert(vec![]);
+                                let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
                                 p.push(product);
                             }
                             group_by_base_product_id
@@ -426,7 +426,7 @@ impl<
                         .and_then(|base_products| {
                             let mut group_by_store_id = HashMap::<i32, Vec<BaseProductWithVariants>>::default();
                             for base_product in base_products {
-                                let bp = group_by_store_id.entry(base_product.store_id).or_insert(vec![]);
+                                let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
                                 bp.push(base_product);
                             }
                             group_by_store_id

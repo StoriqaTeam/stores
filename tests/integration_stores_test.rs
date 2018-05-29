@@ -36,6 +36,7 @@ fn create_new_store(name: serde_json::Value) -> NewStore {
         postal_code: None,
         route: None,
         street_number: None,
+        place_id: None,
     }
 }
 
@@ -66,6 +67,7 @@ pub fn create_update_store(name: serde_json::Value) -> UpdateStore {
         postal_code: None,
         route: None,
         street_number: None,
+        place_id: None,
     }
 }
 

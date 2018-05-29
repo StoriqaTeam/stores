@@ -1,4 +1,5 @@
 //! Products Services, presents CRUD operations with product
+use std::collections::HashMap;
 
 use diesel::Connection;
 use futures_cpupool::CpuPool;
@@ -13,7 +14,6 @@ use r2d2::{ManageConnection, Pool};
 use super::error::ServiceError;
 use super::types::ServiceFuture;
 use models::*;
-use repos::error::RepoError;
 use repos::ReposFactory;
 
 pub trait ProductsService {
@@ -208,26 +208,55 @@ impl<
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
                                 let base_product_id = product.base_product_id;
-                                let res: Result<Vec<ProdAttr>, ServiceError> = attributes
-                                    .into_iter()
-                                    .map(|attr_value| {
-                                        attr_repo
-                                            .find(attr_value.attr_id)
-                                            .and_then(|attr| {
-                                                let new_prod_attr = NewProdAttr::new(
-                                                    product_id,
-                                                    base_product_id,
-                                                    attr_value.attr_id,
-                                                    attr_value.value,
-                                                    attr.value_type,
-                                                    attr_value.meta_field,
-                                                );
-                                                prod_attr_repo.create(new_prod_attr)
+                                // searching for existed product with such attribute values
+                                prod_attr_repo
+                                    .find_all_attributes_by_base(base_product_id)
+                                    .map_err(ServiceError::from)
+                                    .and_then(|base_attrs| {
+                                        let mut hash = HashMap::<i32, HashMap<i32, String>>::default();
+                                        for attr in base_attrs.into_iter() {
+                                            let mut prod_attrs = hash.entry(attr.prod_id).or_insert_with(HashMap::<i32, String>::default);
+                                            prod_attrs.insert(attr.attr_id, attr.value);
+                                        }
+                                        let exists = hash.into_iter().any(|(_, prod_attrs)| {
+                                            attributes.iter().all(|attr| {
+                                                if let Some(value) = prod_attrs.get(&attr.attr_id) {
+                                                    value == &attr.value
+                                                } else {
+                                                    false
+                                                }
                                             })
-                                            .map_err(ServiceError::from)
+                                        });
+                                        if exists {
+                                            Err(ServiceError::Validate(
+                                                validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
+                                            ))
+                                        } else {
+                                            Ok(())
+                                        }
                                     })
-                                    .collect();
-                                res.and_then(|_| Ok(product))
+                                    .and_then(|_| -> Result<Vec<ProdAttr>, ServiceError> {
+                                        attributes
+                                            .into_iter()
+                                            .map(|attr_value| {
+                                                attr_repo
+                                                    .find(attr_value.attr_id)
+                                                    .and_then(|attr| {
+                                                        let new_prod_attr = NewProdAttr::new(
+                                                            product_id,
+                                                            base_product_id,
+                                                            attr_value.attr_id,
+                                                            attr_value.value,
+                                                            attr.value_type,
+                                                            attr_value.meta_field,
+                                                        );
+                                                        prod_attr_repo.create(new_prod_attr)
+                                                    })
+                                                    .map_err(ServiceError::from)
+                                            })
+                                            .collect()
+                                    })
+                                    .and_then(|_| Ok(product))
                             })
                     })
                 })
@@ -258,39 +287,72 @@ impl<
 
                     conn.transaction::<(Product), ServiceError, _>(move || {
                         let prod = if let Some(product) = product {
-                            products_repo.update(product_id, product)
+                            products_repo.update(product_id, product).map_err(ServiceError::from)
                         } else {
-                            products_repo.find(product_id)
+                            products_repo.find(product_id).map_err(ServiceError::from)
                         };
                         prod.map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 if let Some(attributes) = attributes {
                                     let product_id = product.id;
                                     let base_product_id = product.base_product_id;
-                                    prod_attr_repo.delete_all_attributes(product_id).and_then(|_| {
-                                        let res: Result<Vec<ProdAttr>, RepoError> = attributes
-                                            .into_iter()
-                                            .map(|attr_value| {
-                                                attr_repo.find(attr_value.attr_id).and_then(|attr| {
-                                                    let new_prod_attr = NewProdAttr::new(
-                                                        product_id,
-                                                        base_product_id,
-                                                        attr_value.attr_id,
-                                                        attr_value.value,
-                                                        attr.value_type,
-                                                        attr_value.meta_field,
-                                                    );
-                                                    prod_attr_repo.create(new_prod_attr)
+                                    // deleting old attributes for this product
+                                    prod_attr_repo.delete_all_attributes(product_id).map_err(ServiceError::from)
+                                    // searching for existed product with such attribute values
+                                    .and_then(|_|
+                                        prod_attr_repo
+                                            .find_all_attributes_by_base(base_product_id)
+                                            .map_err(ServiceError::from))
+                                        .and_then(|base_attrs| {
+                                            let mut hash = HashMap::<i32, HashMap<i32, String>>::default();
+                                            for attr in base_attrs.into_iter() {
+                                                let mut prod_attrs =
+                                                    hash.entry(attr.prod_id).or_insert_with(HashMap::<i32, String>::default);
+                                                prod_attrs.insert(attr.attr_id, attr.value);
+                                            }
+                                            let exists = hash.into_iter().any(|(_, prod_attrs)| {
+                                                attributes.iter().all(|attr| {
+                                                    if let Some(value) = prod_attrs.get(&attr.attr_id) {
+                                                        value == &attr.value
+                                                    } else {
+                                                        false
+                                                    }
                                                 })
-                                            })
-                                            .collect();
-                                        res.and_then(|_| Ok(product))
-                                    })
+                                            });
+                                            if exists {
+                                                Err(ServiceError::Validate(
+                                                    validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
+                                                ))
+                                            } else {
+                                                Ok(())
+                                            }
+                                        })
+                                        .and_then(|_| -> Result<Vec<ProdAttr>, ServiceError> {
+                                            attributes
+                                                .into_iter()
+                                                .map(|attr_value| {
+                                                    attr_repo
+                                                        .find(attr_value.attr_id)
+                                                        .and_then(|attr| {
+                                                            let new_prod_attr = NewProdAttr::new(
+                                                                product_id,
+                                                                base_product_id,
+                                                                attr_value.attr_id,
+                                                                attr_value.value,
+                                                                attr.value_type,
+                                                                attr_value.meta_field,
+                                                            );
+                                                            prod_attr_repo.create(new_prod_attr)
+                                                        })
+                                                        .map_err(ServiceError::from)
+                                                })
+                                                .collect()
+                                        })
+                                        .and_then(|_| Ok(product))
                                 } else {
                                     Ok(product)
                                 }
                             })
-                            .map_err(ServiceError::from)
                     })
                 })
         }))

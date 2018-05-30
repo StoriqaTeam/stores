@@ -1,5 +1,5 @@
 //! Stores Services, presents CRUD operations with stores
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -409,7 +409,7 @@ impl<
                         .collect::<RepoResult<Vec<Product>>>();
                     products
                         .and_then(|products| {
-                            let mut group_by_base_product_id = HashMap::<i32, Vec<Product>>::default();
+                            let mut group_by_base_product_id = BTreeMap::<i32, Vec<Product>>::default();
                             for product in products {
                                 let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
                                 p.push(product);
@@ -424,7 +424,7 @@ impl<
                                 .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
                         })
                         .and_then(|base_products| {
-                            let mut group_by_store_id = HashMap::<i32, Vec<BaseProductWithVariants>>::default();
+                            let mut group_by_store_id = BTreeMap::<i32, Vec<BaseProductWithVariants>>::default();
                             for base_product in base_products {
                                 let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
                                 bp.push(base_product);

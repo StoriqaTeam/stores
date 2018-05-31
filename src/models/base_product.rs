@@ -34,6 +34,7 @@ table! {
 /// Payload for querying base_products
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[belongs_to(Store)]
+#[table_name = "base_products"]
 pub struct BaseProduct {
     pub id: i32,
     pub is_active: bool,

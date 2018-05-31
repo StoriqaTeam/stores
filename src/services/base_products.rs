@@ -20,7 +20,7 @@ use repos::error::RepoError;
 use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
-use repos::{RepoResult, ReposFactory};
+use repos::ReposFactory;
 
 use stq_http::client::ClientHandle;
 use stq_static_resources::Currency;
@@ -286,36 +286,25 @@ impl<
                                         })
                                         .and_then(move |conn| {
                                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                            el_products
-                                                .into_iter()
-                                                .map(|el_product| {
-                                                    base_products_repo
-                                                        .find(el_product.id)
-                                                        .and_then(|base_product| {
-                                                            if let Some(matched) = el_product.matched_variants_ids {
-                                                                matched
-                                                                    .into_iter()
-                                                                    .map(|id| products_repo.find(id))
-                                                                    .collect::<RepoResult<Vec<Product>>>()
-                                                                    .and_then(|mut variants| {
-                                                                        if let Some(currency_map) = currency_map.clone() {
-                                                                            for mut variant in variants.iter_mut() {
-                                                                                if let Some(currency_id) = variant.currency_id {
-                                                                                    variant.price =
-                                                                                        variant.price * currency_map[&currency_id];
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                        Ok(BaseProductWithVariants::new(base_product, variants))
-                                                                    })
-                                                            } else {
-                                                                Ok(BaseProductWithVariants::new(base_product, vec![]))
+                                            base_products_repo.convert_from_elastic(el_products).map_err(ServiceError::from)
+                                        })
+                                        .and_then(move |base_products| {
+                                            let bp = if let Some(currency_map) = currency_map.clone() {
+                                                base_products
+                                                    .into_iter()
+                                                    .map(|mut b| {
+                                                        for mut variant in b.variants.iter_mut() {
+                                                            if let Some(currency_id) = variant.currency_id {
+                                                                variant.price = variant.price * currency_map[&currency_id];
                                                             }
-                                                        })
-                                                        .map_err(ServiceError::from)
-                                                })
-                                                .collect()
+                                                        }
+                                                        b
+                                                    })
+                                                    .collect()
+                                            } else {
+                                                base_products
+                                            };
+                                            Ok(bp)
                                         })
                                 })
                             }
@@ -344,40 +333,19 @@ impl<
             products_el
                 .search_most_viewed(search_product, count, offset)
                 .map_err(ServiceError::from)
-                .and_then({
-                    move |el_products| {
-                        cpu_pool.spawn_fn(move || {
-                            db_pool
-                                .get()
-                                .map_err(|e| {
-                                    error!("Could not get connection to db from pool! {}", e.to_string());
-                                    ServiceError::Connection(e.into())
-                                })
-                                .and_then(move |conn| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                    el_products
-                                        .into_iter()
-                                        .map(|el_product| {
-                                            base_products_repo
-                                                .find(el_product.id)
-                                                .and_then(|base_product| {
-                                                    if let Some(matched) = el_product.matched_variants_ids {
-                                                        matched
-                                                            .iter()
-                                                            .map(|id| products_repo.find(*id))
-                                                            .collect::<RepoResult<Vec<Product>>>()
-                                                            .and_then(|variants| Ok(BaseProductWithVariants::new(base_product, variants)))
-                                                    } else {
-                                                        Ok(BaseProductWithVariants::new(base_product, vec![]))
-                                                    }
-                                                })
-                                                .map_err(ServiceError::from)
-                                        })
-                                        .collect()
-                                })
-                        })
-                    }
+                .and_then(move |el_products| {
+                    cpu_pool.spawn_fn(move || {
+                        db_pool
+                            .get()
+                            .map_err(|e| {
+                                error!("Could not get connection to db from pool! {}", e.to_string());
+                                ServiceError::Connection(e.into())
+                            })
+                            .and_then(move |conn| {
+                                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                base_products_repo.convert_from_elastic(el_products).map_err(ServiceError::from)
+                            })
+                    })
                 })
         }))
     }
@@ -413,26 +381,7 @@ impl<
                                 })
                                 .and_then(move |conn| {
                                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                                    el_products
-                                        .into_iter()
-                                        .map(|el_product| {
-                                            base_products_repo
-                                                .find(el_product.id)
-                                                .and_then(|base_product| {
-                                                    if let Some(matched) = el_product.matched_variants_ids {
-                                                        matched
-                                                            .iter()
-                                                            .map(|id| products_repo.find(*id))
-                                                            .collect::<RepoResult<Vec<Product>>>()
-                                                            .and_then(|variants| Ok(BaseProductWithVariants::new(base_product, variants)))
-                                                    } else {
-                                                        Ok(BaseProductWithVariants::new(base_product, vec![]))
-                                                    }
-                                                })
-                                                .map_err(ServiceError::from)
-                                        })
-                                        .collect()
+                                    base_products_repo.convert_from_elastic(el_products).map_err(ServiceError::from)
                                 })
                         })
                     }

@@ -676,6 +676,10 @@ pub mod tests {
                 status: Status::Published,
             })
         }
+
+        fn convert_from_elastic(&self, _el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
+            Ok(vec![])
+        }
     }
 
     #[derive(Clone, Default)]

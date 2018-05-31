@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashMap};
 use std::convert::From;
 
 use diesel;
@@ -16,7 +17,9 @@ use super::types::RepoResult;
 use models::authorization::*;
 use models::base_product::base_products::dsl::*;
 use models::store::stores::dsl as Stores;
-use models::{BaseProduct, NewBaseProduct, Store, UpdateBaseProduct, UpdateBaseProductViews};
+use models::{
+    BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct, UpdateBaseProductViews,
+};
 use repos::error::RepoError as Error;
 
 /// BaseProducts repository, responsible for handling base_products
@@ -58,6 +61,9 @@ pub trait BaseProductsRepo {
 
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
+
+    /// Convert data from elastic to PG models
+    fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepoImpl<'a, T> {
@@ -206,6 +212,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
+    /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
         debug!("Check if store slug {} exists.", slug_arg);
         let query = diesel::select(exists(base_products.filter(slug.eq(slug_arg))));
@@ -213,6 +220,57 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result(self.db_conn)
             .map_err(Error::from)
             .and_then(|exists| acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None).and_then(|_| Ok(exists)))
+    }
+
+    /// Convert data from elastic to PG models
+    fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
+        debug!("Convert data from elastic to PG");
+
+        let base_products_ids = el_products.iter().map(|b| b.id).collect::<Vec<i32>>();
+        let hashed_ids = base_products_ids
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(n, id_arg)| (id_arg, n))
+            .collect::<HashMap<_, _>>();
+
+        let base_products_query = base_products.filter(id.eq_any(base_products_ids));
+        let base_products_list: Vec<BaseProduct> = base_products_query.get_results(self.db_conn).map_err(Error::from)?;
+
+        //TODO: FUNCTIONAL REWRITE!
+        let mut base_products_sorted = BTreeMap::<usize, BaseProduct>::new();
+        for base_product in base_products_list.into_iter() {
+            let n = hashed_ids[&base_product.id];
+            base_products_sorted.insert(n, base_product);
+        }
+        let base_products_list = base_products_sorted
+            .into_iter()
+            .map(|(_, base_product)| base_product)
+            .collect::<Vec<BaseProduct>>();
+
+        let variants_ids = el_products
+            .iter()
+            .flat_map(|p| {
+                if let Some(matched_ids) = p.clone().matched_variants_ids {
+                    matched_ids
+                } else {
+                    p.variants.iter().map(|variant| variant.prod_id).collect()
+                }
+            })
+            .collect::<Vec<i32>>();
+
+        let variants = Product::belonging_to(&base_products_list)
+            .get_results(self.db_conn)
+            .map_err(Error::from)?
+            .into_iter()
+            .filter(|prod: &Product| variants_ids.iter().any(|id_arg| *id_arg == prod.id))
+            .grouped_by(&base_products_list);
+
+        Ok(base_products_list
+            .into_iter()
+            .zip(variants)
+            .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
+            .collect())
     }
 }
 

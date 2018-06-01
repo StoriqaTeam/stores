@@ -1,4 +1,5 @@
 //! Repos contains all info about working with categories
+use std::collections::HashMap;
 use std::convert::From;
 
 use diesel;
@@ -10,9 +11,11 @@ use diesel::Connection;
 
 use stq_acl::{Acl, CheckScope};
 
+use models::attribute::attributes::dsl as Attributes;
 use models::authorization::*;
 use models::category::categories::dsl::*;
-use models::{Category, NewCategory, RawCategory, UpdateCategory};
+use models::category_attribute::cat_attr_values::dsl as CategoryAttributes;
+use models::{Attribute, CatAttr, Category, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
 use repos::error::RepoError as Error;
 use repos::types::RepoResult;
@@ -128,18 +131,35 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         if self.cache.is_some() {
             self.cache.get()
         } else {
-            acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
-                .and_then(|_| categories.load::<RawCategory>(self.db_conn).map_err(Error::from))
-                .and_then(|cats| {
-                    let mut root = Category::default();
-                    let children = create_tree(&cats, None);
-                    root.children = children;
-                    Ok(root)
-                })
-                .and_then(|cat| {
-                    self.cache.set(cat.clone());
-                    Ok(cat)
-                })
+            acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)?;
+
+            let attrs_hash = Attributes::attributes
+                .load::<Attribute>(self.db_conn)
+                .map_err(Error::from)?
+                .into_iter()
+                .map(|attr| (attr.id, attr))
+                .collect::<HashMap<_, _>>();
+
+            let cat_hash = CategoryAttributes::cat_attr_values
+                .load::<CatAttr>(self.db_conn)
+                .map_err(Error::from)?
+                .into_iter()
+                .fold(HashMap::<i32, Vec<Attribute>>::new(), |mut hash, cat_attr| {
+                    {
+                        let cat_with_attrs = hash.entry(cat_attr.cat_id).or_insert_with(Vec::new);
+                        let attribute = &attrs_hash[&cat_attr.attr_id];
+                        cat_with_attrs.push(attribute.clone());
+                    }
+                    hash
+                });
+
+            let cats = categories.load::<RawCategory>(self.db_conn).map_err(Error::from)?;
+            let mut root = Category::default();
+            let children = create_tree(&cats, None);
+            root.children = children;
+            set_attributes(&mut root, &cat_hash);
+            self.cache.set(root.clone());
+            Ok(root)
         }
     }
 }
@@ -215,6 +235,17 @@ pub fn get_all_children_till_the_end(cat: Category) -> Vec<Category> {
     }
 }
 
+pub fn set_attributes(cat: &mut Category, attrs_hash: &HashMap<i32, Vec<Attribute>>) {
+    if cat.children.is_empty() {
+        let attributes = attrs_hash.get(&cat.id).map(|attrs| attrs.clone());
+        cat.attributes = attributes;
+    } else {
+        for cat_child in cat.children.iter_mut() {
+            set_attributes(cat_child, attrs_hash);
+        }
+    }
+}
+
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Category>
     for CategoriesRepoImpl<'a, T>
 {
@@ -240,6 +271,7 @@ mod tests {
             children: vec![],
             level: 3,
             parent_id: Some(2),
+            attributes: None,
         };
         let cat_2 = Category {
             id: 2,
@@ -248,6 +280,7 @@ mod tests {
             children: vec![cat_3],
             level: 2,
             parent_id: Some(1),
+            attributes: None,
         };
         let cat_1 = Category {
             id: 1,
@@ -256,6 +289,7 @@ mod tests {
             children: vec![cat_2],
             level: 1,
             parent_id: Some(0),
+            attributes: None,
         };
         Category {
             id: 0,
@@ -264,6 +298,7 @@ mod tests {
             children: vec![cat_1],
             level: 0,
             parent_id: None,
+            attributes: None,
         }
     }
 

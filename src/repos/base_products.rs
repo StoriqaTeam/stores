@@ -224,9 +224,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Convert data from elastic to PG models
     fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
-        debug!("Convert data from elastic to PG");
-
+        acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None)?;
         let base_products_ids = el_products.iter().map(|b| b.id).collect::<Vec<i32>>();
+        debug!(
+            "Converting data from elastic to PG models for base_products with ids: {:?}",
+            base_products_ids
+        );
         let hashed_ids = base_products_ids
             .clone()
             .into_iter()

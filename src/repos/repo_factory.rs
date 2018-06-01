@@ -255,6 +255,7 @@ pub mod tests {
                 children: vec![],
                 level: id_arg,
                 parent_id: Some(id_arg - 1),
+                attributes: None,
             })
         }
 
@@ -267,6 +268,7 @@ pub mod tests {
                 children: vec![],
                 level: 0,
                 parent_id: Some(0),
+                attributes: None,
             })
         }
 
@@ -279,6 +281,7 @@ pub mod tests {
                 children: vec![],
                 level: 0,
                 parent_id: Some(0),
+                attributes: None,
             })
         }
 
@@ -296,6 +299,7 @@ pub mod tests {
             children: vec![],
             level: 3,
             parent_id: Some(2),
+            attributes: None,
         };
         let cat_2 = Category {
             id: 2,
@@ -304,6 +308,7 @@ pub mod tests {
             children: vec![cat_3],
             level: 2,
             parent_id: Some(1),
+            attributes: None,
         };
         let cat_1 = Category {
             id: 1,
@@ -312,6 +317,7 @@ pub mod tests {
             children: vec![cat_2],
             level: 1,
             parent_id: Some(0),
+            attributes: None,
         };
         Category {
             id: 0,
@@ -320,6 +326,7 @@ pub mod tests {
             children: vec![cat_1],
             level: 0,
             parent_id: None,
+            attributes: None,
         }
     }
 

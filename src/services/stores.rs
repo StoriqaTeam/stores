@@ -8,9 +8,7 @@ use futures::prelude::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use serde_json;
 use stq_http::client::ClientHandle;
-use stq_static_resources::Translation;
 
 use super::error::ServiceError;
 use super::types::ServiceFuture;
@@ -300,37 +298,18 @@ impl<
                     .and_then(move |conn| {
                         let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                         conn.transaction::<Store, ServiceError, _>(move || {
-                            serde_json::from_value::<Vec<Translation>>(payload.name.clone())
-                                .map_err(|e| ServiceError::Parse(e.to_string()))
-                                .and_then(|translations| {
-                                    stores_repo
-                                        .name_exists(translations)
-                                        .map(move |exists| (payload, exists))
-                                        .map_err(ServiceError::from)
-                                        .and_then(|(payload, exists)| {
-                                            if exists {
-                                                Err(ServiceError::Validate(
-                                                    validation_errors!({"name": ["name" => "Store with this name already exists"]}),
-                                                ))
-                                            } else {
-                                                Ok(payload)
-                                            }
-                                        })
-                                })
-                                .and_then(|payload| {
-                                    stores_repo
-                                        .slug_exists(payload.slug.to_string())
-                                        .map(move |exists| (payload, exists))
-                                        .map_err(ServiceError::from)
-                                        .and_then(|(new_store, exists)| {
-                                            if exists {
-                                                Err(ServiceError::Validate(
-                                                    validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                                ))
-                                            } else {
-                                                Ok(new_store)
-                                            }
-                                        })
+                            stores_repo
+                                .slug_exists(payload.slug.to_string())
+                                .map(move |exists| (payload, exists))
+                                .map_err(ServiceError::from)
+                                .and_then(|(new_store, exists)| {
+                                    if exists {
+                                        Err(ServiceError::Validate(
+                                            validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                        ))
+                                    } else {
+                                        Ok(new_store)
+                                    }
                                 })
                                 .and_then(move |new_store| stores_repo.create(new_store).map_err(ServiceError::from))
                         })

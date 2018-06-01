@@ -5,9 +5,9 @@ use serde_json;
 use validator::Validate;
 
 use models::validation_rules::*;
+use models::Attribute;
 
 pub mod category_attribute;
-
 pub use self::category_attribute::*;
 
 table! {
@@ -63,6 +63,7 @@ pub struct Category {
     pub level: i32,
     pub parent_id: Option<i32>,
     pub children: Vec<Category>,
+    pub attributes: Option<Vec<Attribute>>,
 }
 
 impl Default for Category {
@@ -74,6 +75,7 @@ impl Default for Category {
             children: vec![],
             level: 0,
             parent_id: None,
+            attributes: None,
         }
     }
 }
@@ -87,6 +89,7 @@ impl<'a> From<&'a RawCategory> for Category {
             children: vec![],
             parent_id: cat.parent_id,
             level: cat.level,
+            attributes: None,
         }
     }
 }
@@ -100,6 +103,7 @@ impl From<RawCategory> for Category {
             children: vec![],
             parent_id: cat.parent_id,
             level: cat.level,
+            attributes: None,
         }
     }
 }

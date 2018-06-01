@@ -12,5 +12,5 @@ pub fn log_elastic_req<T: Debug>(item: &T) {
 }
 
 pub fn log_elastic_resp<T: Debug>(item: &T) {
-    debug!("Result of searching in elastic {:?}.", item)
+    trace!("Result of searching in elastic {:?}.", item)
 }

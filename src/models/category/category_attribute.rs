@@ -1,4 +1,6 @@
 /// diesel table for category attributes
+use models::{Attribute, RawCategory};
+
 table! {
     cat_attr_values (id) {
         id -> Integer,
@@ -9,6 +11,8 @@ table! {
 
 /// Payload for querying category attributes
 #[derive(Debug, Deserialize, Associations, Queryable, Clone, Identifiable)]
+#[belongs_to(RawCategory, foreign_key = "cat_id")]
+#[belongs_to(Attribute, foreign_key = "attr_id")]
 #[table_name = "cat_attr_values"]
 pub struct CatAttr {
     pub id: i32,

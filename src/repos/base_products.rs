@@ -2,13 +2,13 @@ use std::collections::{BTreeMap, HashMap};
 use std::convert::From;
 
 use diesel;
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::dsl::exists;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
-use diesel::Connection;
 
 use stq_acl::*;
 
@@ -17,9 +17,8 @@ use super::types::RepoResult;
 use models::authorization::*;
 use models::base_product::base_products::dsl::*;
 use models::store::stores::dsl as Stores;
-use models::{
-    BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct, UpdateBaseProductViews,
-};
+use models::{BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct,
+             UpdateBaseProductViews};
 use repos::error::RepoError as Error;
 
 /// BaseProducts repository, responsible for handling base_products

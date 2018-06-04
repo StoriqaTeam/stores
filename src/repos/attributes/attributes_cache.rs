@@ -1,6 +1,6 @@
 //! AttributeCache is a module that caches received from db information about user and his categories
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::{Arc, Mutex};
 
 use models::Attribute;

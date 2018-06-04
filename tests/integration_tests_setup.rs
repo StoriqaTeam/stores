@@ -8,11 +8,11 @@ extern crate tokio_core;
 use std::thread;
 
 #[allow(unused_imports)]
-use futures::future;
-#[allow(unused_imports)]
 use futures::Future;
-use hyper::client::HttpConnector;
+#[allow(unused_imports)]
+use futures::future;
 use hyper::Client;
+use hyper::client::HttpConnector;
 use rand::Rng;
 use std::sync::mpsc::channel;
 use tokio_core::reactor::Core;

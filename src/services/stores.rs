@@ -1,9 +1,9 @@
 //! Stores Services, presents CRUD operations with stores
 use std::collections::BTreeMap;
 
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use diesel::Connection;
 use futures::prelude::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
@@ -382,8 +382,7 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let products = cart
-                        .into_iter()
+                    let products = cart.into_iter()
                         .map(|cart_product| products_repo.find(cart_product.product_id))
                         .collect::<RepoResult<Vec<Product>>>();
                     products

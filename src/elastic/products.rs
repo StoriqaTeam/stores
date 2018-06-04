@@ -3,8 +3,8 @@ use std::convert::From;
 
 use future;
 use futures::Future;
-use hyper::header::{ContentLength, ContentType, Headers};
 use hyper::Method;
+use hyper::header::{ContentLength, ContentType, Headers};
 use serde_json;
 use stq_http::client::ClientHandle;
 
@@ -285,8 +285,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut filters: Vec<serde_json::Value> = vec![];
         let variants_map = ProductsElasticImpl::create_variants_map_filters(prod.options.clone());
 
-        let sorting_in_variants = prod
-            .options
+        let sorting_in_variants = prod.options
             .clone()
             .and_then(|options| options.sort_by)
             .map(|sort_by| match sort_by {

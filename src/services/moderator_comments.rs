@@ -1,7 +1,7 @@
 //! ModeratorProductComments Services, presents CRUD operations with wizard_stores
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use diesel::Connection;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 

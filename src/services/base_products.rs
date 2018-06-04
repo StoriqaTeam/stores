@@ -2,9 +2,9 @@
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use diesel::Connection;
 use futures::future;
 use futures::future::*;
 use futures_cpupool::CpuPool;
@@ -15,12 +15,12 @@ use super::error::ServiceError;
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
 use models::*;
+use repos::ReposFactory;
 use repos::clear_child_categories;
 use repos::error::RepoError;
 use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
-use repos::ReposFactory;
 
 use stq_http::client::ClientHandle;
 use stq_static_resources::Currency;

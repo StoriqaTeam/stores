@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::convert::From;
 
 use diesel;
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
-use diesel::Connection;
 
 use stq_acl::{Acl, CheckScope};
 
@@ -321,8 +321,7 @@ mod tests {
     fn test_parent_categories() {
         let cat = create_mock_categories();
         let child_id = 3;
-        let new_cat = cat
-            .children
+        let new_cat = cat.children
             .into_iter()
             .find(|cat_child| get_parent_category(&cat_child, child_id, 2).is_some())
             .unwrap();

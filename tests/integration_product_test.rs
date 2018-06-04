@@ -4,8 +4,8 @@ include!("integration_tests_setup.rs");
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
+use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::{Method, Request};
 
 use stores_lib::models::*;

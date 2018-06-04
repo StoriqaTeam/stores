@@ -9,13 +9,13 @@ pub mod utils;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use diesel::Connection;
 
-use futures::future;
 use futures::Future;
 use futures::IntoFuture;
+use futures::future;
 use futures_cpupool::CpuPool;
 use hyper::header::{Authorization, Cookie};
 use hyper::server::Request;
@@ -26,8 +26,8 @@ use validator::Validate;
 use stq_http::client::ClientHandle;
 use stq_http::controller::Controller;
 use stq_http::errors::ControllerError as Error;
-use stq_http::request_util::serialize_future;
 use stq_http::request_util::ControllerFuture;
+use stq_http::request_util::serialize_future;
 use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
 

@@ -468,11 +468,13 @@ pub mod tests {
     pub fn create_new_product_with_attributes(base_product_id: i32) -> NewProductWithAttributes {
         NewProductWithAttributes {
             product: create_new_product(base_product_id),
-            attributes: vec![AttrValue {
-                attr_id: 1,
-                value: "String".to_string(),
-                meta_field: None,
-            }],
+            attributes: vec![
+                AttrValue {
+                    attr_id: 1,
+                    value: "String".to_string(),
+                    meta_field: None,
+                },
+            ],
         }
     }
 

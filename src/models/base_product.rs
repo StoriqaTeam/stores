@@ -71,6 +71,7 @@ pub struct NewBaseProduct {
     pub seo_description: Option<serde_json::Value>,
     pub currency_id: i32,
     pub category_id: i32,
+    #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
 }
 
@@ -91,6 +92,7 @@ pub struct UpdateBaseProduct {
     pub currency_id: Option<i32>,
     pub category_id: Option<i32>,
     pub rating: Option<f64>,
+    #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
     pub status: Option<Status>,
 }

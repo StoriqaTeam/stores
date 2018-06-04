@@ -83,7 +83,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     builder
         .format(|formatter, record| {
             let now = Utc::now();
-            writeln!(formatter, "{} - {} - {}", now.to_rfc3339(), record.level(), record.args())
+            writeln!(formatter, "{} - {:5} - {}", now.to_rfc3339(), record.level(), record.args())
         })
         .filter(None, LogLevelFilter::Info);
 

@@ -1,9 +1,9 @@
 //! Stores Services, presents CRUD operations with stores
 use std::collections::BTreeMap;
 
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use diesel::Connection;
 use futures::prelude::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
@@ -382,8 +382,7 @@ impl<
                     let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let products = cart
-                        .into_iter()
+                    let products = cart.into_iter()
                         .map(|cart_product| products_repo.find(cart_product.product_id))
                         .collect::<RepoResult<Vec<Product>>>();
                     products
@@ -535,17 +534,6 @@ pub mod tests {
         let work = service.get(1);
         let result = core.run(work).unwrap();
         assert_eq!(result.id, 1);
-    }
-
-    #[test]
-    fn test_create_allready_existed() {
-        let mut core = Core::new().unwrap();
-        let handle = Arc::new(core.handle());
-        let service = create_store_service(Some(MOCK_USER_ID), handle);
-        let new_store = create_new_store(serde_json::from_str(MOCK_STORE_NAME_JSON_EXISTED).unwrap());
-        let work = service.create(new_store);
-        let result = core.run(work);
-        assert_eq!(result.is_err(), true);
     }
 
     #[test]

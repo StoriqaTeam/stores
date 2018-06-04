@@ -4,8 +4,8 @@
 use serde_json;
 use validator::Validate;
 
-use models::validation_rules::*;
 use models::Attribute;
+use models::validation_rules::*;
 
 pub mod category_attribute;
 pub use self::category_attribute::*;

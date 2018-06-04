@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::convert::From;
 
 use diesel;
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
-use diesel::Connection;
 
 use stq_acl::{Acl, CheckScope};
 
@@ -57,26 +57,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific category by id
     fn find(&self, id_arg: i32) -> RepoResult<Category> {
         debug!("Find in categories with id {}.", id_arg);
-        let query = categories.filter(id.eq(id_arg));
-        query
-            .first::<RawCategory>(self.db_conn)
-            .map_err(Error::from)
-            .and_then(|category: RawCategory| {
-                acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None).and_then(|_| Ok(category))
-            })
-            .and_then(|found_category| {
-                categories
-                    .load::<RawCategory>(self.db_conn)
-                    .map_err(Error::from)
-                    .map(|cats| (found_category, cats))
-            })
-            .and_then(|(found_category, cats)| {
-                let id_arg = found_category.id;
-                let mut result: Category = found_category.into();
-                let children = create_tree(&cats, Some(id_arg));
-                result.children = children;
-                Ok(result)
-            })
+        acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)?;
+        self.get_all()
+            .and_then(|root| get_category(&root, id_arg).ok_or_else(|| Error::NotFound))
     }
 
     /// Creates new category
@@ -127,10 +110,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn get_all(&self) -> RepoResult<Category> {
-        debug!("get all categories request.");
         if self.cache.is_some() {
+            debug!("Get all categories from cache request.");
             self.cache.get()
         } else {
+            debug!("Get all categories from db request.");
             acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)?;
 
             let attrs_hash = Attributes::attributes
@@ -219,6 +203,14 @@ pub fn get_parent_category(cat: &Category, child_id: i32, stack_level: i32) -> O
         Some(cat.clone())
     } else {
         None
+    }
+}
+
+pub fn get_category(cat: &Category, cat_id: i32) -> Option<Category> {
+    if cat.id == cat_id {
+        Some(cat.clone())
+    } else {
+        cat.children.iter().filter_map(|cat_child| get_category(cat_child, cat_id)).next()
     }
 }
 
@@ -329,11 +321,18 @@ mod tests {
     fn test_parent_categories() {
         let cat = create_mock_categories();
         let child_id = 3;
-        let new_cat = cat
-            .children
+        let new_cat = cat.children
             .into_iter()
             .find(|cat_child| get_parent_category(&cat_child, child_id, 2).is_some())
             .unwrap();
         assert_eq!(new_cat.id, 1);
+    }
+
+    #[test]
+    fn test_get_category() {
+        let cat = create_mock_categories();
+        let child_id = 3;
+        let new_cat = get_category(&cat, child_id).unwrap();
+        assert_eq!(new_cat.id, child_id);
     }
 }

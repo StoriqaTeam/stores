@@ -1,8 +1,8 @@
 //! Categories Services, presents CRUD operations with categories
 
+use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use diesel::Connection;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
@@ -10,8 +10,8 @@ use super::error::ServiceError;
 use super::types::ServiceFuture;
 use models::{Attribute, NewCatAttr, OldCatAttr};
 use models::{Category, NewCategory, UpdateCategory};
-use repos::types::RepoResult;
 use repos::ReposFactory;
+use repos::types::RepoResult;
 
 pub trait CategoriesService {
     /// Returns category by ID

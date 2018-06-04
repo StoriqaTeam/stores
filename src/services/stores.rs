@@ -538,17 +538,6 @@ pub mod tests {
     }
 
     #[test]
-    fn test_create_allready_existed() {
-        let mut core = Core::new().unwrap();
-        let handle = Arc::new(core.handle());
-        let service = create_store_service(Some(MOCK_USER_ID), handle);
-        let new_store = create_new_store(serde_json::from_str(MOCK_STORE_NAME_JSON_EXISTED).unwrap());
-        let work = service.create(new_store);
-        let result = core.run(work);
-        assert_eq!(result.is_err(), true);
-    }
-
-    #[test]
     fn test_list() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());

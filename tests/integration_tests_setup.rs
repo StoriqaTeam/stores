@@ -7,11 +7,18 @@ extern crate tokio_core;
 
 use std::thread;
 
+#[allow(unused_imports)]
+use futures::future;
+#[allow(unused_imports)]
+use futures::Future;
 use hyper::client::HttpConnector;
 use hyper::Client;
 use rand::Rng;
 use std::sync::mpsc::channel;
 use tokio_core::reactor::Core;
+
+#[allow(unused_imports)]
+use stq_http::request_util::read_body;
 
 type HttpClient = Client<HttpConnector>;
 

@@ -210,10 +210,7 @@ pub fn get_category(cat: &Category, cat_id: i32) -> Option<Category> {
     if cat.id == cat_id {
         Some(cat.clone())
     } else {
-        cat.children
-            .iter()
-            .filter_map(|cat_child| get_category(cat_child, cat_id))
-            .next()
+        cat.children.iter().filter_map(|cat_child| get_category(cat_child, cat_id)).next()
     }
 }
 

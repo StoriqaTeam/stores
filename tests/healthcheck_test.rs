@@ -1,9 +1,7 @@
 include!("integration_tests_setup.rs");
 
-use futures::future::Future;
 use hyper::Uri;
 use std::str::FromStr;
-use stq_http::request_util::read_body;
 
 #[test]
 fn healthcheck_returns_ok() {

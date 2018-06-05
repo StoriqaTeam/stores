@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 use failure::Fail;
 use failure::Error as FailureError;
-use stq_http::errors::ControllerError;
+use errors::ControllerError;
 
 use stq_acl::{Acl, CheckScope};
 

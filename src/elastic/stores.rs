@@ -6,7 +6,7 @@ use hyper::Method;
 use hyper::header::{ContentLength, ContentType, Headers};
 use serde_json;
 use stq_http::client::ClientHandle;
-use stq_http::errors::ControllerError;
+use errors::ControllerError;
 
 use super::{log_elastic_req, log_elastic_resp};
 use models::{CountResponse, ElasticIndex, ElasticStore, SearchResponse, SearchStore, StoresSearchOptions};

@@ -9,7 +9,7 @@ use future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use stq_http::errors::ControllerError;
+use errors::ControllerError;
 
 use super::types::ServiceFuture;
 use models::*;

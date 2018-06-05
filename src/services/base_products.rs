@@ -13,7 +13,7 @@ use r2d2::{ManageConnection, Pool};
 use serde_json;
 
 use stq_http::client::ClientHandle;
-use stq_http::errors::ControllerError;
+use errors::ControllerError;
 use stq_static_resources::Currency;
 
 use super::types::ServiceFuture;

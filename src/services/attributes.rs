@@ -6,7 +6,7 @@ use failure::Error as FailureError;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use stq_http::errors::ControllerError;
+use errors::ControllerError;
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::ReposFactory;

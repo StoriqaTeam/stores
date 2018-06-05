@@ -13,6 +13,7 @@ use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 
+use failure;
 use futures::Future;
 use futures::IntoFuture;
 use futures::future;
@@ -24,9 +25,8 @@ use r2d2::{ManageConnection, Pool};
 use validator::Validate;
 
 use stq_http::client::ClientHandle;
+use stq_http::controller::StringFuture;
 use stq_http::controller::Controller;
-use stq_http::errors::ControllerError as Error;
-use stq_http::request_util::ControllerFuture;
 use stq_http::request_util::serialize_future;
 use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
@@ -45,6 +45,7 @@ use services::stores::{StoresService, StoresServiceImpl};
 use services::system::{SystemService, SystemServiceImpl};
 use services::user_roles::{UserRolesService, UserRolesServiceImpl};
 use services::wizard_stores::{WizardStoresService, WizardStoresServiceImpl};
+use errors::ControllerError as Error;
 
 /// Controller handles route parsing and calling `Service` layer
 #[derive(Clone)]
@@ -89,7 +90,7 @@ impl<
     > Controller for ControllerImpl<T, M, F>
 {
     /// Handle a request and get future response
-    fn call(&self, req: Request) -> ControllerFuture {
+    fn call(&self, req: Request) -> StringFuture<failure::Error> {
         let headers = req.headers().clone();
         let auth_header = headers.get::<Authorization<String>>();
         let user_id = auth_header.map(|auth| auth.0.clone()).and_then(|id| i32::from_str(&id).ok());

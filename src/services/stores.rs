@@ -5,13 +5,14 @@ use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use failure::Error as FailureError;
+use failure::Fail;
 use futures::future::*;
 use futures::prelude::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
 use stq_http::client::ClientHandle;
-use stq_http::errors::ControllerError;
+use errors::ControllerError;
 
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
@@ -133,8 +134,7 @@ impl<
                                         if let Some(store) = store {
                                             Ok(store)
                                         } else {
-                                            error!("Not found such store id : {}", el_store.id);
-                                            Err(ControllerError::NotFound.into())
+                                            Err(ControllerError::NotFound.context(format!("Not found such store id : {}", el_store.id)).into())
                                         }
                                     })
                                 })

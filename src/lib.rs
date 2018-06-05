@@ -51,6 +51,7 @@ pub mod models;
 pub mod repos;
 pub mod services;
 pub mod types;
+pub mod errors;
 
 use std::env;
 use std::io::Write;
@@ -76,6 +77,7 @@ use repos::acl::RolesCacheImpl;
 use repos::attributes::AttributeCacheImpl;
 use repos::categories::CategoryCacheImpl;
 use repos::repo_factory::ReposFactoryImpl;
+use errors::ControllerError;
 
 /// Starts new web service from provided `Config`
 pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>, callback: F) {
@@ -146,7 +148,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
             );
 
             // Prepare application
-            let app = Application::new(controller);
+            let app = Application::<ControllerError>::new(controller);
 
             Ok(app)
         })

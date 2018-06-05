@@ -8,7 +8,7 @@ use diesel::pg::Pg;
 use futures::future::*;
 use r2d2::{ManageConnection, Pool};
 
-use stq_http::errors::ControllerError;
+use errors::ControllerError;
 
 
 use super::types::ServiceFuture;

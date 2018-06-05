@@ -297,7 +297,7 @@ impl<
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> ServiceFuture<Store> {
-        Box::new(
+        Box::new({
             let cpu_pool = self.cpu_pool.clone();
             let db_pool = self.db_pool.clone();
             let user_id = self.user_id;
@@ -314,7 +314,6 @@ impl<
                             stores_repo
                                 .slug_exists(payload.slug.to_string())
                                 .map(move |exists| (payload, exists))
-                                
                                 .and_then(|(new_store, exists)| {
                                     if exists {
                                         Err(ControllerError::Validate(
@@ -330,7 +329,7 @@ impl<
             })
         .map_err(|e| e.context("Service Stores, create endpoint error occured.").into())
             
-        )
+        })
     }
 
     /// Updates specific store

@@ -146,7 +146,7 @@ impl<
             // GET /healthcheck
             (&Get, Some(Route::Healthcheck)) => {
                 trace!("User with id = '{:?}' is requesting  // GET /healthcheck", user_id);
-                serialize_future(system_service.healthcheck().map_err(Error::from))
+                serialize_future(system_service.healthcheck())
             }
 
             // GET /stores/<store_id>
@@ -198,7 +198,7 @@ impl<
                             error!("Parsing body // POST /stores/cart in Vec<CartProduct> failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |cart_products| stores_service.find_by_cart(cart_products).map_err(Error::from)),
+                        .and_then(move |cart_products| stores_service.find_by_cart(cart_products)),
                 )
             }
 
@@ -212,7 +212,7 @@ impl<
                                 error!("Parsing body // POST /stores/search in SearchStore failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
-                            .and_then(move |store_search| stores_service.find_by_name(store_search, count, offset).map_err(Error::from)),
+                            .and_then(move |store_search| stores_service.find_by_name(store_search, count, offset)),
                     )
                 } else {
                     error!("Parsing query parameters // POST /stores/search failed!");
@@ -231,7 +231,7 @@ impl<
                             error!("Parsing body // POST /stores/search/filters/count in SearchStore failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |search_store| stores_service.search_filters_count(search_store).map_err(Error::from)),
+                        .and_then(move |search_store| stores_service.search_filters_count(search_store)),
                 )
             }
 
@@ -247,7 +247,7 @@ impl<
                             error!("Parsing body // POST /stores/search/filters/country in SearchStore failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |search_store| stores_service.search_filters_country(search_store).map_err(Error::from)),
+                        .and_then(move |search_store| stores_service.search_filters_country(search_store)),
                 )
             }
 
@@ -263,7 +263,7 @@ impl<
                             error!("Parsing body // POST /stores/search/filters/category in SearchStore failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |search_store| stores_service.search_filters_category(search_store).map_err(Error::from)),
+                        .and_then(move |search_store| stores_service.search_filters_category(search_store)),
                 )
             }
 
@@ -277,7 +277,7 @@ impl<
                                 error!("Parsing body // POST /stores/auto_complete in String failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
-                            .and_then(move |name| stores_service.auto_complete(name, count, offset).map_err(Error::from)),
+                            .and_then(move |name| stores_service.auto_complete(name, count, offset)),
                     )
                 } else {
                     error!("Parsing query parameters // POST /stores/auto_complete failed!");
@@ -301,7 +301,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| stores_service.create(new_store).map_err(Error::from))
+                                .and_then(move |_| stores_service.create(new_store))
                         }),
                 )
             }
@@ -320,7 +320,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| stores_service.update(store_id, update_store).map_err(Error::from))
+                                .and_then(move |_| stores_service.update(store_id, update_store))
                         }),
                 )
             }
@@ -396,7 +396,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| products_service.create(new_product).map_err(Error::from))
+                                .and_then(move |_| products_service.create(new_product))
                         }),
                 )
             }
@@ -416,7 +416,7 @@ impl<
                             } else {
                                 future::ok(())
                             };
-                            validation.and_then(move |_| products_service.update(product_id, update_product).map_err(Error::from))
+                            validation.and_then(move |_| products_service.update(product_id, update_product))
                         }),
                 )
             }
@@ -472,7 +472,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| base_products_service.create(new_base_product).map_err(Error::from))
+                                .and_then(move |_| base_products_service.create(new_base_product))
                         }),
                 )
             }
@@ -497,7 +497,7 @@ impl<
                                 .and_then(move |_| {
                                     base_products_service
                                         .update(base_product_id, update_base_product)
-                                        .map_err(Error::from)
+                                        
                                 })
                         }),
                 )
@@ -522,7 +522,7 @@ impl<
                                 error!("Parsing body // POST /products/search in SearchProductsByName failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
-                            .and_then(move |prod| base_products_service.search_by_name(prod, count, offset).map_err(Error::from)),
+                            .and_then(move |prod| base_products_service.search_by_name(prod, count, offset)),
                     )
                 } else {
                     error!("Parsing query parameters // POST /products/search failed!");
@@ -542,7 +542,7 @@ impl<
                                 error!("Parsing body // POST /products/auto_complete in String failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
-                            .and_then(move |name| base_products_service.auto_complete(name, count, offset).map_err(Error::from)),
+                            .and_then(move |name| base_products_service.auto_complete(name, count, offset)),
                     )
                 } else {
                     error!("Parsing query parameters // POST /products/auto_complete failed!");
@@ -562,7 +562,7 @@ impl<
                                 error!("Parsing body // POST /products/most_discount in MostDiscountProducts failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
-                            .and_then(move |prod| base_products_service.search_most_discount(prod, count, offset).map_err(Error::from)),
+                            .and_then(move |prod| base_products_service.search_most_discount(prod, count, offset)),
                     )
                 } else {
                     error!("Parsing query parameters // POST /products/most_discount failed!");
@@ -582,7 +582,7 @@ impl<
                                 error!("Parsing body // POST /products/most_viewed in MostViewedProducts failed!");
                                 Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                             })
-                            .and_then(move |prod| base_products_service.search_most_viewed(prod, count, offset).map_err(Error::from)),
+                            .and_then(move |prod| base_products_service.search_most_viewed(prod, count, offset)),
                     )
                 } else {
                     error!("Parsing query parameters // POST /products/most_viewed failed!");
@@ -604,7 +604,7 @@ impl<
                             error!("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |search_prod| base_products_service.search_filters_price(search_prod).map_err(Error::from)),
+                        .and_then(move |search_prod| base_products_service.search_filters_price(search_prod)),
                 )
             }
             // POST /base_products/search/filters/category
@@ -619,7 +619,7 @@ impl<
                             error!("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |search_prod| base_products_service.search_filters_category(search_prod).map_err(Error::from)),
+                        .and_then(move |search_prod| base_products_service.search_filters_category(search_prod)),
                 )
             }
             // POST /base_products/search/filters/attributes
@@ -634,7 +634,7 @@ impl<
                             error!("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |search_prod| base_products_service.search_filters_attributes(search_prod).map_err(Error::from)),
+                        .and_then(move |search_prod| base_products_service.search_filters_attributes(search_prod)),
                 )
             }
 
@@ -653,7 +653,7 @@ impl<
                             error!("Parsing body // POST /user_roles in NewUserRole failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |new_role| user_roles_service.create(new_role).map_err(Error::from)),
+                        .and_then(move |new_role| user_roles_service.create(new_role)),
                 )
             }
 
@@ -666,7 +666,7 @@ impl<
                             error!("Parsing body // DELETE /user_roles/<user_role_id> in OldUserRole failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |old_role| user_roles_service.delete(old_role).map_err(Error::from)),
+                        .and_then(move |old_role| user_roles_service.delete(old_role)),
                 )
             }
 
@@ -714,7 +714,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| attributes_service.create(new_attribute).map_err(Error::from))
+                                .and_then(move |_| attributes_service.create(new_attribute))
                         }),
                 )
             }
@@ -733,7 +733,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| attributes_service.update(attribute_id, update_attribute).map_err(Error::from))
+                                .and_then(move |_| attributes_service.update(attribute_id, update_attribute))
                         }),
                 )
             }
@@ -758,7 +758,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| categories_service.create(new_category).map_err(Error::from))
+                                .and_then(move |_| categories_service.create(new_category))
                         }),
                 )
             }
@@ -777,7 +777,7 @@ impl<
                                 .validate()
                                 .map_err(Error::Validate)
                                 .into_future()
-                                .and_then(move |_| categories_service.update(category_id, update_category).map_err(Error::from))
+                                .and_then(move |_| categories_service.update(category_id, update_category))
                         }),
                 )
             }
@@ -807,7 +807,7 @@ impl<
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
                         .and_then(move |new_category_attr| {
-                            categories_service.add_attribute_to_category(new_category_attr).map_err(Error::from)
+                            categories_service.add_attribute_to_category(new_category_attr)
                         }),
                 )
             }
@@ -824,7 +824,7 @@ impl<
                         .and_then(move |old_category_attr| {
                             categories_service
                                 .delete_attribute_from_category(old_category_attr)
-                                .map_err(Error::from)
+                                
                         }),
                 )
             }
@@ -845,7 +845,7 @@ impl<
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
                         .and_then(move |new_currency_exchange| {
-                            currency_exchange_service.update(new_currency_exchange).map_err(Error::from)
+                            currency_exchange_service.update(new_currency_exchange)
                         }),
                 )
             }
@@ -871,7 +871,7 @@ impl<
                             error!("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |update_wizard| wizard_store_service.update(update_wizard).map_err(Error::from)),
+                        .and_then(move |update_wizard| wizard_store_service.update(update_wizard)),
                 )
             }
 
@@ -899,7 +899,7 @@ impl<
                             error!("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments).map_err(Error::from)),
+                        .and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments)),
                 )
             }
 
@@ -921,7 +921,7 @@ impl<
                             error!("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!");
                             Error::UnprocessableEntity(format_err!("Error parsing request from gateway body"))
                         })
-                        .and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments).map_err(Error::from)),
+                        .and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments)),
                 )
             }
 

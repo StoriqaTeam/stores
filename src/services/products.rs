@@ -12,7 +12,6 @@ use r2d2::{ManageConnection, Pool};
 use stq_http::client::ClientHandle;
 use stq_http::errors::ControllerError;
 
-use super::error::ServiceError;
 use super::types::ServiceFuture;
 use models::*;
 use repos::ReposFactory;
@@ -306,7 +305,7 @@ impl<
                                 if let Some(product) = product {
                                     Ok(product)
                                 } else {
-                                     error!("Not found such product id : {}", product_id);
+                                    error!("Not found such product id : {}", product_id);
                                     Err(ControllerError::NotFound.into())
                                 }
                             )

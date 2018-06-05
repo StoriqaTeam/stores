@@ -1,16 +1,15 @@
 //! StoresSearch repo, presents CRUD operations with db for users
-use std::convert::From;
-
 use future;
 use futures::Future;
+use failure::Fail;
 use hyper::Method;
 use hyper::header::{ContentLength, ContentType, Headers};
 use serde_json;
 use stq_http::client::ClientHandle;
+use stq_http::errors::ControllerError;
 
 use super::{log_elastic_req, log_elastic_resp};
 use models::{CountResponse, ElasticIndex, ElasticStore, SearchResponse, SearchStore, StoresSearchOptions};
-use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
 
 /// StoresSearch repository, responsible for handling stores
@@ -128,9 +127,11 @@ impl StoresElastic for StoresElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
-                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>())),
+                .and_then(|res| future::ok(res.into_documents().collect::<Vec<ElasticStore>>()))
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Search store by name error occured. Store: {:?}, count: {:?}, offset: {:?}", search_store, count, offset)).into() 
+                    ) 
         )
     }
 
@@ -156,9 +157,11 @@ impl StoresElastic for StoresElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
-                .and_then(|res| future::ok(res.suggested_texts())),
+                .and_then(|res| future::ok(res.suggested_texts()))
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Auto complete store name error occured. Name: {:?}, count: {:?}, offset: {:?}", name, count, _offset)).into() 
+                    ) 
         )
     }
 
@@ -199,9 +202,11 @@ impl StoresElastic for StoresElasticImpl {
         Box::new(
             self.client_handle
                 .request::<CountResponse>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
-                .and_then(|res| future::ok(res.get_count() as i32)),
+                .and_then(|res| future::ok(res.get_count() as i32))
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Search store count error occured. Store: {:?}", search_store)).into() 
+                    ) 
         )
     }
 
@@ -250,7 +255,6 @@ impl StoresElastic for StoresElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| {
                     let mut countries = vec![];
@@ -262,7 +266,10 @@ impl StoresElastic for StoresElasticImpl {
                         }
                     }
                     future::ok(countries)
-                }),
+                })
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Aggregate countries for store error occured. Store: {:?}", search_store)).into() 
+                    ) 
         )
     }
 
@@ -329,7 +336,6 @@ impl StoresElastic for StoresElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticStore>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| {
                     let mut categories_ids = vec![];
@@ -343,7 +349,10 @@ impl StoresElastic for StoresElasticImpl {
                         }
                     };
                     future::ok(categories_ids)
-                }),
+                })
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Aggregate categories for stores error occured. Store: {:?}", search_store)).into() 
+                    ) 
         )
     }
 }

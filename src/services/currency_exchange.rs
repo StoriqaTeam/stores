@@ -5,16 +5,21 @@ use futures_cpupool::CpuPool;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use failure::Error as FailureError;
+use futures::future;
+use futures::future::*;
 use r2d2::{ManageConnection, Pool};
 
-use super::error::ServiceError;
+use stq_http::errors::ControllerError;
+
+
 use super::types::ServiceFuture;
 use models::{CurrencyExchange, NewCurrencyExchange};
 use repos::ReposFactory;
 
 pub trait CurrencyExchangeService {
     /// Returns latest currencies exchange
-    fn get_latest(&self) -> ServiceFuture<CurrencyExchange>;
+    fn get_latest(&self) -> ServiceFuture<Option<CurrencyExchange>>;
     /// Updates currencies exchange
     fn update(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange>;
 }
@@ -54,7 +59,7 @@ impl<
     > CurrencyExchangeService for CurrencyExchangeServiceImpl<T, M, F>
 {
     /// Returns latest currencies exchange
-    fn get_latest(&self) -> ServiceFuture<CurrencyExchange> {
+    fn get_latest(&self) -> ServiceFuture<Option<CurrencyExchange>> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
@@ -62,15 +67,15 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                    currency_exchange_repo.get_latest().map_err(ServiceError::from)
+                    currency_exchange_repo.get_latest()
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service CurrencyExchange, get_latest endpoint error occured.").into())
+        )
     }
     /// Updates currencies exchange
     fn update(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange> {
@@ -81,15 +86,15 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                    currency_exchange_repo.update(payload).map_err(ServiceError::from)
+                    currency_exchange_repo.update(payload)
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service CurrencyExchange, update endpoint error occured.").into())
+        )
     }
 }
 

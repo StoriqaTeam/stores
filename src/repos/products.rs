@@ -1,5 +1,3 @@
-use std::convert::From;
-
 use diesel;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
@@ -7,6 +5,8 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
+use failure::Fail;
+use failure::Error as FailureError;
 
 use stq_acl::*;
 
@@ -18,17 +18,16 @@ use models::{BaseProduct, NewProduct, Product, Store, UpdateProduct};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use repos::error::RepoError as Error;
 
 /// Products repository, responsible for handling products
 pub struct ProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, Product>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, Product>>,
 }
 
 pub trait ProductsRepo {
     /// Find specific product by ID
-    fn find(&self, product_id: i32) -> RepoResult<Product>;
+    fn find(&self, product_id: i32) -> RepoResult<Option<Product>>;
 
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>>;
@@ -50,22 +49,31 @@ pub trait ProductsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Product>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Product>>) -> Self {
         Self { db_conn, acl }
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(Error::from)
+        query.get_result::<Ty>(self.db_conn).map_err(|e| e.into())
     }
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepo for ProductsRepoImpl<'a, T> {
     /// Find specific product by ID
-    fn find(&self, product_id_arg: i32) -> RepoResult<Product> {
+    fn find(&self, product_id_arg: i32) -> RepoResult<Option<Product>> {
         debug!("Find in products with id {}.", product_id_arg);
-        self.execute_query(products.find(product_id_arg)).and_then(|product: Product| {
-            acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product)).and_then(|_| Ok(product))
-        })
+        let query = products.find(product_id_arg).filter(is_active.eq(true));
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(|e| e.into())
+            .and_then(|product: Option<Product>| {
+                if let Some(ref product) = product {
+                    acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(product))?;
+                };
+                Ok(product)
+            })
+            .map_err(|e: FailureError| e.context(format!("Find product with id: {} error occured", product_id_arg)).into())
     }
 
     /// Creates new product
@@ -74,13 +82,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_product = diesel::insert_into(products).values(&payload);
         query_product
             .get_result::<Product>(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|prod| acl::check(&*self.acl, &Resource::Products, &Action::Create, self, Some(&prod)).and_then(|_| Ok(prod)))
+            .map_err(|e: FailureError| e.context(format!("Create products {:?} error occured.", payload)).into())
     }
 
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>> {
-        debug!("Find in products with ids from {} count {}.", from, count);
+        debug!("Find in products from {} count {}.", from, count);
         let query = products
             .filter(is_active.eq(true))
             .filter(id.ge(from))
@@ -89,13 +98,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|products_res: Vec<Product>| {
                 for product in &products_res {
                     acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
             })
+            .map_err(|e: FailureError| e.context(format!("Find in products from {} count {} error occured.", from, count)).into())
     }
 
     /// Returns list of products with base id
@@ -105,13 +115,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|products_res: Vec<Product>| {
                 for product in &products_res {
                     acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
             })
+            .map_err(|e: FailureError| e.context(format!("Find in products with id {} error occured.", base_id_arg)).into())
     }
 
     /// Updates specific product
@@ -123,8 +134,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Product>(self.db_conn).map_err(Error::from)
+                query.get_result::<Product>(self.db_conn)
+                .map_err(|e| e.into())
             })
+            .map_err(|e: FailureError| e.context(format!("Updating product with id {} and payload {:?} error occured.", product_id_arg, payload)).into())
     }
 
     /// Deactivates specific product
@@ -137,6 +150,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })
+            .map_err(|e: FailureError| e.context(format!("Deactivate product with id {} error occured.", product_id_arg)).into())
     }
 
     /// Update currency_id on all product with base_product_id
@@ -150,7 +164,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|products_res: Vec<Product>| {
                 for product in &products_res {
                     acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product))?;
@@ -163,8 +177,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .filter(is_active.eq(true))
                     .set(currency_id.eq(currency_id_arg))
                     .execute(self.db_conn)
-                    .map_err(Error::from)
+                    .map_err(|e| e.into())
             })
+            .map_err(|e: FailureError| e.context(format!("Setting currency_id {} on all product with base_product_id {} error occured.",
+            currency_id_arg, base_product_id_arg)).into())
     }
 }
 

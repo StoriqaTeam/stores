@@ -2,14 +2,15 @@
 use std::collections::HashMap;
 
 use diesel::Connection;
-use futures_cpupool::CpuPool;
-
-use stq_http::client::ClientHandle;
-
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-
+use failure::Error as FailureError;
+use futures::future::*;
+use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
+
+use stq_http::client::ClientHandle;
+use stq_http::errors::ControllerError;
 
 use super::error::ServiceError;
 use super::types::ServiceFuture;
@@ -18,9 +19,9 @@ use repos::ReposFactory;
 
 pub trait ProductsService {
     /// Returns product by ID
-    fn get(&self, product_id: i32) -> ServiceFuture<Product>;
+    fn get(&self, product_id: i32) -> ServiceFuture<Option<Product>>;
     /// Returns store_id by ID
-    fn get_store_id(&self, product_id: i32) -> ServiceFuture<i32>;
+    fn get_store_id(&self, product_id: i32) -> ServiceFuture<Option<i32>>;
     /// Deactivates specific product
     fn deactivate(&self, product_id: i32) -> ServiceFuture<Product>;
     /// Creates base product
@@ -81,7 +82,7 @@ impl<
     > ProductsService for ProductsServiceImpl<T, M, F>
 {
     /// Returns product by ID
-    fn get(&self, product_id: i32) -> ServiceFuture<Product> {
+    fn get(&self, product_id: i32) -> ServiceFuture<Option<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -89,19 +90,18 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                .map_err(|e| ControllerError::Connection(e.into()).into())
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo.find(product_id).map_err(ServiceError::from)
+                    products_repo.find(product_id)
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, get endpoint error occured.").into())
+        )
     }
 
     /// Returns store_id by ID
-    fn get_store_id(&self, product_id: i32) -> ServiceFuture<i32> {
+    fn get_store_id(&self, product_id: i32) -> ServiceFuture<Option<i32>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -109,23 +109,32 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                .map_err(|e| ControllerError::Connection(e.into()).into())
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     products_repo
                         .find(product_id)
                         .and_then(move |product| {
-                            base_products_repo
-                                .find(product.base_product_id)
-                                .map(|base_product| base_product.store_id)
+                            if let Some(product) = product {
+                                base_products_repo
+                                    .find(product.base_product_id)
+                                    .map(|base_product| {
+                                        if let Some(base_product) = base_product {
+                                            Some(base_product.store_id)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                            } else {
+                                Ok(None)
+                            }
                         })
-                        .map_err(ServiceError::from)
+                        
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, get_store_id endpoint error occured.").into())
+        )
     }
 
     /// Deactivates specific product
@@ -138,15 +147,15 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo.deactivate(product_id).map_err(ServiceError::from)
+                    products_repo.deactivate(product_id)
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, deactivate endpoint error occured.").into())
+        )
     }
 
     /// Lists users limited by `from` and `count` parameters
@@ -159,15 +168,15 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo.list(from, count).map_err(ServiceError::from)
+                    products_repo.list(from, count)
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, list endpoint error occured.").into())
+        )
     }
 
     /// Creates new product
@@ -181,10 +190,8 @@ impl<
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
@@ -193,17 +200,18 @@ impl<
                     let mut product = payload.product;
                     let attributes = payload.attributes;
 
-                    conn.transaction::<(Product), ServiceError, _>(move || {
+                    conn.transaction::<(Product), FailureError, _>(move || {
                         // fill currency id taken from base_product first
                         base_products_repo
                             .find(product.base_product_id)
-                            .map_err(ServiceError::from)
+                            
                             .map(move |base_product| {
-                                let currency_id = base_product.currency_id;
-                                product.currency_id = Some(currency_id);
+                                product.currency_id = 
+                                    base_product
+                                        .map(|base_product|base_product.currency_id);
                                 product
                             })
-                            .and_then(|product| products_repo.create(product).map_err(ServiceError::from))
+                            .and_then(|product| products_repo.create(product))
                             .map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
                                 let product_id = product.id;
@@ -211,7 +219,7 @@ impl<
                                 // searching for existed product with such attribute values
                                 prod_attr_repo
                                     .find_all_attributes_by_base(base_product_id)
-                                    .map_err(ServiceError::from)
+                                    
                                     .and_then(|base_attrs| {
                                         let mut hash = HashMap::<i32, HashMap<i32, String>>::default();
                                         for attr in base_attrs.into_iter() {
@@ -228,31 +236,36 @@ impl<
                                             })
                                         });
                                         if exists {
-                                            Err(ServiceError::Validate(
+                                            Err(ControllerError::Validate(
                                                 validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
-                                            ))
+                                            ).into())
                                         } else {
                                             Ok(())
                                         }
                                     })
-                                    .and_then(|_| -> Result<Vec<ProdAttr>, ServiceError> {
+                                    .and_then(|_| -> Result<Vec<ProdAttr>, FailureError> {
                                         attributes
                                             .into_iter()
                                             .map(|attr_value| {
                                                 attr_repo
                                                     .find(attr_value.attr_id)
                                                     .and_then(|attr| {
-                                                        let new_prod_attr = NewProdAttr::new(
-                                                            product_id,
-                                                            base_product_id,
-                                                            attr_value.attr_id,
-                                                            attr_value.value,
-                                                            attr.value_type,
-                                                            attr_value.meta_field,
-                                                        );
-                                                        prod_attr_repo.create(new_prod_attr)
+                                                        if let Some(attr) = attr {
+                                                            let new_prod_attr = NewProdAttr::new(
+                                                                product_id,
+                                                                base_product_id,
+                                                                attr_value.attr_id,
+                                                                attr_value.value,
+                                                                attr.value_type,
+                                                                attr_value.meta_field,
+                                                            );
+                                                            prod_attr_repo.create(new_prod_attr)    
+                                                        } else {
+                                                            error!("Not found such attribute id : {}", attr_value.attr_id);
+                                                            Err(ControllerError::NotFound.into())
+                                                        }
                                                     })
-                                                    .map_err(ServiceError::from)
+                                                    
                                             })
                                             .collect()
                                     })
@@ -260,7 +273,9 @@ impl<
                             })
                     })
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, create endpoint error occured.").into())
+        )
     }
 
     /// Updates specific product
@@ -274,10 +289,8 @@ impl<
         Box::new(cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                     let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
@@ -285,11 +298,18 @@ impl<
                     let product = payload.product;
                     let attributes = payload.attributes;
 
-                    conn.transaction::<(Product), ServiceError, _>(move || {
+                    conn.transaction::<(Product), FailureError, _>(move || {
                         let prod = if let Some(product) = product {
-                            products_repo.update(product_id, product).map_err(ServiceError::from)
+                            products_repo.update(product_id, product)
                         } else {
-                            products_repo.find(product_id).map_err(ServiceError::from)
+                            products_repo.find(product_id).and_then(|product| 
+                                if let Some(product) = product {
+                                    Ok(product)
+                                } else {
+                                     error!("Not found such product id : {}", product_id);
+                                    Err(ControllerError::NotFound.into())
+                                }
+                            )
                         };
                         prod.map(move |product| (product, attributes))
                             .and_then(move |(product, attributes)| {
@@ -297,12 +317,12 @@ impl<
                                     let product_id = product.id;
                                     let base_product_id = product.base_product_id;
                                     // deleting old attributes for this product
-                                    prod_attr_repo.delete_all_attributes(product_id).map_err(ServiceError::from)
+                                    prod_attr_repo.delete_all_attributes(product_id)
                                     // searching for existed product with such attribute values
                                     .and_then(|_|
                                         prod_attr_repo
                                             .find_all_attributes_by_base(base_product_id)
-                                            .map_err(ServiceError::from))
+                                            )
                                         .and_then(|base_attrs| {
                                             let mut hash = HashMap::<i32, HashMap<i32, String>>::default();
                                             for attr in base_attrs.into_iter() {
@@ -320,31 +340,36 @@ impl<
                                                 })
                                             });
                                             if exists {
-                                                Err(ServiceError::Validate(
+                                                Err(ControllerError::Validate(
                                                     validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
-                                                ))
+                                                ).into())
                                             } else {
                                                 Ok(())
                                             }
                                         })
-                                        .and_then(|_| -> Result<Vec<ProdAttr>, ServiceError> {
+                                        .and_then(|_| -> Result<Vec<ProdAttr>, FailureError> {
                                             attributes
                                                 .into_iter()
                                                 .map(|attr_value| {
                                                     attr_repo
                                                         .find(attr_value.attr_id)
                                                         .and_then(|attr| {
-                                                            let new_prod_attr = NewProdAttr::new(
-                                                                product_id,
-                                                                base_product_id,
-                                                                attr_value.attr_id,
-                                                                attr_value.value,
-                                                                attr.value_type,
-                                                                attr_value.meta_field,
-                                                            );
-                                                            prod_attr_repo.create(new_prod_attr)
+                                                            if let Some(attr) = attr {
+                                                                let new_prod_attr = NewProdAttr::new(
+                                                                    product_id,
+                                                                    base_product_id,
+                                                                    attr_value.attr_id,
+                                                                    attr_value.value,
+                                                                    attr.value_type,
+                                                                    attr_value.meta_field,
+                                                                );
+                                                                prod_attr_repo.create(new_prod_attr)    
+                                                            } else {
+                                                                error!("Not found such attribute id : {}", attr_value.attr_id);
+                                                                Err(ControllerError::NotFound.into())
+                                                            }
                                                         })
-                                                        .map_err(ServiceError::from)
+                                                        
                                                 })
                                                 .collect()
                                         })
@@ -355,7 +380,9 @@ impl<
                             })
                     })
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, update endpoint error occured.").into())
+        )
     }
 
     /// Get by base product id
@@ -368,15 +395,15 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    products_repo.find_with_base_id(base_product_id).map_err(ServiceError::from)
+                    products_repo.find_with_base_id(base_product_id)
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, find_with_base_id endpoint error occured.").into())
+        )
     }
 
     /// Get by base product id
@@ -389,18 +416,18 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
+
                 .and_then(move |conn| {
                     let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                     prod_attr_repo
                         .find_all_attributes(product_id)
-                        .map_err(ServiceError::from)
+                        
                         .map(|pr_attrs| pr_attrs.into_iter().map(|pr_attr| pr_attr.into()).collect())
                 })
-        }))
+        })
+        .map_err(|e| e.context("Service Product, find_attributes endpoint error occured.").into())
+        )
     }
 }
 
@@ -517,7 +544,7 @@ pub mod tests {
         let service = create_product_service(Some(MOCK_USER_ID), handle);
         let work = service.get(1);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.unwrap().id, 1);
     }
 
     #[test]

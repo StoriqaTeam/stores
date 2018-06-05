@@ -1,17 +1,17 @@
 //! ProductsSearch repo, presents CRUD operations with db for users
-use std::convert::From;
-
 use future;
 use futures::Future;
+use failure::Fail;
 use hyper::Method;
 use hyper::header::{ContentLength, ContentType, Headers};
 use serde_json;
 use stq_http::client::ClientHandle;
+use stq_http::errors::ControllerError;
 
 use super::{log_elastic_req, log_elastic_resp};
 use models::*;
-use repos::error::RepoError as Error;
 use repos::types::RepoFuture;
+
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsElasticImpl {
@@ -342,12 +342,14 @@ impl ProductsElastic for ProductsElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| {
                     let prods = ProductsElasticImpl::create_products_from_search_response(res);
                     future::ok(prods)
-                }),
+                })
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Search product by name error occured. Prod: {:?}, count: {:?}, offset: {:?}", prod, count, offset)).into() 
+                    ) 
         )
     }
 
@@ -396,12 +398,14 @@ impl ProductsElastic for ProductsElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| {
                     let prods = ProductsElasticImpl::create_products_from_search_response(res);
                     future::ok(prods)
-                }),
+                })
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Search most viewed product error occured. Prod: {:?}, count: {:?}, offset: {:?}", prod, count, offset)).into() 
+                ) 
         )
     }
 
@@ -480,12 +484,14 @@ impl ProductsElastic for ProductsElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| {
                     let prods = ProductsElasticImpl::create_products_from_search_response(res);
                     future::ok(prods)
-                }),
+                })
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Search most discount product error occured. Prod: {:?}, count: {:?}, offset: {:?}", prod, count, offset)).into() 
+                ) 
         )
     }
 
@@ -510,9 +516,11 @@ impl ProductsElastic for ProductsElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
-                .and_then(|res| future::ok(res.suggested_texts())),
+                .and_then(|res| future::ok(res.suggested_texts()))
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Auto complete product name error occured. Name: {:?}, count: {:?}, offset: {:?}", name, count, _offset)).into() 
+                ) 
         )
     }
 
@@ -580,7 +588,6 @@ impl ProductsElastic for ProductsElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| {
                     let mut cats = vec![];
@@ -592,7 +599,10 @@ impl ProductsElastic for ProductsElasticImpl {
                         }
                     }
                     future::ok(cats)
-                }),
+                })
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Aggregate categories for products error occured. Name: {:?}", name)).into() 
+                ) 
         )
     }
 
@@ -712,7 +722,6 @@ impl ProductsElastic for ProductsElasticImpl {
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
-                .map_err(Error::from)
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| {
                     let mut price_filters = RangeFilter::default();
@@ -725,7 +734,10 @@ impl ProductsElastic for ProductsElasticImpl {
                         };
                     }
                     future::ok(price_filters)
-                }),
+                })
+                .map_err(|e| ControllerError::ElasticSearch(e.into())
+                    .context(format!("Aggregate price name error occured. Prod: {:?}", prod)).into() 
+                ) 
         )
     }
 }

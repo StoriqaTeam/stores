@@ -1,11 +1,11 @@
-use std::convert::From;
-
 use diesel;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use failure::Fail;
+use failure::Error as FailureError;
 
 use stq_acl::*;
 
@@ -16,12 +16,11 @@ use models::authorization::*;
 use models::base_product::base_products::dsl as BaseProducts;
 use models::store::stores::dsl as Stores;
 use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
-use repos::error::RepoError as Error;
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, ProdAttr>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, ProdAttr>>,
 }
 
 pub trait ProductAttrsRepo {
@@ -48,7 +47,7 @@ pub trait ProductAttrsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, ProdAttr>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, ProdAttr>>) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -63,13 +62,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
                     acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
+            .map_err(|e: FailureError| e.context(format!("Find specific product_attributes by product id: {} error occured", product_id_arg)).into())
     }
 
     /// Find product attributes by base_product ID
@@ -79,13 +79,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
                     acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
+            .map_err(|e: FailureError| e.context(format!("Find specific product_attributes by base_product id: {} error occured", base_product_id_arg)).into())
     }
 
     /// Creates new product_attribute
@@ -94,10 +95,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_product_attribute = diesel::insert_into(prod_attr_values).values(&payload);
         query_product_attribute
             .get_result::<ProdAttr>(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|prod_attr| {
                 acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Create, self, Some(&prod_attr)).and_then(|_| Ok(prod_attr))
             })
+            .map_err(|e: FailureError| e.context(format!("Create new product attribute {:?} error occured", payload)).into())
     }
 
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
@@ -108,7 +110,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .first::<ProdAttr>(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|prod_attr: ProdAttr| acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Update, self, Some(&prod_attr)))
             .and_then(|_| {
                 let filter = prod_attr_values
@@ -116,8 +118,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .filter(attr_id.eq(payload.attr_id));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<ProdAttr>(self.db_conn).map_err(Error::from)
+                query.get_result::<ProdAttr>(self.db_conn)
+                .map_err(|e| e.into())
             })
+            .map_err(|e: FailureError| e.context(format!("Updating product attribute {:?} error occured", payload)).into())
     }
 
     /// Delete all attributes values from product
@@ -128,13 +132,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::delete(filtered);
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
                     acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
+            .map_err(|e: FailureError| e.context(format!("Delete all attributes values from product by id {:?} error occured", product_id_arg)).into())
     }
 
     /// Delete all attributes values from product not in the list
@@ -148,13 +153,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::delete(filtered);
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
                     acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
+            .map_err(|e: FailureError| e.context(format!("Delete all attributes values not in the list {:?} from product by id {:?} error occured", attr_values, product_id_arg)).into())
     }
 
     /// Delete attribute value
@@ -163,10 +169,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let filtered = prod_attr_values.filter(id.eq(id_arg));
 
         let query = diesel::delete(filtered);
-        query.get_result(self.db_conn).map_err(Error::from).and_then(|prod_attr: ProdAttr| {
-            acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
-            Ok(prod_attr)
-        })
+        query.get_result(self.db_conn)
+            .map_err(|e| e.into())
+            .and_then(|prod_attr: ProdAttr| {
+                acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
+                Ok(prod_attr)
+            })
+            .map_err(|e: FailureError| e.context(format!("Delete attribute value with id {}", id_arg)).into())
     }
 }
 

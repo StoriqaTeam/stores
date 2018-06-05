@@ -1,6 +1,4 @@
-//! Moderator store comments repo, presents CRUD operations with db for moderator store comments
-use std::convert::From;
-
+//! Moderator product comments repo, presents CRUD operations with db for moderator product comments
 use diesel;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
@@ -8,54 +6,62 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
+use failure::Fail;
+use failure::Error as FailureError;
 
 use stq_acl::*;
 
 use super::acl;
-use super::error::RepoError as Error;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::moderator_store_comment::moderator_store_comments::dsl::*;
 use models::{ModeratorStoreComments, NewModeratorStoreComments};
 
-/// Moderator store comments repository
+/// Moderator product comments repository
 pub struct ModeratorStoreRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, ModeratorStoreComments>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, ModeratorStoreComments>>,
 }
 
 pub trait ModeratorStoreRepo {
-    /// Find specific comments by store ID
-    fn find_by_store_id(&self, store_id: i32) -> RepoResult<ModeratorStoreComments>;
+    /// Find comments by store ID
+    fn find_by_store_id(&self, store_id: i32) -> RepoResult<Option<ModeratorStoreComments>>;
 
     /// Creates new comment
     fn create(&self, payload: NewModeratorStoreComments) -> RepoResult<ModeratorStoreComments>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ModeratorStoreRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, ModeratorStoreComments>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, ModeratorStoreComments>>) -> Self {
         Self { db_conn, acl }
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(Error::from)
+        query.get_result::<Ty>(self.db_conn).map_err(|e| e.into())
     }
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ModeratorStoreRepo
     for ModeratorStoreRepoImpl<'a, T>
 {
-    /// Find specific comments by store ID
-    fn find_by_store_id(&self, store_id_arg: i32) -> RepoResult<ModeratorStoreComments> {
+    /// Find comments by store ID
+    fn find_by_store_id(&self, store_id_arg: i32) -> RepoResult<Option<ModeratorStoreComments>> {
         debug!("Find moderator comments for store id {}.", store_id_arg);
-        self.execute_query(
-            moderator_store_comments
+        let query = moderator_store_comments
                 .filter(store_id.eq(store_id_arg))
                 .order_by(id.desc())
-                .limit(1),
-        ).and_then(|comment: ModeratorStoreComments| {
-            acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Read, self, Some(&comment)).and_then(|_| Ok(comment))
-        })
+                .limit(1);
+            query
+                .get_result(self.db_conn)
+                .optional()
+                .map_err(|e| e.into())
+                .and_then(|comment: Option<ModeratorStoreComments>| {
+                    if let Some(ref comment) = comment {
+                        acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Read, self, Some(comment))?;
+                    };
+                    Ok(comment)
+                })
+                .map_err(|e: FailureError| e.context(format!("Find moderator comments for store id {}", store_id_arg)).into())
     }
 
     /// Creates new comment
@@ -64,10 +70,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_store = diesel::insert_into(moderator_store_comments).values(&payload);
         query_store
             .get_result::<ModeratorStoreComments>(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|comment| {
-                acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Create, self, Some(&comment)).and_then(|_| Ok(comment))
+                acl::check(
+                    &*self.acl,
+                    &Resource::ModeratorStoreComments,
+                    &Action::Create,
+                    self,
+                    None)?;
+                Ok(comment)
             })
+            .map_err(|e: FailureError| e.context(format!("Create moderator comments for store {:?}.", payload)).into())
     }
 }
 

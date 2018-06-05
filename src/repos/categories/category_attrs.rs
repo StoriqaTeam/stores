@@ -1,11 +1,11 @@
-use std::convert::From;
-
 use diesel;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use failure::Fail;
+use failure::Error as FailureError;
 
 use stq_acl::{Acl, CheckScope};
 
@@ -13,13 +13,12 @@ use models::authorization::*;
 use models::category_attribute::cat_attr_values::dsl::*;
 use models::{CatAttr, NewCatAttr, OldCatAttr};
 use repos::acl;
-use repos::error::RepoError as Error;
 use repos::types::RepoResult;
 
 /// CatAttr repository, responsible for handling cat_attr_values
 pub struct CategoryAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, CatAttr>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>,
 }
 
 pub trait CategoryAttrsRepo {
@@ -34,7 +33,7 @@ pub trait CategoryAttrsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoryAttrsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, CatAttr>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>) -> Self {
         Self { db_conn, acl }
     }
 }
@@ -48,34 +47,35 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
             })
+            .map_err(|e: FailureError| e.context(format!("List all category attributes error occured")).into())
     }
 
     /// Creates new category attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<()> {
         debug!("Create new category attribute {:?}.", payload);
-        acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Create, self, None).and_then(|_| {
-            let query_category_attribute = diesel::insert_into(cat_attr_values).values(&payload);
-            query_category_attribute
-                .get_result::<CatAttr>(self.db_conn)
-                .map_err(Error::from)
+        acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Create, self, None)?;
+        let query_category_attribute = diesel::insert_into(cat_attr_values).values(&payload);
+        query_category_attribute
+            .get_result::<CatAttr>(self.db_conn)
                 .map(|_| ())
-        })
+                .map_err(|e| e.context(format!("Creates new category attribute: {:?} error occured", payload)).into())
     }
 
     /// Delete category attribute
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
         debug!("Delete category attributewith payload {:?}.", payload);
-        acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Delete, self, None).and_then(|_| {
-            let filtered = cat_attr_values
-                .filter(cat_id.eq(payload.cat_id))
-                .filter(attr_id.eq(payload.attr_id));
-            let query = diesel::delete(filtered);
-            query.get_result::<CatAttr>(self.db_conn).map_err(Error::from).map(|_| ())
-        })
+        acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Delete, self, None)?;
+        let filtered = cat_attr_values
+            .filter(cat_id.eq(payload.cat_id))
+            .filter(attr_id.eq(payload.attr_id));
+        let query = diesel::delete(filtered);
+        query.get_result::<CatAttr>(self.db_conn)
+            .map(|_| ())
+            .map_err(|e| e.context(format!("Delete category attribute: {:?} error occured", payload)).into())
     }
 }
 

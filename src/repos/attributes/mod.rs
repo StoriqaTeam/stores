@@ -1,12 +1,12 @@
 //! Attributes module responsible for CRUD operations
-use std::convert::From;
-
 use diesel;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use failure::Fail;
+use failure::Error as FailureError;
 
 use stq_acl::{Acl, CheckScope};
 
@@ -14,7 +14,6 @@ use models::attribute::attributes::dsl::*;
 use models::authorization::*;
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::acl;
-use repos::error::RepoError as Error;
 use repos::types::RepoResult;
 
 pub mod attributes_cache;
@@ -24,13 +23,13 @@ pub use self::attributes_cache::*;
 /// Attributes repository, responsible for handling attribute_values
 pub struct AttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, Attribute>>,
     pub cache: AttributeCacheImpl,
 }
 
 pub trait AttributesRepo {
     /// Find specific attribute by id
-    fn find(&self, id_arg: i32) -> RepoResult<Attribute>;
+    fn find(&self, id_arg: i32) -> RepoResult<Option<Attribute>>;
 
     /// List all attributes
     fn list(&self) -> RepoResult<Vec<Attribute>>;
@@ -43,28 +42,32 @@ pub trait AttributesRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Attribute>>, cache: AttributeCacheImpl) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Attribute>>, cache: AttributeCacheImpl) -> Self {
         Self { db_conn, acl, cache }
     }
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepo for AttributesRepoImpl<'a, T> {
     /// Find specific attribute by id
-    fn find(&self, id_arg: i32) -> RepoResult<Attribute> {
+    fn find(&self, id_arg: i32) -> RepoResult<Option<Attribute>> {
         debug!("Find in attributes with id {}.", id_arg);
         if self.cache.contains(id_arg) {
-            self.cache.get(id_arg)
+            Ok(self.cache.get(id_arg))
         } else {
-            let query = attributes.filter(id.eq(id_arg));
+            let query = attributes.find(id_arg);
             query
-                .first::<Attribute>(self.db_conn)
-                .map_err(Error::from)
-                .and_then(|attribute: Attribute| {
-                    acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute)).and_then(|_| {
+                .get_result(self.db_conn)
+                .optional()
+                .map_err(|e| e.into())
+                .and_then(|attribute: Option<Attribute>| {
+                    if let Some(attribute) = attribute {
+                        acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
                         self.cache.add_attribute(id_arg, attribute.clone());
-                        Ok(attribute)
-                    })
+                    };
+                    Ok(attribute)
                 })
+                .map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occured", id_arg)).into())
+                
         }
     }
 
@@ -75,13 +78,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|attributes_vec: Vec<Attribute>| {
                 for attribute in &attributes_vec {
                     acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
                 }
                 Ok(attributes_vec)
             })
+            .map_err(|e: FailureError| e.context(format!("List all attributes")).into())
     }
 
     /// Creates new attribute
@@ -90,13 +94,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_attribute = diesel::insert_into(attributes).values(&payload);
         query_attribute
             .get_result::<Attribute>(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|attribute| {
                 acl::check(&*self.acl, &Resource::Attributes, &Action::Create, self, Some(&attribute)).and_then(|_| {
                     self.cache.add_attribute(attribute.id, attribute.clone());
                     Ok(attribute)
                 })
             })
+            .map_err(|e: FailureError| e.context(format!("Creates new attribute: {:?} error occured", payload)).into())
     }
 
     /// Updates specific attribute
@@ -105,15 +110,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = attributes.find(attribute_id_arg);
 
         query
-            .first::<Attribute>(self.db_conn)
-            .map_err(Error::from)
+            .get_result(self.db_conn)
+            .map_err(|e| e.into())
             .and_then(|attribute| acl::check(&*self.acl, &Resource::Attributes, &Action::Update, self, Some(&attribute)))
             .and_then(|_| {
                 self.cache.remove(attribute_id_arg);
                 let filter = attributes.filter(id.eq(attribute_id_arg));
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Attribute>(self.db_conn).map_err(Error::from)
+                query.get_result::<Attribute>(self.db_conn)
+                    .map_err(|e| e.into())
             })
+            .map_err(|e: FailureError| e.context(format!("Updates specific attribute: id: {}, payload: {:?},  error occured",attribute_id_arg, payload)).into())
     }
 }
 

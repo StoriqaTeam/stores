@@ -4,8 +4,6 @@ use std::collections::hash_map::Entry;
 use std::sync::{Arc, Mutex};
 
 use models::Attribute;
-use repos::error::RepoError;
-use repos::types::RepoResult;
 
 #[derive(Clone, Default)]
 pub struct AttributeCacheImpl {
@@ -13,11 +11,11 @@ pub struct AttributeCacheImpl {
 }
 
 impl AttributeCacheImpl {
-    pub fn get(&self, id: i32) -> RepoResult<Attribute> {
+    pub fn get(&self, id: i32) -> Option<Attribute> {
         let mut hash_map = self.inner.lock().unwrap();
         match hash_map.entry(id) {
-            Entry::Occupied(o) => Ok(o.get().clone()),
-            Entry::Vacant(_) => Err(RepoError::NotFound),
+            Entry::Occupied(o) => Some(o.get().clone()),
+            Entry::Vacant(_) => None,
         }
     }
 

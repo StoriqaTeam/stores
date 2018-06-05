@@ -1,4 +1,5 @@
 use diesel::result::Error as DieselError;
+use failure;
 use models::authorization::*;
 use stq_http::client::Error as HttpError;
 
@@ -21,6 +22,23 @@ pub enum RepoError {
     #[fail(display = "Unknown: {}", _0)]
     Unknown(Error),
 }
+
+#[derive(Debug, Fail)]
+pub enum RepoErrorNew {
+    #[fail(display = "Not found")]
+    NotFound,
+    #[fail(display = "Unauthorized: {} {}", _0, _1)]
+    Unauthorized(Resource, Action),
+}
+
+pub fn repo_root_cause(diesel_error: DieselError, context: String)-> failure::Error {
+    let err : failure::Error = match diesel_error  {
+        DieselError::NotFound => RepoErrorNew::NotFound.into(),
+        e => e.into()
+    };
+    err.context(context).into()
+}
+
 
 impl From<DieselError> for RepoError {
     fn from(err: DieselError) -> Self {

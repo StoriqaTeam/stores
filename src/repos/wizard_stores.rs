@@ -1,6 +1,4 @@
 //! Wizard stores repo, presents CRUD operations with db for users
-use std::convert::From;
-
 use diesel;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
@@ -9,11 +7,12 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
+use failure::Fail;
+use failure::Error as FailureError;
 
 use stq_acl::*;
 
 use super::acl;
-use super::error::RepoError as Error;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::wizard_store::wizard_stores::dsl::*;
@@ -22,12 +21,12 @@ use models::{NewWizardStore, UpdateWizardStore, WizardStore};
 /// Wizard stores repository, responsible for handling wizard stores
 pub struct WizardStoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, WizardStore>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, WizardStore>>,
 }
 
 pub trait WizardStoresRepo {
     /// Find specific store by user ID
-    fn find_by_user_id(&self, user_id: i32) -> RepoResult<WizardStore>;
+    fn find_by_user_id(&self, user_id: i32) -> RepoResult<Option<WizardStore>>;
 
     /// Creates new wizard store
     fn create(&self, user_id: i32) -> RepoResult<WizardStore>;
@@ -43,12 +42,12 @@ pub trait WizardStoresRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WizardStoresRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, WizardStore>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, WizardStore>>) -> Self {
         Self { db_conn, acl }
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(Error::from)
+        query.get_result::<Ty>(self.db_conn).map_err(|e| e.into())
     }
 }
 
@@ -56,12 +55,20 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for WizardStoresRepoImpl<'a, T>
 {
     /// Find specific store by user ID
-    fn find_by_user_id(&self, user_id_arg: i32) -> RepoResult<WizardStore> {
+    fn find_by_user_id(&self, user_id_arg: i32) -> RepoResult<Option<WizardStore>> {
         debug!("Find in wizard stores with user id {}.", user_id_arg);
-        self.execute_query(wizard_stores.filter(user_id.eq(user_id_arg)))
-            .and_then(|wizard_store: WizardStore| {
-                acl::check(&*self.acl, &Resource::WizardStores, &Action::Read, self, Some(&wizard_store)).and_then(|_| Ok(wizard_store))
+        let query = wizard_stores.filter(user_id.eq(user_id_arg));
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(|e| e.into())
+            .and_then(|wizard_store: Option<WizardStore>| {
+                if let Some(ref wizard_store) = wizard_store {
+                    acl::check(&*self.acl, &Resource::WizardStores, &Action::Read, self, Some(wizard_store))?;
+                };
+                Ok(wizard_store)
             })
+            .map_err(|e: FailureError| e.context(format!("Find in wizard stores with user id {} error occured.", user_id_arg)).into())
     }
 
     /// Creates new wizard store
@@ -71,10 +78,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_store = diesel::insert_into(wizard_stores).values(&payload);
         query_store
             .get_result::<WizardStore>(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|wizard_store| {
                 acl::check(&*self.acl, &Resource::WizardStores, &Action::Create, self, Some(&wizard_store)).and_then(|_| Ok(wizard_store))
             })
+            .map_err(|e: FailureError| e.context(format!("Create wizard store for user id {:?} error occured.", user_id_arg)).into())
     }
 
     /// Updates specific wizard store
@@ -88,8 +96,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<WizardStore>(self.db_conn).map_err(Error::from)
+                query.get_result::<WizardStore>(self.db_conn)
+                .map_err(|e| e.into())
             })
+            .map_err(|e: FailureError| e.context(format!("Updating wizard store with user_id {} and payload {:?} error occured.", user_id_arg, payload)).into())
     }
 
     /// Delete specific wizard store
@@ -104,6 +114,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::delete(filter);
                 self.execute_query(query)
             })
+            .map_err(|e: FailureError| e.context(format!("Delete wizard store with user_id {} error occured.", user_id_arg)).into())
     }
 
     /// Check if the wizard already exists
@@ -112,8 +123,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::select(exists(wizard_stores.filter(user_id.eq(user_id_arg))));
         query
             .get_result(self.db_conn)
-            .map_err(Error::from)
+            .map_err(|e| e.into())
             .and_then(|exists| acl::check(&*self.acl, &Resource::WizardStores, &Action::Read, self, None).and_then(|_| Ok(exists)))
+            .map_err(|e: FailureError| e.context(format!("Check if wizard already exists for user {} error occured.", user_id_arg)).into())
     }
 }
 

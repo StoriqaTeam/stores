@@ -162,7 +162,7 @@ impl<
                     serialize_future(stores_service.list(offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse.context("Parsing query parameters // GET /stores failed!").into(),
+                        Error::Parse("Parsing query parameters // GET /stores failed!".to_string()).into(),
                     ))
                 }
             }
@@ -176,9 +176,7 @@ impl<
                     serialize_future(base_products_service.get_products_of_the_store(store_id, skip_base_product_id, offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // GET /stores/:id/product failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // GET /stores/:id/product failed!".to_string()).into(),
                     ))
                 }
             }
@@ -194,8 +192,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /stores/cart", user_id);
                 serialize_future(
                     parse_body::<Vec<CartProduct>>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /stores/cart in Vec<CartProduct> failed!")
                                 .into()
                         })
@@ -209,8 +207,8 @@ impl<
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<SearchStore>(req.body())
-                            .map_err(|_| {
-                                Error::Parse
+                            .map_err(|e| {
+                                Error::Parse(e.to_string())
                                     .context("Parsing body // POST /stores/search in SearchStore failed!")
                                     .into()
                             })
@@ -218,9 +216,7 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /stores/search failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // POST /stores/search failed!".to_string()).into(),
                     ))
                 }
             }
@@ -230,8 +226,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /stores/search/filters/count", user_id);
                 serialize_future(
                     parse_body::<SearchStore>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /stores/search/filters/count in SearchStore failed!")
                                 .into()
                         })
@@ -247,8 +243,8 @@ impl<
                 );
                 serialize_future(
                     parse_body::<SearchStore>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /stores/search/filters/country in SearchStore failed!")
                                 .into()
                         })
@@ -264,8 +260,8 @@ impl<
                 );
                 serialize_future(
                     parse_body::<SearchStore>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /stores/search/filters/category in SearchStore failed!")
                                 .into()
                         })
@@ -279,8 +275,8 @@ impl<
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         read_body(req.body())
-                            .map_err(|_| {
-                                Error::Parse
+                            .map_err(|e| {
+                                Error::Parse(e.to_string())
                                     .context("Parsing body // POST /stores/auto_complete in String failed!")
                                     .into()
                             })
@@ -288,9 +284,7 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /stores/auto_complete failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // POST /stores/auto_complete failed!".to_string()).into(),
                     ))
                 }
             }
@@ -300,7 +294,7 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /stores", user_id);
                 serialize_future(
                     parse_body::<NewStore>(req.body())
-                        .map_err(|_| Error::Parse.context("Parsing body // POST /stores in NewStore failed!").into())
+                        .map_err(|_| Error::Parse("Parsing body // POST /stores in NewStore failed!".to_string()).into())
                         .and_then(move |new_store| {
                             new_store
                                 .validate()
@@ -316,8 +310,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // PUT /stores/{}", user_id, store_id);
                 serialize_future(
                     parse_body::<UpdateStore>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // PUT /stores/<store_id> in UpdateStore failed!")
                                 .into()
                         })
@@ -368,7 +362,7 @@ impl<
                     serialize_future(products_service.list(offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse.context("Parsing query parameters // GET /products failed!").into(),
+                        Error::Parse("Parsing query parameters // GET /products failed!".to_string()).into(),
                     ))
                 }
             }
@@ -380,9 +374,7 @@ impl<
                     serialize_future(products_service.get_store_id(product_id))
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // GET /products/store_id failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // GET /products/store_id failed!".to_string()).into(),
                     ))
                 }
             }
@@ -392,8 +384,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /products", user_id);
                 serialize_future(
                     parse_body::<NewProductWithAttributes>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /products in NewProductWithAttributes failed!")
                                 .into()
                         })
@@ -417,8 +409,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // PUT /products/{}", user_id, product_id);
                 serialize_future(
                     parse_body::<UpdateProductWithAttributes>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // PUT /products/<product_id> in UpdateProductWithAttributes failed!")
                                 .into()
                         })
@@ -471,9 +463,7 @@ impl<
                     serialize_future(base_products_service.list(offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // GET /base_products failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // GET /base_products failed!".to_string()).into(),
                     ))
                 }
             }
@@ -483,8 +473,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /base_products", user_id);
                 serialize_future(
                     parse_body::<NewBaseProduct>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /base_products in NewBaseProduct failed!")
                                 .into()
                         })
@@ -506,8 +496,8 @@ impl<
                 );
                 serialize_future(
                     parse_body::<UpdateBaseProduct>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // PUT /base_products/<base_product_id> in UpdateBaseProduct failed!")
                                 .into()
                         })
@@ -536,8 +526,8 @@ impl<
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<SearchProductsByName>(req.body())
-                            .map_err(|_| {
-                                Error::Parse
+                            .map_err(|e| {
+                                Error::Parse(e.to_string())
                                     .context("Parsing body // POST /products/search in SearchProductsByName failed!")
                                     .into()
                             })
@@ -545,9 +535,7 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/search failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // POST /products/search failed!".to_string()).into(),
                     ))
                 }
             }
@@ -558,8 +546,8 @@ impl<
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         read_body(req.body())
-                            .map_err(|_| {
-                                Error::Parse
+                            .map_err(|e| {
+                                Error::Parse(e.to_string())
                                     .context("Parsing body // POST /products/auto_complete in String failed!")
                                     .into()
                             })
@@ -567,9 +555,7 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/auto_complete failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // POST /products/auto_complete failed!".to_string()).into(),
                     ))
                 }
             }
@@ -580,8 +566,8 @@ impl<
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<MostDiscountProducts>(req.body())
-                            .map_err(|_| {
-                                Error::Parse
+                            .map_err(|e| {
+                                Error::Parse(e.to_string())
                                     .context("Parsing body // POST /products/most_discount in MostDiscountProducts failed!")
                                     .into()
                             })
@@ -589,9 +575,7 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/most_discount failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // POST /products/most_discount failed!".to_string()).into(),
                     ))
                 }
             }
@@ -602,8 +586,8 @@ impl<
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<MostViewedProducts>(req.body())
-                            .map_err(|_| {
-                                Error::Parse
+                            .map_err(|e| {
+                                Error::Parse(e.to_string())
                                     .context("Parsing body // POST /products/most_viewed in MostViewedProducts failed!")
                                     .into()
                             })
@@ -611,9 +595,7 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/most_viewed failed!")
-                            .into(),
+                        Error::Parse("Parsing query parameters // POST /products/most_viewed failed!".to_string()).into(),
                     ))
                 }
             }
@@ -626,8 +608,8 @@ impl<
                 );
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!")
                                 .into()
                         })
@@ -642,8 +624,8 @@ impl<
                 );
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!")
                                 .into()
                         })
@@ -658,8 +640,8 @@ impl<
                 );
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!")
                                 .into()
                         })
@@ -678,8 +660,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /user_roles", user_id);
                 serialize_future(
                     parse_body::<NewUserRole>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /user_roles in NewUserRole failed!")
                                 .into()
                         })
@@ -692,8 +674,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // DELETE /user_roles", user_id);
                 serialize_future(
                     parse_body::<OldUserRole>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // DELETE /user_roles/<user_role_id> in OldUserRole failed!")
                                 .into()
                         })
@@ -736,8 +718,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /attributes", user_id);
                 serialize_future(
                     parse_body::<NewAttribute>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /attributes in NewAttribute failed!")
                                 .into()
                         })
@@ -756,8 +738,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // PUT /attributes/{}", user_id, attribute_id);
                 serialize_future(
                     parse_body::<UpdateAttribute>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // PUT /attributes/<attribute_id> in UpdateAttribute failed!")
                                 .into()
                         })
@@ -782,8 +764,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /categories", user_id);
                 serialize_future(
                     parse_body::<NewCategory>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /categories in NewCategory failed!")
                                 .into()
                         })
@@ -802,8 +784,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // PUT /categories/{}", user_id, category_id);
                 serialize_future(
                     parse_body::<UpdateCategory>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // PUT /categories/<category_id> in UpdateCategory failed!")
                                 .into()
                         })
@@ -837,8 +819,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /categories/attributes", user_id);
                 serialize_future(
                     parse_body::<NewCatAttr>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /categories/attributes in CategoryAttrs failed!")
                                 .into()
                         })
@@ -851,8 +833,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // DELETE /categories/attributes", user_id);
                 serialize_future(
                     parse_body::<OldCatAttr>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // DELETE /categories/attributes in OldCatAttr failed!")
                                 .into()
                         })
@@ -871,8 +853,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /currency_exchange", user_id);
                 serialize_future(
                     parse_body::<NewCurrencyExchange>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /currency_exchange in NewCurrencyExchange failed!")
                                 .into()
                         })
@@ -897,8 +879,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // PUT /wizard_stores", user_id);
                 serialize_future(
                     parse_body::<UpdateWizardStore>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!")
                                 .into()
                         })
@@ -926,8 +908,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /moderator_product_comments", user_id);
                 serialize_future(
                     parse_body::<NewModeratorProductComments>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!")
                                 .into()
                         })
@@ -949,8 +931,8 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /moderator_store_comments", user_id);
                 serialize_future(
                     parse_body::<NewModeratorStoreComments>(req.body())
-                        .map_err(|_| {
-                            Error::Parse
+                        .map_err(|e| {
+                            Error::Parse(e.to_string())
                                 .context("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!")
                                 .into()
                         })

@@ -4,7 +4,6 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
-use failure::Fail;
 use failure::Error as FailureError;
 
 use stq_acl::*;
@@ -148,7 +147,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             "Delete all attributes of product id {} not in the list {:?}.",
             product_id_arg, attr_values
         );
-        let filtered = prod_attr_values.filter(prod_id.eq(product_id_arg)).filter(id.ne_all(attr_values));
+        let filtered = prod_attr_values.filter(prod_id.eq(product_id_arg)).filter(id.ne_all(attr_values.clone()));
 
         let query = diesel::delete(filtered);
         query
@@ -160,7 +159,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(prod_attrs_res)
             })
-            .map_err(|e: FailureError| e.context(format!("Delete all attributes values not in the list {:?} from product by id {:?} error occured", attr_values, product_id_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Delete all attributes values not in the list {:?} from product by id {:?} error occured", attr_values, product_id_arg)).into())
     }
 
     /// Delete attribute value

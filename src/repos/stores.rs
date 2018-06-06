@@ -7,7 +7,6 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
-use failure::Fail;
 use failure::Error as FailureError;
 
 use stq_acl::*;
@@ -135,18 +134,19 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
         debug!("Check if store slug {} exists.", slug_arg);
-        let query = diesel::select(exists(stores.filter(slug.eq(slug_arg))));
+        let query = diesel::select(exists(stores.filter(slug.eq(slug_arg.clone()))));
         query
             .get_result(self.db_conn)
             .map_err(|e| e.into())
             .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
-            .map_err(|e: FailureError| e.context(format!("Store slug exists {} error occured.", slug_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occured.", slug_arg)).into())
     }
 
     /// Checks name exists
     fn name_exists(&self, name_arg: Vec<Translation>) -> RepoResult<bool> {
         debug!("Check if store name {:?} exists.", name_arg);
         let res = name_arg
+            .clone()
             .into_iter()
             .map(|trans| {
                 let query_str = format!(
@@ -161,7 +161,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
             .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
-            .map_err(|e: FailureError| e.context(format!("Store name exists {:?} error occured.", name_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occured.", name_arg)).into())
     }
 }
 

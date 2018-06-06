@@ -5,7 +5,6 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
-use failure::Fail;
 use failure::Error as FailureError;
 
 use stq_acl::{Acl, CheckScope};
@@ -60,7 +59,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .optional()
                 .map_err(|e| e.into())
                 .and_then(|attribute: Option<Attribute>| {
-                    if let Some(attribute) = attribute {
+                    if let Some(attribute) = attribute.clone() {
                         acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
                         self.cache.add_attribute(id_arg, attribute.clone());
                     };

@@ -4,9 +4,7 @@ use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
-use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
-use failure::Fail;
 use failure::Error as FailureError;
 
 use stq_acl::*;
@@ -34,10 +32,6 @@ pub trait ModeratorProductRepo {
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ModeratorProductRepoImpl<'a, T> {
     pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, ModeratorProductComments>>) -> Self {
         Self { db_conn, acl }
-    }
-
-    fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(|e| e.into())
     }
 }
 

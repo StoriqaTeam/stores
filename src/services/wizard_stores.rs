@@ -4,7 +4,6 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use failure::Fail;
 use failure::Error as FailureError;
-use futures::future::*;
 use future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};

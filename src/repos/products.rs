@@ -5,7 +5,6 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
-use failure::Fail;
 use failure::Error as FailureError;
 
 use stq_acl::*;

@@ -249,12 +249,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
         debug!("Check if store slug {} exists.", slug_arg);
-        let query = diesel::select(exists(base_products.filter(slug.eq(slug_arg))));
+        let query = diesel::select(exists(base_products.filter(slug.eq(slug_arg.clone()))));
         query
             .get_result(self.db_conn)
             .map_err(|e| e.into())
             .and_then(|exists| acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None).and_then(|_| Ok(exists)))
-            .map_err(|e: FailureError| e.context(format!("Check if store slug {} exists failed", slug_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Check if store slug {} exists failed", slug_arg)).into())
     }
 
     /// Convert data from elastic to PG models

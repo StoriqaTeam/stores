@@ -7,7 +7,6 @@ use diesel::pg::Pg;
 use failure::Error as FailureError;
 use failure::Fail;
 use futures::future::*;
-use futures::prelude::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 

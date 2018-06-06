@@ -3,11 +3,11 @@
 //! relationship
 
 use diesel;
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 

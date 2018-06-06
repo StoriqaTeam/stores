@@ -2,9 +2,9 @@
 
 use futures_cpupool::CpuPool;
 
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
 use futures::future::*;
 use r2d2::{ManageConnection, Pool};
 

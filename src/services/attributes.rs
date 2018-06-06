@@ -1,7 +1,7 @@
 //! Attributes Services, presents CRUD operations with attributes
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
 use failure::Error as FailureError;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};

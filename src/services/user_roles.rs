@@ -1,7 +1,7 @@
 //! UserRoles Services, presents CRUD operations with user_roles
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};

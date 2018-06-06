@@ -1,10 +1,10 @@
 //! Moderator product comments repo, presents CRUD operations with db for moderator product comments
 use diesel;
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::Connection;
 use failure::Error as FailureError;
 
 use stq_acl::*;

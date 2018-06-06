@@ -2,9 +2,9 @@
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 use futures::future;
@@ -20,11 +20,11 @@ use stq_static_resources::Currency;
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
 use models::*;
-use repos::ReposFactory;
 use repos::clear_child_categories;
 use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
+use repos::ReposFactory;
 
 const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 

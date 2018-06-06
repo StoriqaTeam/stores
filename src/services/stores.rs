@@ -1,9 +1,9 @@
 //! Stores Services, presents CRUD operations with stores
 use std::collections::BTreeMap;
 
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 use futures::future::*;

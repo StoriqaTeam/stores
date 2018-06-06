@@ -3,8 +3,8 @@ use errors::ControllerError;
 use failure::Fail;
 use future;
 use futures::Future;
-use hyper::Method;
 use hyper::header::{ContentLength, ContentType, Headers};
+use hyper::Method;
 use serde_json;
 use stq_http::client::ClientHandle;
 

@@ -1,6 +1,6 @@
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
 use failure::Error as FailureError;
 
 use stq_acl::{Acl, SystemACL};
@@ -124,10 +124,6 @@ pub mod tests {
     use std::sync::Arc;
     use std::time::SystemTime;
 
-    use diesel::Connection;
-    use diesel::ConnectionResult;
-    use diesel::QueryResult;
-    use diesel::Queryable;
     use diesel::connection::AnsiTransactionManager;
     use diesel::connection::SimpleConnection;
     use diesel::deserialize::QueryableByName;
@@ -136,6 +132,10 @@ pub mod tests {
     use diesel::query_builder::QueryFragment;
     use diesel::query_builder::QueryId;
     use diesel::sql_types::HasSqlType;
+    use diesel::Connection;
+    use diesel::ConnectionResult;
+    use diesel::QueryResult;
+    use diesel::Queryable;
     use futures_cpupool::CpuPool;
     use r2d2;
     use r2d2::ManageConnection;
@@ -337,13 +337,11 @@ pub mod tests {
     impl CategoryAttrsRepo for CategoryAttrsRepoMock {
         /// Find category attributes by category ID
         fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
-            Ok(vec![
-                CatAttr {
-                    id: 1,
-                    cat_id: category_id_arg,
-                    attr_id: 1,
-                },
-            ])
+            Ok(vec![CatAttr {
+                id: 1,
+                cat_id: category_id_arg,
+                attr_id: 1,
+            }])
         }
 
         /// Creates new category_attribute
@@ -698,32 +696,28 @@ pub mod tests {
     impl ProductAttrsRepo for ProductAttrsRepoMock {
         /// Find product attributes by product ID
         fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
-            Ok(vec![
-                ProdAttr {
-                    id: 1,
-                    prod_id: product_id_arg,
-                    base_prod_id: 1,
-                    attr_id: 1,
-                    value: "value".to_string(),
-                    value_type: AttributeType::Str,
-                    meta_field: None,
-                },
-            ])
+            Ok(vec![ProdAttr {
+                id: 1,
+                prod_id: product_id_arg,
+                base_prod_id: 1,
+                attr_id: 1,
+                value: "value".to_string(),
+                value_type: AttributeType::Str,
+                meta_field: None,
+            }])
         }
 
         /// Find product attributes by product ID
         fn find_all_attributes_by_base(&self, base_product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
-            Ok(vec![
-                ProdAttr {
-                    id: 1,
-                    prod_id: 1,
-                    base_prod_id: base_product_id_arg,
-                    attr_id: 1,
-                    value: "value".to_string(),
-                    value_type: AttributeType::Str,
-                    meta_field: None,
-                },
-            ])
+            Ok(vec![ProdAttr {
+                id: 1,
+                prod_id: 1,
+                base_prod_id: base_product_id_arg,
+                attr_id: 1,
+                value: "value".to_string(),
+                value_type: AttributeType::Str,
+                meta_field: None,
+            }])
         }
 
         /// Creates new product_attribute

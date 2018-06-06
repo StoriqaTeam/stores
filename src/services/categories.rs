@@ -1,8 +1,8 @@
 //! Categories Services, presents CRUD operations with categories
 
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 use futures::future::*;
@@ -14,8 +14,8 @@ use errors::ControllerError;
 use super::types::ServiceFuture;
 use models::{Attribute, NewCatAttr, OldCatAttr};
 use models::{Category, NewCategory, UpdateCategory};
-use repos::ReposFactory;
 use repos::types::RepoResult;
+use repos::ReposFactory;
 
 pub trait CategoriesService {
     /// Returns category by ID

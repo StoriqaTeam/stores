@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, HashMap};
 
 use diesel;
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::dsl::exists;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 

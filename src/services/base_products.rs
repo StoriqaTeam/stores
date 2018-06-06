@@ -6,6 +6,7 @@ use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use failure::Error as FailureError;
+use failure::Fail;
 use futures::future;
 use futures::future::*;
 use futures_cpupool::CpuPool;
@@ -209,8 +210,9 @@ impl<
                                         x if x == (Currency::Etherium as i32) => currencies.etherium,
                                         x if x == (Currency::Stq as i32) => currencies.stq,
                                         c => {
-                                            error!("Not found such currency_id : {}", c);
-                                            return Err(ControllerError::NotFound.into());
+                                            return Err(ControllerError::NotFound
+                                                .context(format!("Not found such currency_id : {}", c))
+                                                .into());
                                         }
                                     }.as_object()
                                         .map(|m| {
@@ -629,8 +631,9 @@ impl<
                                             .into_iter()
                                             .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
                                             .ok_or_else(|| {
-                                                error!("There is no such 3rd level category in db - {}", prod.category_id);
-                                                ControllerError::NotFound.into()
+                                                ControllerError::NotFound
+                                                    .context(format!("There is no such 3rd level category in db - {}", prod.category_id))
+                                                    .into()
                                             })
                                     })
                                     .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
@@ -766,8 +769,12 @@ impl<
                                                 .into_iter()
                                                 .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
                                                 .ok_or_else(|| {
-                                                    error!("There is no such 3rd level category in db");
-                                                    ControllerError::NotFound.into()
+                                                    ControllerError::NotFound
+                                                        .context(format!(
+                                                            "There is no such 3rd level category in db - {}",
+                                                            prod.category_id
+                                                        ))
+                                                        .into()
                                                 })
                                         })
                                         .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
@@ -852,7 +859,8 @@ impl<
                                                 if exists {
                                                     Err(ControllerError::Validate(
                                                         validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                                                    ).into())
+                                                    ).context(format!("Store with slug '{:?}' already exists.", payload.slug.clone()))
+                                                        .into())
                                                 } else {
                                                     Ok(old_prod)
                                                 }
@@ -903,8 +911,7 @@ impl<
                                                             Ok(())
                                                         }
                                                     } else {
-                                                        error!("Could not update store product categories because there is no such 3rd level category in db.");
-                                                        Err(ControllerError::NotFound.into())
+                                                        Err(ControllerError::NotFound.context(format!("Could not update store product categories because there is no such 3rd level category in db.")).into())
                                                     }
                                                 })
                                                 .and_then(|_| Ok(updated_prod))

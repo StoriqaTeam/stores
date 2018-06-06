@@ -484,7 +484,6 @@ impl<
                 serialize_future(
                     parse_body::<NewBaseProduct>(req.body())
                         .map_err(|_| {
-                            error!("");
                             Error::Parse
                                 .context("Parsing body // POST /base_products in NewBaseProduct failed!")
                                 .into()
@@ -560,7 +559,6 @@ impl<
                     serialize_future(
                         read_body(req.body())
                             .map_err(|_| {
-                                error!("");
                                 Error::Parse
                                     .context("Parsing body // POST /products/auto_complete in String failed!")
                                     .into()
@@ -583,7 +581,6 @@ impl<
                     serialize_future(
                         parse_body::<MostDiscountProducts>(req.body())
                             .map_err(|_| {
-                                error!("");
                                 Error::Parse
                                     .context("Parsing body // POST /products/most_discount in MostDiscountProducts failed!")
                                     .into()
@@ -630,7 +627,6 @@ impl<
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
                         .map_err(|_| {
-                            error!("");
                             Error::Parse
                                 .context("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!")
                                 .into()
@@ -647,7 +643,6 @@ impl<
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
                         .map_err(|_| {
-                            error!("");
                             Error::Parse
                                 .context("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!")
                                 .into()
@@ -664,7 +659,6 @@ impl<
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
                         .map_err(|_| {
-                            error!("");
                             Error::Parse
                                 .context("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!")
                                 .into()
@@ -904,7 +898,6 @@ impl<
                 serialize_future(
                     parse_body::<UpdateWizardStore>(req.body())
                         .map_err(|_| {
-                            error!("");
                             Error::Parse
                                 .context("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!")
                                 .into()

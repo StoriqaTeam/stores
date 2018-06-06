@@ -5,6 +5,7 @@ use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use failure::Error as FailureError;
+use failure::Fail;
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
@@ -236,7 +237,8 @@ impl<
                                                 if exists {
                                                     Err(ControllerError::Validate(
                                                         validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
-                                                    ).into())
+                                                    ).context(format!("Product with attributes {:?} already exists", attributes))
+                                                        .into())
                                                 } else {
                                                     Ok(())
                                                 }
@@ -257,8 +259,12 @@ impl<
                                                                 );
                                                                 prod_attr_repo.create(new_prod_attr)
                                                             } else {
-                                                                error!("Not found such attribute id : {}", attr_value.attr_id);
-                                                                Err(ControllerError::NotFound.into())
+                                                                Err(ControllerError::NotFound
+                                                                    .context(format!(
+                                                                        "Not found such attribute id : {}",
+                                                                        attr_value.attr_id
+                                                                    ))
+                                                                    .into())
                                                             }
                                                         })
                                                     })
@@ -302,8 +308,9 @@ impl<
                                         if let Some(product) = product {
                                             Ok(product)
                                         } else {
-                                            error!("Not found such product id : {}", product_id);
-                                            Err(ControllerError::NotFound.into())
+                                            Err(ControllerError::NotFound
+                                                .context(format!("Not found such product id : {}", product_id))
+                                                .into())
                                         }
                                     })
                                 };
@@ -338,7 +345,7 @@ impl<
                                             if exists {
                                                 Err(ControllerError::Validate(
                                                     validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
-                                                ).into())
+                                                ).context(format!("Product with attributes {:?} already exists", attributes)).into())
                                             } else {
                                                 Ok(())
                                             }
@@ -361,8 +368,7 @@ impl<
                                                                 );
                                                                 prod_attr_repo.create(new_prod_attr)
                                                             } else {
-                                                                error!("Not found such attribute id : {}", attr_value.attr_id);
-                                                                Err(ControllerError::NotFound.into())
+                                                                Err(ControllerError::NotFound.context(format!("Not found such attribute id : {}", attr_value.attr_id)).into())
                                                             }
                                                         })
                                                 })

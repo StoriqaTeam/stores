@@ -4,6 +4,7 @@ use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use failure::Error as FailureError;
+use failure::Fail;
 use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
@@ -179,8 +180,9 @@ impl<
                                                 if let Some(attr) = attr {
                                                     Ok(attr)
                                                 } else {
-                                                    error!("No such attribute with id : {}", cat_attr.attr_id);
-                                                    Err(ControllerError::NotFound.into())
+                                                    Err(ControllerError::NotFound
+                                                        .context(format!("No such attribute with id : {}", cat_attr.attr_id))
+                                                        .into())
                                                 }
                                             })
                                         })

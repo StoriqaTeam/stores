@@ -315,7 +315,8 @@ impl<
                                         if exists {
                                             Err(ControllerError::Validate(
                                                 validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                            ).into())
+                                            ).context(format!("Store with slug '{}' already exists.", new_store.slug.clone()))
+                                                .into())
                                         } else {
                                             Ok(new_store)
                                         }
@@ -349,8 +350,9 @@ impl<
                                     if let Some(store) = store {
                                         Ok(store)
                                     } else {
-                                        error!("Not found such store id : {}", store_id);
-                                        Err(ControllerError::NotFound.into())
+                                        Err(ControllerError::NotFound
+                                            .context(format!("Not found such store id : {}", store_id))
+                                            .into())
                                     }
                                 })
                                 .and_then(|s| {
@@ -400,8 +402,9 @@ impl<
                                         if let Some(product) = product {
                                             Ok(product)
                                         } else {
-                                            error!("Not found such product id : {}", cart_product.product_id);
-                                            Err(ControllerError::NotFound.into())
+                                            Err(ControllerError::NotFound
+                                                .context(format!("Not found such product id : {}", cart_product.product_id))
+                                                .into())
                                         }
                                     })
                                 })
@@ -422,8 +425,9 @@ impl<
                                                     if let Some(product) = product {
                                                         Ok(product)
                                                     } else {
-                                                        error!("Not found such base product id : {}", base_product_id);
-                                                        Err(ControllerError::NotFound.into())
+                                                        Err(ControllerError::NotFound
+                                                            .context(format!("Not found such base product id : {}", base_product_id))
+                                                            .into())
                                                     }
                                                 })
                                                 .map(|base_product| BaseProductWithVariants::new(base_product, products))
@@ -445,8 +449,9 @@ impl<
                                                     if let Some(store) = store {
                                                         Ok(store)
                                                     } else {
-                                                        error!("Not found such store id : {}", store_id);
-                                                        Err(ControllerError::NotFound.into())
+                                                        Err(ControllerError::NotFound
+                                                            .context(format!("Not found such store id : {}", store_id))
+                                                            .into())
                                                     }
                                                 })
                                                 .map(|store| StoreWithBaseProducts::new(store, base_products))

@@ -167,8 +167,9 @@ impl<
                                         if let Some(store) = store {
                                             Ok(store)
                                         } else {
-                                            error!("Not found such store id : {}", store_id);
-                                            Err(ControllerError::NotFound.into())
+                                            Err(ControllerError::NotFound
+                                                .context(format!("Not found such store id : {}", store_id))
+                                                .into())
                                         }
                                     })
                                     .and_then(|s| {
@@ -177,17 +178,18 @@ impl<
                                             Ok(false)
                                         } else {
                                             // if updated slug equal other stores slug
-                                            stores_repo.slug_exists(slug)
+                                            stores_repo.slug_exists(slug.clone())
                                         }
                                     })
                             } else {
-                                stores_repo.slug_exists(slug)
+                                stores_repo.slug_exists(slug.clone())
                             };
                             slug_exist.and_then(|exists| {
                                 if exists {
                                     Err(ControllerError::Validate(
                                         validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                    ).into())
+                                    ).context(format!("Store with slug '{}' already exists.", slug))
+                                        .into())
                                 } else {
                                     let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                                     wizard_stores_repo.update(user_id, payload)

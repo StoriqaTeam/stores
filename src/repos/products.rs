@@ -104,7 +104,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(products_res.clone())
             })
-            .map_err(|e: FailureError| e.context(format!("Find in products from {} count {} error occured.", from, count)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!("Find in products from {} count {} error occured.", from, count))
+                    .into()
+            })
     }
 
     /// Returns list of products with base id
@@ -133,10 +136,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Product>(self.db_conn)
-                .map_err(|e| e.into())
+                query.get_result::<Product>(self.db_conn).map_err(|e| e.into())
             })
-            .map_err(|e: FailureError| e.context(format!("Updating product with id {} and payload {:?} error occured.", product_id_arg, payload)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Updating product with id {} and payload {:?} error occured.",
+                    product_id_arg, payload
+                )).into()
+            })
     }
 
     /// Deactivates specific product
@@ -149,7 +156,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })
-            .map_err(|e: FailureError| e.context(format!("Deactivate product with id {} error occured.", product_id_arg)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!("Deactivate product with id {} error occured.", product_id_arg))
+                    .into()
+            })
     }
 
     /// Update currency_id on all product with base_product_id
@@ -178,8 +188,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .execute(self.db_conn)
                     .map_err(|e| e.into())
             })
-            .map_err(|e: FailureError| e.context(format!("Setting currency_id {} on all product with base_product_id {} error occured.",
-            currency_id_arg, base_product_id_arg)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Setting currency_id {} on all product with base_product_id {} error occured.",
+                    currency_id_arg, base_product_id_arg
+                )).into()
+            })
     }
 }
 

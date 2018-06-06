@@ -8,8 +8,8 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
-use failure::Fail;
 use failure::Error as FailureError;
+use failure::Fail;
 
 use stq_acl::*;
 
@@ -92,8 +92,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
                 Ok(base_product)
             })
-            .map_err(|e: FailureError| e.context(format!("Find base product by id: {} error occured", base_product_id_arg)).into())
-        
+            .map_err(|e: FailureError| {
+                e.context(format!("Find base product by id: {} error occured", base_product_id_arg))
+                    .into()
+            })
     }
 
     /// Counts products by store id
@@ -104,14 +106,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map(|count: Option<i64>| {
-                if let Some(count) = count {
-                    count as i32
-                } else {
-                    0
-                }
+            .map(|count: Option<i64>| if let Some(count) = count { count as i32 } else { 0 })
+            .map_err(|e| {
+                e.context(format!("Counts products by store id: {} error occured", store_id_arg))
+                    .into()
             })
-            .map_err(|e| e.context(format!("Counts products by store id: {} error occured", store_id_arg)).into())
     }
 
     /// Creates new base_product
@@ -145,7 +144,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(base_products_res)
             })
-            .map_err(|e: FailureError| e.context(format!("Find in base products with ids from {} count {} error occured", from, count)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Find in base products with ids from {} count {} error occured",
+                    from, count
+                )).into()
+            })
     }
 
     /// Returns list of base_products by store id and skip skip_base_product_id, limited by from and count
@@ -188,10 +192,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(base_products_res)
             })
-            .map_err(|e: FailureError| e.context(format!(
-                "Find in base products with store id {} skip {:?} from {} count {}.",
-                store_id_arg, skip_base_product_id, from, count
-            )).into())
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Find in base products with store id {} skip {:?} from {} count {}.",
+                    store_id_arg, skip_base_product_id, from, count
+                )).into()
+            })
     }
 
     /// Updates specific base_product
@@ -207,7 +213,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<BaseProduct>(self.db_conn).map_err(|e| e.into())
             })
-            .map_err(|e: FailureError| e.context(format!("Updating base product with id {} and payload {:?} failed.", base_product_id_arg, payload)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Updating base product with id {} and payload {:?} failed.",
+                    base_product_id_arg, payload
+                )).into()
+            })
     }
 
     /// Update views on specific base_product
@@ -228,7 +239,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Ok(None)
                 }
             })
-            .map_err(|e: FailureError| e.context(format!("Updating views of base product with id {} failed", base_product_id_arg)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!("Updating views of base product with id {} failed", base_product_id_arg))
+                    .into()
+            })
     }
 
     /// Deactivates specific base_product
@@ -243,7 +257,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })
-            .map_err(|e: FailureError| e.context(format!("Deactivate base product with id {} failed", base_product_id_arg)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!("Deactivate base product with id {} failed", base_product_id_arg))
+                    .into()
+            })
     }
 
     /// Checks that slug already exists
@@ -259,61 +276,59 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Convert data from elastic to PG models
     fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
-        acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None).and_then(|_|{
-            let base_products_ids = el_products.iter().map(|b| b.id).collect::<Vec<i32>>();
-            debug!(
-                "Converting data from elastic to PG models for base_products with ids: {:?}",
-                base_products_ids
-            );
-            let hashed_ids = base_products_ids
-                .clone()
-                .into_iter()
-                .enumerate()
-                .map(|(n, id_arg)| (id_arg, n))
-                .collect::<HashMap<_, _>>();
+        acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None)
+            .and_then(|_| {
+                let base_products_ids = el_products.iter().map(|b| b.id).collect::<Vec<i32>>();
+                debug!(
+                    "Converting data from elastic to PG models for base_products with ids: {:?}",
+                    base_products_ids
+                );
+                let hashed_ids = base_products_ids
+                    .clone()
+                    .into_iter()
+                    .enumerate()
+                    .map(|(n, id_arg)| (id_arg, n))
+                    .collect::<HashMap<_, _>>();
 
-            let base_products_query = base_products.filter(id.eq_any(base_products_ids));
-            let base_products_list: Vec<BaseProduct> = 
-                base_products_query
-                    .get_results(self.db_conn)?;
+                let base_products_query = base_products.filter(id.eq_any(base_products_ids));
+                let base_products_list: Vec<BaseProduct> = base_products_query.get_results(self.db_conn)?;
 
-            // sorting in elastic order
-            let base_products_list = base_products_list
-                .into_iter()
-                .fold(BTreeMap::<usize, BaseProduct>::new(), |mut tree_map, bp| {
-                    let n = hashed_ids[&bp.id];
-                    tree_map.insert(n, bp);
-                    tree_map
-                })
-                .into_iter()
-                .map(|(_, base_product)| base_product)
-                .collect::<Vec<BaseProduct>>();
+                // sorting in elastic order
+                let base_products_list = base_products_list
+                    .into_iter()
+                    .fold(BTreeMap::<usize, BaseProduct>::new(), |mut tree_map, bp| {
+                        let n = hashed_ids[&bp.id];
+                        tree_map.insert(n, bp);
+                        tree_map
+                    })
+                    .into_iter()
+                    .map(|(_, base_product)| base_product)
+                    .collect::<Vec<BaseProduct>>();
 
-            let variants_ids = el_products
-                .iter()
-                .flat_map(|p| {
-                    if let Some(matched_ids) = p.clone().matched_variants_ids {
-                        matched_ids
-                    } else {
-                        p.variants.iter().map(|variant| variant.prod_id).collect()
-                    }
-                })
-                .collect::<Vec<i32>>();
+                let variants_ids = el_products
+                    .iter()
+                    .flat_map(|p| {
+                        if let Some(matched_ids) = p.clone().matched_variants_ids {
+                            matched_ids
+                        } else {
+                            p.variants.iter().map(|variant| variant.prod_id).collect()
+                        }
+                    })
+                    .collect::<Vec<i32>>();
 
-            let variants = Product::belonging_to(&base_products_list)
-                .get_results(self.db_conn)?
-                .into_iter()
-                .filter(|prod: &Product| variants_ids.iter().any(|id_arg| *id_arg == prod.id))
-                .grouped_by(&base_products_list);
+                let variants = Product::belonging_to(&base_products_list)
+                    .get_results(self.db_conn)?
+                    .into_iter()
+                    .filter(|prod: &Product| variants_ids.iter().any(|id_arg| *id_arg == prod.id))
+                    .grouped_by(&base_products_list);
 
-            Ok(base_products_list
-                .into_iter()
-                .zip(variants)
-                .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
-                .collect())
-        })
-        .map_err(|e: FailureError| e.context(format!("Convert data from elastic to PG models failed")).into())
-        
+                Ok(base_products_list
+                    .into_iter()
+                    .zip(variants)
+                    .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
+                    .collect())
+            })
+            .map_err(|e: FailureError| e.context(format!("Convert data from elastic to PG models failed")).into())
     }
 }
 

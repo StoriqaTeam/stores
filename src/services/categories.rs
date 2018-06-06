@@ -4,8 +4,8 @@ use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use failure::Error as FailureError;
-use futures_cpupool::CpuPool;
 use futures::future::*;
+use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
 use errors::ControllerError;
@@ -73,16 +73,18 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-                .and_then(move |conn| {
-                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    categories_repo.find(category_id)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                            categories_repo.find(category_id)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service Categories, get endpoint error occured.").into())
+                .map_err(|e| e.context("Service Categories, get endpoint error occured.").into()),
         )
     }
 
@@ -92,19 +94,18 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    conn.transaction::<(Category), FailureError, _>(move || {
-                        categories_repo.create(new_category)
-                    })
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                            conn.transaction::<(Category), FailureError, _>(move || categories_repo.create(new_category))
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service Categories, create endpoint error occured.").into())
+                .map_err(|e| e.context("Service Categories, create endpoint error occured.").into()),
         )
     }
 
@@ -115,17 +116,18 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    categories_repo.update(category_id, payload)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                            categories_repo.update(category_id, payload)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service Categories, update endpoint error occured.").into())
+                .map_err(|e| e.context("Service Categories, update endpoint error occured.").into()),
         )
     }
 
@@ -135,17 +137,18 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    categories_repo.get_all()
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                            categories_repo.get_all()
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service Categories, get_all endpoint error occured.").into())
+                .map_err(|e| e.context("Service Categories, get_all endpoint error occured.").into()),
         )
     }
 
@@ -156,37 +159,36 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
-                    let attrs_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    category_attrs_repo
-                        .find_all_attributes(category_id_arg)
-                        .or_else(|_| Ok(vec![]))
-                        .and_then(|cat_attrs| {
-                            cat_attrs
-                                .into_iter()
-                                .map(|cat_attr| attrs_repo
-                                    .find(cat_attr.attr_id)
-                                    .and_then(|attr| {
-                                        if let Some(attr) = attr {
-                                            Ok(attr)
-                                        } else {
-                                            error!("No such attribute with id : {}", cat_attr.attr_id);
-                                            Err(ControllerError::NotFound.into())
-                                        }
-                                    })
-                                )
-                                .collect::<RepoResult<Vec<Attribute>>>()
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
+                            let attrs_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                            category_attrs_repo
+                                .find_all_attributes(category_id_arg)
+                                .or_else(|_| Ok(vec![]))
+                                .and_then(|cat_attrs| {
+                                    cat_attrs
+                                        .into_iter()
+                                        .map(|cat_attr| {
+                                            attrs_repo.find(cat_attr.attr_id).and_then(|attr| {
+                                                if let Some(attr) = attr {
+                                                    Ok(attr)
+                                                } else {
+                                                    error!("No such attribute with id : {}", cat_attr.attr_id);
+                                                    Err(ControllerError::NotFound.into())
+                                                }
+                                            })
+                                        })
+                                        .collect::<RepoResult<Vec<Attribute>>>()
+                                })
                         })
-                        
                 })
-        })
-        .map_err(|e| e.context("Service Categories, find_all_attributes endpoint error occured.").into())
+                .map_err(|e| e.context("Service Categories, find_all_attributes endpoint error occured.").into()),
         )
     }
 
@@ -197,17 +199,21 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
-                    category_attrs_repo.create(payload)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
+                            category_attrs_repo.create(payload)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service Categories, add_attribute_to_category endpoint error occured.").into())
+                .map_err(|e| {
+                    e.context("Service Categories, add_attribute_to_category endpoint error occured.")
+                        .into()
+                }),
         )
     }
 
@@ -218,17 +224,21 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
-                    category_attrs_repo.delete(payload)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
+                            category_attrs_repo.delete(payload)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service Categories, delete_attribute_from_category endpoint error occured.").into())
+                .map_err(|e| {
+                    e.context("Service Categories, delete_attribute_from_category endpoint error occured.")
+                        .into()
+                }),
         )
     }
 }

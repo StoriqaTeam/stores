@@ -4,8 +4,8 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
-use failure::Fail;
 use failure::Error as FailureError;
+use failure::Fail;
 
 use stq_acl::{Acl, CheckScope};
 
@@ -61,8 +61,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_category_attribute = diesel::insert_into(cat_attr_values).values(&payload);
         query_category_attribute
             .get_result::<CatAttr>(self.db_conn)
-                .map(|_| ())
-                .map_err(|e| e.context(format!("Creates new category attribute: {:?} error occured", payload)).into())
+            .map(|_| ())
+            .map_err(|e| {
+                e.context(format!("Creates new category attribute: {:?} error occured", payload))
+                    .into()
+            })
     }
 
     /// Delete category attribute
@@ -73,7 +76,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));
         let query = diesel::delete(filtered);
-        query.get_result::<CatAttr>(self.db_conn)
+        query
+            .get_result::<CatAttr>(self.db_conn)
             .map(|_| ())
             .map_err(|e| e.context(format!("Delete category attribute: {:?} error occured", payload)).into())
     }

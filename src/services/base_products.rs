@@ -12,8 +12,8 @@ use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 use serde_json;
 
-use stq_http::client::ClientHandle;
 use errors::ControllerError;
+use stq_http::client::ClientHandle;
 use stq_static_resources::Currency;
 
 use super::types::ServiceFuture;
@@ -131,7 +131,7 @@ impl<
                                         options.categories_ids = Some(cats_ids);
                                         options
                                     });
-                                    Ok(options)    
+                                    Ok(options)
                                 } else {
                                     Ok(options)
                                 }
@@ -166,9 +166,7 @@ impl<
                         if let Some(category_id) = category_id {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.find(category_id).and_then(|cat| {
-                                let cats_ids = cat.and_then(|cat| {
-                                    if cat.children.is_empty() { Some(vec![category_id]) } else { None }
-                                });
+                                let cats_ids = cat.and_then(|cat| if cat.children.is_empty() { Some(vec![category_id]) } else { None });
                                 let options = options.map(|mut options| {
                                     options.categories_ids = cats_ids;
                                     options
@@ -198,7 +196,6 @@ impl<
                 db_pool
                     .get()
                     .map_err(|e| ControllerError::Connection(e.into()).into())
-
                     .and_then(move |conn| {
                         if let Some(currency_id) = currency_id {
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
@@ -272,45 +269,41 @@ impl<
                 .and_then(move |options| {
                     let currency_map = options.clone().and_then(|o| o.currency_map);
                     search_product.options = options;
-                    products_el
-                        .search_by_name(search_product, count, offset)
-                        
-                        .and_then({
-                            let db_pool = db_pool.clone();
-                            let repo_factory = repo_factory.clone();
-                            move |el_products| {
-                                cpu_pool.spawn_fn(move || {
-                                    db_pool
-                                        .get()
-                                        .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                                        .and_then(move |conn| {
-                                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                            base_products_repo.convert_from_elastic(el_products)
-                                        })
-                                        .and_then(move |base_products| {
-                                            let bp = if let Some(currency_map) = currency_map.clone() {
-                                                base_products
-                                                    .into_iter()
-                                                    .map(|mut b| {
-                                                        for mut variant in b.variants.iter_mut() {
-                                                            if let Some(currency_id) = variant.currency_id {
-                                                                variant.price = variant.price * currency_map[&currency_id];
-                                                            }
+                    products_el.search_by_name(search_product, count, offset).and_then({
+                        let db_pool = db_pool.clone();
+                        let repo_factory = repo_factory.clone();
+                        move |el_products| {
+                            cpu_pool.spawn_fn(move || {
+                                db_pool
+                                    .get()
+                                    .map_err(|e| ControllerError::Connection(e.into()).into())
+                                    .and_then(move |conn| {
+                                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                        base_products_repo.convert_from_elastic(el_products)
+                                    })
+                                    .and_then(move |base_products| {
+                                        let bp = if let Some(currency_map) = currency_map.clone() {
+                                            base_products
+                                                .into_iter()
+                                                .map(|mut b| {
+                                                    for mut variant in b.variants.iter_mut() {
+                                                        if let Some(currency_id) = variant.currency_id {
+                                                            variant.price = variant.price * currency_map[&currency_id];
                                                         }
-                                                        b
-                                                    })
-                                                    .collect()
-                                            } else {
-                                                base_products
-                                            };
-                                            Ok(bp)
-                                        })
-                                })
-                            }
-                        })
+                                                    }
+                                                    b
+                                                })
+                                                .collect()
+                                        } else {
+                                            base_products
+                                        };
+                                        Ok(bp)
+                                    })
+                            })
+                        }
+                    })
                 })
-                .map_err(|e| e.context("Service BaseProduct, search_by_name endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, search_by_name endpoint error occured.").into()),
         )
     }
 
@@ -329,25 +322,25 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
-            search_product.options = options;
-            products_el
-                .search_most_viewed(search_product, count, offset)
-                
-                .and_then(move |el_products| {
-                    cpu_pool.spawn_fn(move || {
-                        db_pool
-                            .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                            .and_then(move |conn| {
-                                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                base_products_repo.convert_from_elastic(el_products)
+        Box::new(
+            self.linearize_categories(search_product.options.clone())
+                .and_then(move |options| {
+                    search_product.options = options;
+                    products_el
+                        .search_most_viewed(search_product, count, offset)
+                        .and_then(move |el_products| {
+                            cpu_pool.spawn_fn(move || {
+                                db_pool
+                                    .get()
+                                    .map_err(|e| ControllerError::Connection(e.into()).into())
+                                    .and_then(move |conn| {
+                                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                        base_products_repo.convert_from_elastic(el_products)
+                                    })
                             })
-                    })
+                        })
                 })
-        })
-                .map_err(|e| e.context("Service BaseProduct, search_most_viewed endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, search_most_viewed endpoint error occured.").into()),
         )
     }
 
@@ -366,27 +359,28 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.linearize_categories(search_product.options.clone()).and_then(move |options| {
-            search_product.options = options;
-            products_el
-                .search_most_discount(search_product, count, offset)
-                
-                .and_then({
-                    move |el_products| {
-                        cpu_pool.spawn_fn(move || {
-                            db_pool
-                                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                                .and_then(move |conn| {
-                                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                    base_products_repo.convert_from_elastic(el_products)
-                                })
-                        })
-                    }
+        Box::new(
+            self.linearize_categories(search_product.options.clone())
+                .and_then(move |options| {
+                    search_product.options = options;
+                    products_el.search_most_discount(search_product, count, offset).and_then({
+                        move |el_products| {
+                            cpu_pool.spawn_fn(move || {
+                                db_pool
+                                    .get()
+                                    .map_err(|e| ControllerError::Connection(e.into()).into())
+                                    .and_then(move |conn| {
+                                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                                        base_products_repo.convert_from_elastic(el_products)
+                                    })
+                            })
+                        }
+                    })
                 })
-        })
-                .map_err(|e| e.context("Service BaseProduct, search_most_discount endpoint error occured.").into())
+                .map_err(|e| {
+                    e.context("Service BaseProduct, search_most_discount endpoint error occured.")
+                        .into()
+                }),
         )
     }
 
@@ -398,9 +392,7 @@ impl<
             products_el.auto_complete(name, count, offset)
         };
 
-        Box::new(products_names
-                .map_err(|e| e.context("Service BaseProduct, auto_complete endpoint error occured.").into())
-        )
+        Box::new(products_names.map_err(|e| e.context("Service BaseProduct, auto_complete endpoint error occured.").into()))
     }
 
     fn search_filters_price(self, mut search_product: SearchProductsByName) -> ServiceFuture<RangeFilter> {
@@ -415,8 +407,10 @@ impl<
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
                 })
-                .map_err(|e| e.context("Service BaseProduct, search_filters_price endpoint error occured.").into())
-                
+                .map_err(|e| {
+                    e.context("Service BaseProduct, search_filters_price endpoint error occured.")
+                        .into()
+                }),
         )
     }
 
@@ -432,40 +426,45 @@ impl<
 
         if search_prod.name.is_empty() {
             let category_id = search_prod.options.map(|options| options.category_id).and_then(|c| c);
-            Box::new(cpu_pool.spawn_fn(move || {
-                db_pool
-                    .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-                    .and_then(move |conn| {
-                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                        categories_repo
-                            .get_all()
-                            .and_then(|category| {
-                                if let Some(category_id) = category_id {
-                                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                                    categories_repo.find(category_id).and_then(|cat| {
-                                        if let Some(cat) = cat {
-                                            if cat.children.is_empty() {
-                                                let new_cat =
-                                                    remove_unused_categories(category, &[cat.parent_id.unwrap_or_default()], cat.level - 2);
-                                                Ok(new_cat)
+            Box::new(
+                cpu_pool
+                    .spawn_fn(move || {
+                        db_pool
+                            .get()
+                            .map_err(|e| ControllerError::Connection(e.into()).into())
+                            .and_then(move |conn| {
+                                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                                categories_repo.get_all().and_then(|category| {
+                                    if let Some(category_id) = category_id {
+                                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                                        categories_repo.find(category_id).and_then(|cat| {
+                                            if let Some(cat) = cat {
+                                                if cat.children.is_empty() {
+                                                    let new_cat = remove_unused_categories(
+                                                        category,
+                                                        &[cat.parent_id.unwrap_or_default()],
+                                                        cat.level - 2,
+                                                    );
+                                                    Ok(new_cat)
+                                                } else {
+                                                    let new_cat = remove_unused_categories(category, &[cat.id], cat.level - 1);
+                                                    let removed_cat = clear_child_categories(new_cat, cat.level + 1);
+                                                    Ok(removed_cat)
+                                                }
                                             } else {
-                                                let new_cat = remove_unused_categories(category, &[cat.id], cat.level - 1);
-                                                let removed_cat = clear_child_categories(new_cat, cat.level + 1);
-                                                Ok(removed_cat)
+                                                Ok(category)
                                             }
-                                        } else {
-                                            Ok(category)
-                                        }
-                                    })
-                                } else {
-                                    Ok(category)
-                                }
+                                        })
+                                    } else {
+                                        Ok(category)
+                                    }
+                                })
                             })
-                            
                     })
-            })
-                .map_err(|e| e.context("Service BaseProduct, search_filters_category endpoint with empty name option error occured.").into())
+                    .map_err(|e| {
+                        e.context("Service BaseProduct, search_filters_category endpoint with empty name option error occured.")
+                            .into()
+                    }),
             )
         } else {
             Box::new(
@@ -486,8 +485,10 @@ impl<
                                 })
                         })
                     })
-                    .map_err(|e| e.context("Service BaseProduct, search_filters_category endpoint with name aggregation in elastic error occured.").into())
-                    
+                    .map_err(|e| {
+                        e.context("Service BaseProduct, search_filters_category endpoint with name aggregation in elastic error occured.")
+                            .into()
+                    }),
             )
         }
     }
@@ -503,54 +504,52 @@ impl<
                     search_product.options = options;
                     if let Some(options) = search_product.options.clone() {
                         if options.categories_ids.is_some() {
-                            return Box::new(
-                                products_el
-                                    .search_by_name(search_product, MAX_PRODUCTS_SEARCH_COUNT, 0)
-                                    
-                                    .and_then(|el_products| {
-                                        let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
-                                        let mut range_attrs = HashMap::<i32, RangeFilter>::default();
+                            return Box::new(products_el.search_by_name(search_product, MAX_PRODUCTS_SEARCH_COUNT, 0).and_then(
+                                |el_products| {
+                                    let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
+                                    let mut range_attrs = HashMap::<i32, RangeFilter>::default();
 
-                                        for product in el_products {
-                                            for variant in product.variants {
-                                                for attr_value in variant.attrs {
-                                                    if let Some(value) = attr_value.str_val {
-                                                        let equal = equal_attrs
-                                                            .entry(attr_value.attr_id)
-                                                            .or_insert_with(HashSet::<String>::default);
-                                                        equal.insert(value);
-                                                    }
-                                                    if let Some(value) = attr_value.float_val {
-                                                        let range =
-                                                            range_attrs.entry(attr_value.attr_id).or_insert_with(RangeFilter::default);
-                                                        range.add_value(value);
-                                                    }
+                                    for product in el_products {
+                                        for variant in product.variants {
+                                            for attr_value in variant.attrs {
+                                                if let Some(value) = attr_value.str_val {
+                                                    let equal =
+                                                        equal_attrs.entry(attr_value.attr_id).or_insert_with(HashSet::<String>::default);
+                                                    equal.insert(value);
+                                                }
+                                                if let Some(value) = attr_value.float_val {
+                                                    let range = range_attrs.entry(attr_value.attr_id).or_insert_with(RangeFilter::default);
+                                                    range.add_value(value);
                                                 }
                                             }
                                         }
+                                    }
 
-                                        let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                                            id: k,
-                                            equal: Some(EqualFilter {
-                                                values: v.iter().cloned().collect(),
-                                            }),
-                                            range: None,
-                                        });
+                                    let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                        id: k,
+                                        equal: Some(EqualFilter {
+                                            values: v.iter().cloned().collect(),
+                                        }),
+                                        range: None,
+                                    });
 
-                                        let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                                            id: k,
-                                            equal: None,
-                                            range: Some(v),
-                                        });
+                                    let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
+                                        id: k,
+                                        equal: None,
+                                        range: Some(v),
+                                    });
 
-                                        future::ok(Some(eq_filters.chain(range_filters).collect()))
-                                    }),
-                            );
+                                    future::ok(Some(eq_filters.chain(range_filters).collect()))
+                                },
+                            ));
                         }
                     }
                     return Box::new(future::ok(None));
                 })
-                .map_err(|e| e.context("Service BaseProduct, search_filters_attributes endpoint error occured.").into())
+                .map_err(|e| {
+                    e.context("Service BaseProduct, search_filters_attributes endpoint error occured.")
+                        .into()
+                }),
         )
     }
 
@@ -560,17 +559,18 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo.update_views(product_id)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            base_products_repo.update_views(product_id)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service BaseProduct, get endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, get endpoint error occured.").into()),
         )
     }
 
@@ -580,27 +580,27 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-                .and_then(move |conn| {
-                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    products_repo
-                        .find(product_id)
-                        .and_then(move |product| {
-                            if let Some(product) = product {
-                                base_products_repo
-                                    .find(product.base_product_id)
-                                    .map(|base_product| base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![product])))
-                            } else {
-                                Ok(None)
-                            }
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            products_repo.find(product_id).and_then(move |product| {
+                                if let Some(product) = product {
+                                    base_products_repo.find(product.base_product_id).map(|base_product| {
+                                        base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![product]))
+                                    })
+                                } else {
+                                    Ok(None)
+                                }
+                            })
                         })
-                    })
-        })
-        .map_err(|e| e.context("Service BaseProduct, get_by_product endpoint error occured.").into())
+                })
+                .map_err(|e| e.context("Service BaseProduct, get_by_product endpoint error occured.").into()),
         )
     }
 
@@ -610,67 +610,65 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    base_products_repo
-                        .deactivate(product_id)
-                        .and_then(|prod| {
-                            categories_repo
-                                .get_all()
-                                .and_then(|category_root| {
-                                    category_root
-                                        .children
-                                        .into_iter()
-                                        .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
-                                        .ok_or_else(|| {
-                                            error!("There is no such 3rd level category in db - {}", prod.category_id);
-                                            ControllerError::NotFound.into()
-                                        })
-                                })
-                                .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
-                                .and_then(|(store, cat)| {
-                                    if let Some(store) = store {
-                                        let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
-                                            let mut product_categories =
-                                                serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
-                                            let mut new_prod_cats = vec![];
-                                            for pc in product_categories.iter_mut() {
-                                                if pc.category_id == cat.id {
-                                                    pc.count -= 1;
-                                                    if pc.count > 0 {
-                                                        new_prod_cats.push(pc.clone());
-                                                    }
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                            base_products_repo.deactivate(product_id).and_then(|prod| {
+                                categories_repo
+                                    .get_all()
+                                    .and_then(|category_root| {
+                                        category_root
+                                            .children
+                                            .into_iter()
+                                            .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
+                                            .ok_or_else(|| {
+                                                error!("There is no such 3rd level category in db - {}", prod.category_id);
+                                                ControllerError::NotFound.into()
+                                            })
+                                    })
+                                    .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
+                                    .and_then(|(store, cat)| {
+                                        if let Some(store) = store {
+                                            let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
+                                                let mut product_categories =
+                                                    serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+                                                let mut new_prod_cats = vec![];
+                                                for pc in product_categories.iter_mut() {
+                                                    if pc.category_id == cat.id {
+                                                        pc.count -= 1;
+                                                        if pc.count > 0 {
+                                                            new_prod_cats.push(pc.clone());
+                                                        }
                                                     } else {
                                                         new_prod_cats.push(pc.clone());
                                                     }
                                                 }
                                                 new_prod_cats
-                                        } else {
-                                            vec![]
-                                        };
+                                            } else {
+                                                vec![]
+                                            };
 
-                                        let product_categories = serde_json::to_value(prod_cats).ok();
+                                            let product_categories = serde_json::to_value(prod_cats).ok();
 
-                                        let update_store = UpdateStore {
-                                            product_categories,
-                                            ..Default::default()
+                                            let update_store = UpdateStore {
+                                                product_categories,
+                                                ..Default::default()
+                                            };
+                                            stores_repo.update(store.id, update_store)?;
                                         };
-                                        stores_repo.update(store.id, update_store)?;    
-                                    };
-                                    Ok(prod)
-                                })
+                                        Ok(prod)
+                                    })
+                            })
                         })
-                        
                 })
-        })
-        .map_err(|e| e.context("Service BaseProduct, deactivate endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, deactivate endpoint error occured.").into()),
         )
     }
 
@@ -680,17 +678,18 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo.list(from, count)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            base_products_repo.list(from, count)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service BaseProduct, list endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, list endpoint error occured.").into()),
         )
     }
 
@@ -706,19 +705,21 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo
-                        .get_products_of_the_store(store_id, skip_base_product_id, from, count)
-                        
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            base_products_repo.get_products_of_the_store(store_id, skip_base_product_id, from, count)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service BaseProduct, get_products_of_the_store endpoint error occured.").into())
+                .map_err(|e| {
+                    e.context("Service BaseProduct, get_products_of_the_store endpoint error occured.")
+                        .into()
+                }),
         )
     }
 
@@ -728,90 +729,88 @@ impl<
         let user_id = self.user_id;
         let cpu_pool = self.cpu_pool.clone();
         let repo_factory = self.repo_factory.clone();
-        Box::new(cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
+        Box::new(
+            cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+                                // stores_repo
+                                //     .slug_exists(payload.slug.to_string())
+                                //     .map(move |exists| (payload, exists))
+                                //
+                                //     .and_then(|(payload, exists)| {
+                                //         if exists {
+                                //             Err(ServiceError::Validate(
+                                //                 validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
+                                //             ))
+                                //         } else {
+                                //             Ok(payload)
+                                //         }
+                                //     })
+                                //     .and_then(|payload| {
 
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    conn.transaction::<(BaseProduct), FailureError, _>(move || {
-                        // stores_repo
-                        //     .slug_exists(payload.slug.to_string())
-                        //     .map(move |exists| (payload, exists))
-                        //     
-                        //     .and_then(|(payload, exists)| {
-                        //         if exists {
-                        //             Err(ServiceError::Validate(
-                        //                 validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                        //             ))
-                        //         } else {
-                        //             Ok(payload)
-                        //         }
-                        //     })
-                        //     .and_then(|payload| {
+                                // create base_product
+                                base_products_repo.create(payload).and_then(|prod| {
+                                    // update product categories of the store
+                                    categories_repo
+                                        .get_all()
+                                        .and_then(|category_root| {
+                                            category_root
+                                                .children
+                                                .into_iter()
+                                                .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
+                                                .ok_or_else(|| {
+                                                    error!("There is no such 3rd level category in db");
+                                                    ControllerError::NotFound.into()
+                                                })
+                                        })
+                                        .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
+                                        .and_then(|(store, cat)| {
+                                            if let Some(store) = store {
+                                                let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
+                                                    let mut product_categories =
+                                                        serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+                                                    let mut new_prod_cats = vec![];
+                                                    let mut cat_exists = false;
+                                                    for pc in product_categories.iter_mut() {
+                                                        if pc.category_id == cat.id {
+                                                            pc.count += 1;
+                                                            cat_exists = true;
+                                                        }
+                                                        new_prod_cats.push(pc.clone());
+                                                    }
+                                                    if !cat_exists {
+                                                        new_prod_cats.push(ProductCategories::new(cat.id));
+                                                    }
+                                                    new_prod_cats
+                                                } else {
+                                                    let pc = ProductCategories::new(cat.id);
+                                                    vec![pc]
+                                                };
 
-                        // create base_product
-                        base_products_repo
-                            .create(payload)
-                            .and_then(|prod| {
-                                // update product categories of the store
-                                categories_repo
-                                    .get_all()
-                                    .and_then(|category_root| {
-                                        category_root
-                                            .children
-                                            .into_iter()
-                                            .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
-                                            .ok_or_else(|| {
-                                                error!("There is no such 3rd level category in db");
-                                                ControllerError::NotFound.into()
-                                            })
-                                    })
-                                    .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
-                                    .and_then(|(store, cat)| {
-                                    if let Some(store) = store {
-                                        
-                                        let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
-                                            let mut product_categories =
-                                                serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
-                                            let mut new_prod_cats = vec![];
-                                            let mut cat_exists = false;
-                                            for pc in product_categories.iter_mut() {
-                                                if pc.category_id == cat.id {
-                                                    pc.count += 1;
-                                                    cat_exists = true;
-                                                }
-                                                new_prod_cats.push(pc.clone());
-                                            }
-                                            if !cat_exists {
-                                                new_prod_cats.push(ProductCategories::new(cat.id));
-                                            }
-                                            new_prod_cats
-                                        } else {
-                                            let pc = ProductCategories::new(cat.id);
-                                            vec![pc]
-                                        };
+                                                let product_categories = serde_json::to_value(prod_cats).ok();
 
-                                        let product_categories = serde_json::to_value(prod_cats).ok();
+                                                let update_store = UpdateStore {
+                                                    product_categories,
+                                                    ..Default::default()
+                                                };
+                                                stores_repo.update(store.id, update_store)?;
+                                            };
+                                            Ok(prod)
+                                        })
+                                })
 
-                                        let update_store = UpdateStore {
-                                            product_categories,
-                                            ..Default::default()
-                                        };
-                                        stores_repo.update(store.id, update_store)?;
-                                    };
-                                    Ok(prod)
-                                    })
+                                // })
                             })
-                            
-                        // })
-                    })
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into()),
         )
     }
 
@@ -822,106 +821,104 @@ impl<
         let cpu_pool = self.cpu_pool.clone();
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    conn.transaction::<(BaseProduct), FailureError, _>(move || {
-                        base_products_repo
-                            .find(product_id)
-                            .and_then(|old_prod| {
-                                if let Some(old_prod) = old_prod {
-                                    let exists = if let Some(slug) = payload.slug.clone() {
-                                        if old_prod.slug == slug {
-                                            // if updated slug equal base_product slug
-                                            Ok(false)
+        Box::new(
+            cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+                                base_products_repo
+                                    .find(product_id)
+                                    .and_then(|old_prod| {
+                                        if let Some(old_prod) = old_prod {
+                                            let exists = if let Some(slug) = payload.slug.clone() {
+                                                if old_prod.slug == slug {
+                                                    // if updated slug equal base_product slug
+                                                    Ok(false)
+                                                } else {
+                                                    // if updated slug equal other base_product slug
+                                                    base_products_repo.slug_exists(slug)
+                                                }
+                                            } else {
+                                                Ok(false)
+                                            };
+                                            exists.and_then(|exists| {
+                                                if exists {
+                                                    Err(ControllerError::Validate(
+                                                        validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
+                                                    ).into())
+                                                } else {
+                                                    Ok(old_prod)
+                                                }
+                                            })
                                         } else {
-                                            // if updated slug equal other base_product slug
-                                            base_products_repo.slug_exists(slug)
-                                        }
-                                    } else {
-                                        Ok(false)
-                                    };
-                                    exists.and_then(|exists| {
-                                        if exists {
-                                            Err(ControllerError::Validate(
-                                                validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                                            ).into())
-                                        } else {
-                                            Ok(old_prod)
+                                            Err(ControllerError::NotFound.into())
                                         }
                                     })
-                                } else {
-                                    Err(ControllerError::NotFound.into())
-                                }
-                            })
-                            .and_then(|old_prod| {
-                                base_products_repo
-                                    .update(product_id, payload.clone())
-                                    .map(|updated_prod| (old_prod, updated_prod))
-                            })
-                            .and_then(|(old_prod, updated_prod)| {
-                                if let Some(new_cat_id) = payload.category_id {
-                                    // updating product categories of the store
-                                    let old_cat_id = old_prod.category_id;
-                                    let old_prod_store_id = old_prod.store_id;
-                                    categories_repo
-                                        .get_all()
-                                        .and_then(|category_root| {
-                                            let old_cat_id = category_root
-                                                .children
-                                                .clone()
-                                                .into_iter()
-                                                .find(|cat_child| get_parent_category(&cat_child, old_cat_id, 2).is_some())
-                                                .map(|c| c.id);
-                                            let new_cat_id = category_root
-                                                .children
-                                                .into_iter()
-                                                .find(|cat_child| get_parent_category(&cat_child, new_cat_id, 2).is_some())
-                                                .map(|c| c.id);
-                                            if let (Some(old_cat_id), Some(new_cat_id)) = (old_cat_id, new_cat_id) {
-                                                if new_cat_id != old_cat_id {
-                                                    stores_repo.find(old_prod_store_id).and_then(|store| {
-                                                        if let Some(store) = store {
-                                                            let update_store = UpdateStore::update_product_categories(
-                                                                store.product_categories.clone(),
-                                                                old_cat_id,
-                                                                new_cat_id,
-                                                            );
-                                                            stores_repo.update(store.id, update_store).map(|_| ())
+                                    .and_then(|old_prod| {
+                                        base_products_repo
+                                            .update(product_id, payload.clone())
+                                            .map(|updated_prod| (old_prod, updated_prod))
+                                    })
+                                    .and_then(|(old_prod, updated_prod)| {
+                                        if let Some(new_cat_id) = payload.category_id {
+                                            // updating product categories of the store
+                                            let old_cat_id = old_prod.category_id;
+                                            let old_prod_store_id = old_prod.store_id;
+                                            categories_repo
+                                                .get_all()
+                                                .and_then(|category_root| {
+                                                    let old_cat_id = category_root
+                                                        .children
+                                                        .clone()
+                                                        .into_iter()
+                                                        .find(|cat_child| get_parent_category(&cat_child, old_cat_id, 2).is_some())
+                                                        .map(|c| c.id);
+                                                    let new_cat_id = category_root
+                                                        .children
+                                                        .into_iter()
+                                                        .find(|cat_child| get_parent_category(&cat_child, new_cat_id, 2).is_some())
+                                                        .map(|c| c.id);
+                                                    if let (Some(old_cat_id), Some(new_cat_id)) = (old_cat_id, new_cat_id) {
+                                                        if new_cat_id != old_cat_id {
+                                                            stores_repo.find(old_prod_store_id).and_then(|store| {
+                                                                if let Some(store) = store {
+                                                                    let update_store = UpdateStore::update_product_categories(
+                                                                        store.product_categories.clone(),
+                                                                        old_cat_id,
+                                                                        new_cat_id,
+                                                                    );
+                                                                    stores_repo.update(store.id, update_store).map(|_| ())
+                                                                } else {
+                                                                    Ok(())
+                                                                }
+                                                            })
                                                         } else {
                                                             Ok(())
                                                         }
-                                                    })
-                                                } else {
-                                                    Ok(())
-                                                }
-                                            } else {
-                                                error!("Could not update store product categories because there is no such 3rd level category in db.");
-                                                Err(ControllerError::NotFound.into())
-                                            }
-                                        })
-                                        .and_then(|_| Ok(updated_prod))
-                                        
-                                } else if let Some(currency_id) = payload.currency_id {
-                                    // updating currency_id of base_products variants
-                                    products_repo
-                                        .update_currency_id(currency_id, updated_prod.id)
-                                        .map(|_| updated_prod)
-                                        
-                                } else {
-                                    Ok(updated_prod)
-                                }
+                                                    } else {
+                                                        error!("Could not update store product categories because there is no such 3rd level category in db.");
+                                                        Err(ControllerError::NotFound.into())
+                                                    }
+                                                })
+                                                .and_then(|_| Ok(updated_prod))
+                                        } else if let Some(currency_id) = payload.currency_id {
+                                            // updating currency_id of base_products variants
+                                            products_repo.update_currency_id(currency_id, updated_prod.id).map(|_| updated_prod)
+                                        } else {
+                                            Ok(updated_prod)
+                                        }
+                                    })
                             })
-                    })
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service BaseProduct, update endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, update endpoint error occured.").into()),
         )
     }
 }

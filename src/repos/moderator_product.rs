@@ -42,20 +42,23 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find_by_base_product_id(&self, base_product_id_arg: i32) -> RepoResult<Option<ModeratorProductComments>> {
         debug!("Find moderator comments for base product id {}.", base_product_id_arg);
         let query = moderator_product_comments
-                .filter(base_product_id.eq(base_product_id_arg))
-                .order_by(id.desc())
-                .limit(1);
-            query
-                .get_result(self.db_conn)
-                .optional()
-                .map_err(|e| e.into())
-                .and_then(|comment: Option<ModeratorProductComments>| {
-                    if let Some(ref comment) = comment {
-                        acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Read, self, Some(comment))?;
-                    };
-                    Ok(comment)
-                })
-                .map_err(|e: FailureError| e.context(format!("Find moderator comments for base product id {}", base_product_id_arg)).into())
+            .filter(base_product_id.eq(base_product_id_arg))
+            .order_by(id.desc())
+            .limit(1);
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(|e| e.into())
+            .and_then(|comment: Option<ModeratorProductComments>| {
+                if let Some(ref comment) = comment {
+                    acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Read, self, Some(comment))?;
+                };
+                Ok(comment)
+            })
+            .map_err(|e: FailureError| {
+                e.context(format!("Find moderator comments for base product id {}", base_product_id_arg))
+                    .into()
+            })
     }
 
     /// Creates new comment
@@ -66,15 +69,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<ModeratorProductComments>(self.db_conn)
             .map_err(|e| e.into())
             .and_then(|comment| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::ModeratorProductComments,
-                    &Action::Create,
-                    self,
-                    None)?;
+                acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Create, self, None)?;
                 Ok(comment)
             })
-            .map_err(|e: FailureError| e.context(format!("Create moderator comments for base product {:?}.", payload)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!("Create moderator comments for base product {:?}.", payload))
+                    .into()
+            })
     }
 }
 

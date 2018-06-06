@@ -1,8 +1,9 @@
-use hyper::StatusCode;
 use failure::Error;
+use hyper::StatusCode;
+use serde_json;
 use validator::ValidationErrors;
 
-use stq_http::errors::Codeable;
+use stq_http::errors::{Codeable, PayloadCarrier};
 
 #[derive(Debug, Fail)]
 pub enum ControllerError {
@@ -10,7 +11,7 @@ pub enum ControllerError {
     NotFound,
     #[fail(display = "Parse error")]
     Parse,
-    #[fail(display = "Validation error: {}", _0)]
+    #[fail(display = "Validation error")]
     Validate(ValidationErrors),
     #[fail(display = "Server is refusing to fullfil the reqeust")]
     Forbidden,
@@ -22,9 +23,9 @@ pub enum ControllerError {
 
 impl Codeable for ControllerError {
     fn code(&self) -> StatusCode {
-       match *self {
+        match *self {
             ControllerError::NotFound => StatusCode::NotFound,
-            ControllerError::Validate(_)=> StatusCode::BadRequest,
+            ControllerError::Validate(_) => StatusCode::BadRequest,
             ControllerError::Parse => StatusCode::UnprocessableEntity,
             ControllerError::Connection(_) | ControllerError::ElasticSearch(_) => StatusCode::InternalServerError,
             ControllerError::Forbidden => StatusCode::Forbidden,
@@ -32,3 +33,11 @@ impl Codeable for ControllerError {
     }
 }
 
+impl PayloadCarrier for ControllerError {
+    fn payload(&self) -> Option<serde_json::Value> {
+        match *self {
+            ControllerError::Validate(ref e) => serde_json::to_value(e.clone()).ok(),
+            _ => None,
+        }
+    }
+}

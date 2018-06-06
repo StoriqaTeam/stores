@@ -42,20 +42,20 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find_by_store_id(&self, store_id_arg: i32) -> RepoResult<Option<ModeratorStoreComments>> {
         debug!("Find moderator comments for store id {}.", store_id_arg);
         let query = moderator_store_comments
-                .filter(store_id.eq(store_id_arg))
-                .order_by(id.desc())
-                .limit(1);
-            query
-                .get_result(self.db_conn)
-                .optional()
-                .map_err(|e| e.into())
-                .and_then(|comment: Option<ModeratorStoreComments>| {
-                    if let Some(ref comment) = comment {
-                        acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Read, self, Some(comment))?;
-                    };
-                    Ok(comment)
-                })
-                .map_err(|e: FailureError| e.context(format!("Find moderator comments for store id {}", store_id_arg)).into())
+            .filter(store_id.eq(store_id_arg))
+            .order_by(id.desc())
+            .limit(1);
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(|e| e.into())
+            .and_then(|comment: Option<ModeratorStoreComments>| {
+                if let Some(ref comment) = comment {
+                    acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Read, self, Some(comment))?;
+                };
+                Ok(comment)
+            })
+            .map_err(|e: FailureError| e.context(format!("Find moderator comments for store id {}", store_id_arg)).into())
     }
 
     /// Creates new comment
@@ -66,12 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<ModeratorStoreComments>(self.db_conn)
             .map_err(|e| e.into())
             .and_then(|comment| {
-                acl::check(
-                    &*self.acl,
-                    &Resource::ModeratorStoreComments,
-                    &Action::Create,
-                    self,
-                    None)?;
+                acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Create, self, None)?;
                 Ok(comment)
             })
             .map_err(|e: FailureError| e.context(format!("Create moderator comments for store {:?}.", payload)).into())

@@ -12,7 +12,6 @@ use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::ReposFactory;
 use services::types::ServiceFuture;
 
-
 pub trait AttributesService {
     /// Returns attribute by ID
     fn get(&self, attribute_id: i32) -> ServiceFuture<Option<Attribute>>;
@@ -104,9 +103,7 @@ impl<
                 .map_err(|e| ControllerError::Connection(e.into()).into())
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    conn.transaction::<(Attribute), FailureError, _>(move || {
-                        attributes_repo.create(new_attribute)
-                    })
+                    conn.transaction::<(Attribute), FailureError, _>(move || attributes_repo.create(new_attribute))
                 })
         }))
     }

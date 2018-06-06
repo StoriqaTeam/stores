@@ -47,11 +47,11 @@ pub mod macros;
 pub mod config;
 pub mod controller;
 pub mod elastic;
+pub mod errors;
 pub mod models;
 pub mod repos;
 pub mod services;
 pub mod types;
-pub mod errors;
 
 use std::env;
 use std::io::Write;
@@ -73,11 +73,11 @@ use stq_http::client::Config as HttpConfig;
 use stq_http::controller::Application;
 
 use config::Config;
+use errors::ControllerError;
 use repos::acl::RolesCacheImpl;
 use repos::attributes::AttributeCacheImpl;
 use repos::categories::CategoryCacheImpl;
 use repos::repo_factory::ReposFactoryImpl;
-use errors::ControllerError;
 
 /// Starts new web service from provided `Config`
 pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>, callback: F) {

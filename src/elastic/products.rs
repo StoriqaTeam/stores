@@ -1,17 +1,16 @@
 //! ProductsSearch repo, presents CRUD operations with db for users
+use errors::ControllerError;
+use failure::Fail;
 use future;
 use futures::Future;
-use failure::Fail;
 use hyper::Method;
 use hyper::header::{ContentLength, ContentType, Headers};
 use serde_json;
 use stq_http::client::ClientHandle;
-use errors::ControllerError;
 
 use super::{log_elastic_req, log_elastic_resp};
 use models::*;
 use repos::types::RepoFuture;
-
 
 /// ProductsSearch repository, responsible for handling products
 pub struct ProductsElasticImpl {
@@ -347,9 +346,14 @@ impl ProductsElastic for ProductsElasticImpl {
                     let prods = ProductsElasticImpl::create_products_from_search_response(res);
                     future::ok(prods)
                 })
-                .map_err(move |e| ControllerError::ElasticSearch(e.into())
-                    .context(format!("Search product by name error occured. Prod: {:?}, count: {:?}, offset: {:?}", prod, count, offset)).into() 
-                    ) 
+                .map_err(move |e| {
+                    ControllerError::ElasticSearch(e.into())
+                        .context(format!(
+                            "Search product by name error occured. Prod: {:?}, count: {:?}, offset: {:?}",
+                            prod, count, offset
+                        ))
+                        .into()
+                }),
         )
     }
 
@@ -403,9 +407,14 @@ impl ProductsElastic for ProductsElasticImpl {
                     let prods = ProductsElasticImpl::create_products_from_search_response(res);
                     future::ok(prods)
                 })
-                .map_err(move |e| ControllerError::ElasticSearch(e.into())
-                    .context(format!("Search most viewed product error occured. Prod: {:?}, count: {:?}, offset: {:?}", prod, count, offset)).into() 
-                ) 
+                .map_err(move |e| {
+                    ControllerError::ElasticSearch(e.into())
+                        .context(format!(
+                            "Search most viewed product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
+                            prod, count, offset
+                        ))
+                        .into()
+                }),
         )
     }
 
@@ -489,9 +498,14 @@ impl ProductsElastic for ProductsElasticImpl {
                     let prods = ProductsElasticImpl::create_products_from_search_response(res);
                     future::ok(prods)
                 })
-                .map_err(move |e| ControllerError::ElasticSearch(e.into())
-                    .context(format!("Search most discount product error occured. Prod: {:?}, count: {:?}, offset: {:?}", prod, count, offset)).into() 
-                ) 
+                .map_err(move |e| {
+                    ControllerError::ElasticSearch(e.into())
+                        .context(format!(
+                            "Search most discount product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
+                            prod, count, offset
+                        ))
+                        .into()
+                }),
         )
     }
 
@@ -518,9 +532,14 @@ impl ProductsElastic for ProductsElasticImpl {
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.suggested_texts()))
-                .map_err(move |e| ControllerError::ElasticSearch(e.into())
-                    .context(format!("Auto complete product name error occured. Name: {:?}, count: {:?}, offset: {:?}", name, count, _offset)).into() 
-                ) 
+                .map_err(move |e| {
+                    ControllerError::ElasticSearch(e.into())
+                        .context(format!(
+                            "Auto complete product name error occured. Name: {:?}, count: {:?}, offset: {:?}",
+                            name, count, _offset
+                        ))
+                        .into()
+                }),
         )
     }
 
@@ -600,9 +619,11 @@ impl ProductsElastic for ProductsElasticImpl {
                     }
                     future::ok(cats)
                 })
-                .map_err(move |e| ControllerError::ElasticSearch(e.into())
-                    .context(format!("Aggregate categories for products error occured. Name: {:?}", name)).into() 
-                ) 
+                .map_err(move |e| {
+                    ControllerError::ElasticSearch(e.into())
+                        .context(format!("Aggregate categories for products error occured. Name: {:?}", name))
+                        .into()
+                }),
         )
     }
 
@@ -735,9 +756,11 @@ impl ProductsElastic for ProductsElasticImpl {
                     }
                     future::ok(price_filters)
                 })
-                .map_err(move |e| ControllerError::ElasticSearch(e.into())
-                    .context(format!("Aggregate price name error occured. Prod: {:?}", prod)).into() 
-                ) 
+                .map_err(move |e| {
+                    ControllerError::ElasticSearch(e.into())
+                        .context(format!("Aggregate price name error occured. Prod: {:?}", prod))
+                        .into()
+                }),
         )
     }
 }

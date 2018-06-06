@@ -66,7 +66,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Ok(attribute)
                 })
                 .map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occured", id_arg)).into())
-                
         }
     }
 
@@ -116,10 +115,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 self.cache.remove(attribute_id_arg);
                 let filter = attributes.filter(id.eq(attribute_id_arg));
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Attribute>(self.db_conn)
-                    .map_err(|e| e.into())
+                query.get_result::<Attribute>(self.db_conn).map_err(|e| e.into())
             })
-            .map_err(|e: FailureError| e.context(format!("Updates specific attribute: id: {}, payload: {:?},  error occured",attribute_id_arg, payload)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Updates specific attribute: id: {}, payload: {:?},  error occured",
+                    attribute_id_arg, payload
+                )).into()
+            })
     }
 }
 

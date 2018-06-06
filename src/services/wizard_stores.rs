@@ -2,8 +2,8 @@
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use failure::Fail;
 use failure::Error as FailureError;
+use failure::Fail;
 use future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
@@ -69,15 +69,18 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
                     .and_then(move |conn| {
                         let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                         wizard_stores_repo.find_by_user_id(user_id)
                     })
             }))
         } else {
-            Box::new(future::err(ControllerError::Forbidden
-                .context("Denied request to wizard for unauthorized user").into()))
+            Box::new(future::err(
+                ControllerError::Forbidden
+                    .context("Denied request to wizard for unauthorized user")
+                    .into(),
+            ))
         }
     }
 
@@ -92,17 +95,18 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
                     .and_then(move |conn| {
                         let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                         wizard_stores_repo.delete(user_id)
                     })
             }))
         } else {
-            Box::new(future::err(ControllerError::Forbidden
-                .context("Denied request to wizard for unauthorized user").into()))
-
+            Box::new(future::err(
+                ControllerError::Forbidden
+                    .context("Denied request to wizard for unauthorized user")
+                    .into(),
+            ))
         }
     }
 
@@ -121,23 +125,23 @@ impl<
                         .and_then(move |conn| {
                             let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                             conn.transaction::<WizardStore, FailureError, _>(move || {
-                                wizard_stores_repo
-                                    .find_by_user_id(user_id)
-                                    .and_then(|wizard| {
-                                        if let Some(wizard) = wizard {
-                                            Ok(wizard)
-                                        } else {
-                                            wizard_stores_repo.create(user_id)
-                                        }
-                                    })
+                                wizard_stores_repo.find_by_user_id(user_id).and_then(|wizard| {
+                                    if let Some(wizard) = wizard {
+                                        Ok(wizard)
+                                    } else {
+                                        wizard_stores_repo.create(user_id)
+                                    }
+                                })
                             })
                         })
                 })
             })
         } else {
-            Box::new(future::err(ControllerError::Forbidden
-                .context("Denied request to wizard for unauthorized user").into()))
-
+            Box::new(future::err(
+                ControllerError::Forbidden
+                    .context("Denied request to wizard for unauthorized user")
+                    .into(),
+            ))
         }
     }
 
@@ -152,30 +156,30 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
-
+                    .map_err(|e| ControllerError::Connection(e.into()).into())
                     .and_then(move |conn| {
                         if let Some(slug) = payload.slug.clone() {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, Some(user_id));
                             let slug_exist = if let Some(store_id) = payload.store_id {
-                                stores_repo.find(store_id)
-                                .and_then(|store| {
-                                    if let Some(store) = store {
-                                        Ok(store)
-                                    } else {
-                                        error!("Not found such store id : {}", store_id);
-                                        Err(ControllerError::NotFound.into())
-                                    }
-                                })
-                                .and_then(|s| {
-                                    if s.slug == slug {
-                                        // if updated slug equal wizard stores store slug
-                                        Ok(false)
-                                    } else {
-                                        // if updated slug equal other stores slug
-                                        stores_repo.slug_exists(slug)
-                                    }
-                                })
+                                stores_repo
+                                    .find(store_id)
+                                    .and_then(|store| {
+                                        if let Some(store) = store {
+                                            Ok(store)
+                                        } else {
+                                            error!("Not found such store id : {}", store_id);
+                                            Err(ControllerError::NotFound.into())
+                                        }
+                                    })
+                                    .and_then(|s| {
+                                        if s.slug == slug {
+                                            // if updated slug equal wizard stores store slug
+                                            Ok(false)
+                                        } else {
+                                            // if updated slug equal other stores slug
+                                            stores_repo.slug_exists(slug)
+                                        }
+                                    })
                             } else {
                                 stores_repo.slug_exists(slug)
                             };
@@ -196,8 +200,11 @@ impl<
                     })
             }))
         } else {
-            Box::new(future::err(ControllerError::Forbidden
-                .context("Denied request to wizard for unauthorized user").into()))
+            Box::new(future::err(
+                ControllerError::Forbidden
+                    .context("Denied request to wizard for unauthorized user")
+                    .into(),
+            ))
         }
     }
 }

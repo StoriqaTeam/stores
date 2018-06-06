@@ -3,13 +3,13 @@
 //! relationship
 
 use diesel;
-use diesel::prelude::*;
-use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use failure::Fail;
+use diesel::prelude::*;
+use diesel::query_dsl::RunQueryDsl;
 use failure::Error as FailureError;
+use failure::Fail;
 
 use stq_acl::*;
 
@@ -79,7 +79,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         debug!("create new user role {:?}.", payload);
         self.cached_roles.remove(payload.user_id);
         let query = diesel::insert_into(user_roles).values(&payload);
-        query.get_result(self.db_conn)
+        query
+            .get_result(self.db_conn)
             .map_err(|e| e.context(format!("create new user role {:?}.", payload)).into())
     }
 
@@ -88,7 +89,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         self.cached_roles.remove(payload.user_id);
         let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role.clone()));
         let query = diesel::delete(filtered);
-        query.get_result(self.db_conn)
+        query
+            .get_result(self.db_conn)
             .map_err(move |e| e.context(format!("delete user role {:?}.", payload)).into())
     }
 
@@ -97,7 +99,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         self.cached_roles.remove(user_id_arg);
         let filtered = user_roles.filter(user_id.eq(user_id_arg));
         let query = diesel::delete(filtered);
-        query.get_result(self.db_conn)
+        query
+            .get_result(self.db_conn)
             .map_err(|e| e.context(format!("delete user role by id {}.", user_id_arg)).into())
     }
 }

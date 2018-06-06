@@ -10,9 +10,9 @@ pub use self::roles_cache::RolesCacheImpl;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use failure::Fail;
-use failure::Error as FailureError;
 use errors::ControllerError;
+use failure::Error as FailureError;
+use failure::Fail;
 
 use stq_acl::{Acl, CheckScope};
 

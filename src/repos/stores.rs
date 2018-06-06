@@ -73,7 +73,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(store)
             })
             .map_err(|e: FailureError| e.context(format!("Find store with id: {} error occured", store_id_arg)).into())
-   
     }
 
     /// Creates new store
@@ -101,7 +100,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(stores_res.clone())
             })
-            .map_err(|e: FailureError| e.context(format!("Find in stores from {} count {} error occured.", from, count)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!("Find in stores from {} count {} error occured.", from, count))
+                    .into()
+            })
     }
 
     /// Updates specific store
@@ -113,10 +115,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Store>(self.db_conn)
-                .map_err(|e| e.into())
+                query.get_result::<Store>(self.db_conn).map_err(|e| e.into())
             })
-            .map_err(|e: FailureError| e.context(format!("Updating store with id {} and payload {:?} error occured.", store_id_arg, payload)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Updating store with id {} and payload {:?} error occured.",
+                    store_id_arg, payload
+                )).into()
+            })
     }
 
     /// Deactivates specific store
@@ -129,7 +135,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             })
-            .map_err(|e: FailureError| e.context(format!("Deactivate store with id {} error occured.", store_id_arg)).into())
+            .map_err(|e: FailureError| {
+                e.context(format!("Deactivate store with id {} error occured.", store_id_arg))
+                    .into()
+            })
     }
 
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {

@@ -10,7 +10,6 @@ use r2d2::{ManageConnection, Pool};
 
 use errors::ControllerError;
 
-
 use super::types::ServiceFuture;
 use models::{CurrencyExchange, NewCurrencyExchange};
 use repos::ReposFactory;
@@ -62,17 +61,18 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                    currency_exchange_repo.get_latest()
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            currency_exchange_repo.get_latest()
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service CurrencyExchange, get_latest endpoint error occured.").into())
+                .map_err(|e| e.context("Service CurrencyExchange, get_latest endpoint error occured.").into()),
         )
     }
     /// Updates currencies exchange
@@ -81,17 +81,18 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
-
-                .and_then(move |conn| {
-                    let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                    currency_exchange_repo.update(payload)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .and_then(move |conn| {
+                            let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            currency_exchange_repo.update(payload)
+                        })
                 })
-        })
-        .map_err(|e| e.context("Service CurrencyExchange, update endpoint error occured.").into())
+                .map_err(|e| e.context("Service CurrencyExchange, update endpoint error occured.").into()),
         )
     }
 }

@@ -48,7 +48,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(|e| e.into())
             .and_then(|currency_exchange_arg: Option<CurrencyExchange>| {
                 if let Some(ref currency_exchange_arg) = currency_exchange_arg {
-                    acl::check(&*self.acl, &Resource::CurrencyExchange, &Action::Read, self, Some(currency_exchange_arg))?;
+                    acl::check(
+                        &*self.acl,
+                        &Resource::CurrencyExchange,
+                        &Action::Read,
+                        self,
+                        Some(currency_exchange_arg),
+                    )?;
                 };
                 Ok(currency_exchange_arg)
             })

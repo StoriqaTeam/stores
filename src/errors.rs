@@ -10,7 +10,7 @@ pub enum ControllerError {
     #[fail(display = "Not found")]
     NotFound,
     #[fail(display = "Parse error")]
-    Parse(String),
+    Parse,
     #[fail(display = "Validation error")]
     Validate(ValidationErrors),
     #[fail(display = "Server is refusing to fullfil the reqeust")]
@@ -26,7 +26,7 @@ impl Codeable for ControllerError {
         match *self {
             ControllerError::NotFound => StatusCode::NotFound,
             ControllerError::Validate(_) => StatusCode::BadRequest,
-            ControllerError::Parse(_) => StatusCode::UnprocessableEntity,
+            ControllerError::Parse => StatusCode::UnprocessableEntity,
             ControllerError::Connection(_) | ControllerError::ElasticSearch(_) => StatusCode::InternalServerError,
             ControllerError::Forbidden => StatusCode::Forbidden,
         }

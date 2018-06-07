@@ -9,7 +9,7 @@ use failure::Fail;
 use futures::future::*;
 use r2d2::{ManageConnection, Pool};
 
-use errors::ControllerError;
+use errors::Error;
 
 use super::types::ServiceFuture;
 use models::{CurrencyExchange, NewCurrencyExchange};
@@ -67,7 +67,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             currency_exchange_repo.get_latest()
@@ -87,7 +87,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             currency_exchange_repo.update(payload)

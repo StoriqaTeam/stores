@@ -10,7 +10,7 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::ControllerError;
+use errors::Error;
 use stq_http::client::ClientHandle;
 
 use super::types::ServiceFuture;
@@ -92,7 +92,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.find(product_id)
@@ -113,7 +113,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
@@ -148,7 +148,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.deactivate(product_id)
@@ -170,7 +170,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.list(from, count)
@@ -193,7 +193,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
@@ -235,7 +235,7 @@ impl<
                                                     })
                                                 });
                                                 if exists {
-                                                    Err(ControllerError::Validate(
+                                                    Err(Error::Validate(
                                                         validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
                                                     ).context(format!("Product with attributes {:?} already exists", attributes))
                                                         .into())
@@ -259,7 +259,7 @@ impl<
                                                                 );
                                                                 prod_attr_repo.create(new_prod_attr)
                                                             } else {
-                                                                Err(ControllerError::NotFound
+                                                                Err(Error::NotFound
                                                                     .context(format!(
                                                                         "Not found such attribute id : {}",
                                                                         attr_value.attr_id
@@ -292,7 +292,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
@@ -308,7 +308,7 @@ impl<
                                         if let Some(product) = product {
                                             Ok(product)
                                         } else {
-                                            Err(ControllerError::NotFound
+                                            Err(Error::NotFound
                                                 .context(format!("Not found such product id : {}", product_id))
                                                 .into())
                                         }
@@ -343,7 +343,7 @@ impl<
                                                 })
                                             });
                                             if exists {
-                                                Err(ControllerError::Validate(
+                                                Err(Error::Validate(
                                                     validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
                                                 ).context(format!("Product with attributes {:?} already exists", attributes)).into())
                                             } else {
@@ -368,7 +368,7 @@ impl<
                                                                 );
                                                                 prod_attr_repo.create(new_prod_attr)
                                                             } else {
-                                                                Err(ControllerError::NotFound.context(format!("Not found such attribute id : {}", attr_value.attr_id)).into())
+                                                                Err(Error::NotFound.context(format!("Not found such attribute id : {}", attr_value.attr_id)).into())
                                                             }
                                                         })
                                                 })
@@ -398,7 +398,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.find_with_base_id(base_product_id)
@@ -420,7 +420,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                             prod_attr_repo

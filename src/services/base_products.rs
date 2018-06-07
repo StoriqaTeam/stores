@@ -18,7 +18,7 @@ use stq_static_resources::Currency;
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
-use errors::ControllerError;
+use errors::Error;
 use models::*;
 use repos::clear_child_categories;
 use repos::get_all_children_till_the_end;
@@ -117,7 +117,7 @@ impl<
             move || {
                 db_pool
                     .get()
-                    .map_err(|e| e.context(ControllerError::Connection).into())
+                    .map_err(|e| e.context(Error::Connection).into())
                     .and_then(move |conn| {
                         if let Some(category_id) = category_id {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
@@ -162,7 +162,7 @@ impl<
             move || {
                 db_pool
                     .get()
-                    .map_err(|e| e.context(ControllerError::Connection).into())
+                    .map_err(|e| e.context(Error::Connection).into())
                     .and_then(move |conn| {
                         if let Some(category_id) = category_id {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
@@ -196,7 +196,7 @@ impl<
             move || {
                 db_pool
                     .get()
-                    .map_err(|e| e.context(ControllerError::Connection).into())
+                    .map_err(|e| e.context(Error::Connection).into())
                     .and_then(move |conn| {
                         if let Some(currency_id) = currency_id {
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
@@ -210,9 +210,7 @@ impl<
                                         x if x == (Currency::Etherium as i32) => currencies.etherium,
                                         x if x == (Currency::Stq as i32) => currencies.stq,
                                         c => {
-                                            return Err(ControllerError::NotFound
-                                                .context(format!("Not found such currency_id : {}", c))
-                                                .into());
+                                            return Err(Error::NotFound.context(format!("Not found such currency_id : {}", c)).into());
                                         }
                                     }.as_object()
                                         .map(|m| {
@@ -278,7 +276,7 @@ impl<
                             cpu_pool.spawn_fn(move || {
                                 db_pool
                                     .get()
-                                    .map_err(|e| e.context(ControllerError::Connection).into())
+                                    .map_err(|e| e.context(Error::Connection).into())
                                     .and_then(move |conn| {
                                         let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                         base_products_repo.convert_from_elastic(el_products)
@@ -334,7 +332,7 @@ impl<
                             cpu_pool.spawn_fn(move || {
                                 db_pool
                                     .get()
-                                    .map_err(|e| e.context(ControllerError::Connection).into())
+                                    .map_err(|e| e.context(Error::Connection).into())
                                     .and_then(move |conn| {
                                         let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                         base_products_repo.convert_from_elastic(el_products)
@@ -370,7 +368,7 @@ impl<
                             cpu_pool.spawn_fn(move || {
                                 db_pool
                                     .get()
-                                    .map_err(|e| e.context(ControllerError::Connection).into())
+                                    .map_err(|e| e.context(Error::Connection).into())
                                     .and_then(move |conn| {
                                         let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                         base_products_repo.convert_from_elastic(el_products)
@@ -433,7 +431,7 @@ impl<
                     .spawn_fn(move || {
                         db_pool
                             .get()
-                            .map_err(|e| e.context(ControllerError::Connection).into())
+                            .map_err(|e| e.context(Error::Connection).into())
                             .and_then(move |conn| {
                                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                 categories_repo.get_all().and_then(|category| {
@@ -476,7 +474,7 @@ impl<
                         cpu_pool.spawn_fn(move || {
                             db_pool
                                 .get()
-                                .map_err(|e| e.context(ControllerError::Connection).into())
+                                .map_err(|e| e.context(Error::Connection).into())
                                 .and_then(move |conn| {
                                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                     categories_repo.get_all()
@@ -566,7 +564,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.update_views(product_id)
@@ -587,7 +585,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
@@ -617,7 +615,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
@@ -631,7 +629,7 @@ impl<
                                             .into_iter()
                                             .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
                                             .ok_or_else(|| {
-                                                ControllerError::NotFound
+                                                Error::NotFound
                                                     .context(format!("There is no such 3rd level category in db - {}", prod.category_id))
                                                     .into()
                                             })
@@ -686,7 +684,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.list(from, count)
@@ -713,7 +711,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.get_products_of_the_store(store_id, skip_base_product_id, from, count)
@@ -737,7 +735,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
@@ -769,7 +767,7 @@ impl<
                                                 .into_iter()
                                                 .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
                                                 .ok_or_else(|| {
-                                                    ControllerError::NotFound
+                                                    Error::NotFound
                                                         .context(format!(
                                                             "There is no such 3rd level category in db - {}",
                                                             prod.category_id
@@ -833,7 +831,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
@@ -857,7 +855,7 @@ impl<
                                             };
                                             exists.and_then(|exists| {
                                                 if exists {
-                                                    Err(ControllerError::Validate(
+                                                    Err(Error::Validate(
                                                         validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
                                                     ).context(format!("Store with slug '{:?}' already exists.", payload.slug.clone()))
                                                         .into())
@@ -866,7 +864,7 @@ impl<
                                                 }
                                             })
                                         } else {
-                                            Err(ControllerError::NotFound.into())
+                                            Err(Error::NotFound.into())
                                         }
                                     })
                                     .and_then(|old_prod| {
@@ -911,7 +909,7 @@ impl<
                                                             Ok(())
                                                         }
                                                     } else {
-                                                        Err(ControllerError::NotFound.context(format!("Could not update store product categories because there is no such 3rd level category in db.")).into())
+                                                        Err(Error::NotFound.context(format!("Could not update store product categories because there is no such 3rd level category in db.")).into())
                                                     }
                                                 })
                                                 .and_then(|_| Ok(updated_prod))

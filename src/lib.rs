@@ -3,8 +3,8 @@
 //!
 //! `Application -> Controller -> Service -> Repo + HttpClient`
 //!
-//! Each layer can throw ControllerError with context or cover occured error with
-//! ControllerError in the context. When error is not covered with ControllerError it will
+//! Each layer can throw Error with context or cover occured error with
+//! Error in the context. When error is not covered with Error it will
 //! be translated to code 500 in the http answer "Internal server error" of microservice.
 #![recursion_limit = "128"]
 extern crate chrono;
@@ -71,7 +71,7 @@ use stq_http::client::Config as HttpConfig;
 use stq_http::controller::Application;
 
 use config::Config;
-use errors::ControllerError;
+use errors::Error;
 use repos::acl::RolesCacheImpl;
 use repos::attributes::AttributeCacheImpl;
 use repos::categories::CategoryCacheImpl;
@@ -146,7 +146,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
             );
 
             // Prepare application
-            let app = Application::<ControllerError>::new(controller);
+            let app = Application::<Error>::new(controller);
 
             Ok(app)
         })

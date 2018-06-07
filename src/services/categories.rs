@@ -9,7 +9,7 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::ControllerError;
+use errors::Error;
 
 use super::types::ServiceFuture;
 use models::{Attribute, NewCatAttr, OldCatAttr};
@@ -79,7 +79,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.find(category_id)
@@ -100,7 +100,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             conn.transaction::<(Category), FailureError, _>(move || categories_repo.create(new_category))
@@ -122,7 +122,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.update(category_id, payload)
@@ -143,7 +143,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.get_all()
@@ -165,7 +165,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
                             let attrs_repo = repo_factory.create_attributes_repo(&*conn, user_id);
@@ -180,7 +180,7 @@ impl<
                                                 if let Some(attr) = attr {
                                                     Ok(attr)
                                                 } else {
-                                                    Err(ControllerError::NotFound
+                                                    Err(Error::NotFound
                                                         .context(format!("No such attribute with id : {}", cat_attr.attr_id))
                                                         .into())
                                                 }
@@ -206,7 +206,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
                             category_attrs_repo.create(payload)
@@ -231,7 +231,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
                             category_attrs_repo.delete(payload)

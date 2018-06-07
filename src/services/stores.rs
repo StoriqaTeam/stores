@@ -10,7 +10,7 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::ControllerError;
+use errors::Error;
 use stq_http::client::ClientHandle;
 
 use super::types::ServiceFuture;
@@ -123,7 +123,7 @@ impl<
                         cpu_pool.spawn_fn(move || {
                             db_pool
                                 .get()
-                                .map_err(|e| e.context(ControllerError::Connection).into())
+                                .map_err(|e| e.context(Error::Connection).into())
                                 .and_then(move |conn| {
                                     el_stores
                                         .into_iter()
@@ -133,7 +133,7 @@ impl<
                                                 if let Some(store) = store {
                                                     Ok(store)
                                                 } else {
-                                                    Err(ControllerError::NotFound
+                                                    Err(Error::NotFound
                                                         .context(format!("Not found such store id : {}", el_store.id))
                                                         .into())
                                                 }
@@ -189,7 +189,7 @@ impl<
                     cpu_pool.spawn_fn(move || {
                         db_pool
                             .get()
-                            .map_err(|e| e.context(ControllerError::Connection).into())
+                            .map_err(|e| e.context(Error::Connection).into())
                             .and_then(move |conn| {
                                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                 categories_repo.get_all()
@@ -216,7 +216,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.find(store_id)
@@ -238,7 +238,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.count_with_store_id(store_id)
@@ -260,7 +260,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.deactivate(store_id)
@@ -282,7 +282,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.list(from, count)
@@ -304,7 +304,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             conn.transaction::<Store, FailureError, _>(move || {
@@ -313,7 +313,7 @@ impl<
                                     .map(move |exists| (payload, exists))
                                     .and_then(|(new_store, exists)| {
                                         if exists {
-                                            Err(ControllerError::Validate(
+                                            Err(Error::Validate(
                                                 validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
                                             ).context(format!("Store with slug '{}' already exists.", new_store.slug.clone()))
                                                 .into())
@@ -341,7 +341,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo
@@ -350,9 +350,7 @@ impl<
                                     if let Some(store) = store {
                                         Ok(store)
                                     } else {
-                                        Err(ControllerError::NotFound
-                                            .context(format!("Not found such store id : {}", store_id))
-                                            .into())
+                                        Err(Error::NotFound.context(format!("Not found such store id : {}", store_id)).into())
                                     }
                                 })
                                 .and_then(|s| {
@@ -360,7 +358,7 @@ impl<
                                         if s.slug != slug {
                                             stores_repo.slug_exists(slug.clone()).and_then(|exists| {
                                                 if exists {
-                                                    Err(ControllerError::Validate(
+                                                    Err(Error::Validate(
                                                         validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
                                                     ).context(format!("Store with slug '{}' already exists.", slug))
                                                         .into())
@@ -391,7 +389,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
@@ -402,7 +400,7 @@ impl<
                                         if let Some(product) = product {
                                             Ok(product)
                                         } else {
-                                            Err(ControllerError::NotFound
+                                            Err(Error::NotFound
                                                 .context(format!("Not found such product id : {}", cart_product.product_id))
                                                 .into())
                                         }
@@ -425,7 +423,7 @@ impl<
                                                     if let Some(product) = product {
                                                         Ok(product)
                                                     } else {
-                                                        Err(ControllerError::NotFound
+                                                        Err(Error::NotFound
                                                             .context(format!("Not found such base product id : {}", base_product_id))
                                                             .into())
                                                     }
@@ -449,7 +447,7 @@ impl<
                                                     if let Some(store) = store {
                                                         Ok(store)
                                                     } else {
-                                                        Err(ControllerError::NotFound
+                                                        Err(Error::NotFound
                                                             .context(format!("Not found such store id : {}", store_id))
                                                             .into())
                                                     }

@@ -1,5 +1,5 @@
 //! StoresSearch repo, presents CRUD operations with db for users
-use errors::ControllerError;
+use errors::Error;
 use failure::Fail;
 use futures::Future;
 use hyper::header::{ContentLength, ContentType, Headers};
@@ -132,7 +132,7 @@ impl StoresElastic for StoresElasticImpl {
                     e.context(format!(
                         "Search store by name error occured. Store: {:?}, count: {:?}, offset: {:?}",
                         search_store, count, offset
-                    )).context(ControllerError::ElasticSearch)
+                    )).context(Error::ElasticSearch)
                         .into()
                 }),
         )
@@ -166,7 +166,7 @@ impl StoresElastic for StoresElasticImpl {
                     e.context(format!(
                         "Auto complete store name error occured. Name: {:?}, count: {:?}, offset: {:?}",
                         name, count, _offset
-                    )).context(ControllerError::ElasticSearch)
+                    )).context(Error::ElasticSearch)
                         .into()
                 }),
         )
@@ -213,7 +213,7 @@ impl StoresElastic for StoresElasticImpl {
                 .map(|res| res.get_count() as i32)
                 .map_err(move |e| {
                     e.context(format!("Search store count error occured. Store: {:?}", search_store))
-                        .context(ControllerError::ElasticSearch)
+                        .context(Error::ElasticSearch)
                         .into()
                 }),
         )
@@ -278,7 +278,7 @@ impl StoresElastic for StoresElasticImpl {
                 })
                 .map_err(move |e| {
                     e.context(format!("Aggregate countries for store error occured. Store: {:?}", search_store))
-                        .context(ControllerError::ElasticSearch)
+                        .context(Error::ElasticSearch)
                         .into()
                 }),
         )
@@ -363,7 +363,7 @@ impl StoresElastic for StoresElasticImpl {
                 })
                 .map_err(move |e| {
                     e.context(format!("Aggregate categories for stores error occured. Store: {:?}", search_store))
-                        .context(ControllerError::ElasticSearch)
+                        .context(Error::ElasticSearch)
                         .into()
                 }),
         )

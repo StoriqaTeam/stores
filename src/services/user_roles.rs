@@ -7,7 +7,7 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::ControllerError;
+use errors::Error;
 
 use super::types::ServiceFuture;
 use models::{NewUserRole, OldUserRole, Role, UserRole};
@@ -68,7 +68,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.list_for_user(user_id)
@@ -88,7 +88,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.delete(payload)
@@ -108,7 +108,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.create(new_user_role)
@@ -128,7 +128,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.delete_by_user_id(user_id_arg)
@@ -148,7 +148,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let defaul_role = NewUserRole {
                                 user_id: user_id_arg,

@@ -10,7 +10,7 @@ pub use self::roles_cache::RolesCacheImpl;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use errors::ControllerError;
+use errors::Error;
 use failure::Error as FailureError;
 use failure::Fail;
 
@@ -29,7 +29,7 @@ pub fn check<T>(
         if allowed {
             Ok(())
         } else {
-            Err(ControllerError::Forbidden
+            Err(Error::Forbidden
                 .context(format!("Denied request to do {:?} on {:?}", action, resource))
                 .into())
         }

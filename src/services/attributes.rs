@@ -8,7 +8,7 @@ use futures::Future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::ControllerError;
+use errors::Error;
 
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::ReposFactory;
@@ -70,7 +70,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                             attributes_repo.find(attribute_id)
@@ -91,7 +91,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                             attributes_repo.list()
@@ -112,7 +112,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                             conn.transaction::<(Attribute), FailureError, _>(move || attributes_repo.create(new_attribute))
@@ -133,7 +133,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                             attributes_repo.update(attribute_id, payload)

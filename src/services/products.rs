@@ -92,7 +92,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.find(product_id)
@@ -113,7 +113,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
@@ -148,7 +148,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.deactivate(product_id)
@@ -170,7 +170,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.list(from, count)
@@ -193,7 +193,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
@@ -292,7 +292,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
@@ -398,7 +398,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             products_repo.find_with_base_id(base_product_id)
@@ -420,7 +420,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                             prod_attr_repo

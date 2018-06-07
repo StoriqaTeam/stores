@@ -3,6 +3,7 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
 use failure::Error as FailureError;
+use failure::Fail;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
@@ -66,7 +67,7 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
+                .map_err(|e| e.context(ControllerError::Connection).into())
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     attributes_repo.find(attribute_id)
@@ -83,7 +84,7 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
+                .map_err(|e| e.context(ControllerError::Connection).into())
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     attributes_repo.list()
@@ -100,7 +101,7 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
+                .map_err(|e| e.context(ControllerError::Connection).into())
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     conn.transaction::<(Attribute), FailureError, _>(move || attributes_repo.create(new_attribute))
@@ -117,7 +118,7 @@ impl<
         Box::new(self.cpu_pool.spawn_fn(move || {
             db_pool
                 .get()
-                .map_err(|e| ControllerError::Connection(e.into()).into())
+                .map_err(|e| e.context(ControllerError::Connection).into())
                 .and_then(move |conn| {
                     let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
                     attributes_repo.update(attribute_id, payload)

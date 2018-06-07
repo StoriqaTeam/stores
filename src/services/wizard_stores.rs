@@ -69,7 +69,7 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
+                    .map_err(|e| e.context(ControllerError::Connection).into())
                     .and_then(move |conn| {
                         let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                         wizard_stores_repo.find_by_user_id(user_id)
@@ -95,7 +95,7 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
+                    .map_err(|e| e.context(ControllerError::Connection).into())
                     .and_then(move |conn| {
                         let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                         wizard_stores_repo.delete(user_id)
@@ -121,7 +121,7 @@ impl<
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                             conn.transaction::<WizardStore, FailureError, _>(move || {
@@ -156,7 +156,7 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                    .map_err(|e| ControllerError::Connection(e.into()).into())
+                    .map_err(|e| e.context(ControllerError::Connection).into())
                     .and_then(move |conn| {
                         if let Some(slug) = payload.slug.clone() {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, Some(user_id));

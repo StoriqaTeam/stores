@@ -347,7 +347,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     future::ok(prods)
                 })
                 .map_err(move |e| {
-                    ControllerError::ElasticSearch(e.into())
+                    e.context(ControllerError::ElasticSearch)
                         .context(format!(
                             "Search product by name error occured. Prod: {:?}, count: {:?}, offset: {:?}",
                             prod, count, offset
@@ -408,7 +408,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     future::ok(prods)
                 })
                 .map_err(move |e| {
-                    ControllerError::ElasticSearch(e.into())
+                    e.context(ControllerError::ElasticSearch)
                         .context(format!(
                             "Search most viewed product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
                             prod, count, offset
@@ -499,7 +499,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     future::ok(prods)
                 })
                 .map_err(move |e| {
-                    ControllerError::ElasticSearch(e.into())
+                    e.context(ControllerError::ElasticSearch)
                         .context(format!(
                             "Search most discount product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
                             prod, count, offset
@@ -533,7 +533,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 .inspect(|ref res| log_elastic_resp(res))
                 .and_then(|res| future::ok(res.suggested_texts()))
                 .map_err(move |e| {
-                    ControllerError::ElasticSearch(e.into())
+                    e.context(ControllerError::ElasticSearch)
                         .context(format!(
                             "Auto complete product name error occured. Name: {:?}, count: {:?}, offset: {:?}",
                             name, count, _offset
@@ -620,7 +620,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     future::ok(cats)
                 })
                 .map_err(move |e| {
-                    ControllerError::ElasticSearch(e.into())
+                    e.context(ControllerError::ElasticSearch)
                         .context(format!("Aggregate categories for products error occured. Name: {:?}", name))
                         .into()
                 }),
@@ -757,7 +757,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     future::ok(price_filters)
                 })
                 .map_err(move |e| {
-                    ControllerError::ElasticSearch(e.into())
+                    e.context(ControllerError::ElasticSearch)
                         .context(format!("Aggregate price name error occured. Prod: {:?}", prod))
                         .into()
                 }),

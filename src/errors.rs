@@ -1,4 +1,3 @@
-use failure::Error;
 use hyper::StatusCode;
 use serde_json;
 use validator::ValidationErrors;
@@ -15,10 +14,10 @@ pub enum ControllerError {
     Validate(ValidationErrors),
     #[fail(display = "Server is refusing to fullfil the reqeust")]
     Forbidden,
-    #[fail(display = "Server is refusing to fullfil the reqeust: {}", _0)]
-    Connection(Error),
-    #[fail(display = "Server is refusing to fullfil the reqeust: {}", _0)]
-    ElasticSearch(Error),
+    #[fail(display = "R2D2 connection error")]
+    Connection,
+    #[fail(display = "Elastic search error")]
+    ElasticSearch,
 }
 
 impl Codeable for ControllerError {
@@ -27,7 +26,7 @@ impl Codeable for ControllerError {
             ControllerError::NotFound => StatusCode::NotFound,
             ControllerError::Validate(_) => StatusCode::BadRequest,
             ControllerError::Parse => StatusCode::UnprocessableEntity,
-            ControllerError::Connection(_) | ControllerError::ElasticSearch(_) => StatusCode::InternalServerError,
+            ControllerError::Connection | ControllerError::ElasticSearch => StatusCode::InternalServerError,
             ControllerError::Forbidden => StatusCode::Forbidden,
         }
     }

@@ -3,10 +3,9 @@
 //!
 //! `Application -> Controller -> Service -> Repo + HttpClient`
 //!
-//! Each layer can only face exceptions in its base layers and can only expose its own errors.
-//! E.g. `Service` layer will only deal with `Repo` and `HttpClient` errors and will only return
-//! `ServiceError`. That way Controller will only have to deal with ServiceError, but not with `Repo`
-//! or `HttpClient` repo.
+//! Each layer can throw ControllerError with context or cover occured error with
+//! ControllerError in the context. When error is not covered with ControllerError it will
+//! be translated to code 500 in the http answer "Internal server error" of microservice.
 #![recursion_limit = "128"]
 extern crate chrono;
 extern crate config as config_crate;

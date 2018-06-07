@@ -123,7 +123,7 @@ impl<
                         cpu_pool.spawn_fn(move || {
                             db_pool
                                 .get()
-                                .map_err(|e| ControllerError::Connection(e.into()).into())
+                                .map_err(|e| e.context(ControllerError::Connection).into())
                                 .and_then(move |conn| {
                                     el_stores
                                         .into_iter()
@@ -189,7 +189,7 @@ impl<
                     cpu_pool.spawn_fn(move || {
                         db_pool
                             .get()
-                            .map_err(|e| ControllerError::Connection(e.into()).into())
+                            .map_err(|e| e.context(ControllerError::Connection).into())
                             .and_then(move |conn| {
                                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                 categories_repo.get_all()
@@ -216,7 +216,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.find(store_id)
@@ -238,7 +238,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.count_with_store_id(store_id)
@@ -260,7 +260,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.deactivate(store_id)
@@ -282,7 +282,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.list(from, count)
@@ -304,7 +304,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             conn.transaction::<Store, FailureError, _>(move || {
@@ -341,7 +341,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo
@@ -391,7 +391,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);

@@ -5,6 +5,7 @@ use futures_cpupool::CpuPool;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
+use failure::Fail;
 use futures::future::*;
 use r2d2::{ManageConnection, Pool};
 
@@ -66,7 +67,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             currency_exchange_repo.get_latest()
@@ -86,7 +87,7 @@ impl<
                 .spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| ControllerError::Connection(e.into()).into())
+                        .map_err(|e| e.context(ControllerError::Connection).into())
                         .and_then(move |conn| {
                             let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             currency_exchange_repo.update(payload)

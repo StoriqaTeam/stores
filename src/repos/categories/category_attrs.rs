@@ -47,7 +47,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
         query
             .get_results(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
             })

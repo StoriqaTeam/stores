@@ -45,7 +45,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .first(self.db_conn)
             .optional()
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|currency_exchange_arg: Option<CurrencyExchange>| {
                 if let Some(ref currency_exchange_arg) = currency_exchange_arg {
                     acl::check(
@@ -67,7 +67,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::insert_into(currency_exchange).values(&payload);
         query
             .get_result::<CurrencyExchange>(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|currency_exchange_arg| {
                 acl::check(
                     &*self.acl,

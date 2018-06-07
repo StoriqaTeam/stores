@@ -71,7 +71,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(|e| e.into())
+        query.get_result::<Ty>(self.db_conn).map_err(From::from)
     }
 }
 
@@ -85,7 +85,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|base_product: Option<BaseProduct>| {
                 if let Some(ref base_product) = base_product {
                     acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(base_product))?;
@@ -119,7 +119,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_base_product = diesel::insert_into(base_products).values(&payload);
         query_base_product
             .get_result::<BaseProduct>(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|base_prod| {
                 acl::check(&*self.acl, &Resource::BaseProducts, &Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
             })
@@ -137,7 +137,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
                     acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
@@ -185,7 +185,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
                     acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
@@ -211,7 +211,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<BaseProduct>(self.db_conn).map_err(|e| e.into())
+                query.get_result::<BaseProduct>(self.db_conn).map_err(From::from)
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -228,13 +228,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|base_product: Option<BaseProduct>| {
                 if let Some(base_product) = base_product {
                     let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
                     let payload: UpdateBaseProductViews = base_product.into();
                     let query = diesel::update(filter).set(&payload);
-                    query.get_result::<BaseProduct>(self.db_conn).optional().map_err(|e| e.into())
+                    query.get_result::<BaseProduct>(self.db_conn).optional().map_err(From::from)
                 } else {
                     Ok(None)
                 }
@@ -269,7 +269,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::select(exists(base_products.filter(slug.eq(slug_arg.clone()))));
         query
             .get_result(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|exists| acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(move |e: FailureError| e.context(format!("Check if store slug {} exists failed", slug_arg)).into())
     }

@@ -46,7 +46,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(|e| e.into())
+        query.get_result::<Ty>(self.db_conn).map_err(From::from)
     }
 }
 
@@ -60,7 +60,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|wizard_store: Option<WizardStore>| {
                 if let Some(ref wizard_store) = wizard_store {
                     acl::check(&*self.acl, &Resource::WizardStores, &Action::Read, self, Some(wizard_store))?;
@@ -80,7 +80,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_store = diesel::insert_into(wizard_stores).values(&payload);
         query_store
             .get_result::<WizardStore>(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|wizard_store| {
                 acl::check(&*self.acl, &Resource::WizardStores, &Action::Create, self, Some(&wizard_store)).and_then(|_| Ok(wizard_store))
             })
@@ -101,7 +101,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<WizardStore>(self.db_conn).map_err(|e| e.into())
+                query.get_result::<WizardStore>(self.db_conn).map_err(From::from)
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -135,7 +135,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::select(exists(wizard_stores.filter(user_id.eq(user_id_arg))));
         query
             .get_result(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|exists| acl::check(&*self.acl, &Resource::WizardStores, &Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(|e: FailureError| {
                 e.context(format!("Check if wizard already exists for user {} error occured.", user_id_arg))

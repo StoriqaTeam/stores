@@ -195,8 +195,8 @@ impl<
                 serialize_future(
                     parse_body::<Vec<CartProduct>>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /stores/cart in Vec<CartProduct> failed!")
+                            e.context("Parsing body // POST /stores/cart in Vec<CartProduct> failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |cart_products| stores_service.find_by_cart(cart_products)),
@@ -210,8 +210,8 @@ impl<
                     serialize_future(
                         parse_body::<SearchStore>(req.body())
                             .map_err(|e| {
-                                e.context(Error::Parse)
-                                    .context("Parsing body // POST /stores/search in SearchStore failed!")
+                                e.context("Parsing body // POST /stores/search in SearchStore failed!")
+                                    .context(Error::Parse)
                                     .into()
                             })
                             .and_then(move |store_search| stores_service.find_by_name(store_search, count, offset)),
@@ -231,8 +231,8 @@ impl<
                 serialize_future(
                     parse_body::<SearchStore>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /stores/search/filters/count in SearchStore failed!")
+                            e.context("Parsing body // POST /stores/search/filters/count in SearchStore failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |search_store| stores_service.search_filters_count(search_store)),
@@ -248,8 +248,8 @@ impl<
                 serialize_future(
                     parse_body::<SearchStore>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /stores/search/filters/country in SearchStore failed!")
+                            e.context("Parsing body // POST /stores/search/filters/country in SearchStore failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |search_store| stores_service.search_filters_country(search_store)),
@@ -265,8 +265,8 @@ impl<
                 serialize_future(
                     parse_body::<SearchStore>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /stores/search/filters/category in SearchStore failed!")
+                            e.context("Parsing body // POST /stores/search/filters/category in SearchStore failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |search_store| stores_service.search_filters_category(search_store)),
@@ -280,8 +280,8 @@ impl<
                     serialize_future(
                         read_body(req.body())
                             .map_err(|e| {
-                                e.context(Error::Parse)
-                                    .context("Parsing body // POST /stores/auto_complete in String failed!")
+                                e.context("Parsing body // POST /stores/auto_complete in String failed!")
+                                    .context(Error::Parse)
                                     .into()
                             })
                             .and_then(move |name| stores_service.auto_complete(name, count, offset)),
@@ -301,8 +301,8 @@ impl<
                 serialize_future(
                     parse_body::<NewStore>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /stores in NewStore failed!")
+                            e.context("Parsing body // POST /stores in NewStore failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_store| {
@@ -321,8 +321,8 @@ impl<
                 serialize_future(
                     parse_body::<UpdateStore>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // PUT /stores/<store_id> in UpdateStore failed!")
+                            e.context("Parsing body // PUT /stores/<store_id> in UpdateStore failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |update_store| {
@@ -397,8 +397,8 @@ impl<
                 serialize_future(
                     parse_body::<NewProductWithAttributes>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /products in NewProductWithAttributes failed!")
+                            e.context("Parsing body // POST /products in NewProductWithAttributes failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_product| {
@@ -422,8 +422,8 @@ impl<
                 serialize_future(
                     parse_body::<UpdateProductWithAttributes>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // PUT /products/<product_id> in UpdateProductWithAttributes failed!")
+                            e.context("Parsing body // PUT /products/<product_id> in UpdateProductWithAttributes failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |update_product| {
@@ -488,8 +488,8 @@ impl<
                 serialize_future(
                     parse_body::<NewBaseProduct>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /base_products in NewBaseProduct failed!")
+                            e.context("Parsing body // POST /base_products in NewBaseProduct failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_base_product| {
@@ -511,8 +511,8 @@ impl<
                 serialize_future(
                     parse_body::<UpdateBaseProduct>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // PUT /base_products/<base_product_id> in UpdateBaseProduct failed!")
+                            e.context("Parsing body // PUT /base_products/<base_product_id> in UpdateBaseProduct failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |update_base_product| {
@@ -541,8 +541,8 @@ impl<
                     serialize_future(
                         parse_body::<SearchProductsByName>(req.body())
                             .map_err(|e| {
-                                e.context(Error::Parse)
-                                    .context("Parsing body // POST /products/search in SearchProductsByName failed!")
+                                e.context("Parsing body // POST /products/search in SearchProductsByName failed!")
+                                    .context(Error::Parse)
                                     .into()
                             })
                             .and_then(move |prod| base_products_service.search_by_name(prod, count, offset)),
@@ -563,8 +563,8 @@ impl<
                     serialize_future(
                         read_body(req.body())
                             .map_err(|e| {
-                                e.context(Error::Parse)
-                                    .context("Parsing body // POST /products/auto_complete in String failed!")
+                                e.context("Parsing body // POST /products/auto_complete in String failed!")
+                                    .context(Error::Parse)
                                     .into()
                             })
                             .and_then(move |name| base_products_service.auto_complete(name, count, offset)),
@@ -585,8 +585,8 @@ impl<
                     serialize_future(
                         parse_body::<MostDiscountProducts>(req.body())
                             .map_err(|e| {
-                                e.context(Error::Parse)
-                                    .context("Parsing body // POST /products/most_discount in MostDiscountProducts failed!")
+                                e.context("Parsing body // POST /products/most_discount in MostDiscountProducts failed!")
+                                    .context(Error::Parse)
                                     .into()
                             })
                             .and_then(move |prod| base_products_service.search_most_discount(prod, count, offset)),
@@ -607,8 +607,8 @@ impl<
                     serialize_future(
                         parse_body::<MostViewedProducts>(req.body())
                             .map_err(|e| {
-                                e.context(Error::Parse)
-                                    .context("Parsing body // POST /products/most_viewed in MostViewedProducts failed!")
+                                e.context("Parsing body // POST /products/most_viewed in MostViewedProducts failed!")
+                                    .context(Error::Parse)
                                     .into()
                             })
                             .and_then(move |prod| base_products_service.search_most_viewed(prod, count, offset)),
@@ -631,8 +631,8 @@ impl<
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!")
+                            e.context("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |search_prod| base_products_service.search_filters_price(search_prod)),
@@ -647,8 +647,8 @@ impl<
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!")
+                            e.context("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |search_prod| base_products_service.search_filters_category(search_prod)),
@@ -663,8 +663,8 @@ impl<
                 serialize_future(
                     parse_body::<SearchProductsByName>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!")
+                            e.context("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |search_prod| base_products_service.search_filters_attributes(search_prod)),
@@ -683,8 +683,8 @@ impl<
                 serialize_future(
                     parse_body::<NewUserRole>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /user_roles in NewUserRole failed!")
+                            e.context("Parsing body // POST /user_roles in NewUserRole failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_role| user_roles_service.create(new_role)),
@@ -697,8 +697,8 @@ impl<
                 serialize_future(
                     parse_body::<OldUserRole>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // DELETE /user_roles/<user_role_id> in OldUserRole failed!")
+                            e.context("Parsing body // DELETE /user_roles/<user_role_id> in OldUserRole failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |old_role| user_roles_service.delete(old_role)),
@@ -741,8 +741,8 @@ impl<
                 serialize_future(
                     parse_body::<NewAttribute>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /attributes in NewAttribute failed!")
+                            e.context("Parsing body // POST /attributes in NewAttribute failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_attribute| {
@@ -761,8 +761,8 @@ impl<
                 serialize_future(
                     parse_body::<UpdateAttribute>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // PUT /attributes/<attribute_id> in UpdateAttribute failed!")
+                            e.context("Parsing body // PUT /attributes/<attribute_id> in UpdateAttribute failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |update_attribute| {
@@ -787,8 +787,8 @@ impl<
                 serialize_future(
                     parse_body::<NewCategory>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /categories in NewCategory failed!")
+                            e.context("Parsing body // POST /categories in NewCategory failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_category| {
@@ -807,8 +807,8 @@ impl<
                 serialize_future(
                     parse_body::<UpdateCategory>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // PUT /categories/<category_id> in UpdateCategory failed!")
+                            e.context("Parsing body // PUT /categories/<category_id> in UpdateCategory failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |update_category| {
@@ -842,8 +842,8 @@ impl<
                 serialize_future(
                     parse_body::<NewCatAttr>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /categories/attributes in CategoryAttrs failed!")
+                            e.context("Parsing body // POST /categories/attributes in CategoryAttrs failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_category_attr| categories_service.add_attribute_to_category(new_category_attr)),
@@ -856,8 +856,8 @@ impl<
                 serialize_future(
                     parse_body::<OldCatAttr>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // DELETE /categories/attributes in OldCatAttr failed!")
+                            e.context("Parsing body // DELETE /categories/attributes in OldCatAttr failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |old_category_attr| categories_service.delete_attribute_from_category(old_category_attr)),
@@ -876,8 +876,8 @@ impl<
                 serialize_future(
                     parse_body::<NewCurrencyExchange>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /currency_exchange in NewCurrencyExchange failed!")
+                            e.context("Parsing body // POST /currency_exchange in NewCurrencyExchange failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_currency_exchange| currency_exchange_service.update(new_currency_exchange)),
@@ -902,8 +902,8 @@ impl<
                 serialize_future(
                     parse_body::<UpdateWizardStore>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!")
+                            e.context("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |update_wizard| wizard_store_service.update(update_wizard)),
@@ -931,8 +931,8 @@ impl<
                 serialize_future(
                     parse_body::<NewModeratorProductComments>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!")
+                            e.context("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments)),
@@ -954,8 +954,8 @@ impl<
                 serialize_future(
                     parse_body::<NewModeratorStoreComments>(req.body())
                         .map_err(|e| {
-                            e.context(Error::Parse)
-                                .context("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!")
+                            e.context("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!")
+                                .context(Error::Parse)
                                 .into()
                         })
                         .and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments)),

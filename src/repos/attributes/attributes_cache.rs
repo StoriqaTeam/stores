@@ -1,5 +1,4 @@
 //! AttributeCache is a module that caches received from db information about user and his categories
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -12,11 +11,7 @@ pub struct AttributeCacheImpl {
 
 impl AttributeCacheImpl {
     pub fn get(&self, id: i32) -> Option<Attribute> {
-        let mut hash_map = self.inner.lock().unwrap();
-        match hash_map.entry(id) {
-            Entry::Occupied(o) => Some(o.get().clone()),
-            Entry::Vacant(_) => None,
-        }
+        self.inner.lock().unwrap().get(&id).cloned()
     }
 
     pub fn contains(&self, id: i32) -> bool {

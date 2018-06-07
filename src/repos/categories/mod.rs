@@ -68,7 +68,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query_categorie
             .get_result::<RawCategory>(self.db_conn)
             .map(|created_category| created_category.into())
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|category| {
                 acl::check(&*self.acl, &Resource::Categories, &Action::Create, self, Some(&category)).and_then(|_| Ok(category))
             })
@@ -82,17 +82,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = categories.find(category_id_arg);
         query
             .get_result::<RawCategory>(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|_| acl::check(&*self.acl, &Resource::Categories, &Action::Update, self, None))
             .and_then(|_| {
                 let filter = categories.filter(id.eq(category_id_arg));
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<RawCategory>(self.db_conn).map_err(|e| e.into())
+                query.get_result::<RawCategory>(self.db_conn).map_err(From::from)
             })
             .and_then(|updated_category| {
                 categories
                     .load::<RawCategory>(self.db_conn)
-                    .map_err(|e| e.into())
+                    .map_err(From::from)
                     .map(|cats| (updated_category, cats))
             })
             .map(|(updated_category, cats)| {

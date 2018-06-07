@@ -4,6 +4,7 @@ use diesel::pg::Pg;
 use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
+use futures::Future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
@@ -64,15 +65,19 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| e.context(ControllerError::Connection).into())
-                .and_then(move |conn| {
-                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    attributes_repo.find(attribute_id)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .and_then(move |conn| {
+                            let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                            attributes_repo.find(attribute_id)
+                        })
                 })
-        }))
+                .map_err(|e| e.context("Service Attributes, get endpoint error occured.").into()),
+        )
     }
 
     /// Returns all attributes
@@ -81,15 +86,19 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| e.context(ControllerError::Connection).into())
-                .and_then(move |conn| {
-                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    attributes_repo.list()
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .and_then(move |conn| {
+                            let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                            attributes_repo.list()
+                        })
                 })
-        }))
+                .map_err(|e| e.context("Service Attributes, list endpoint error occured.").into()),
+        )
     }
 
     /// Creates new attribute
@@ -98,15 +107,19 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| e.context(ControllerError::Connection).into())
-                .and_then(move |conn| {
-                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    conn.transaction::<(Attribute), FailureError, _>(move || attributes_repo.create(new_attribute))
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .and_then(move |conn| {
+                            let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                            conn.transaction::<(Attribute), FailureError, _>(move || attributes_repo.create(new_attribute))
+                        })
                 })
-        }))
+                .map_err(|e| e.context("Service Attributes, create endpoint error occured.").into()),
+        )
     }
 
     /// Updates specific attribute
@@ -115,15 +128,19 @@ impl<
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| e.context(ControllerError::Connection).into())
-                .and_then(move |conn| {
-                    let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                    attributes_repo.update(attribute_id, payload)
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(ControllerError::Connection).into())
+                        .and_then(move |conn| {
+                            let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+                            attributes_repo.update(attribute_id, payload)
+                        })
                 })
-        }))
+                .map_err(|e| e.context("Service Attributes, update endpoint error occured.").into()),
+        )
     }
 }
 

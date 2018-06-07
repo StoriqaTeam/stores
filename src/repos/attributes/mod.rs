@@ -57,7 +57,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             query
                 .get_result(self.db_conn)
                 .optional()
-                .map_err(|e| e.into())
+                .map_err(From::from)
                 .and_then(|attribute: Option<Attribute>| {
                     if let Some(attribute) = attribute.clone() {
                         acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
@@ -76,7 +76,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|attributes_vec: Vec<Attribute>| {
                 for attribute in &attributes_vec {
                     acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
@@ -92,7 +92,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_attribute = diesel::insert_into(attributes).values(&payload);
         query_attribute
             .get_result::<Attribute>(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|attribute| {
                 acl::check(&*self.acl, &Resource::Attributes, &Action::Create, self, Some(&attribute)).and_then(|_| {
                     self.cache.add_attribute(attribute.id, attribute.clone());
@@ -109,13 +109,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_result(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|attribute| acl::check(&*self.acl, &Resource::Attributes, &Action::Update, self, Some(&attribute)))
             .and_then(|_| {
                 self.cache.remove(attribute_id_arg);
                 let filter = attributes.filter(id.eq(attribute_id_arg));
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Attribute>(self.db_conn).map_err(|e| e.into())
+                query.get_result::<Attribute>(self.db_conn).map_err(From::from)
             })
             .map_err(|e: FailureError| {
                 e.context(format!(

@@ -13,12 +13,12 @@ use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 use serde_json;
 
-use errors::ControllerError;
 use stq_http::client::ClientHandle;
 use stq_static_resources::Currency;
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
+use errors::ControllerError;
 use models::*;
 use repos::clear_child_categories;
 use repos::get_all_children_till_the_end;

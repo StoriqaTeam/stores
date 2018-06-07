@@ -53,7 +53,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(|e| e.into())
+        query.get_result::<Ty>(self.db_conn).map_err(From::from)
     }
 }
 
@@ -65,7 +65,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|store: Option<Store>| {
                 if let Some(ref store) = store {
                     acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, Some(store))?;
@@ -81,7 +81,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_store = diesel::insert_into(stores).values(&payload);
         query_store
             .get_result::<Store>(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|store| acl::check(&*self.acl, &Resource::Stores, &Action::Create, self, Some(&store)).and_then(|_| Ok(store)))
             .map_err(|e: FailureError| e.context(format!("Create store {:?} error occured.", payload)).into())
     }
@@ -93,7 +93,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|stores_res: Vec<Store>| {
                 for store in &stores_res {
                     acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, Some(&store))?;
@@ -115,7 +115,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Store>(self.db_conn).map_err(|e| e.into())
+                query.get_result::<Store>(self.db_conn).map_err(From::from)
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -146,7 +146,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::select(exists(stores.filter(slug.eq(slug_arg.clone()))));
         query
             .get_result(self.db_conn)
-            .map_err(|e| e.into())
+            .map_err(From::from)
             .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occured.", slug_arg)).into())
     }
@@ -164,7 +164,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 );
                 diesel::dsl::sql::<(diesel::sql_types::Bool)>(&query_str)
                     .get_result(self.db_conn)
-                    .map_err(|e| e.into())
+                    .map_err(From::from)
             })
             .collect::<RepoResult<Vec<bool>>>();
 

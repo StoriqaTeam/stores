@@ -10,22 +10,28 @@ pub use self::roles_cache::RolesCacheImpl;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use models::authorization::*;
-use repos::error::RepoError;
+use errors::Error;
+use failure::Error as FailureError;
+use failure::Fail;
+
 use stq_acl::{Acl, CheckScope};
 
+use models::authorization::*;
+
 pub fn check<T>(
-    acl: &Acl<Resource, Action, Scope, RepoError, T>,
+    acl: &Acl<Resource, Action, Scope, FailureError, T>,
     resource: &Resource,
     action: &Action,
     scope_checker: &CheckScope<Scope, T>,
     obj: Option<&T>,
-) -> Result<(), RepoError> {
+) -> Result<(), FailureError> {
     acl.allows(resource, action, scope_checker, obj).and_then(|allowed| {
         if allowed {
             Ok(())
         } else {
-            Err(RepoError::Unauthorized(*resource, *action))
+            Err(Error::Forbidden
+                .context(format!("Denied request to do {:?} on {:?}", action, resource))
+                .into())
         }
     })
 }
@@ -90,14 +96,14 @@ impl ApplicationAcl {
         }
     }
 }
-impl<T> Acl<Resource, Action, Scope, RepoError, T> for ApplicationAcl {
+impl<T> Acl<Resource, Action, Scope, FailureError, T> for ApplicationAcl {
     fn allows(
         &self,
         resource: &Resource,
         action: &Action,
         scope_checker: &CheckScope<Scope, T>,
         obj: Option<&T>,
-    ) -> Result<bool, RepoError> {
+    ) -> Result<bool, FailureError> {
         let empty: Vec<Permission> = Vec::new();
         let user_id = &self.user_id;
         let hashed_acls = self.acls.clone();
@@ -122,14 +128,14 @@ impl<T> Acl<Resource, Action, Scope, RepoError, T> for ApplicationAcl {
 #[derive(Clone, Default)]
 pub struct UnauthorizedAcl;
 
-impl<T> Acl<Resource, Action, Scope, RepoError, T> for UnauthorizedAcl {
+impl<T> Acl<Resource, Action, Scope, FailureError, T> for UnauthorizedAcl {
     fn allows(
         &self,
         resource: &Resource,
         action: &Action,
         _scope_checker: &CheckScope<Scope, T>,
         _obj: Option<&T>,
-    ) -> Result<bool, RepoError> {
+    ) -> Result<bool, FailureError> {
         if *action == Action::Read {
             match *resource {
                 Resource::Categories

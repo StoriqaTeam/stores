@@ -1,16 +1,18 @@
 //! Stores Services, presents CRUD operations with stores
 use std::collections::BTreeMap;
 
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
-use futures::prelude::*;
+use diesel::Connection;
+use failure::Error as FailureError;
+use failure::Fail;
+use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
+use errors::Error;
 use stq_http::client::ClientHandle;
 
-use super::error::ServiceError;
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
 use models::{BaseProductWithVariants, CartProduct, Category, NewStore, Product, SearchStore, Store, StoreWithBaseProducts, UpdateStore};
@@ -29,7 +31,7 @@ pub trait StoresService {
     /// Find stores auto complete limited by `count` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
-    fn get(&self, store_id: i32) -> ServiceFuture<Store>;
+    fn get(&self, store_id: i32) -> ServiceFuture<Option<Store>>;
     /// Returns products count
     fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32>;
     /// Deactivates specific store
@@ -94,10 +96,10 @@ impl<
         let address = self.elastic_address.clone();
         let stores_names = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el.auto_complete(name, count, offset).map_err(ServiceError::from)
+            stores_el.auto_complete(name, count, offset)
         };
 
-        Box::new(stores_names)
+        Box::new(stores_names.map_err(|e| e.context("Service Stores, auto_complete endpoint error occured.").into()))
     }
 
     /// Find stores by name
@@ -106,35 +108,44 @@ impl<
         let address = self.elastic_address.clone();
         let stores = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el.find_by_name(search_store, count, offset).map_err(ServiceError::from)
+            stores_el.find_by_name(search_store, count, offset)
         };
 
-        Box::new(stores.and_then({
-            let cpu_pool = self.cpu_pool.clone();
-            let db_pool = self.db_pool.clone();
-            let user_id = self.user_id;
+        Box::new(
+            stores
+                .and_then({
+                    let cpu_pool = self.cpu_pool.clone();
+                    let db_pool = self.db_pool.clone();
+                    let user_id = self.user_id;
 
-            let repo_factory = self.repo_factory.clone();
-            move |el_stores| {
-                cpu_pool.spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| {
-                            error!("Could not get connection to db from pool! {}", e.to_string());
-                            ServiceError::Connection(e.into())
-                        })
-                        .and_then(move |conn| {
-                            el_stores
-                                .into_iter()
-                                .map(|el_store| {
-                                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                                    stores_repo.find(el_store.id).map_err(ServiceError::from)
+                    let repo_factory = self.repo_factory.clone();
+                    move |el_stores| {
+                        cpu_pool.spawn_fn(move || {
+                            db_pool
+                                .get()
+                                .map_err(|e| e.context(Error::Connection).into())
+                                .and_then(move |conn| {
+                                    el_stores
+                                        .into_iter()
+                                        .map(|el_store| {
+                                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                                            stores_repo.find(el_store.id).and_then(|store| {
+                                                if let Some(store) = store {
+                                                    Ok(store)
+                                                } else {
+                                                    Err(Error::NotFound
+                                                        .context(format!("Not found such store id : {}", el_store.id))
+                                                        .into())
+                                                }
+                                            })
+                                        })
+                                        .collect()
                                 })
-                                .collect()
                         })
+                    }
                 })
-            }
-        }))
+                .map_err(|e| e.context("Service Stores, find_by_name endpoint error occured.").into()),
+        )
     }
 
     /// search filters count
@@ -143,10 +154,10 @@ impl<
         let address = self.elastic_address.clone();
         let search_filters = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el.search_count(search_store).map_err(ServiceError::from)
+            stores_el.search_count(search_store)
         };
 
-        Box::new(search_filters)
+        Box::new(search_filters.map_err(|e| e.context("Service Stores, search_filters_count endpoint error occured.").into()))
     }
 
     /// search filters country
@@ -155,10 +166,10 @@ impl<
         let address = self.elastic_address.clone();
         let search_filters = {
             let stores_el = StoresElasticImpl::new(client_handle, address);
-            stores_el.aggregate_countries(search_store).map_err(ServiceError::from)
+            stores_el.aggregate_countries(search_store)
         };
 
-        Box::new(search_filters)
+        Box::new(search_filters.map_err(|e| e.context("Service Stores, search_filters_country endpoint error occured.").into()))
     }
 
     /// search filters category
@@ -174,47 +185,45 @@ impl<
         Box::new(
             stores_el
                 .aggregate_categories(search_store)
-                .map_err(ServiceError::from)
                 .and_then(move |categories_ids| {
                     cpu_pool.spawn_fn(move || {
                         db_pool
                             .get()
-                            .map_err(|e| {
-                                error!("Could not get connection to db from pool! {}", e.to_string());
-                                ServiceError::Connection(e.into())
-                            })
+                            .map_err(|e| e.context(Error::Connection).into())
                             .and_then(move |conn| {
                                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                                categories_repo.get_all().map_err(ServiceError::from)
+                                categories_repo.get_all()
                             })
                             .and_then(|category| {
                                 let new_cat = remove_unused_categories(category, &categories_ids, 0);
                                 Ok(new_cat)
                             })
                     })
-                }),
+                })
+                .map_err(|e| e.context("Service Stores, search_filters_category endpoint error occured.").into()),
         )
     }
 
     /// Returns store by ID
-    fn get(&self, store_id: i32) -> ServiceFuture<Store> {
+    fn get(&self, store_id: i32) -> ServiceFuture<Option<Store>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            stores_repo.find(store_id)
+                        })
                 })
-                .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    stores_repo.find(store_id).map_err(ServiceError::from)
-                })
-        }))
+                .map_err(|e| e.context("Service Stores, get endpoint error occured.").into()),
+        )
     }
 
     /// Returns products count
@@ -224,18 +233,19 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            base_products_repo.count_with_store_id(store_id)
+                        })
                 })
-                .and_then(move |conn| {
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    base_products_repo.count_with_store_id(store_id).map_err(ServiceError::from)
-                })
-        }))
+                .map_err(|e| e.context("Service Stores, get_products_count endpoint error occured.").into()),
+        )
     }
 
     /// Deactivates specific store
@@ -245,18 +255,19 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            stores_repo.deactivate(store_id)
+                        })
                 })
-                .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    stores_repo.deactivate(store_id).map_err(ServiceError::from)
-                })
-        }))
+                .map_err(|e| e.context("Service Stores, deactivate endpoint error occured.").into()),
+        )
     }
 
     /// Lists users limited by `from` and `count` parameters
@@ -266,18 +277,19 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            stores_repo.list(from, count)
+                        })
                 })
-                .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    stores_repo.list(from, count).map_err(ServiceError::from)
-                })
-        }))
+                .map_err(|e| e.context("Service Stores, list endpoint error occured.").into()),
+        )
     }
 
     /// Creates new store
@@ -288,33 +300,32 @@ impl<
             let user_id = self.user_id;
 
             let repo_factory = self.repo_factory.clone();
-            cpu_pool.spawn_fn(move || {
-                db_pool
-                    .get()
-                    .map_err(|e| {
-                        error!("Could not get connection to db from pool! {}", e.to_string());
-                        ServiceError::Connection(e.into())
-                    })
-                    .and_then(move |conn| {
-                        let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                        conn.transaction::<Store, ServiceError, _>(move || {
-                            stores_repo
-                                .slug_exists(payload.slug.to_string())
-                                .map(move |exists| (payload, exists))
-                                .map_err(ServiceError::from)
-                                .and_then(|(new_store, exists)| {
-                                    if exists {
-                                        Err(ServiceError::Validate(
-                                            validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                        ))
-                                    } else {
-                                        Ok(new_store)
-                                    }
-                                })
-                                .and_then(move |new_store| stores_repo.create(new_store).map_err(ServiceError::from))
+            cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            conn.transaction::<Store, FailureError, _>(move || {
+                                stores_repo
+                                    .slug_exists(payload.slug.to_string())
+                                    .map(move |exists| (payload, exists))
+                                    .and_then(|(new_store, exists)| {
+                                        if exists {
+                                            Err(Error::Validate(
+                                                validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                            ).context(format!("Store with slug '{}' already exists.", new_store.slug.clone()))
+                                                .into())
+                                        } else {
+                                            Ok(new_store)
+                                        }
+                                    })
+                                    .and_then(move |new_store| stores_repo.create(new_store))
+                            })
                         })
-                    })
-            })
+                })
+                .map_err(|e| e.context("Service Stores, create endpoint error occured.").into())
         })
     }
 
@@ -325,43 +336,45 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
-                .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    stores_repo
-                        .find(store_id)
-                        .map_err(ServiceError::from)
-                        .and_then(|s| {
-                            if let Some(slug) = payload.slug.clone() {
-                                if s.slug == slug {
-                                    // if updated slug equal store slug
-                                    Ok(false)
-                                } else {
-                                    // if updated slug equal other stores slug
-                                    stores_repo.slug_exists(slug).map_err(ServiceError::from)
-                                }
-                            } else {
-                                Ok(false)
-                            }
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            stores_repo
+                                .find(store_id)
+                                .and_then(|store| {
+                                    if let Some(store) = store {
+                                        Ok(store)
+                                    } else {
+                                        Err(Error::NotFound.context(format!("Not found such store id : {}", store_id)).into())
+                                    }
+                                })
+                                .and_then(|s| {
+                                    if let Some(slug) = payload.slug.clone() {
+                                        if s.slug != slug {
+                                            stores_repo.slug_exists(slug.clone()).and_then(|exists| {
+                                                if exists {
+                                                    Err(Error::Validate(
+                                                        validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                                    ).context(format!("Store with slug '{}' already exists.", slug))
+                                                        .into())
+                                                } else {
+                                                    Ok(())
+                                                }
+                                            })?;
+                                        };
+                                    };
+                                    Ok(())
+                                })
+                                .and_then(move |_| stores_repo.update(store_id, payload))
                         })
-                        .and_then(|exists| {
-                            if exists {
-                                Err(ServiceError::Validate(
-                                    validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                ))
-                            } else {
-                                Ok(())
-                            }
-                        })
-                        .and_then(move |_| stores_repo.update(store_id, payload).map_err(ServiceError::from))
                 })
-        }))
+                .map_err(|e| e.context("Service Stores, update endpoint error occured.").into()),
+        )
     }
 
     /// Find by cart
@@ -371,54 +384,82 @@ impl<
 
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
-                .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
-                .and_then(move |conn| {
-                    let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                    let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                    let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                    let products = cart.into_iter()
-                        .map(|cart_product| products_repo.find(cart_product.product_id))
-                        .collect::<RepoResult<Vec<Product>>>();
-                    products
-                        .and_then(|products| {
-                            let mut group_by_base_product_id = BTreeMap::<i32, Vec<Product>>::default();
-                            for product in products {
-                                let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
-                                p.push(product);
-                            }
-                            group_by_base_product_id
-                                .into_iter()
-                                .map(|(base_product_id, products)| {
-                                    base_products_repo
-                                        .find(base_product_id)
-                                        .map(|base_product| BaseProductWithVariants::new(base_product, products))
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                            let products = cart.into_iter()
+                                .map(|cart_product| {
+                                    products_repo.find(cart_product.product_id).and_then(|product| {
+                                        if let Some(product) = product {
+                                            Ok(product)
+                                        } else {
+                                            Err(Error::NotFound
+                                                .context(format!("Not found such product id : {}", cart_product.product_id))
+                                                .into())
+                                        }
+                                    })
                                 })
-                                .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
-                        })
-                        .and_then(|base_products| {
-                            let mut group_by_store_id = BTreeMap::<i32, Vec<BaseProductWithVariants>>::default();
-                            for base_product in base_products {
-                                let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
-                                bp.push(base_product);
-                            }
-                            group_by_store_id
-                                .into_iter()
-                                .map(|(store_id, base_products)| {
-                                    stores_repo
-                                        .find(store_id)
-                                        .map(|store| StoreWithBaseProducts::new(store, base_products))
+                                .collect::<RepoResult<Vec<Product>>>();
+                            products
+                                .and_then(|products| {
+                                    let mut group_by_base_product_id = BTreeMap::<i32, Vec<Product>>::default();
+                                    for product in products {
+                                        let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
+                                        p.push(product);
+                                    }
+                                    group_by_base_product_id
+                                        .into_iter()
+                                        .map(|(base_product_id, products)| {
+                                            base_products_repo
+                                                .find(base_product_id)
+                                                .and_then(|product| {
+                                                    if let Some(product) = product {
+                                                        Ok(product)
+                                                    } else {
+                                                        Err(Error::NotFound
+                                                            .context(format!("Not found such base product id : {}", base_product_id))
+                                                            .into())
+                                                    }
+                                                })
+                                                .map(|base_product| BaseProductWithVariants::new(base_product, products))
+                                        })
+                                        .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
                                 })
-                                .collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
+                                .and_then(|base_products| {
+                                    let mut group_by_store_id = BTreeMap::<i32, Vec<BaseProductWithVariants>>::default();
+                                    for base_product in base_products {
+                                        let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
+                                        bp.push(base_product);
+                                    }
+                                    group_by_store_id
+                                        .into_iter()
+                                        .map(|(store_id, base_products)| {
+                                            stores_repo
+                                                .find(store_id)
+                                                .and_then(|store| {
+                                                    if let Some(store) = store {
+                                                        Ok(store)
+                                                    } else {
+                                                        Err(Error::NotFound
+                                                            .context(format!("Not found such store id : {}", store_id))
+                                                            .into())
+                                                    }
+                                                })
+                                                .map(|store| StoreWithBaseProducts::new(store, base_products))
+                                        })
+                                        .collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
+                                })
                         })
-                        .map_err(ServiceError::from)
                 })
-        }))
+                .map_err(|e| e.context("Service Stores, find_by_cart endpoint error occured.").into()),
+        )
     }
 }
 
@@ -533,7 +574,7 @@ pub mod tests {
         let service = create_store_service(Some(MOCK_USER_ID), handle);
         let work = service.get(1);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.unwrap().id, 1);
     }
 
     #[test]

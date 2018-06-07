@@ -3,16 +3,16 @@
 //! relationship
 
 use diesel;
-use diesel::prelude::*;
-use diesel::query_dsl::RunQueryDsl;
-
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::prelude::*;
+use diesel::query_dsl::RunQueryDsl;
+use diesel::Connection;
+use failure::Error as FailureError;
+use failure::Fail;
 
 use stq_acl::*;
 
-use super::error::RepoError as Error;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::user_role::user_roles::dsl::*;
@@ -37,12 +37,12 @@ pub trait UserRolesRepo {
 /// Implementation of UserRoles trait
 pub struct UserRolesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, UserRole>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, UserRole>>,
     pub cached_roles: RolesCacheImpl,
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> UserRolesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, UserRole>>, cached_roles: RolesCacheImpl) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, UserRole>>, cached_roles: RolesCacheImpl) -> Self {
         Self {
             db_conn,
             acl,
@@ -61,7 +61,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             let query = user_roles.filter(user_id.eq(user_id_value));
             query
                 .get_results::<UserRole>(self.db_conn)
-                .map_err(Error::from)
                 .and_then(|user_roles_arg| {
                     let roles = user_roles_arg.into_iter().map(|user_role| user_role.role).collect::<Vec<Role>>();
                     Ok(roles)
@@ -72,6 +71,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     }
                     Ok(roles)
                 })
+                .map_err(|e| e.context(format!("List user roles for id {} error occured.", user_id_value)).into())
         }
     }
 
@@ -79,15 +79,19 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         debug!("create new user role {:?}.", payload);
         self.cached_roles.remove(payload.user_id);
         let query = diesel::insert_into(user_roles).values(&payload);
-        query.get_result(self.db_conn).map_err(Error::from)
+        query
+            .get_result(self.db_conn)
+            .map_err(|e| e.context(format!("create new user role {:?}.", payload)).into())
     }
 
     fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
         debug!("delete user role {:?}.", payload);
         self.cached_roles.remove(payload.user_id);
-        let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role));
+        let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role.clone()));
         let query = diesel::delete(filtered);
-        query.get_result(self.db_conn).map_err(Error::from)
+        query
+            .get_result(self.db_conn)
+            .map_err(move |e| e.context(format!("delete user role {:?}.", payload)).into())
     }
 
     fn delete_by_user_id(&self, user_id_arg: i32) -> RepoResult<UserRole> {
@@ -95,7 +99,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         self.cached_roles.remove(user_id_arg);
         let filtered = user_roles.filter(user_id.eq(user_id_arg));
         let query = diesel::delete(filtered);
-        query.get_result(self.db_conn).map_err(Error::from)
+        query
+            .get_result(self.db_conn)
+            .map_err(|e| e.context(format!("delete user role by id {}.", user_id_arg)).into())
     }
 }
 

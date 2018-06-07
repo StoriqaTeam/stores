@@ -5,7 +5,6 @@ pub mod attributes;
 pub mod base_products;
 pub mod categories;
 pub mod currency_exchange;
-pub mod error;
 pub mod moderator_product;
 pub mod moderator_store;
 pub mod product_attrs;

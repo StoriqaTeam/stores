@@ -1,13 +1,13 @@
 //! Repos contains all info about working with categories
 use std::collections::HashMap;
-use std::convert::From;
 
 use diesel;
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::Connection;
+use failure::Error as FailureError;
 
 use stq_acl::{Acl, CheckScope};
 
@@ -17,7 +17,6 @@ use models::category::categories::dsl::*;
 use models::category_attribute::cat_attr_values::dsl as CategoryAttributes;
 use models::{Attribute, CatAttr, Category, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
-use repos::error::RepoError as Error;
 use repos::types::RepoResult;
 
 pub mod category_attrs;
@@ -29,13 +28,13 @@ pub use self::category_cache::*;
 /// Categories repository, responsible for handling categorie_values
 pub struct CategoriesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, Error, Category>>,
+    pub acl: Box<Acl<Resource, Action, Scope, FailureError, Category>>,
     pub cache: CategoryCacheImpl,
 }
 
 pub trait CategoriesRepo {
     /// Find specific category by id
-    fn find(&self, id_arg: i32) -> RepoResult<Category>;
+    fn find(&self, id_arg: i32) -> RepoResult<Option<Category>>;
 
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category>;
@@ -48,18 +47,17 @@ pub trait CategoriesRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, Error, Category>>, cache: CategoryCacheImpl) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Category>>, cache: CategoryCacheImpl) -> Self {
         Self { db_conn, acl, cache }
     }
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepo for CategoriesRepoImpl<'a, T> {
     /// Find specific category by id
-    fn find(&self, id_arg: i32) -> RepoResult<Category> {
+    fn find(&self, id_arg: i32) -> RepoResult<Option<Category>> {
         debug!("Find in categories with id {}.", id_arg);
         acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)?;
-        self.get_all()
-            .and_then(|root| get_category(&root, id_arg).ok_or_else(|| Error::NotFound))
+        self.get_all().map(|root| get_category(&root, id_arg))
     }
 
     /// Creates new category
@@ -69,14 +67,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_categorie = diesel::insert_into(categories).values(&payload);
         query_categorie
             .get_result::<RawCategory>(self.db_conn)
-            .map_err(Error::from)
-            .and_then(|created_category| {
-                let result: Category = created_category.into();
-                Ok(result)
-            })
+            .map(|created_category| created_category.into())
+            .map_err(From::from)
             .and_then(|category| {
                 acl::check(&*self.acl, &Resource::Categories, &Action::Create, self, Some(&category)).and_then(|_| Ok(category))
             })
+            .map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occured", payload)).into())
     }
 
     /// Updates specific category
@@ -85,65 +81,70 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         self.cache.clear();
         let query = categories.find(category_id_arg);
         query
-            .first::<RawCategory>(self.db_conn)
-            .map_err(Error::from)
+            .get_result::<RawCategory>(self.db_conn)
+            .map_err(From::from)
             .and_then(|_| acl::check(&*self.acl, &Resource::Categories, &Action::Update, self, None))
             .and_then(|_| {
                 let filter = categories.filter(id.eq(category_id_arg));
-
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<RawCategory>(self.db_conn).map_err(Error::from)
+                query.get_result::<RawCategory>(self.db_conn).map_err(From::from)
             })
             .and_then(|updated_category| {
                 categories
                     .load::<RawCategory>(self.db_conn)
-                    .map_err(Error::from)
+                    .map_err(From::from)
                     .map(|cats| (updated_category, cats))
             })
-            .and_then(|(updated_category, cats)| {
+            .map(|(updated_category, cats)| {
                 let id_arg = updated_category.id;
                 let mut result: Category = updated_category.into();
                 let children = create_tree(&cats, Some(id_arg));
                 result.children = children;
-                Ok(result)
+                result
+            })
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Updating category with id {} and payload {:?} error occured",
+                    category_id_arg, payload
+                )).into()
             })
     }
 
     fn get_all(&self) -> RepoResult<Category> {
-        if self.cache.is_some() {
+        if let Some(cat) = self.cache.get() {
             debug!("Get all categories from cache request.");
-            self.cache.get()
+            Ok(cat)
         } else {
             debug!("Get all categories from db request.");
-            acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)?;
+            acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
+                .and_then(|_| {
+                    let attrs_hash = Attributes::attributes
+                        .load::<Attribute>(self.db_conn)?
+                        .into_iter()
+                        .map(|attr| (attr.id, attr))
+                        .collect::<HashMap<_, _>>();
 
-            let attrs_hash = Attributes::attributes
-                .load::<Attribute>(self.db_conn)
-                .map_err(Error::from)?
-                .into_iter()
-                .map(|attr| (attr.id, attr))
-                .collect::<HashMap<_, _>>();
+                    let cat_hash = CategoryAttributes::cat_attr_values.load::<CatAttr>(self.db_conn)?.into_iter().fold(
+                        HashMap::<i32, Vec<Attribute>>::new(),
+                        |mut hash, cat_attr| {
+                            {
+                                let cat_with_attrs = hash.entry(cat_attr.cat_id).or_insert_with(Vec::new);
+                                let attribute = &attrs_hash[&cat_attr.attr_id];
+                                cat_with_attrs.push(attribute.clone());
+                            }
+                            hash
+                        },
+                    );
 
-            let cat_hash = CategoryAttributes::cat_attr_values
-                .load::<CatAttr>(self.db_conn)
-                .map_err(Error::from)?
-                .into_iter()
-                .fold(HashMap::<i32, Vec<Attribute>>::new(), |mut hash, cat_attr| {
-                    {
-                        let cat_with_attrs = hash.entry(cat_attr.cat_id).or_insert_with(Vec::new);
-                        let attribute = &attrs_hash[&cat_attr.attr_id];
-                        cat_with_attrs.push(attribute.clone());
-                    }
-                    hash
-                });
-
-            let cats = categories.load::<RawCategory>(self.db_conn).map_err(Error::from)?;
-            let mut root = Category::default();
-            let children = create_tree(&cats, None);
-            root.children = children;
-            set_attributes(&mut root, &cat_hash);
-            self.cache.set(root.clone());
-            Ok(root)
+                    let cats = categories.load::<RawCategory>(self.db_conn)?;
+                    let mut root = Category::default();
+                    let children = create_tree(&cats, None);
+                    root.children = children;
+                    set_attributes(&mut root, &cat_hash);
+                    self.cache.set(root.clone());
+                    Ok(root)
+                })
+                .map_err(|e: FailureError| e.context(format!("Get all categories error occured")).into())
         }
     }
 }

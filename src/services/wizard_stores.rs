@@ -1,19 +1,22 @@
 //! WizardStores Services, presents CRUD operations with wizard_stores
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
+use failure::Error as FailureError;
+use failure::Fail;
 use future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use super::error::ServiceError;
+use errors::Error;
+
 use super::types::ServiceFuture;
 use models::*;
 use repos::ReposFactory;
 
 pub trait WizardStoresService {
     /// Returns wizard store by user iD
-    fn get(&self) -> ServiceFuture<WizardStore>;
+    fn get(&self) -> ServiceFuture<Option<WizardStore>>;
     /// Delete specific wizard store
     fn delete(&self) -> ServiceFuture<WizardStore>;
     /// Creates new wizard store
@@ -57,7 +60,7 @@ impl<
     > WizardStoresService for WizardStoresServiceImpl<T, M, F>
 {
     /// Returns wizard store by user iD
-    fn get(&self) -> ServiceFuture<WizardStore> {
+    fn get(&self) -> ServiceFuture<Option<WizardStore>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -66,19 +69,16 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                    .map_err(|e| {
-                        error!("Could not get connection to db from pool! {}", e.to_string());
-                        ServiceError::Connection(e.into())
-                    })
+                    .map_err(|e| e.context(Error::Connection).into())
                     .and_then(move |conn| {
                         let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
-                        wizard_stores_repo.find_by_user_id(user_id).map_err(ServiceError::from)
+                        wizard_stores_repo.find_by_user_id(user_id)
                     })
             }))
         } else {
-            Box::new(future::err(ServiceError::Unauthorized(
-                "Could not get stores wizard for unauthorized user".to_string(),
-            )))
+            Box::new(future::err(
+                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+            ))
         }
     }
 
@@ -93,19 +93,16 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                    .map_err(|e| {
-                        error!("Could not get connection to db from pool! {}", e.to_string());
-                        ServiceError::Connection(e.into())
-                    })
+                    .map_err(|e| e.context(Error::Connection).into())
                     .and_then(move |conn| {
                         let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
-                        wizard_stores_repo.delete(user_id).map_err(ServiceError::from)
+                        wizard_stores_repo.delete(user_id)
                     })
             }))
         } else {
-            Box::new(future::err(ServiceError::Unauthorized(
-                "Colud not delete stores wizard for unauthorized user".to_string(),
-            )))
+            Box::new(future::err(
+                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+            ))
         }
     }
 
@@ -120,31 +117,25 @@ impl<
                 cpu_pool.spawn_fn(move || {
                     db_pool
                         .get()
-                        .map_err(|e| {
-                            error!("Could not get connection to db from pool! {}", e.to_string());
-                            ServiceError::Connection(e.into())
-                        })
+                        .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
-                            conn.transaction::<WizardStore, ServiceError, _>(move || {
-                                wizard_stores_repo
-                                    .wizard_exists(user_id)
-                                    .map_err(ServiceError::from)
-                                    .and_then(|exists| {
-                                        if exists {
-                                            wizard_stores_repo.find_by_user_id(user_id).map_err(ServiceError::from)
-                                        } else {
-                                            wizard_stores_repo.create(user_id).map_err(ServiceError::from)
-                                        }
-                                    })
+                            conn.transaction::<WizardStore, FailureError, _>(move || {
+                                wizard_stores_repo.find_by_user_id(user_id).and_then(|wizard| {
+                                    if let Some(wizard) = wizard {
+                                        Ok(wizard)
+                                    } else {
+                                        wizard_stores_repo.create(user_id)
+                                    }
+                                })
                             })
                         })
                 })
             })
         } else {
-            Box::new(future::err(ServiceError::Unauthorized(
-                "Colud not create stores wizard for unauthorized user".to_string(),
-            )))
+            Box::new(future::err(
+                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+            ))
         }
     }
 
@@ -159,46 +150,54 @@ impl<
             Box::new(self.cpu_pool.spawn_fn(move || {
                 db_pool
                     .get()
-                    .map_err(|e| {
-                        error!("Could not get connection to db from pool! {}", e.to_string());
-                        ServiceError::Connection(e.into())
-                    })
+                    .map_err(|e| e.context(Error::Connection).into())
                     .and_then(move |conn| {
                         if let Some(slug) = payload.slug.clone() {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, Some(user_id));
                             let slug_exist = if let Some(store_id) = payload.store_id {
-                                stores_repo.find(store_id).and_then(|s| {
-                                    if s.slug == slug {
-                                        // if updated slug equal wizard stores store slug
-                                        Ok(false)
-                                    } else {
-                                        // if updated slug equal other stores slug
-                                        stores_repo.slug_exists(slug)
-                                    }
-                                })
+                                stores_repo
+                                    .find(store_id)
+                                    .and_then(|store| {
+                                        if let Some(store) = store {
+                                            Ok(store)
+                                        } else {
+                                            Err(Error::NotFound.context(format!("Not found such store id : {}", store_id)).into())
+                                        }
+                                    })
+                                    .and_then(|s| {
+                                        if s.slug == slug {
+                                            // if updated slug equal wizard stores store slug
+                                            Ok(false)
+                                        } else {
+                                            // if updated slug equal other stores slug
+                                            stores_repo.slug_exists(slug.clone())
+                                        }
+                                    })
                             } else {
-                                stores_repo.slug_exists(slug)
+                                stores_repo.slug_exists(slug.clone())
                             };
-                            slug_exist.map_err(ServiceError::from).and_then(|exists| {
+                            slug_exist.and_then(|exists| {
                                 if exists {
-                                    Err(ServiceError::Validate(
-                                        validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                    ))
+                                    Err(
+                                        Error::Validate(validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}))
+                                            .context(format!("Store with slug '{}' already exists.", slug))
+                                            .into(),
+                                    )
                                 } else {
                                     let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
-                                    wizard_stores_repo.update(user_id, payload).map_err(ServiceError::from)
+                                    wizard_stores_repo.update(user_id, payload)
                                 }
                             })
                         } else {
                             let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
-                            wizard_stores_repo.update(user_id, payload).map_err(ServiceError::from)
+                            wizard_stores_repo.update(user_id, payload)
                         }
                     })
             }))
         } else {
-            Box::new(future::err(ServiceError::Unauthorized(
-                "Colud not update stores wizard for unauthorized user".to_string(),
-            )))
+            Box::new(future::err(
+                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+            ))
         }
     }
 }
@@ -246,7 +245,7 @@ pub mod tests {
         let service = create_wizard_store_service(Some(MOCK_USER_ID), handle);
         let work = service.get();
         let result = core.run(work).unwrap();
-        assert_eq!(result.user_id, MOCK_USER_ID);
+        assert_eq!(result.unwrap().user_id, MOCK_USER_ID);
     }
 
     #[test]

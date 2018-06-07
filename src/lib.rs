@@ -3,10 +3,9 @@
 //!
 //! `Application -> Controller -> Service -> Repo + HttpClient`
 //!
-//! Each layer can only face exceptions in its base layers and can only expose its own errors.
-//! E.g. `Service` layer will only deal with `Repo` and `HttpClient` errors and will only return
-//! `ServiceError`. That way Controller will only have to deal with ServiceError, but not with `Repo`
-//! or `HttpClient` repo.
+//! Each layer can throw Error with context or cover occured error with
+//! Error in the context. When error is not covered with Error it will
+//! be translated to code 500 in the http answer "Internal server error" of microservice.
 #![recursion_limit = "128"]
 extern crate chrono;
 extern crate config as config_crate;
@@ -47,10 +46,10 @@ pub mod macros;
 pub mod config;
 pub mod controller;
 pub mod elastic;
+pub mod errors;
 pub mod models;
 pub mod repos;
 pub mod services;
-pub mod types;
 
 use std::env;
 use std::io::Write;
@@ -72,6 +71,7 @@ use stq_http::client::Config as HttpConfig;
 use stq_http::controller::Application;
 
 use config::Config;
+use errors::Error;
 use repos::acl::RolesCacheImpl;
 use repos::attributes::AttributeCacheImpl;
 use repos::categories::CategoryCacheImpl;
@@ -146,7 +146,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
             );
 
             // Prepare application
-            let app = Application::new(controller);
+            let app = Application::<Error>::new(controller);
 
             Ok(app)
         })

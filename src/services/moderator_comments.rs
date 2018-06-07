@@ -1,22 +1,26 @@
 //! ModeratorProductComments Services, presents CRUD operations with wizard_stores
-use diesel::Connection;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
+use diesel::Connection;
+use failure::Error as FailureError;
+use failure::Fail;
+use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use super::error::ServiceError;
+use errors::Error;
+
 use super::types::ServiceFuture;
 use models::*;
 use repos::ReposFactory;
 
 pub trait ModeratorCommentsService {
     /// Returns latest moderator product comment by base product iD
-    fn get_latest_for_product(&self, base_product_id: i32) -> ServiceFuture<ModeratorProductComments>;
+    fn get_latest_for_product(&self, base_product_id: i32) -> ServiceFuture<Option<ModeratorProductComments>>;
     /// Creates new moderator product comment
     fn create_product_comment(&self, payload: NewModeratorProductComments) -> ServiceFuture<ModeratorProductComments>;
     /// Returns latest moderator comment by store iD
-    fn get_latest_for_store(&self, store_id: i32) -> ServiceFuture<ModeratorStoreComments>;
+    fn get_latest_for_store(&self, store_id: i32) -> ServiceFuture<Option<ModeratorStoreComments>>;
     /// Creates new moderator store comment
     fn create_store_comment(&self, payload: NewModeratorStoreComments) -> ServiceFuture<ModeratorStoreComments>;
 }
@@ -56,25 +60,27 @@ impl<
     > ModeratorCommentsService for ModeratorCommentsServiceImpl<T, M, F>
 {
     /// Returns latest moderator product comment by base product iD
-    fn get_latest_for_product(&self, base_product_id: i32) -> ServiceFuture<ModeratorProductComments> {
+    fn get_latest_for_product(&self, base_product_id: i32) -> ServiceFuture<Option<ModeratorProductComments>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let moderator_product_repo = repo_factory.create_moderator_product_comments_repo(&*conn, user_id);
+                            moderator_product_repo.find_by_base_product_id(base_product_id)
+                        })
+                })
                 .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
-                .and_then(move |conn| {
-                    let moderator_product_repo = repo_factory.create_moderator_product_comments_repo(&*conn, user_id);
-                    moderator_product_repo
-                        .find_by_base_product_id(base_product_id)
-                        .map_err(ServiceError::from)
-                })
-        }))
+                    e.context("Service ModeratorComments, get_latest_for_product endpoint error occured.")
+                        .into()
+                }),
+        )
     }
 
     /// Creates new moderator product comment
@@ -83,42 +89,46 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
-        Box::new({
-            cpu_pool.spawn_fn(move || {
-                db_pool
-                    .get()
-                    .map_err(|e| {
-                        error!("Could not get connection to db from pool! {}", e.to_string());
-                        ServiceError::Connection(e.into())
-                    })
-                    .and_then(move |conn| {
-                        let moderator_product_repo = repo_factory.create_moderator_product_comments_repo(&*conn, user_id);
-                        conn.transaction::<ModeratorProductComments, ServiceError, _>(move || {
-                            moderator_product_repo.create(payload).map_err(ServiceError::from)
+        Box::new(
+            cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let moderator_product_repo = repo_factory.create_moderator_product_comments_repo(&*conn, user_id);
+                            conn.transaction::<ModeratorProductComments, FailureError, _>(move || moderator_product_repo.create(payload))
                         })
-                    })
-            })
-        })
+                })
+                .map_err(|e| {
+                    e.context("Service ModeratorComments, create_product_comment endpoint error occured.")
+                        .into()
+                }),
+        )
     }
 
     /// Returns latest moderator comment by store iD
-    fn get_latest_for_store(&self, store_id: i32) -> ServiceFuture<ModeratorStoreComments> {
+    fn get_latest_for_store(&self, store_id: i32) -> ServiceFuture<Option<ModeratorStoreComments>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
 
-        Box::new(self.cpu_pool.spawn_fn(move || {
-            db_pool
-                .get()
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let moderator_store_repo = repo_factory.create_moderator_store_comments_repo(&*conn, user_id);
+                            moderator_store_repo.find_by_store_id(store_id)
+                        })
+                })
                 .map_err(|e| {
-                    error!("Could not get connection to db from pool! {}", e.to_string());
-                    ServiceError::Connection(e.into())
-                })
-                .and_then(move |conn| {
-                    let moderator_store_repo = repo_factory.create_moderator_store_comments_repo(&*conn, user_id);
-                    moderator_store_repo.find_by_store_id(store_id).map_err(ServiceError::from)
-                })
-        }))
+                    e.context("Service ModeratorComments, get_latest_for_store endpoint error occured.")
+                        .into()
+                }),
+        )
     }
 
     /// Creates new moderator store comment
@@ -127,22 +137,22 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
-        Box::new({
-            cpu_pool.spawn_fn(move || {
-                db_pool
-                    .get()
-                    .map_err(|e| {
-                        error!("Could not get connection to db from pool! {}", e.to_string());
-                        ServiceError::Connection(e.into())
-                    })
-                    .and_then(move |conn| {
-                        let moderator_store_repo = repo_factory.create_moderator_store_comments_repo(&*conn, user_id);
-                        conn.transaction::<ModeratorStoreComments, ServiceError, _>(move || {
-                            moderator_store_repo.create(payload).map_err(ServiceError::from)
+        Box::new(
+            cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let moderator_store_repo = repo_factory.create_moderator_store_comments_repo(&*conn, user_id);
+                            conn.transaction::<ModeratorStoreComments, FailureError, _>(move || moderator_store_repo.create(payload))
                         })
-                    })
-            })
-        })
+                })
+                .map_err(|e| {
+                    e.context("Service ModeratorComments, create_store_comment endpoint error occured.")
+                        .into()
+                }),
+        )
     }
 }
 
@@ -193,7 +203,7 @@ pub mod tests {
         let service = create_moderator_comments_service(Some(MOCK_USER_ID));
         let work = service.get_latest_for_product(1);
         let result = core.run(work).unwrap();
-        assert_eq!(result.base_product_id, 1);
+        assert_eq!(result.unwrap().base_product_id, 1);
     }
 
     #[test]
@@ -212,7 +222,7 @@ pub mod tests {
         let service = create_moderator_comments_service(Some(MOCK_USER_ID));
         let work = service.get_latest_for_store(1);
         let result = core.run(work).unwrap();
-        assert_eq!(result.store_id, 1);
+        assert_eq!(result.unwrap().store_id, 1);
     }
 
     #[test]

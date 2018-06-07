@@ -2,8 +2,6 @@
 use std::sync::{Arc, Mutex};
 
 use models::Category;
-use repos::error::RepoError;
-use repos::types::RepoResult;
 
 #[derive(Clone, Default)]
 pub struct CategoryCacheImpl {
@@ -11,27 +9,23 @@ pub struct CategoryCacheImpl {
 }
 
 impl CategoryCacheImpl {
-    pub fn get(&self) -> RepoResult<Category> {
-        let hash_map = self.inner.lock().unwrap();
-        if let Some(c) = hash_map.clone() {
-            Ok(c)
-        } else {
-            Err(RepoError::NotFound)
-        }
+    pub fn get(&self) -> Option<Category> {
+        let category = self.inner.lock().unwrap();
+        category.clone()
     }
 
     pub fn clear(&self) {
-        let mut hash_map = self.inner.lock().unwrap();
-        *hash_map = None;
+        let mut category = self.inner.lock().unwrap();
+        *category = None;
     }
 
     pub fn is_some(&self) -> bool {
-        let hash_map = self.inner.lock().unwrap();
-        hash_map.is_some()
+        let category = self.inner.lock().unwrap();
+        category.is_some()
     }
 
     pub fn set(&self, cat: Category) {
-        let mut hash_map = self.inner.lock().unwrap();
-        *hash_map = Some(cat);
+        let mut category = self.inner.lock().unwrap();
+        *category = Some(cat);
     }
 }

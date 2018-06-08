@@ -180,8 +180,8 @@ impl<
                                                 if let Some(attr) = attr {
                                                     Ok(attr)
                                                 } else {
-                                                    Err(Error::NotFound
-                                                        .context(format!("No such attribute with id : {}", cat_attr.attr_id))
+                                                    Err(format_err!("No such attribute with id : {}", cat_attr.attr_id)
+                                                        .context(Error::NotFound)
                                                         .into())
                                                 }
                                             })

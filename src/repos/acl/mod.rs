@@ -12,7 +12,6 @@ use std::rc::Rc;
 
 use errors::Error;
 use failure::Error as FailureError;
-use failure::Fail;
 
 use stq_acl::{Acl, CheckScope};
 
@@ -29,8 +28,8 @@ pub fn check<T>(
         if allowed {
             Ok(())
         } else {
-            Err(Error::Forbidden
-                .context(format!("Denied request to do {:?} on {:?}", action, resource))
+            Err(format_err!("Denied request to do {:?} on {:?}", action, resource)
+                .context(Error::Forbidden)
                 .into())
         }
     })

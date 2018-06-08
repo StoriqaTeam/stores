@@ -142,7 +142,9 @@ impl<
         let moderator_comments_service =
             ModeratorCommentsServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
 
-        match (&req.method().clone(), self.route_parser.test(req.path().clone())) {
+        let path = req.path().to_string();
+
+        match (&req.method().clone(), self.route_parser.test(req.path())) {
             // GET /healthcheck
             (&Get, Some(Route::Healthcheck)) => {
                 trace!("User with id = '{:?}' is requesting  // GET /healthcheck", user_id);
@@ -162,7 +164,9 @@ impl<
                     serialize_future(stores_service.list(offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse.context("Parsing query parameters // GET /stores failed!").into(),
+                        format_err!("Parsing query parameters // GET /stores failed!")
+                            .context(Error::Parse)
+                            .into(),
                     ))
                 }
             }
@@ -176,8 +180,8 @@ impl<
                     serialize_future(base_products_service.get_products_of_the_store(store_id, skip_base_product_id, offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // GET /stores/:id/product failed!")
+                        format_err!("Parsing query parameters // GET /stores/:id/product failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -218,8 +222,8 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /stores/search failed!")
+                        format_err!("Parsing query parameters // POST /stores/search failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -288,8 +292,8 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /stores/auto_complete failed!")
+                        format_err!("Parsing query parameters // POST /stores/auto_complete failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -308,7 +312,11 @@ impl<
                         .and_then(move |new_store| {
                             new_store
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of NewStore failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of NewStore failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| stores_service.create(new_store))
                         }),
@@ -328,7 +336,11 @@ impl<
                         .and_then(move |update_store| {
                             update_store
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of UpdateStore failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of UpdateStore failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| stores_service.update(store_id, update_store))
                         }),
@@ -372,7 +384,9 @@ impl<
                     serialize_future(products_service.list(offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse.context("Parsing query parameters // GET /products failed!").into(),
+                        format_err!("Parsing query parameters // GET /products failed!")
+                            .context(Error::Parse)
+                            .into(),
                     ))
                 }
             }
@@ -384,8 +398,8 @@ impl<
                     serialize_future(products_service.get_store_id(product_id))
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // GET /products/store_id failed!")
+                        format_err!("Parsing query parameters // GET /products/store_id failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -406,8 +420,8 @@ impl<
                                 .product
                                 .validate()
                                 .map_err(|e| {
-                                    Error::Validate(e.into())
-                                        .context("Validation of NewProductWithAttributes failed!")
+                                    format_err!("Validation of NewProductWithAttributes failed!")
+                                        .context(Error::Validate(e.into()))
                                         .into()
                                 })
                                 .into_future()
@@ -431,8 +445,8 @@ impl<
                                 product
                                     .validate()
                                     .map_err(|e| {
-                                        Error::Validate(e.into())
-                                            .context("Validation of UpdateProductWithAttributes failed!")
+                                        format_err!("Validation of UpdateProductWithAttributes failed!")
+                                            .context(Error::Validate(e.into()))
                                             .into()
                                     })
                                     .into_future()
@@ -475,8 +489,8 @@ impl<
                     serialize_future(base_products_service.list(offset, count))
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // GET /base_products failed!")
+                        format_err!("Parsing query parameters // GET /base_products failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -495,7 +509,11 @@ impl<
                         .and_then(move |new_base_product| {
                             new_base_product
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of NewBaseProduct failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of NewBaseProduct failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| base_products_service.create(new_base_product))
                         }),
@@ -518,7 +536,11 @@ impl<
                         .and_then(move |update_base_product| {
                             update_base_product
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of UpdateBaseProduct failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of UpdateBaseProduct failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| base_products_service.update(base_product_id, update_base_product))
                         }),
@@ -549,8 +571,8 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/search failed!")
+                        format_err!("Parsing query parameters // POST /products/search failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -571,8 +593,8 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/auto_complete failed!")
+                        format_err!("Parsing query parameters // POST /products/auto_complete failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -593,8 +615,8 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/most_discount failed!")
+                        format_err!("Parsing query parameters // POST /products/most_discount failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -615,8 +637,8 @@ impl<
                     )
                 } else {
                     Box::new(future::err(
-                        Error::Parse
-                            .context("Parsing query parameters // POST /products/most_viewed failed!")
+                        format_err!("Parsing query parameters // POST /products/most_viewed failed!")
+                            .context(Error::Parse)
                             .into(),
                     ))
                 }
@@ -748,7 +770,11 @@ impl<
                         .and_then(move |new_attribute| {
                             new_attribute
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of NewAttribute failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of NewAttribute failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| attributes_service.create(new_attribute))
                         }),
@@ -768,7 +794,11 @@ impl<
                         .and_then(move |update_attribute| {
                             update_attribute
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of UpdateAttribute failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of UpdateAttribute failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| attributes_service.update(attribute_id, update_attribute))
                         }),
@@ -794,7 +824,11 @@ impl<
                         .and_then(move |new_category| {
                             new_category
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of NewCategory failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of NewCategory failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| categories_service.create(new_category))
                         }),
@@ -814,7 +848,11 @@ impl<
                         .and_then(move |update_category| {
                             update_category
                                 .validate()
-                                .map_err(|e| Error::Validate(e.into()).context("Validation of UpdateCategory failed!").into())
+                                .map_err(|e| {
+                                    format_err!("Validation of UpdateCategory failed!")
+                                        .context(Error::Validate(e.into()))
+                                        .into()
+                                })
                                 .into_future()
                                 .and_then(move |_| categories_service.update(category_id, update_category))
                         }),
@@ -963,17 +1001,11 @@ impl<
             }
 
             // Fallback
-            (m, r) => {
-                error!(
-                    "User with id = '{:?}' requests non existing endpoint in stores microservice!",
-                    user_id
-                );
-                Box::new(future::err(
-                    Error::NotFound
-                        .context(format!("Request to non existing endpoint in stores microservice! {:?} {:?}", m, r))
-                        .into(),
-                ))
-            }
+            (m, _) => Box::new(future::err(
+                format_err!("Request to non existing endpoint in stores microservice! {:?} {:?}", m, path)
+                    .context(Error::NotFound)
+                    .into(),
+            )),
         }
     }
 }

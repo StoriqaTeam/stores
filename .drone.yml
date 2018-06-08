@@ -65,7 +65,7 @@ pipeline:
     when:
       event: [push, tag]
   deploy2nightly:
-    image: jackthestripper/drone_k8s_rollout:20180608
+    image: jackthestripper/drone_k8s_rollout:20180607
     object: stores
     kind: deployment
     namespace: default

@@ -133,8 +133,8 @@ impl<
                                                 if let Some(store) = store {
                                                     Ok(store)
                                                 } else {
-                                                    Err(Error::NotFound
-                                                        .context(format!("Not found such store id : {}", el_store.id))
+                                                    Err(format_err!("Not found such store id : {}", el_store.id)
+                                                        .context(Error::NotFound)
                                                         .into())
                                                 }
                                             })
@@ -313,9 +313,10 @@ impl<
                                     .map(move |exists| (payload, exists))
                                     .and_then(|(new_store, exists)| {
                                         if exists {
-                                            Err(Error::Validate(
-                                                validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                            ).context(format!("Store with slug '{}' already exists.", new_store.slug.clone()))
+                                            Err(format_err!("Store with slug '{}' already exists.", new_store.slug)
+                                                .context(Error::Validate(
+                                                    validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                                ))
                                                 .into())
                                         } else {
                                             Ok(new_store)
@@ -350,7 +351,9 @@ impl<
                                     if let Some(store) = store {
                                         Ok(store)
                                     } else {
-                                        Err(Error::NotFound.context(format!("Not found such store id : {}", store_id)).into())
+                                        Err(format_err!("Not found such store id : {}", store_id)
+                                            .context(Error::NotFound)
+                                            .into())
                                     }
                                 })
                                 .and_then(|s| {
@@ -358,9 +361,10 @@ impl<
                                         if s.slug != slug {
                                             stores_repo.slug_exists(slug.clone()).and_then(|exists| {
                                                 if exists {
-                                                    Err(Error::Validate(
-                                                        validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                                    ).context(format!("Store with slug '{}' already exists.", slug))
+                                                    Err(format_err!("Store with slug '{}' already exists.", slug)
+                                                        .context(Error::Validate(
+                                                            validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                                        ))
                                                         .into())
                                                 } else {
                                                     Ok(())
@@ -400,8 +404,8 @@ impl<
                                         if let Some(product) = product {
                                             Ok(product)
                                         } else {
-                                            Err(Error::NotFound
-                                                .context(format!("Not found such product id : {}", cart_product.product_id))
+                                            Err(format_err!("Not found such product id : {}", cart_product.product_id)
+                                                .context(Error::NotFound)
                                                 .into())
                                         }
                                     })
@@ -423,8 +427,8 @@ impl<
                                                     if let Some(product) = product {
                                                         Ok(product)
                                                     } else {
-                                                        Err(Error::NotFound
-                                                            .context(format!("Not found such base product id : {}", base_product_id))
+                                                        Err(format_err!("Not found such base product id : {}", base_product_id)
+                                                            .context(Error::NotFound)
                                                             .into())
                                                     }
                                                 })
@@ -447,8 +451,8 @@ impl<
                                                     if let Some(store) = store {
                                                         Ok(store)
                                                     } else {
-                                                        Err(Error::NotFound
-                                                            .context(format!("Not found such store id : {}", store_id))
+                                                        Err(format_err!("Not found such store id : {}", store_id)
+                                                            .context(Error::NotFound)
                                                             .into())
                                                     }
                                                 })

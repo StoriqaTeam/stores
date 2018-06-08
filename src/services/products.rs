@@ -235,9 +235,10 @@ impl<
                                                     })
                                                 });
                                                 if exists {
-                                                    Err(Error::Validate(
-                                                        validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
-                                                    ).context(format!("Product with attributes {:?} already exists", attributes))
+                                                    Err(format_err!("Product with attributes {:?} already exists", attributes)
+                                                        .context(Error::Validate(
+                                                            validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
+                                                        ))
                                                         .into())
                                                 } else {
                                                     Ok(())
@@ -259,11 +260,8 @@ impl<
                                                                 );
                                                                 prod_attr_repo.create(new_prod_attr)
                                                             } else {
-                                                                Err(Error::NotFound
-                                                                    .context(format!(
-                                                                        "Not found such attribute id : {}",
-                                                                        attr_value.attr_id
-                                                                    ))
+                                                                Err(format_err!("Not found such attribute id : {}", attr_value.attr_id)
+                                                                    .context(Error::NotFound)
                                                                     .into())
                                                             }
                                                         })
@@ -308,8 +306,8 @@ impl<
                                         if let Some(product) = product {
                                             Ok(product)
                                         } else {
-                                            Err(Error::NotFound
-                                                .context(format!("Not found such product id : {}", product_id))
+                                            Err(format_err!("Not found such product id : {}", product_id)
+                                                .context(Error::NotFound)
                                                 .into())
                                         }
                                     })
@@ -343,9 +341,10 @@ impl<
                                                 })
                                             });
                                             if exists {
-                                                Err(Error::Validate(
+                                                Err(format_err!("Product with attributes {:?} already exists", attributes).context(
+                                                    Error::Validate(
                                                     validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
-                                                ).context(format!("Product with attributes {:?} already exists", attributes)).into())
+                                                )).into())
                                             } else {
                                                 Ok(())
                                             }
@@ -368,7 +367,7 @@ impl<
                                                                 );
                                                                 prod_attr_repo.create(new_prod_attr)
                                                             } else {
-                                                                Err(Error::NotFound.context(format!("Not found such attribute id : {}", attr_value.attr_id)).into())
+                                                                Err(format_err!("Not found such attribute id : {}", attr_value.attr_id).context(Error::NotFound).into())
                                                             }
                                                         })
                                                 })

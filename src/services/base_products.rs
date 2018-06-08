@@ -210,7 +210,7 @@ impl<
                                         x if x == (Currency::Etherium as i32) => currencies.etherium,
                                         x if x == (Currency::Stq as i32) => currencies.stq,
                                         c => {
-                                            return Err(Error::NotFound.context(format!("Not found such currency_id : {}", c)).into());
+                                            return Err(format_err!("Not found such currency_id : {}", c).context(Error::NotFound).into());
                                         }
                                     }.as_object()
                                         .map(|m| {
@@ -629,8 +629,8 @@ impl<
                                             .into_iter()
                                             .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
                                             .ok_or_else(|| {
-                                                Error::NotFound
-                                                    .context(format!("There is no such 3rd level category in db - {}", prod.category_id))
+                                                format_err!("There is no such 3rd level category in db - {}", prod.category_id)
+                                                    .context(Error::NotFound)
                                                     .into()
                                             })
                                     })
@@ -767,11 +767,8 @@ impl<
                                                 .into_iter()
                                                 .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
                                                 .ok_or_else(|| {
-                                                    Error::NotFound
-                                                        .context(format!(
-                                                            "There is no such 3rd level category in db - {}",
-                                                            prod.category_id
-                                                        ))
+                                                    format_err!("There is no such 3rd level category in db - {}", prod.category_id)
+                                                        .context(Error::NotFound)
                                                         .into()
                                                 })
                                         })
@@ -855,9 +852,10 @@ impl<
                                             };
                                             exists.and_then(|exists| {
                                                 if exists {
-                                                    Err(Error::Validate(
-                                                        validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                                                    ).context(format!("Store with slug '{:?}' already exists.", payload.slug.clone()))
+                                                    Err(format_err!("Store with slug '{:?}' already exists.", payload.slug.clone())
+                                                        .context(Error::Validate(
+                                                            validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
+                                                        ))
                                                         .into())
                                                 } else {
                                                     Ok(old_prod)
@@ -909,7 +907,7 @@ impl<
                                                             Ok(())
                                                         }
                                                     } else {
-                                                        Err(Error::NotFound.context(format!("Could not update store product categories because there is no such 3rd level category in db.")).into())
+                                                        Err(format_err!("Could not update store product categories because there is no such 3rd level category in db.").context(Error::NotFound).into())
                                                     }
                                                 })
                                                 .and_then(|_| Ok(updated_prod))

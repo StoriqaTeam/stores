@@ -77,7 +77,9 @@ impl<
             }))
         } else {
             Box::new(future::err(
-                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+                format_err!("Denied request to wizard for unauthorized user")
+                    .context(Error::Forbidden)
+                    .into(),
             ))
         }
     }
@@ -101,7 +103,9 @@ impl<
             }))
         } else {
             Box::new(future::err(
-                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+                format_err!("Denied request to wizard for unauthorized user")
+                    .context(Error::Forbidden)
+                    .into(),
             ))
         }
     }
@@ -134,7 +138,9 @@ impl<
             })
         } else {
             Box::new(future::err(
-                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+                format_err!("Denied request to wizard for unauthorized user")
+                    .context(Error::Forbidden)
+                    .into(),
             ))
         }
     }
@@ -161,7 +167,9 @@ impl<
                                         if let Some(store) = store {
                                             Ok(store)
                                         } else {
-                                            Err(Error::NotFound.context(format!("Not found such store id : {}", store_id)).into())
+                                            Err(format_err!("Not found such store id : {}", store_id)
+                                                .context(Error::NotFound)
+                                                .into())
                                         }
                                     })
                                     .and_then(|s| {
@@ -178,11 +186,11 @@ impl<
                             };
                             slug_exist.and_then(|exists| {
                                 if exists {
-                                    Err(
-                                        Error::Validate(validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}))
-                                            .context(format!("Store with slug '{}' already exists.", slug))
-                                            .into(),
-                                    )
+                                    Err(format_err!("Store with slug '{}' already exists.", slug)
+                                        .context(Error::Validate(
+                                            validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
+                                        ))
+                                        .into())
                                 } else {
                                     let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                                     wizard_stores_repo.update(user_id, payload)
@@ -196,7 +204,9 @@ impl<
             }))
         } else {
             Box::new(future::err(
-                Error::Forbidden.context("Denied request to wizard for unauthorized user").into(),
+                format_err!("Denied request to wizard for unauthorized user")
+                    .context(Error::Forbidden)
+                    .into(),
             ))
         }
     }

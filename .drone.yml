@@ -1,4 +1,9 @@
 pipeline:
+
+###
+# Test
+###
+
   update_pr:
     image: plugins/git
     commands:
@@ -25,9 +30,16 @@ pipeline:
     - apt-get update
     - apt-get install -y libpq5 postgresql-client-10
     - psql -U postgres -h db-postgresql -c "CREATE ROLE stores WITH PASSWORD 'stores' LOGIN REPLICATION" -c "CREATE DATABASE stores OWNER stores"
+    - cargo install diesel_cli --version 1.3.1
+    - diesel migration run
     - cargo test
     when:
       event: pull_request
+
+###
+# Build and deploy to nightly/stage
+###
+
   build:
     image: rust:1.26-stretch
     commands:
@@ -70,6 +82,29 @@ pipeline:
     when:
       branch: master
       event: push
+  deploy2stage:
+    image: jackthestripper/drone_k8s_rollout:20180510
+    addr: https://api.stage.stq.cloud
+    token: PW2clI0vKqLi3eywlN776rMyE7hk1pgX
+    user: admin
+    object: stores
+    kind: deployment
+    namespace: default
+    img_names:
+    - storiqateam/stq-stores
+    img_cnts:
+    - stores
+    img_tags:
+    - ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
+    ca: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMwekNDQWJ1Z0F3SUJBZ0lNRlNKQTd5MHlUTHRrNWtXak1BMEdDU3FHU0liM0RRRUJDd1VBTUJVeEV6QVIKQmdOVkJBTVRDbXQxWW1WeWJtVjBaWE13SGhjTk1UZ3dOREF5TVRReE1ESXdXaGNOTWpnd05EQXhNVFF4TURJdwpXakFWTVJNd0VRWURWUVFERXdwcmRXSmxjbTVsZEdWek1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBCk1JSUJDZ0tDQVFFQXg3bHI5ejdaSmF3ZXNnUCt6SW1hY0ZCYVdZNS8rSUlEa2xVcDNCN29VUUdCclM2bkEwbDIKYVU0STc4WlpZQThwcEplOVhFL2daVUVNWEdFdlZuWUozL1pybVBqSWMybnF6T3gxc2N6WmlDamllWG1nakVHKwpvalpoc2tGc3d3R01sRnFsODVtK05UVWdEYUYwSjQ1NkFrM3hoUkdWT1BYaDNMWnN4cXZNcENmNmFrYkNjMTJCCnVjak5uUThmZVc5Sjc4VzkwWGJuSG5kY1c4cWUwQ1dLWnBZSkdlQkd6SHJjczFGc09leURSOHhqVW5pejkzSE8KZ0poTXF4VmYzTk5rL3lYSzZnS1FHVHBGY05uUXlLRy9MZ3JGWW10aGs1UWFORUZLV3hiK0RDVnJsa0F3VmhJRQpxT1FYRWlmQjB5WXpCdmp1Tmxib1JSVlpMeDRwRTNsOFZ3SURBUUFCb3lNd0lUQU9CZ05WSFE4QkFmOEVCQU1DCkFRWXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFGZmpyVnUyYmpobGgKZXhiOUo5WFFEaWl1WngwVGZBRDZsRjRBb3RhdFV3UjNMNVdUSlFYMHJvZWNLMHNjWHBiUUx6ME5vTThLbmtPUApyVkk4UWdKY1l1bHJSRmlqWmxrMElQNUJRb3ZVM1RnSlB5RG5xS0xCaTdtR2ZyUXB2YzVrVHVBOTJTb3FGT2pqCjNtZEdqNFprVmh1QkhYWXNOUk53VEFtUVB5WXozZXJFVkM5MDhqalhRYTB1cnQvZWFEd1ZNMFAxanhZZklrUDAKYm9aVmRPWWR6MzJjME5YRXRPZDMvWC9vaWdSSmhSMG5Sc2ZVbDRpd1BBb1JBNlhmM2tpWUNoWWdLci9IZzBudAp2azJ5Yjc0c0ZpZ0tyalZ4cTZNeHRkdGlBUWwrU0g0TkU5RmhYT3FaSFFSVTB4dk9YRC9WaU1qaVl2NXVVc0NrClhza0ZxSyt2eVE9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=="
+    when:
+      branch: release*
+      event: push
+
+###
+# Deploy to stable
+###
+
   deploy2stable:
     image: jackthestripper/drone_k8s_rollout:20180510
     addr: https://api.stable.stq.cloud
@@ -89,24 +124,11 @@ pipeline:
       branch: master
       event: deployment
       environment: stable
-  deploy2stage:
-    image: jackthestripper/drone_k8s_rollout:20180510
-    addr: https://api.stage.stq.cloud
-    token: PW2clI0vKqLi3eywlN776rMyE7hk1pgX
-    user: admin
-    object: stores
-    kind: deployment
-    namespace: default
-    img_names:
-    - storiqateam/stq-stores
-    img_cnts:
-    - stores
-    img_tags:
-    - ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
-    ca: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMwekNDQWJ1Z0F3SUJBZ0lNRlNKQTd5MHlUTHRrNWtXak1BMEdDU3FHU0liM0RRRUJDd1VBTUJVeEV6QVIKQmdOVkJBTVRDbXQxWW1WeWJtVjBaWE13SGhjTk1UZ3dOREF5TVRReE1ESXdXaGNOTWpnd05EQXhNVFF4TURJdwpXakFWTVJNd0VRWURWUVFERXdwcmRXSmxjbTVsZEdWek1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBCk1JSUJDZ0tDQVFFQXg3bHI5ejdaSmF3ZXNnUCt6SW1hY0ZCYVdZNS8rSUlEa2xVcDNCN29VUUdCclM2bkEwbDIKYVU0STc4WlpZQThwcEplOVhFL2daVUVNWEdFdlZuWUozL1pybVBqSWMybnF6T3gxc2N6WmlDamllWG1nakVHKwpvalpoc2tGc3d3R01sRnFsODVtK05UVWdEYUYwSjQ1NkFrM3hoUkdWT1BYaDNMWnN4cXZNcENmNmFrYkNjMTJCCnVjak5uUThmZVc5Sjc4VzkwWGJuSG5kY1c4cWUwQ1dLWnBZSkdlQkd6SHJjczFGc09leURSOHhqVW5pejkzSE8KZ0poTXF4VmYzTk5rL3lYSzZnS1FHVHBGY05uUXlLRy9MZ3JGWW10aGs1UWFORUZLV3hiK0RDVnJsa0F3VmhJRQpxT1FYRWlmQjB5WXpCdmp1Tmxib1JSVlpMeDRwRTNsOFZ3SURBUUFCb3lNd0lUQU9CZ05WSFE4QkFmOEVCQU1DCkFRWXdEd1lEVlIwVEFRSC9CQVV3QXdFQi96QU5CZ2txaGtpRzl3MEJBUXNGQUFPQ0FRRUFGZmpyVnUyYmpobGgKZXhiOUo5WFFEaWl1WngwVGZBRDZsRjRBb3RhdFV3UjNMNVdUSlFYMHJvZWNLMHNjWHBiUUx6ME5vTThLbmtPUApyVkk4UWdKY1l1bHJSRmlqWmxrMElQNUJRb3ZVM1RnSlB5RG5xS0xCaTdtR2ZyUXB2YzVrVHVBOTJTb3FGT2pqCjNtZEdqNFprVmh1QkhYWXNOUk53VEFtUVB5WXozZXJFVkM5MDhqalhRYTB1cnQvZWFEd1ZNMFAxanhZZklrUDAKYm9aVmRPWWR6MzJjME5YRXRPZDMvWC9vaWdSSmhSMG5Sc2ZVbDRpd1BBb1JBNlhmM2tpWUNoWWdLci9IZzBudAp2azJ5Yjc0c0ZpZ0tyalZ4cTZNeHRkdGlBUWwrU0g0TkU5RmhYT3FaSFFSVTB4dk9YRC9WaU1qaVl2NXVVc0NrClhza0ZxSyt2eVE9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=="
-    when:
-      branch: release*
-      event: push
+
+###
+# Deploy to stable
+###
+
   deploy2production:
     image: jackthestripper/drone_k8s_rollout:20180510
     namespace: default
@@ -123,6 +145,7 @@ pipeline:
       branch: release*
       event: deployment
       environment: production
+
   notify_slack:
     image: plugins/slack
     webhook: https://hooks.slack.com/services/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
@@ -139,6 +162,11 @@ pipeline:
       event: [ push, tag, deployment ]
       branch: [ master, release* ]
       status: [ failure, success ]
+
+###
+# External dependencies for tests
+###
+
 services:
   db-postgresql:
     image: postgres:10-alpine

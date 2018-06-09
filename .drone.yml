@@ -1,4 +1,11 @@
 pipeline:
+  restore-cache:
+    image: plugins/s3-cache:1
+    pull: true
+    secrets: [ aws_access_key_id, aws_secret_access_key ]
+    mount:
+    - target
+    restore: true
 
 ###
 # Test
@@ -53,6 +60,13 @@ pipeline:
     - cp /usr/local/cargo/bin/diesel .
     when:
       event: push
+  rebuild-cache:
+    image: plugins/s3-cache:1
+    pull: true
+    secrets: [ aws_access_key_id, aws_secret_access_key ]
+    mount:
+    - target
+    rebuild: true
   package:
     image: plugins/docker
     repo: storiqateam/stq-stores

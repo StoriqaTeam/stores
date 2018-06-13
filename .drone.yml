@@ -5,6 +5,7 @@ pipeline:
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
     - target
+    - deps
     restore: true
 
 ###
@@ -28,6 +29,7 @@ pipeline:
     - RUN_MODE=k8s
     - DATABASE_HOST=db-postgresql
     - DATABASE_URL=postgresql://stores:stores@db-postgresql/stores
+    - CARGO_HOME=deps
     commands:
     - rustup component add rustfmt-preview
     - cargo fmt --all -- --write-mode=diff
@@ -51,6 +53,8 @@ pipeline:
 
   build:
     image: rust:1.26-stretch
+    environment:
+    - CARGO_HOME=deps
     commands:
     - cargo build --release --locked
     when:
@@ -61,6 +65,7 @@ pipeline:
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
     - target
+    - deps
     rebuild: true
   package:
     image: plugins/docker

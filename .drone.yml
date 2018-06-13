@@ -59,14 +59,6 @@ pipeline:
     - cargo build --release --locked
     when:
       event: push
-  rebuild-cache:
-    image: plugins/s3-cache:1
-    pull: true
-    secrets: [ aws_access_key_id, aws_secret_access_key ]
-    mount:
-    - target
-    - deps
-    rebuild: true
   package:
     image: plugins/docker
     repo: storiqateam/stq-stores
@@ -173,9 +165,17 @@ pipeline:
       environment: production
 
 ###
-# Notifications
+# Notifications and post-deploy ops
 ###
 
+  rebuild-cache:
+    image: plugins/s3-cache:1
+    pull: true
+    secrets: [ aws_access_key_id, aws_secret_access_key ]
+    mount:
+    - target
+    - deps
+    rebuild: true
   notify_slack:
     image: plugins/slack
     webhook: https://hooks.slack.com/services/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

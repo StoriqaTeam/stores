@@ -180,7 +180,6 @@ pipeline:
     - mkdir -p target/debug/build || true
     - find target/release/deps/ -type f -iname stores* || true
     - find target/debug/deps/ -type f -iname stores* || true
-    - rm target/release
   rebuild-cache:
     image: plugins/s3-cache:1
     pull: true

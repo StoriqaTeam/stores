@@ -4,7 +4,7 @@ pipeline:
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
-    - target
+    - target/release/deps
     - deps
     restore: true
 
@@ -173,7 +173,7 @@ pipeline:
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
-    - target
+    - target/release/deps
     - deps
     rebuild: true
   notify_slack:

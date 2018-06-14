@@ -172,6 +172,8 @@ pipeline:
   cleardeps:
     image: alpine:3.7
     commands:
+    - test -d target/release/deps/ || mkdir -p target/release/deps/
+    - test -d target/debug/deps/ || mkdir -p target/debug/deps/
     - find target/release/deps/ -type f -iname stores* || true
     - find target/debug/deps/ -type f -iname stores* || true
   rebuild-cache:

@@ -4,10 +4,7 @@ pipeline:
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
-    - target/release/deps
-    - target/release/build
-    - target/debug/deps
-    - target/debug/build
+    - target/release
     - deps
     restore: true
 
@@ -174,21 +171,15 @@ pipeline:
   cleardeps:
     image: alpine:3.7
     commands:
-    - mkdir -p target/release/deps || true
-    - mkdir -p target/release/build || true
-    - mkdir -p target/debug/deps || true
-    - mkdir -p target/debug/build || true
+    - mkdir -p target/release || true
     - find target/release/deps/ -type f -iname stores* || true
-    - find target/debug/deps/ -type f -iname stores* || true
+    - rm -f target/release/stores target/release/stores.d
   rebuild-cache:
     image: plugins/s3-cache:1
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
-    - target/release/deps
-    - target/release/build
-    - target/debug/deps
-    - target/debug/build
+    - target/release
     - deps
     rebuild: true
   notify_slack:

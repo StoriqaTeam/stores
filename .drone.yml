@@ -5,6 +5,7 @@ pipeline:
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
     - target/release/deps
+    - target/debug/deps
     - deps
     restore: true
 
@@ -168,12 +169,18 @@ pipeline:
 # Notifications and post-deploy ops
 ###
 
+  cleardeps:
+    image: alpine:3.7
+    commands:
+    - find target/release/deps/ -type f -iname stores* || true
+    - find target/debug/deps/ -type f -iname stores* || true
   rebuild-cache:
     image: plugins/s3-cache:1
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
     - target/release/deps
+    - target/debug/deps
     - deps
     rebuild: true
   notify_slack:

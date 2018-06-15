@@ -36,6 +36,8 @@ pub trait StoresService {
     fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32>;
     /// Deactivates specific store
     fn deactivate(&self, store_id: i32) -> ServiceFuture<Store>;
+    /// Deactivates store by user id
+    fn delete_by_user(&self, user_id: i32) -> ServiceFuture<Option<Store>>;
     /// Creates new store
     fn create(&self, payload: NewStore) -> ServiceFuture<Store>;
     /// Lists stores limited by `from` and `count` parameters
@@ -264,6 +266,28 @@ impl<
                         .and_then(move |conn| {
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.deactivate(store_id)
+                        })
+                })
+                .map_err(|e| e.context("Service Stores, deactivate endpoint error occured.").into()),
+        )
+    }
+
+    /// Delete store by user id
+    fn delete_by_user(&self, user_id_arg: i32) -> ServiceFuture<Option<Store>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            stores_repo.delete_by_user(user_id_arg)
                         })
                 })
                 .map_err(|e| e.context("Service Stores, deactivate endpoint error occured.").into()),

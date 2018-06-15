@@ -40,6 +40,7 @@ pub enum Route {
     StoresSearchFiltersCategory,
     StoresCart,
     Store(i32),
+    StoreByUser(i32),
     StoreProducts(i32),
     StoreProductsCount(i32),
     UserRoles,
@@ -60,6 +61,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Stores/:id route
     router.add_route_with_params(r"^/stores/(\d+)$", |params| {
         params.get(0).and_then(|string_id| string_id.parse::<i32>().ok()).map(Route::Store)
+    });
+
+    // Stores/by_user_id/:id route
+    router.add_route_with_params(r"^/stores/by_user_id/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(Route::StoreByUser)
     });
 
     // Stores/:id/products route

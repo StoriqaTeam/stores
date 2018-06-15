@@ -41,7 +41,7 @@ pipeline:
     - apt-get update
     - apt-get install -y libpq5 postgresql-client-10
     - psql -U postgres -h db-postgresql -c "CREATE ROLE stores WITH PASSWORD 'stores' LOGIN REPLICATION" -c "CREATE DATABASE stores OWNER stores"
-    - psql -U postgres -h db-postgresql -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"";
+    - psql -U postgres -h db-postgresql -d stores -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"";
     - wget -q https://s3.eu-central-1.amazonaws.com/dumpster.stq/diesel -O /usr/local/cargo/bin/diesel
     - chmod +x /usr/local/cargo/bin/diesel
     - diesel migration run

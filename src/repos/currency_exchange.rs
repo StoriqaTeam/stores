@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+
 use diesel;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -7,6 +10,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 
 use stq_acl::*;
+use stq_static_resources::Currency;
 
 use super::acl;
 use super::types::RepoResult;
@@ -23,6 +27,9 @@ pub struct CurrencyExchangeRepoImpl<'a, T: Connection<Backend = Pg, TransactionM
 pub trait CurrencyExchangeRepo {
     /// Get latest currency exchanges
     fn get_latest(&self) -> RepoResult<Option<CurrencyExchange>>;
+
+    /// Get latest currency exchanges for currency_id
+    fn get_exchange_for_currency(&self, currency_id: i32) -> RepoResult<Option<HashMap<i32, f64>>>;
 
     /// Adds latest currency to table
     fn update(&self, payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange>;
@@ -59,6 +66,34 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(currency_exchange_arg)
             })
             .map_err(|e: FailureError| e.context(format!("Find latest currency error occured")).into())
+    }
+
+    /// Get latest currency exchanges for currency_id
+    fn get_exchange_for_currency(&self, currency_id: i32) -> RepoResult<Option<HashMap<i32, f64>>> {
+        self.get_latest().map(|currencies| {
+            currencies.and_then(|currencies| {
+                match currency_id {
+                    x if x == (Currency::Rouble as i32) => currencies.rouble,
+                    x if x == (Currency::Euro as i32) => currencies.euro,
+                    x if x == (Currency::Dollar as i32) => currencies.dollar,
+                    x if x == (Currency::Bitcoin as i32) => currencies.bitcoin,
+                    x if x == (Currency::Etherium as i32) => currencies.etherium,
+                    x if x == (Currency::Stq as i32) => currencies.stq,
+                    _ => return None,
+                }.as_object()
+                    .map(|m| {
+                        let mut map = HashMap::<i32, f64>::new();
+                        for (key, val) in m {
+                            if let Some(key) = Currency::from_str(key).ok() {
+                                if let Some(val) = val.as_f64() {
+                                    map.insert(key as i32, val);
+                                }
+                            }
+                        }
+                        map
+                    })
+            })
+        })
     }
 
     /// Adds latest currency to table

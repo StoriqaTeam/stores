@@ -1,6 +1,4 @@
 //! Stores Services, presents CRUD operations with stores
-use std::collections::BTreeMap;
-
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
@@ -15,9 +13,9 @@ use stq_http::client::ClientHandle;
 
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
-use models::{BaseProductWithVariants, CartProduct, Category, NewStore, Product, SearchStore, Store, StoreWithBaseProducts, UpdateStore};
+use models::{Category, NewStore, SearchStore, Store, UpdateStore};
 use repos::remove_unused_categories;
-use repos::{RepoResult, ReposFactory};
+use repos::ReposFactory;
 
 pub trait StoresService {
     /// Find stores by name limited by `count` parameters
@@ -44,8 +42,6 @@ pub trait StoresService {
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Store>>;
     /// Updates specific store
     fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store>;
-    /// Cart
-    fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
 }
 
 /// Stores services, responsible for Store-related CRUD operations
@@ -402,91 +398,6 @@ impl<
                         })
                 })
                 .map_err(|e| e.context("Service Stores, update endpoint error occured.").into()),
-        )
-    }
-
-    /// Find by cart
-    fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-
-        let repo_factory = self.repo_factory.clone();
-
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            let products = cart.into_iter()
-                                .map(|cart_product| {
-                                    products_repo.find(cart_product.product_id).and_then(|product| {
-                                        if let Some(product) = product {
-                                            Ok(product)
-                                        } else {
-                                            Err(format_err!("Not found such product id : {}", cart_product.product_id)
-                                                .context(Error::NotFound)
-                                                .into())
-                                        }
-                                    })
-                                })
-                                .collect::<RepoResult<Vec<Product>>>();
-                            products
-                                .and_then(|products| {
-                                    let mut group_by_base_product_id = BTreeMap::<i32, Vec<Product>>::default();
-                                    for product in products {
-                                        let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
-                                        p.push(product);
-                                    }
-                                    group_by_base_product_id
-                                        .into_iter()
-                                        .map(|(base_product_id, products)| {
-                                            base_products_repo
-                                                .find(base_product_id)
-                                                .and_then(|product| {
-                                                    if let Some(product) = product {
-                                                        Ok(product)
-                                                    } else {
-                                                        Err(format_err!("Not found such base product id : {}", base_product_id)
-                                                            .context(Error::NotFound)
-                                                            .into())
-                                                    }
-                                                })
-                                                .map(|base_product| BaseProductWithVariants::new(base_product, products))
-                                        })
-                                        .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
-                                })
-                                .and_then(|base_products| {
-                                    let mut group_by_store_id = BTreeMap::<i32, Vec<BaseProductWithVariants>>::default();
-                                    for base_product in base_products {
-                                        let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
-                                        bp.push(base_product);
-                                    }
-                                    group_by_store_id
-                                        .into_iter()
-                                        .map(|(store_id, base_products)| {
-                                            stores_repo
-                                                .find(store_id)
-                                                .and_then(|store| {
-                                                    if let Some(store) = store {
-                                                        Ok(store)
-                                                    } else {
-                                                        Err(format_err!("Not found such store id : {}", store_id)
-                                                            .context(Error::NotFound)
-                                                            .into())
-                                                    }
-                                                })
-                                                .map(|store| StoreWithBaseProducts::new(store, base_products))
-                                        })
-                                        .collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
-                                })
-                        })
-                })
-                .map_err(|e| e.context("Service Stores, find_by_cart endpoint error occured.").into()),
         )
     }
 }

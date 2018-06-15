@@ -353,6 +353,15 @@ impl<
                 serialize_future(stores_service.deactivate(store_id))
             }
 
+            // DELETE /stores/by_user_id/<user_id>
+            (&Delete, Some(Route::StoreByUser(user_id_arg))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // DELETE /stores/by_user_id/{}",
+                    user_id, user_id_arg
+                );
+                serialize_future(stores_service.delete_by_user(user_id_arg))
+            }
+
             // GET /products/<product_id>
             (&Get, Some(Route::Product(product_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /products/{}", user_id, product_id);

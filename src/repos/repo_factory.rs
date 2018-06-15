@@ -849,6 +849,10 @@ pub mod tests {
             store.is_active = false;
             Ok(store)
         }
+
+        fn delete_by_user(&self, _user_id_arg: i32) -> RepoResult<Option<Store>> {
+            Ok(None)
+        }
     }
 
     #[allow(unused)]

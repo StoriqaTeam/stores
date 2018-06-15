@@ -40,6 +40,9 @@ pub trait StoresRepo {
     /// Deactivates specific store
     fn deactivate(&self, store_id: i32) -> RepoResult<Store>;
 
+    /// Delete store by user id
+    fn delete_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>>;
+
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
 
@@ -139,6 +142,28 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Deactivate store with id {} error occured.", store_id_arg))
                     .into()
             })
+    }
+
+    /// Delete store by user id
+    fn delete_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>> {
+        debug!("Delete store by user id {}.", user_id_arg);
+        let query = stores.filter(user_id.eq(user_id_arg));
+
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .and_then(|store_res: Option<Store>| {
+                if let Some(store_res) = store_res {
+                    acl::check(&*self.acl, &Resource::Stores, &Action::Delete, self, Some(&store_res))?;
+                    let filter = stores.filter(user_id.eq(user_id_arg));
+                    let query = diesel::delete(filter);
+                    self.execute_query(query).map(Some).map_err(From::from)
+                } else {
+                    Ok(None)
+                }
+            })
+            .map_err(|e: FailureError| e.context(format!("Delete store by user id {}.", user_id_arg)).into())
     }
 
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {

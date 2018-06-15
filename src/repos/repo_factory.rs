@@ -119,6 +119,7 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
 #[cfg(test)]
 pub mod tests {
 
+    use std::collections::HashMap;
     use std::error::Error;
     use std::fmt;
     use std::sync::Arc;
@@ -484,6 +485,11 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
             }))
+        }
+
+        /// Get latest currency exchanges for currency_id
+        fn get_exchange_for_currency(&self, _currency_id: i32) -> RepoResult<Option<HashMap<i32, f64>>> {
+            Ok(None)
         }
 
         /// Adds latest currency to table

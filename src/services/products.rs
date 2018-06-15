@@ -45,6 +45,7 @@ pub struct ProductsServiceImpl<
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub user_id: Option<i32>,
+    pub currency_id: Option<i32>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
@@ -63,6 +64,7 @@ impl<
         client_handle: ClientHandle,
         elastic_address: String,
         repo_factory: F,
+        currency_id: Option<i32>,
     ) -> Self {
         Self {
             db_pool,
@@ -71,6 +73,7 @@ impl<
             client_handle,
             elastic_address,
             repo_factory,
+            currency_id,
         }
     }
 }
@@ -86,6 +89,7 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
+        let currency_id = self.currency_id.clone();
 
         Box::new(
             self.cpu_pool
@@ -95,7 +99,25 @@ impl<
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            products_repo.find(product_id)
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            products_repo.find(product_id).and_then(move |product| {
+                                if let Some(mut product) = product {
+                                    if let Some(currency_id) = currency_id {
+                                        currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
+                                            if let Some(currency_map) = currencies_map {
+                                                if let Some(currency_id) = product.currency_id {
+                                                    product.price = product.price * currency_map[&currency_id];
+                                                };
+                                            };
+                                            Some(product)
+                                        })
+                                    } else {
+                                        Ok(Some(product))
+                                    }
+                                } else {
+                                    Ok(None)
+                                }
+                            })
                         })
                 })
                 .map_err(|e| e.context("Service Product, get endpoint error occured.").into()),
@@ -140,7 +162,6 @@ impl<
     fn deactivate(&self, product_id: i32) -> ServiceFuture<Product> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -162,7 +183,7 @@ impl<
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-
+        let currency_id = self.currency_id.clone();
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -173,7 +194,26 @@ impl<
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            products_repo.list(from, count)
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            products_repo.list(from, count).and_then(move |products| {
+                                products
+                                    .into_iter()
+                                    .map(|mut product| {
+                                        if let Some(currency_id) = currency_id {
+                                            currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
+                                                if let Some(currency_map) = currencies_map {
+                                                    if let Some(currency_id) = product.currency_id {
+                                                        product.price = product.price * currency_map[&currency_id];
+                                                    };
+                                                };
+                                                product
+                                            })
+                                        } else {
+                                            Ok(product)
+                                        }
+                                    })
+                                    .collect()
+                            })
                         })
                 })
                 .map_err(|e| e.context("Service Product, list endpoint error occured.").into()),
@@ -389,7 +429,7 @@ impl<
     fn find_with_base_id(&self, base_product_id: i32) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-
+        let currency_id = self.currency_id.clone();
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -400,7 +440,26 @@ impl<
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            products_repo.find_with_base_id(base_product_id)
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            products_repo.find_with_base_id(base_product_id).and_then(move |products| {
+                                products
+                                    .into_iter()
+                                    .map(|mut product| {
+                                        if let Some(currency_id) = currency_id {
+                                            currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
+                                                if let Some(currency_map) = currencies_map {
+                                                    if let Some(currency_id) = product.currency_id {
+                                                        product.price = product.price * currency_map[&currency_id];
+                                                    };
+                                                };
+                                                product
+                                            })
+                                        } else {
+                                            Ok(product)
+                                        }
+                                    })
+                                    .collect()
+                            })
                         })
                 })
                 .map_err(|e| e.context("Service Product, find_with_base_id endpoint error occured.").into()),
@@ -473,6 +532,7 @@ pub mod tests {
             client_handle: client_handle,
             elastic_address: "".to_string(),
             repo_factory: MOCK_REPO_FACTORY,
+            currency_id: None,
         }
     }
 

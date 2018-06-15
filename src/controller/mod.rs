@@ -27,6 +27,7 @@ use stq_http::client::ClientHandle;
 use stq_http::controller::Controller;
 use stq_http::controller::ControllerFuture;
 use stq_http::request_util::serialize_future;
+use stq_http::request_util::CurrencyId;
 use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
 
@@ -97,6 +98,8 @@ impl<
         let uuid_header = headers.get::<Cookie>();
         let uuid = uuid_header.and_then(|cookie| cookie.get("UUID"));
 
+        let currency_id = headers.get::<CurrencyId>().and_then(|sid| sid.parse::<i32>().ok());
+
         debug!("User with id = '{:?}' and uuid = {:?} is requesting {}", user_id, uuid, req.path());
 
         let system_service = SystemServiceImpl::default();
@@ -115,6 +118,7 @@ impl<
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
             self.repo_factory.clone(),
+            currency_id,
         );
 
         let base_products_service = BaseProductsServiceImpl::new(
@@ -124,6 +128,7 @@ impl<
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
             self.repo_factory.clone(),
+            currency_id,
         );
 
         let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), self.repo_factory.clone());
@@ -203,7 +208,7 @@ impl<
                                 .context(Error::Parse)
                                 .into()
                         })
-                        .and_then(move |cart_products| stores_service.find_by_cart(cart_products)),
+                        .and_then(move |cart_products| base_products_service.find_by_cart(cart_products)),
                 )
             }
 

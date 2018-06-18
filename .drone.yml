@@ -4,11 +4,8 @@ pipeline:
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
-    - target/release
     - deps
     restore: true
-    when:
-      event: push
 
 ###
 # Test
@@ -170,20 +167,11 @@ pipeline:
 # Notifications and post-deploy ops
 ###
 
-  cleardeps:
-    image: alpine:3.7
-    commands:
-    - mkdir -p target/release || true
-    - find target/release/deps/ -type f -iname stores* || true
-    - rm -f target/release/stores target/release/stores.d
-    when:
-      event: push
   rebuild-cache:
     image: plugins/s3-cache:1
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
     mount:
-    - target/release
     - deps
     rebuild: true
     when:

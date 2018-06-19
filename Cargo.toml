@@ -30,7 +30,6 @@ chrono = "0.4"
 failure = "0.1.1"
 lazy_static = "1.0"
 isolang="0.2"
-stq_acl = { path = "vendor/libstqbackend/acl" }
 stq_http = { path = "vendor/libstqbackend/http" }
 stq_router = { path = "vendor/libstqbackend/router" }
 stq_static_resources = { path = "vendor/libstqbackend/static_resources" }

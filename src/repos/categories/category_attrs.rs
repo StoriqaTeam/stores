@@ -7,7 +7,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
-use stq_acl::{Acl, CheckScope};
+use repos::legacy_acl::{Acl, CheckScope};
 
 use models::authorization::*;
 use models::category_attribute::cat_attr_values::dsl::*;

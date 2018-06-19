@@ -7,7 +7,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_acl::*;
+use repos::legacy_acl::*;
 
 use models::base_product::base_products::dsl as BaseProducts;
 use models::product::products::dsl::*;

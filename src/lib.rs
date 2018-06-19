@@ -32,7 +32,6 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
-extern crate stq_acl;
 extern crate stq_http;
 extern crate stq_router;
 extern crate stq_static_resources;

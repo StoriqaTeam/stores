@@ -1186,7 +1186,6 @@ dependencies = [
  "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "stq_acl 0.1.0",
  "stq_http 0.1.0",
  "stq_router 0.1.0",
  "stq_static_resources 0.1.0",
@@ -1194,10 +1193,6 @@ dependencies = [
  "validator 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "validator_derive 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "stq_acl"
-version = "0.1.0"
 
 [[package]]
 name = "stq_http"

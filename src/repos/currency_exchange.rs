@@ -9,7 +9,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_acl::*;
+use repos::legacy_acl::*;
 use stq_static_resources::Currency;
 
 use super::acl;

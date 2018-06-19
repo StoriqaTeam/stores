@@ -9,7 +9,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_acl::{Acl, CheckScope};
+use repos::legacy_acl::{Acl, CheckScope};
 
 use models::attribute::attributes::dsl as Attributes;
 use models::authorization::*;

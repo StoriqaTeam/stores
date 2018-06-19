@@ -3,8 +3,8 @@
 
 #[macro_use]
 pub mod macros;
-pub mod roles_cache;
 pub mod legacy_acl;
+pub mod roles_cache;
 
 pub use self::roles_cache::RolesCacheImpl;
 
@@ -162,8 +162,8 @@ impl<T> Acl<Resource, Action, Scope, FailureError, T> for UnauthorizedAcl {
 mod tests {
     use std::time::SystemTime;
 
-    use serde_json;
     use repos::legacy_acl::{Acl, CheckScope};
+    use serde_json;
 
     use models::*;
     use repos::*;

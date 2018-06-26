@@ -18,8 +18,9 @@ use super::types::RepoResult;
 use models::authorization::*;
 use models::base_product::base_products::dsl::*;
 use models::store::stores::dsl as Stores;
-use models::{BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct,
-             UpdateBaseProductViews};
+use models::{
+    BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct, UpdateBaseProductViews,
+};
 
 /// BaseProducts repository, responsible for handling base_products
 pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {

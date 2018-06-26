@@ -597,9 +597,9 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // POST /products/auto_complete", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
-                        read_body(req.body())
+                        parse_body::<AutoCompleteProductName>(req.body())
                             .map_err(|e| {
-                                e.context("Parsing body // POST /products/auto_complete in String failed!")
+                                e.context("Parsing body // POST /products/auto_complete in AutoCompleteProductName failed!")
                                     .context(Error::Parse)
                                     .into()
                             })

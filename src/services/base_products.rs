@@ -34,7 +34,7 @@ pub trait BaseProductsService {
     /// Find product by dicount pattern limited by `count` and `offset` parameters
     fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// auto complete limited by `count` and `offset` parameters
-    fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
+    fn auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
     fn search_filters_price(self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
     /// search filters
@@ -406,7 +406,7 @@ impl<
         )
     }
 
-    fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
+    fn auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
         let client_handle = self.client_handle.clone();
         let address = self.elastic_address.clone();
         let products_names = {

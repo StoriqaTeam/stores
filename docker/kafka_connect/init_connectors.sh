@@ -152,6 +152,9 @@ curl -XPUT 'stores-es:9200/products?pretty' -H 'Content-Type: application/json' 
                "category_id": {
                   "type": "integer"
                },
+               "store_id": {
+                  "type": "integer"
+               },
                "views": {
                   "type": "integer"
                },

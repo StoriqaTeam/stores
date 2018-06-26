@@ -19,7 +19,7 @@ pub struct ProductsElasticImpl {
 
 pub trait ProductsElastic {
     /// Find specific product by name limited by `count` parameters
-    fn auto_complete(&self, name: String, count: i32, offset: i32) -> RepoFuture<Vec<String>>;
+    fn auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> RepoFuture<Vec<String>>;
 
     /// Find specific product by name limited by `count` parameters
     fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>>;
@@ -197,6 +197,14 @@ impl ProductsElasticImpl {
         })
     }
 
+    fn create_store_filter(options: Option<ProductsSearchOptions>) -> Option<serde_json::Value> {
+        options.and_then(|o| o.store_id).map(|id| {
+            json!({
+                "term": {"store_id": id}
+            })
+        })
+    }
+
     fn create_sorting(options: Option<ProductsSearchOptions>) -> Vec<serde_json::Value> {
         let mut sorting: Vec<serde_json::Value> = vec![];
         if let Some(options) = options {
@@ -320,6 +328,11 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
+        let store_filter = ProductsElasticImpl::create_store_filter(prod.options.clone());
+        if let Some(store_filter) = store_filter {
+            filters.push(store_filter);
+        }
+
         filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -380,6 +393,11 @@ impl ProductsElastic for ProductsElasticImpl {
         let categories_filter = ProductsElasticImpl::create_category_filter(prod.options.clone());
         if let Some(categories_filter) = categories_filter {
             filters.push(categories_filter);
+        }
+
+        let store_filter = ProductsElasticImpl::create_store_filter(prod.options.clone());
+        if let Some(store_filter) = store_filter {
+            filters.push(store_filter);
         }
 
         filters.push(json!({ "term": {"status": "published"}}));
@@ -461,6 +479,11 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(categories_filter);
         }
 
+        let store_filter = ProductsElasticImpl::create_store_filter(prod.options.clone());
+        if let Some(store_filter) = store_filter {
+            filters.push(store_filter);
+        }
+
         filters.push(json!({ "term": {"status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -499,19 +522,31 @@ impl ProductsElastic for ProductsElasticImpl {
         )
     }
 
-    fn auto_complete(&self, name: String, count: i32, _offset: i32) -> RepoFuture<Vec<String>> {
+    fn auto_complete(&self, name: AutoCompleteProductName, count: i32, _offset: i32) -> RepoFuture<Vec<String>> {
         log_elastic_req(&name);
-        let query = json!({
-            "suggest": {
-                "name-suggest" : {
-                    "prefix" : name,
-                    "completion" : {
-                        "field" : "suggest",
-                        "size" : count
-                    }
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+
+        let suggest = json!({
+            "name-suggest" : {
+                "prefix" : name.name,
+                "completion" : {
+                    "field" : "suggest",
+                    "size" : count
                 }
             }
-        }).to_string();
+        });
+
+        query_map.insert("suggest".to_string(), suggest);
+
+        if let Some(store_id) = name.store_id {
+            let store = json!({
+                "term": {"store_id": store_id}
+            });
+            query_map.insert("filter".to_string(), store);
+        };
+
+        let query = serde_json::Value::Object(query_map).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();

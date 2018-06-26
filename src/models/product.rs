@@ -101,6 +101,7 @@ pub struct ProductsSearchOptions {
     pub currency_map: Option<HashMap<i32, f64>>,
     pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
+    pub store_id: Option<i32>,
     pub categories_ids: Option<Vec<i32>>,
     pub sort_by: Option<ProductsSorting>,
 }
@@ -109,6 +110,12 @@ pub struct ProductsSearchOptions {
 pub struct SearchProductsByName {
     pub name: String,
     pub options: Option<ProductsSearchOptions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct AutoCompleteProductName {
+    pub name: String,
+    pub store_id: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

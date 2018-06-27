@@ -49,15 +49,15 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
-                acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
+                acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
             })
-            .map_err(|e: FailureError| e.context(format!("List all category attributes error occured")).into())
+            .map_err(|e: FailureError| e.context("List all category attributes error occured").into())
     }
 
     /// Creates new category attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<()> {
         debug!("Create new category attribute {:?}.", payload);
-        acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Create, self, None)?;
+        acl::check(&*self.acl, Resource::CategoryAttrs, Action::Create, self, None)?;
         let query_category_attribute = diesel::insert_into(cat_attr_values).values(&payload);
         query_category_attribute
             .get_result::<CatAttr>(self.db_conn)
@@ -71,7 +71,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Delete category attribute
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
         debug!("Delete category attributewith payload {:?}.", payload);
-        acl::check(&*self.acl, &Resource::CategoryAttrs, &Action::Delete, self, None)?;
+        acl::check(&*self.acl, Resource::CategoryAttrs, Action::Delete, self, None)?;
         let filtered = cat_attr_values
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));

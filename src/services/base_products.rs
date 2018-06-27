@@ -187,9 +187,8 @@ impl<
 
     fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
         if let Some(mut options) = options {
-            if let Some(ref currency_id) = self.currency_id {
+            if let Some(currency_id) = self.currency_id {
                 let cpu_pool = self.cpu_pool.clone();
-                let currency_id = currency_id.clone();
                 Box::new(cpu_pool.spawn_fn({
                     let repo_factory = self.repo_factory.clone();
                     let user_id = self.user_id;
@@ -260,9 +259,9 @@ impl<
                                             base_products
                                                 .into_iter()
                                                 .map(|mut b| {
-                                                    for mut variant in b.variants.iter_mut() {
+                                                    for mut variant in &mut b.variants {
                                                         if let Some(currency_id) = variant.currency_id {
-                                                            variant.price = variant.price * currency_map[&currency_id];
+                                                            variant.price *= currency_map[&currency_id];
                                                         }
                                                     }
                                                     b
@@ -294,7 +293,7 @@ impl<
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id.clone();
+        let currency_id = self.currency_id;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -318,9 +317,9 @@ impl<
                                                         base_products
                                                             .into_iter()
                                                             .map(|mut b| {
-                                                                for mut variant in b.variants.iter_mut() {
+                                                                for mut variant in &mut b.variants {
                                                                     if let Some(currency_id) = variant.currency_id {
-                                                                        variant.price = variant.price * currency_map[&currency_id];
+                                                                        variant.price *= currency_map[&currency_id];
                                                                     }
                                                                 }
                                                                 b
@@ -355,7 +354,7 @@ impl<
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id.clone();
+        let currency_id = self.currency_id;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -378,9 +377,9 @@ impl<
                                                         base_products
                                                             .into_iter()
                                                             .map(|mut b| {
-                                                                for mut variant in b.variants.iter_mut() {
+                                                                for mut variant in &mut b.variants {
                                                                     if let Some(currency_id) = variant.currency_id {
-                                                                        variant.price = variant.price * currency_map[&currency_id];
+                                                                        variant.price *= currency_map[&currency_id];
                                                                     }
                                                                 }
                                                                 b
@@ -566,7 +565,7 @@ impl<
                             ));
                         }
                     }
-                    return Box::new(future::ok(None));
+                    Box::new(future::ok(None))
                 })
                 .map_err(|e| {
                     e.context("Service BaseProduct, search_filters_attributes endpoint error occured.")
@@ -601,7 +600,7 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
-        let currency_id = self.currency_id.clone();
+        let currency_id = self.currency_id;
 
         Box::new(
             self.cpu_pool
@@ -619,7 +618,7 @@ impl<
                                         currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
                                             if let Some(currency_map) = currencies_map {
                                                 if let Some(currency_id) = product.currency_id {
-                                                    product.price = product.price * currency_map[&currency_id];
+                                                    product.price *= currency_map[&currency_id];
                                                 };
                                             };
                                             product
@@ -679,7 +678,7 @@ impl<
                                                 let mut product_categories =
                                                     serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
                                                 let mut new_prod_cats = vec![];
-                                                for pc in product_categories.iter_mut() {
+                                                for pc in &mut product_categories {
                                                     if pc.category_id == cat.id {
                                                         pc.count -= 1;
                                                         if pc.count > 0 {
@@ -698,7 +697,7 @@ impl<
 
                                             let update_store = UpdateStore {
                                                 product_categories,
-                                                ..Default::default()
+                                                ..UpdateStore::default()
                                             };
                                             stores_repo.update(store.id, update_store)?;
                                         };
@@ -818,7 +817,7 @@ impl<
                                                         serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
                                                     let mut new_prod_cats = vec![];
                                                     let mut cat_exists = false;
-                                                    for pc in product_categories.iter_mut() {
+                                                    for pc in &mut product_categories {
                                                         if pc.category_id == cat.id {
                                                             pc.count += 1;
                                                             cat_exists = true;
@@ -838,7 +837,7 @@ impl<
 
                                                 let update_store = UpdateStore {
                                                     product_categories,
-                                                    ..Default::default()
+                                                    ..UpdateStore::default()
                                                 };
                                                 stores_repo.update(store.id, update_store)?;
                                             };
@@ -967,7 +966,7 @@ impl<
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id.clone();
+        let currency_id = self.currency_id;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -1026,9 +1025,9 @@ impl<
                                                 base_products
                                                     .into_iter()
                                                     .map(|mut b| {
-                                                        for mut variant in b.variants.iter_mut() {
+                                                        for mut variant in &mut b.variants {
                                                             if let Some(currency_id) = variant.currency_id {
-                                                                variant.price = variant.price * currency_map[&currency_id];
+                                                                variant.price *= currency_map[&currency_id];
                                                             }
                                                         }
                                                         b

@@ -68,7 +68,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|product: Option<Product>| {
                 if let Some(ref product) = product {
-                    acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(product))?;
+                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(product))?;
                 };
                 Ok(product)
             })
@@ -82,7 +82,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query_product
             .get_result::<Product>(self.db_conn)
             .map_err(From::from)
-            .and_then(|prod| acl::check(&*self.acl, &Resource::Products, &Action::Create, self, Some(&prod)).and_then(|_| Ok(prod)))
+            .and_then(|prod| acl::check(&*self.acl, Resource::Products, Action::Create, self, Some(&prod)).and_then(|_| Ok(prod)))
             .map_err(|e: FailureError| e.context(format!("Create products {:?} error occured.", payload)).into())
     }
 
@@ -100,7 +100,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|products_res: Vec<Product>| {
                 for product in &products_res {
-                    acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product))?;
+                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
             })
@@ -123,7 +123,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|products_res: Vec<Product>| {
                 for product in &products_res {
-                    acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product))?;
+                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
             })
@@ -134,7 +134,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn update(&self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
         debug!("Updating product with id {} and payload {:?}.", product_id_arg, payload);
         self.execute_query(products.find(product_id_arg))
-            .and_then(|product: Product| acl::check(&*self.acl, &Resource::Products, &Action::Update, self, Some(&product)))
+            .and_then(|product: Product| acl::check(&*self.acl, Resource::Products, Action::Update, self, Some(&product)))
             .and_then(|_| {
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
 
@@ -153,7 +153,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn deactivate(&self, product_id_arg: i32) -> RepoResult<Product> {
         debug!("Deactivate product with id {}.", product_id_arg);
         self.execute_query(products.find(product_id_arg))
-            .and_then(|product: Product| acl::check(&*self.acl, &Resource::Products, &Action::Delete, self, Some(&product)))
+            .and_then(|product: Product| acl::check(&*self.acl, Resource::Products, Action::Delete, self, Some(&product)))
             .and_then(|_| {
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
@@ -179,7 +179,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|products_res: Vec<Product>| {
                 for product in &products_res {
-                    acl::check(&*self.acl, &Resource::Products, &Action::Read, self, Some(&product))?;
+                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(())
             })

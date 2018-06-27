@@ -317,11 +317,7 @@ impl<
                         .and_then(move |new_store| {
                             new_store
                                 .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of NewStore failed!")
-                                        .context(Error::Validate(e.into()))
-                                        .into()
-                                })
+                                .map_err(|e| format_err!("Validation of NewStore failed!").context(Error::Validate(e)).into())
                                 .into_future()
                                 .and_then(move |_| stores_service.create(new_store))
                         }),
@@ -341,11 +337,7 @@ impl<
                         .and_then(move |update_store| {
                             update_store
                                 .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of UpdateStore failed!")
-                                        .context(Error::Validate(e.into()))
-                                        .into()
-                                })
+                                .map_err(|e| format_err!("Validation of UpdateStore failed!").context(Error::Validate(e)).into())
                                 .into_future()
                                 .and_then(move |_| stores_service.update(store_id, update_store))
                         }),
@@ -435,7 +427,7 @@ impl<
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of NewProductWithAttributes failed!")
-                                        .context(Error::Validate(e.into()))
+                                        .context(Error::Validate(e))
                                         .into()
                                 })
                                 .into_future()
@@ -460,7 +452,7 @@ impl<
                                     .validate()
                                     .map_err(|e| {
                                         format_err!("Validation of UpdateProductWithAttributes failed!")
-                                            .context(Error::Validate(e.into()))
+                                            .context(Error::Validate(e))
                                             .into()
                                     })
                                     .into_future()
@@ -525,7 +517,7 @@ impl<
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of NewBaseProduct failed!")
-                                        .context(Error::Validate(e.into()))
+                                        .context(Error::Validate(e))
                                         .into()
                                 })
                                 .into_future()
@@ -552,7 +544,7 @@ impl<
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of UpdateBaseProduct failed!")
-                                        .context(Error::Validate(e.into()))
+                                        .context(Error::Validate(e))
                                         .into()
                                 })
                                 .into_future()
@@ -784,11 +776,7 @@ impl<
                         .and_then(move |new_attribute| {
                             new_attribute
                                 .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of NewAttribute failed!")
-                                        .context(Error::Validate(e.into()))
-                                        .into()
-                                })
+                                .map_err(|e| format_err!("Validation of NewAttribute failed!").context(Error::Validate(e)).into())
                                 .into_future()
                                 .and_then(move |_| attributes_service.create(new_attribute))
                         }),
@@ -810,7 +798,7 @@ impl<
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of UpdateAttribute failed!")
-                                        .context(Error::Validate(e.into()))
+                                        .context(Error::Validate(e))
                                         .into()
                                 })
                                 .into_future()
@@ -838,11 +826,7 @@ impl<
                         .and_then(move |new_category| {
                             new_category
                                 .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of NewCategory failed!")
-                                        .context(Error::Validate(e.into()))
-                                        .into()
-                                })
+                                .map_err(|e| format_err!("Validation of NewCategory failed!").context(Error::Validate(e)).into())
                                 .into_future()
                                 .and_then(move |_| categories_service.create(new_category))
                         }),
@@ -864,7 +848,7 @@ impl<
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of UpdateCategory failed!")
-                                        .context(Error::Validate(e.into()))
+                                        .context(Error::Validate(e))
                                         .into()
                                 })
                                 .into_future()

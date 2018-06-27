@@ -78,7 +78,7 @@ impl ProductsElasticImpl {
         prods
     }
 
-    fn create_variants_map_filters(options: Option<ProductsSearchOptions>) -> serde_json::Map<String, serde_json::Value> {
+    fn create_variants_map_filters(options: &Option<ProductsSearchOptions>) -> serde_json::Map<String, serde_json::Value> {
         let mut variants_map = serde_json::Map::<String, serde_json::Value>::new();
         let mut variants_must: Vec<serde_json::Value> = vec![];
         let (attr_filters, price_filters, currency_map) = if let Some(options) = options.clone() {
@@ -289,7 +289,7 @@ impl ProductsElastic for ProductsElasticImpl {
         }
 
         let mut filters: Vec<serde_json::Value> = vec![];
-        let variants_map = ProductsElasticImpl::create_variants_map_filters(prod.options.clone());
+        let variants_map = ProductsElasticImpl::create_variants_map_filters(&prod.options);
 
         let sorting_in_variants = prod.options
             .clone()
@@ -306,7 +306,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         [{"variants.discount" : "desc"}]
                     ),
             })
-            .unwrap_or(json!([]));
+            .unwrap_or_else(|| serde_json::Value::Array(vec![]));
 
         let variants = json!({
             "nested":{  
@@ -354,10 +354,7 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .inspect(|ref res| log_elastic_resp(res))
-                .map(|res| {
-                    let prods = ProductsElasticImpl::create_products_from_search_response(res);
-                    prods
-                })
+                .map(ProductsElasticImpl::create_products_from_search_response)
                 .map_err(move |e| {
                     e.context(format!(
                         "Search product by name error occured. Prod: {:?}, count: {:?}, offset: {:?}",
@@ -375,7 +372,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
         let mut filters: Vec<serde_json::Value> = vec![];
-        let variants_map = ProductsElasticImpl::create_variants_map_filters(prod.options.clone());
+        let variants_map = ProductsElasticImpl::create_variants_map_filters(&prod.options);
         let variants = json!({
             "nested":{  
                 "path":"variants",
@@ -419,7 +416,7 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .inspect(|ref res| log_elastic_resp(res))
-                .map(|res| ProductsElasticImpl::create_products_from_search_response(res))
+                .map(ProductsElasticImpl::create_products_from_search_response)
                 .map_err(move |e| {
                     e.context(format!(
                         "Search most viewed product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
@@ -511,7 +508,7 @@ impl ProductsElastic for ProductsElasticImpl {
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
                 .inspect(|ref res| log_elastic_resp(res))
-                .map(|res| ProductsElasticImpl::create_products_from_search_response(res))
+                .map(ProductsElasticImpl::create_products_from_search_response)
                 .map_err(move |e| {
                     e.context(format!(
                         "Search most discount product error occured. Prod: {:?}, count: {:?}, offset: {:?}",

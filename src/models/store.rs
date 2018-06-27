@@ -179,7 +179,7 @@ impl UpdateStore {
             let mut product_categories = serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
             let mut new_prod_cats = vec![];
             let mut new_cat_exists = false;
-            for pc in product_categories.iter_mut() {
+            for pc in &mut product_categories {
                 if pc.category_id == new_cat_id {
                     pc.count += 1;
                     new_cat_exists = true;
@@ -202,7 +202,7 @@ impl UpdateStore {
 
         Self {
             product_categories,
-            ..Default::default()
+            ..UpdateStore::default()
         }
     }
 }

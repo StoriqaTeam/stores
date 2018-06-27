@@ -60,7 +60,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .map_err(From::from)
                 .and_then(|attribute: Option<Attribute>| {
                     if let Some(attribute) = attribute.clone() {
-                        acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
+                        acl::check(&*self.acl, Resource::Attributes, Action::Read, self, Some(&attribute))?;
                         self.cache.add_attribute(id_arg, attribute.clone());
                     };
                     Ok(attribute)
@@ -79,11 +79,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|attributes_vec: Vec<Attribute>| {
                 for attribute in &attributes_vec {
-                    acl::check(&*self.acl, &Resource::Attributes, &Action::Read, self, Some(&attribute))?;
+                    acl::check(&*self.acl, Resource::Attributes, Action::Read, self, Some(&attribute))?;
                 }
                 Ok(attributes_vec)
             })
-            .map_err(|e: FailureError| e.context(format!("List all attributes")).into())
+            .map_err(|e: FailureError| e.context("List all attributes").into())
     }
 
     /// Creates new attribute
@@ -94,7 +94,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<Attribute>(self.db_conn)
             .map_err(From::from)
             .and_then(|attribute| {
-                acl::check(&*self.acl, &Resource::Attributes, &Action::Create, self, Some(&attribute)).and_then(|_| {
+                acl::check(&*self.acl, Resource::Attributes, Action::Create, self, Some(&attribute)).and_then(|_| {
                     self.cache.add_attribute(attribute.id, attribute.clone());
                     Ok(attribute)
                 })
@@ -110,7 +110,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(From::from)
-            .and_then(|attribute| acl::check(&*self.acl, &Resource::Attributes, &Action::Update, self, Some(&attribute)))
+            .and_then(|attribute| acl::check(&*self.acl, Resource::Attributes, Action::Update, self, Some(&attribute)))
             .and_then(|_| {
                 self.cache.remove(attribute_id_arg);
                 let filter = attributes.filter(id.eq(attribute_id_arg));

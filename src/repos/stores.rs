@@ -71,7 +71,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|store: Option<Store>| {
                 if let Some(ref store) = store {
-                    acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, Some(store))?;
+                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store))?;
                 };
                 Ok(store)
             })
@@ -85,7 +85,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query_store
             .get_result::<Store>(self.db_conn)
             .map_err(From::from)
-            .and_then(|store| acl::check(&*self.acl, &Resource::Stores, &Action::Create, self, Some(&store)).and_then(|_| Ok(store)))
+            .and_then(|store| acl::check(&*self.acl, Resource::Stores, Action::Create, self, Some(&store)).and_then(|_| Ok(store)))
             .map_err(|e: FailureError| e.context(format!("Create store {:?} error occured.", payload)).into())
     }
 
@@ -99,7 +99,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|stores_res: Vec<Store>| {
                 for store in &stores_res {
-                    acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, Some(&store))?;
+                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(&store))?;
                 }
                 Ok(stores_res.clone())
             })
@@ -113,7 +113,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
         debug!("Updating store with id {} and payload {:?}.", store_id_arg, payload);
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| acl::check(&*self.acl, &Resource::Stores, &Action::Update, self, Some(&store)))
+            .and_then(|store: Store| acl::check(&*self.acl, Resource::Stores, Action::Update, self, Some(&store)))
             .and_then(|_| {
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
 
@@ -132,7 +132,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
         debug!("Deactivate store with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| acl::check(&*self.acl, &Resource::Stores, &Action::Delete, self, Some(&store)))
+            .and_then(|store: Store| acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store)))
             .and_then(|_| {
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
@@ -155,7 +155,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|store_res: Option<Store>| {
                 if let Some(store_res) = store_res {
-                    acl::check(&*self.acl, &Resource::Stores, &Action::Delete, self, Some(&store_res))?;
+                    acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store_res))?;
                     let filter = stores.filter(user_id.eq(user_id_arg));
                     let query = diesel::delete(filter);
                     self.execute_query(query).map(Some).map_err(From::from)
@@ -172,7 +172,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(From::from)
-            .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
+            .and_then(|exists| acl::check(&*self.acl, Resource::Stores, Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occured.", slug_arg)).into())
     }
 
@@ -194,7 +194,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .collect::<RepoResult<Vec<bool>>>();
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
-            .and_then(|exists| acl::check(&*self.acl, &Resource::Stores, &Action::Read, self, None).and_then(|_| Ok(exists)))
+            .and_then(|exists| acl::check(&*self.acl, Resource::Stores, Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occured.", name_arg)).into())
     }
 }

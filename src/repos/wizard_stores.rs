@@ -63,7 +63,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|wizard_store: Option<WizardStore>| {
                 if let Some(ref wizard_store) = wizard_store {
-                    acl::check(&*self.acl, &Resource::WizardStores, &Action::Read, self, Some(wizard_store))?;
+                    acl::check(&*self.acl, Resource::WizardStores, Action::Read, self, Some(wizard_store))?;
                 };
                 Ok(wizard_store)
             })
@@ -82,7 +82,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<WizardStore>(self.db_conn)
             .map_err(From::from)
             .and_then(|wizard_store| {
-                acl::check(&*self.acl, &Resource::WizardStores, &Action::Create, self, Some(&wizard_store)).and_then(|_| Ok(wizard_store))
+                acl::check(&*self.acl, Resource::WizardStores, Action::Create, self, Some(&wizard_store)).and_then(|_| Ok(wizard_store))
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Create wizard store for user id {:?} error occured.", user_id_arg))
@@ -94,9 +94,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn update(&self, user_id_arg: i32, payload: UpdateWizardStore) -> RepoResult<WizardStore> {
         debug!("Updating wizard store with user_id {} and payload {:?}.", user_id_arg, payload);
         self.execute_query(wizard_stores.filter(user_id.eq(user_id_arg)))
-            .and_then(|wizard_store: WizardStore| {
-                acl::check(&*self.acl, &Resource::WizardStores, &Action::Update, self, Some(&wizard_store))
-            })
+            .and_then(|wizard_store: WizardStore| acl::check(&*self.acl, Resource::WizardStores, Action::Update, self, Some(&wizard_store)))
             .and_then(|_| {
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
 
@@ -115,9 +113,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn delete(&self, user_id_arg: i32) -> RepoResult<WizardStore> {
         debug!("Delete wizard store with user_id {}.", user_id_arg);
         self.execute_query(wizard_stores.filter(user_id.eq(user_id_arg)))
-            .and_then(|wizard_store: WizardStore| {
-                acl::check(&*self.acl, &Resource::WizardStores, &Action::Delete, self, Some(&wizard_store))
-            })
+            .and_then(|wizard_store: WizardStore| acl::check(&*self.acl, Resource::WizardStores, Action::Delete, self, Some(&wizard_store)))
             .and_then(|_| {
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
                 let query = diesel::delete(filter);
@@ -136,7 +132,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(From::from)
-            .and_then(|exists| acl::check(&*self.acl, &Resource::WizardStores, &Action::Read, self, None).and_then(|_| Ok(exists)))
+            .and_then(|exists| acl::check(&*self.acl, Resource::WizardStores, Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(|e: FailureError| {
                 e.context(format!("Check if wizard already exists for user {} error occured.", user_id_arg))
                     .into()

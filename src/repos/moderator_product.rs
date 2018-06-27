@@ -51,7 +51,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|comment: Option<ModeratorProductComments>| {
                 if let Some(ref comment) = comment {
-                    acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Read, self, Some(comment))?;
+                    acl::check(&*self.acl, Resource::ModeratorProductComments, Action::Read, self, Some(comment))?;
                 };
                 Ok(comment)
             })
@@ -69,7 +69,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<ModeratorProductComments>(self.db_conn)
             .map_err(From::from)
             .and_then(|comment| {
-                acl::check(&*self.acl, &Resource::ModeratorProductComments, &Action::Create, self, None)?;
+                acl::check(&*self.acl, Resource::ModeratorProductComments, Action::Create, self, None)?;
                 Ok(comment)
             })
             .map_err(|e: FailureError| {

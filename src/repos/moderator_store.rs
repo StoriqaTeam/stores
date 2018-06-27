@@ -51,7 +51,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|comment: Option<ModeratorStoreComments>| {
                 if let Some(ref comment) = comment {
-                    acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Read, self, Some(comment))?;
+                    acl::check(&*self.acl, Resource::ModeratorStoreComments, Action::Read, self, Some(comment))?;
                 };
                 Ok(comment)
             })
@@ -66,7 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<ModeratorStoreComments>(self.db_conn)
             .map_err(From::from)
             .and_then(|comment| {
-                acl::check(&*self.acl, &Resource::ModeratorStoreComments, &Action::Create, self, None)?;
+                acl::check(&*self.acl, Resource::ModeratorStoreComments, Action::Create, self, None)?;
                 Ok(comment)
             })
             .map_err(|e: FailureError| e.context(format!("Create moderator comments for store {:?}.", payload)).into())

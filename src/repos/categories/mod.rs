@@ -57,7 +57,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific category by id
     fn find(&self, id_arg: i32) -> RepoResult<Option<Category>> {
         debug!("Find in categories with id {}.", id_arg);
-        acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)?;
+        acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)?;
         self.get_all().map(|root| get_category(&root, id_arg))
     }
 
@@ -71,7 +71,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map(|created_category| created_category.into())
             .map_err(From::from)
             .and_then(|category| {
-                acl::check(&*self.acl, &Resource::Categories, &Action::Create, self, Some(&category)).and_then(|_| Ok(category))
+                acl::check(&*self.acl, Resource::Categories, Action::Create, self, Some(&category)).and_then(|_| Ok(category))
             })
             .map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occured", payload)).into())
     }
@@ -84,7 +84,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result::<RawCategory>(self.db_conn)
             .map_err(From::from)
-            .and_then(|_| acl::check(&*self.acl, &Resource::Categories, &Action::Update, self, None))
+            .and_then(|_| acl::check(&*self.acl, Resource::Categories, Action::Update, self, None))
             .and_then(|_| {
                 let filter = categories.filter(id.eq(category_id_arg));
                 let query = diesel::update(filter).set(&payload);
@@ -117,7 +117,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             Ok(cat)
         } else {
             debug!("Get all categories from db request.");
-            acl::check(&*self.acl, &Resource::Categories, &Action::Read, self, None)
+            acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)
                 .and_then(|_| {
                     let attrs_hash = Attributes::attributes
                         .load::<Attribute>(self.db_conn)?

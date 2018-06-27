@@ -89,7 +89,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_product: Option<BaseProduct>| {
                 if let Some(ref base_product) = base_product {
-                    acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(base_product))?;
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(base_product))?;
                 };
                 Ok(base_product)
             })
@@ -122,7 +122,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<BaseProduct>(self.db_conn)
             .map_err(From::from)
             .and_then(|base_prod| {
-                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
+                acl::check(&*self.acl, Resource::BaseProducts, Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
             })
             .map_err(|e: FailureError| e.context(format!("Creates new base_product {:?} error occured", payload)).into())
     }
@@ -141,7 +141,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
-                    acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
                 }
                 Ok(base_products_res)
             })
@@ -189,7 +189,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
-                    acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, Some(&base_product))?;
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
                 }
                 Ok(base_products_res)
             })
@@ -205,9 +205,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn update(&self, base_product_id_arg: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
         debug!("Updating base product with id {} and payload {:?}.", base_product_id_arg, payload);
         self.execute_query(base_products.find(base_product_id_arg))
-            .and_then(|base_product: BaseProduct| {
-                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Update, self, Some(&base_product))
-            })
+            .and_then(|base_product: BaseProduct| acl::check(&*self.acl, Resource::BaseProducts, Action::Update, self, Some(&base_product)))
             .and_then(|_| {
                 let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
 
@@ -250,9 +248,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn deactivate(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
         debug!("Deactivate base product with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
-            .and_then(|base_product: BaseProduct| {
-                acl::check(&*self.acl, &Resource::BaseProducts, &Action::Delete, self, Some(&base_product))
-            })
+            .and_then(|base_product: BaseProduct| acl::check(&*self.acl, Resource::BaseProducts, Action::Delete, self, Some(&base_product)))
             .and_then(|_| {
                 let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
@@ -271,13 +267,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(From::from)
-            .and_then(|exists| acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None).and_then(|_| Ok(exists)))
+            .and_then(|exists| acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(move |e: FailureError| e.context(format!("Check if store slug {} exists failed", slug_arg)).into())
     }
 
     /// Convert data from elastic to PG models
     fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
-        acl::check(&*self.acl, &Resource::BaseProducts, &Action::Read, self, None)
+        acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
             .and_then(|_| {
                 let base_products_ids = el_products.iter().map(|b| b.id).collect::<Vec<i32>>();
                 debug!(

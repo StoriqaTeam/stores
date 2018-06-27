@@ -64,7 +64,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
-                    acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Read, self, Some(&prod_attr))?;
+                    acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
@@ -86,7 +86,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
-                    acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Read, self, Some(&prod_attr))?;
+                    acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
@@ -106,7 +106,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<ProdAttr>(self.db_conn)
             .map_err(From::from)
             .and_then(|prod_attr| {
-                acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Create, self, Some(&prod_attr)).and_then(|_| Ok(prod_attr))
+                acl::check(&*self.acl, Resource::ProductAttrs, Action::Create, self, Some(&prod_attr)).and_then(|_| Ok(prod_attr))
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Create new product attribute {:?} error occured", payload))
@@ -123,7 +123,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .first::<ProdAttr>(self.db_conn)
             .map_err(From::from)
-            .and_then(|prod_attr: ProdAttr| acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Update, self, Some(&prod_attr)))
+            .and_then(|prod_attr: ProdAttr| acl::check(&*self.acl, Resource::ProductAttrs, Action::Update, self, Some(&prod_attr)))
             .and_then(|_| {
                 let filter = prod_attr_values
                     .filter(prod_id.eq(payload.prod_id))
@@ -146,7 +146,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
-                    acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
+                    acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
@@ -174,7 +174,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|prod_attrs_res: Vec<ProdAttr>| {
                 for prod_attr in &prod_attrs_res {
-                    acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
+                    acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
             })
@@ -196,7 +196,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result(self.db_conn)
             .map_err(From::from)
             .and_then(|prod_attr: ProdAttr| {
-                acl::check(&*self.acl, &Resource::ProductAttrs, &Action::Delete, self, Some(&prod_attr))?;
+                acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 Ok(prod_attr)
             })
             .map_err(|e: FailureError| e.context(format!("Delete attribute value with id {}", id_arg)).into())

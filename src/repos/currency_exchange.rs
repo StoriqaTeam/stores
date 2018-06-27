@@ -57,8 +57,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 if let Some(ref currency_exchange_arg) = currency_exchange_arg {
                     acl::check(
                         &*self.acl,
-                        &Resource::CurrencyExchange,
-                        &Action::Read,
+                        Resource::CurrencyExchange,
+                        Action::Read,
                         self,
                         Some(currency_exchange_arg),
                     )?;
@@ -106,8 +106,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|currency_exchange_arg| {
                 acl::check(
                     &*self.acl,
-                    &Resource::CurrencyExchange,
-                    &Action::Create,
+                    Resource::CurrencyExchange,
+                    Action::Create,
                     self,
                     Some(&currency_exchange_arg),
                 )?;

@@ -65,7 +65,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
                 Ok(currency_exchange_arg)
             })
-            .map_err(|e: FailureError| e.context(format!("Find latest currency error occured")).into())
+            .map_err(|e: FailureError| e.context("Find latest currency error occured").into())
     }
 
     /// Get latest currency exchanges for currency_id
@@ -84,7 +84,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|m| {
                         let mut map = HashMap::<i32, f64>::new();
                         for (key, val) in m {
-                            if let Some(key) = Currency::from_str(key).ok() {
+                            if let Ok(key) = Currency::from_str(key) {
                                 if let Some(val) = val.as_f64() {
                                     map.insert(key as i32, val);
                                 }
@@ -113,7 +113,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 )?;
                 Ok(currency_exchange_arg)
             })
-            .map_err(|e: FailureError| e.context(format!("Adds latest currency to table error occured")).into())
+            .map_err(|e: FailureError| e.context("Adds latest currency to table error occured").into())
     }
 }
 

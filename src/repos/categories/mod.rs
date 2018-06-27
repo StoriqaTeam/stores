@@ -1,5 +1,6 @@
 //! Repos contains all info about working with categories
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 
 use diesel;
 use diesel::connection::AnsiTransactionManager;
@@ -144,7 +145,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     self.cache.set(root.clone());
                     Ok(root)
                 })
-                .map_err(|e: FailureError| e.context(format!("Get all categories error occured")).into())
+                .map_err(|e: FailureError| e.context("Get all categories error occured").into())
         }
     }
 }
@@ -164,7 +165,7 @@ fn create_tree(cats: &[RawCategory], parent_id_arg: Option<i32>) -> Vec<Category
 
 pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32], stack_level: i32) -> Category {
     let mut children = vec![];
-    for cat_child in cat.children.into_iter() {
+    for cat_child in cat.children {
         if stack_level == 0 {
             if used_categories_ids.iter().any(|used_id| cat_child.id == *used_id) {
                 children.push(cat_child);
@@ -185,7 +186,7 @@ pub fn clear_child_categories(mut cat: Category, stack_level: i32) -> Category {
         cat.children.clear();
     } else {
         let mut cats = vec![];
-        for cat_child in cat.children.into_iter() {
+        for cat_child in cat.children {
             let new_cat = clear_child_categories(cat_child, stack_level - 1);
             cats.push(new_cat);
         }
@@ -220,7 +221,7 @@ pub fn get_all_children_till_the_end(cat: Category) -> Vec<Category> {
         vec![cat]
     } else {
         let mut kids = vec![];
-        for cat_child in cat.children.into_iter() {
+        for cat_child in cat.children {
             let mut children_kids = get_all_children_till_the_end(cat_child);
             kids.append(&mut children_kids);
         }
@@ -228,12 +229,12 @@ pub fn get_all_children_till_the_end(cat: Category) -> Vec<Category> {
     }
 }
 
-pub fn set_attributes(cat: &mut Category, attrs_hash: &HashMap<i32, Vec<Attribute>>) {
+pub fn set_attributes<S: BuildHasher>(cat: &mut Category, attrs_hash: &HashMap<i32, Vec<Attribute>, S>) {
     if cat.children.is_empty() {
-        let attributes = attrs_hash.get(&cat.id).map(|attrs| attrs.clone());
+        let attributes = attrs_hash.get(&cat.id).cloned();
         cat.attributes = attributes;
     } else {
-        for cat_child in cat.children.iter_mut() {
+        for cat_child in &mut cat.children {
             set_attributes(cat_child, attrs_hash);
         }
     }

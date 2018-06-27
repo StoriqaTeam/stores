@@ -89,7 +89,7 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
-        let currency_id = self.currency_id.clone();
+        let currency_id = self.currency_id;
 
         Box::new(
             self.cpu_pool
@@ -106,7 +106,7 @@ impl<
                                         currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
                                             if let Some(currency_map) = currencies_map {
                                                 if let Some(currency_id) = product.currency_id {
-                                                    product.price = product.price * currency_map[&currency_id];
+                                                    product.price *= currency_map[&currency_id];
                                                 };
                                             };
                                             Some(product)
@@ -183,7 +183,7 @@ impl<
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id.clone();
+        let currency_id = self.currency_id;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -203,7 +203,7 @@ impl<
                                             currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
                                                 if let Some(currency_map) = currencies_map {
                                                     if let Some(currency_id) = product.currency_id {
-                                                        product.price = product.price * currency_map[&currency_id];
+                                                        product.price *= currency_map[&currency_id];
                                                     };
                                                 };
                                                 product
@@ -260,7 +260,7 @@ impl<
                                             .find_all_attributes_by_base(base_product_id)
                                             .and_then(|base_attrs| {
                                                 let mut hash = HashMap::<i32, HashMap<i32, String>>::default();
-                                                for attr in base_attrs.into_iter() {
+                                                for attr in base_attrs {
                                                     let mut prod_attrs =
                                                         hash.entry(attr.prod_id).or_insert_with(HashMap::<i32, String>::default);
                                                     prod_attrs.insert(attr.attr_id, attr.value);
@@ -366,7 +366,7 @@ impl<
                                             )
                                         .and_then(|base_attrs| {
                                             let mut hash = HashMap::<i32, HashMap<i32, String>>::default();
-                                            for attr in base_attrs.into_iter() {
+                                            for attr in base_attrs {
                                                 let mut prod_attrs =
                                                     hash.entry(attr.prod_id).or_insert_with(HashMap::<i32, String>::default);
                                                 prod_attrs.insert(attr.attr_id, attr.value);
@@ -429,7 +429,7 @@ impl<
     fn find_with_base_id(&self, base_product_id: i32) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id.clone();
+        let currency_id = self.currency_id;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -449,7 +449,7 @@ impl<
                                             currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
                                                 if let Some(currency_map) = currencies_map {
                                                     if let Some(currency_id) = product.currency_id {
-                                                        product.price = product.price * currency_map[&currency_id];
+                                                        product.price *= currency_map[&currency_id];
                                                     };
                                                 };
                                                 product

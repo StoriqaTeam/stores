@@ -124,7 +124,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|base_product_id| Route::ProductsByBaseProduct(base_product_id))
+            .map(Route::ProductsByBaseProduct)
     });
 
     // Products/:id/attributes route
@@ -132,7 +132,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(|product_id| Route::ProductAttributes(product_id))
+            .map(Route::ProductAttributes)
     });
 
     // Base products routes

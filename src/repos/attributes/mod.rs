@@ -83,7 +83,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(attributes_vec)
             })
-            .map_err(|e: FailureError| e.context(format!("List all attributes")).into())
+            .map_err(|e: FailureError| e.context("List all attributes").into())
     }
 
     /// Creates new attribute

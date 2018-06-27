@@ -35,13 +35,3 @@ impl<Resource, Action, Scope, Error, T> Acl<Resource, Action, Scope, Error, T> f
         Ok(false)
     }
 }
-
-pub trait RolesCache: Clone + Send + 'static {
-    type Role;
-
-    fn get(&self, user_id: i32) -> Vec<Self::Role>;
-    fn clear(&self);
-    fn remove(&self, user_id: i32);
-    fn contains(&self, user_id: i32) -> bool;
-    fn add_roles(&self, user_id: i32, roles: &Vec<Self::Role>);
-}

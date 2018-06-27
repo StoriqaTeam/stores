@@ -329,7 +329,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
                     .collect())
             })
-            .map_err(|e: FailureError| e.context(format!("Convert data from elastic to PG models failed")).into())
+            .map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
     }
 }
 

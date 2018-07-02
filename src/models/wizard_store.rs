@@ -1,4 +1,7 @@
 //! Module containg wizard_stores model for query, insert, update
+use validator::Validate;
+
+use models::validation_rules::*;
 
 /// diesel table for wizard_stores
 table! {
@@ -54,13 +57,14 @@ pub struct NewWizardStore {
 }
 
 /// Payload for updating wizard_stores
-#[derive(Default, Serialize, Deserialize, Insertable, AsChangeset, Debug)]
+#[derive(Default, Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
 #[table_name = "wizard_stores"]
 pub struct UpdateWizardStore {
     pub store_id: Option<i32>,
     pub name: Option<String>,
     pub short_description: Option<String>,
     pub default_language: Option<String>,
+    #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
     pub country: Option<String>,
     pub address: Option<String>,

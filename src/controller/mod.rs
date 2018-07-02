@@ -942,7 +942,17 @@ impl<
                                 .context(Error::Parse)
                                 .into()
                         })
-                        .and_then(move |update_wizard| wizard_store_service.update(update_wizard)),
+                        .and_then(move |update_wizard| {
+                            update_wizard
+                                .validate()
+                                .map_err(|e| {
+                                    format_err!("Validation of UpdateWizardStore failed!")
+                                        .context(Error::Validate(e))
+                                        .into()
+                                })
+                                .into_future()
+                                .and_then(move |_| wizard_store_service.update(update_wizard))
+                        })
                 )
             }
 

@@ -43,6 +43,9 @@ pub trait StoresRepo {
     /// Delete store by user id
     fn delete_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>>;
 
+    /// Get store by user id
+    fn get_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>>;
+
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
 
@@ -166,6 +169,25 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(|e: FailureError| e.context(format!("Delete store by user id {}.", user_id_arg)).into())
     }
 
+    /// Get store by user id
+    fn get_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>> {
+        debug!("get store by user id {}.", user_id_arg);
+        let query = stores.filter(user_id.eq(user_id_arg));
+
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .and_then(|store_res: Option<Store>| {
+                if let Some(ref store_res) = store_res {
+                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store_res))?;
+                };
+                Ok(store_res)
+            })
+            .map_err(|e: FailureError| e.context(format!("Get store by user id {}.", user_id_arg)).into())
+    }
+
+    /// Checks slug exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
         debug!("Check if store slug {} exists.", slug_arg);
         let query = diesel::select(exists(stores.filter(slug.eq(slug_arg.clone()))));

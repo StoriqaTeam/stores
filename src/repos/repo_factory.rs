@@ -859,6 +859,10 @@ pub mod tests {
         fn delete_by_user(&self, _user_id_arg: i32) -> RepoResult<Option<Store>> {
             Ok(None)
         }
+
+        fn get_by_user(&self, _user_id_arg: i32) -> RepoResult<Option<Store>> {
+            Ok(None)
+        }
     }
 
     #[allow(unused)]

@@ -34,6 +34,8 @@ pub trait StoresService {
     fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32>;
     /// Deactivates specific store
     fn deactivate(&self, store_id: i32) -> ServiceFuture<Store>;
+    /// Get store by user id
+    fn get_by_user(&self, user_id: i32) -> ServiceFuture<Option<Store>>;
     /// Deactivates store by user id
     fn delete_by_user(&self, user_id: i32) -> ServiceFuture<Option<Store>>;
     /// Creates new store
@@ -286,7 +288,29 @@ impl<
                             stores_repo.delete_by_user(user_id_arg)
                         })
                 })
-                .map_err(|e| e.context("Service Stores, deactivate endpoint error occured.").into()),
+                .map_err(|e| e.context("Service Stores, delete_by_user endpoint error occured.").into()),
+        )
+    }
+
+    /// Get store by user id
+    fn get_by_user(&self, user_id_arg: i32) -> ServiceFuture<Option<Store>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            stores_repo.get_by_user(user_id_arg)
+                        })
+                })
+                .map_err(|e| e.context("Service Stores, get_by_user endpoint error occured.").into()),
         )
     }
 
@@ -329,20 +353,31 @@ impl<
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             conn.transaction::<Store, FailureError, _>(move || {
                                 stores_repo
-                                    .slug_exists(payload.slug.to_string())
-                                    .map(move |exists| (payload, exists))
-                                    .and_then(|(new_store, exists)| {
+                                    .get_by_user(payload.user_id)
+                                    .and_then(|store| {
+                                        if store.is_some() {
+                                            Err(format_err!("Store already exists. User can have only one store.")
+                                                .context(Error::Validate(
+                                                    validation_errors!({"store": ["store" => "Store already exists"]}),
+                                                ))
+                                                .into())
+                                        } else {
+                                            Ok(())
+                                        }
+                                    })
+                                    .and_then(|_| stores_repo.slug_exists(payload.slug.to_string()))
+                                    .and_then(|exists| {
                                         if exists {
-                                            Err(format_err!("Store with slug '{}' already exists.", new_store.slug)
+                                            Err(format_err!("Store with slug '{}' already exists.", payload.slug)
                                                 .context(Error::Validate(
                                                     validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
                                                 ))
                                                 .into())
                                         } else {
-                                            Ok(new_store)
+                                            Ok(())
                                         }
                                     })
-                                    .and_then(move |new_store| stores_repo.create(new_store))
+                                    .and_then(move |_| stores_repo.create(payload))
                             })
                         })
                 })

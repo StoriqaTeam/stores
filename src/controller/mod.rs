@@ -350,6 +350,15 @@ impl<
                 serialize_future(stores_service.deactivate(store_id))
             }
 
+            // Get /stores/by_user_id/<user_id>
+            (&Get, Some(Route::StoreByUser(user_id_arg))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // Get /stores/by_user_id/{}",
+                    user_id, user_id_arg
+                );
+                serialize_future(stores_service.get_by_user(user_id_arg))
+            }
+
             // DELETE /stores/by_user_id/<user_id>
             (&Delete, Some(Route::StoreByUser(user_id_arg))) => {
                 debug!(
@@ -952,7 +961,7 @@ impl<
                                 })
                                 .into_future()
                                 .and_then(move |_| wizard_store_service.update(update_wizard))
-                        })
+                        }),
                 )
             }
 

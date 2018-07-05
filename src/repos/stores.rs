@@ -160,7 +160,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 if let Some(store_res) = store_res {
                     acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store_res))?;
                     let filter = stores.filter(user_id.eq(user_id_arg));
-                    let query = diesel::delete(filter);
+                    let query = diesel::update(filter).set(is_active.eq(false));
                     self.execute_query(query).map(Some).map_err(From::from)
                 } else {
                     Ok(None)
@@ -172,7 +172,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Get store by user id
     fn get_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>> {
         debug!("get store by user id {}.", user_id_arg);
-        let query = stores.filter(user_id.eq(user_id_arg));
+        let query = stores.filter(user_id.eq(user_id_arg)).filter(is_active.eq(true));
 
         query
             .get_result(self.db_conn)

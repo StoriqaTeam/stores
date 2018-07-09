@@ -707,6 +707,22 @@ impl<
                         .and_then(move |search_prod| base_products_service.search_filters_attributes(search_prod)),
                 )
             }
+            // POST /base_products/search/filters/count
+            (&Post, Some(Route::BaseProductsSearchFiltersCount)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /products/search/filters/count",
+                    user_id
+                );
+                serialize_future(
+                    parse_body::<SearchProductsByName>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /products/search/filters/count in SearchProductsByName failed!")
+                                .context(Error::Parse)
+                                .into()
+                        })
+                        .and_then(move |search_prod| base_products_service.search_filters_count(search_prod)),
+                )
+            }
 
             // GET /user_role/<user_id>
             (&Get, Some(Route::UserRole(user_id_arg))) => {

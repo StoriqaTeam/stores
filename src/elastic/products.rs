@@ -35,6 +35,9 @@ pub trait ProductsElastic {
 
     /// Find price range
     fn aggregate_price(&self, prod: SearchProductsByName) -> RepoFuture<RangeFilter>;
+
+    /// Find count
+    fn count(&self, prod: SearchProductsByName) -> RepoFuture<i32>;
 }
 
 impl ProductsElasticImpl {
@@ -779,6 +782,87 @@ impl ProductsElastic for ProductsElasticImpl {
                 })
                 .map_err(move |e| {
                     e.context(format!("Aggregate price name error occured. Prod: {:?}", prod))
+                        .context(Error::ElasticSearch)
+                        .into()
+                }),
+        )
+    }
+
+    fn count(&self, prod: SearchProductsByName) -> RepoFuture<i32> {
+        log_elastic_req(&prod);
+
+        let name_query = json!({
+            "bool" : {
+                "should" : [
+                    {"nested": {
+                        "path": "name",
+                        "query": {
+                            "match": {
+                                "name.text": prod.name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "short_description",
+                        "query": {
+                            "match": {
+                                "short_description.text": prod.name
+                            }
+                        }
+                    }},
+                    {"nested": {
+                        "path": "long_description",
+                        "query": {
+                            "match": {
+                                "long_description.text": prod.name
+                            }
+                        }
+                    }}
+                ]
+            }
+        });
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        if !prod.name.is_empty() {
+            query_map.insert("must".to_string(), name_query);
+        }
+
+        let mut filters: Vec<serde_json::Value> = vec![];
+
+        let store_filter = ProductsElasticImpl::create_store_filter(prod.options.clone());
+        if let Some(store_filter) = store_filter {
+            filters.push(store_filter);
+        }
+
+        if let Some(prod_options) = prod.options.clone() {
+            if let Some(prod_options_category_id) = prod_options.categories_ids {
+                let category = json!({
+                    "terms": {"category_id": prod_options_category_id}
+                });
+                filters.push(category);
+            }
+        }
+
+        filters.push(json!({ "term": {"status": "published"}}));
+        query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
+
+        let query = json!({
+                "query": {
+                        "bool" : query_map
+                    },
+            }).to_string();
+
+        let url = format!("http://{}/{}/_count", self.elastic_address, ElasticIndex::Product);
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set(ContentLength(query.len() as u64));
+        Box::new(
+            self.client_handle
+                .request::<CountResponse>(Method::Post, url, Some(query), Some(headers))
+                .inspect(|ref res| log_elastic_resp(res))
+                .map(|res| res.get_count() as i32)
+                .map_err(move |e| {
+                    e.context(format!("Search base product count error occured. Base product: {:?}", prod))
                         .context(Error::ElasticSearch)
                         .into()
                 }),

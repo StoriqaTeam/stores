@@ -111,7 +111,7 @@ services:
       - kafka-rest-proxy
 
   kafka-connect:
-    image: storiqateam/kafka-connect:release38
+    image: storiqateam/kafka-connect:master123
     hostname: kafka-connect
     ports:
       - "8083:8083"

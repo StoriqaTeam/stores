@@ -15,6 +15,7 @@ pub enum Route {
     BaseProductsSearchFiltersPrice,
     BaseProductsSearchFiltersCategory,
     BaseProductsSearchFiltersAttributes,
+    BaseProductsSearchFiltersCount,
     BaseProduct(i32),
     BaseProductByProduct(i32),
     BaseProductWithVariant(i32),
@@ -189,6 +190,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/base_products/search/filters/attributes", || {
         Route::BaseProductsSearchFiltersAttributes
     });
+
+    // BaseProducts search filters count route
+    router.add_route(r"^/base_products/search/filters/count", || Route::BaseProductsSearchFiltersCount);
 
     // User_roles Routes
     router.add_route(r"^/user_roles$", || Route::UserRoles);

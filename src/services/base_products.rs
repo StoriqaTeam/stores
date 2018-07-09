@@ -41,6 +41,8 @@ pub trait BaseProductsService {
     fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
     /// search filters
     fn search_filters_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>>;
+    /// search filters
+    fn search_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
     /// Returns product by ID
     fn get(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base_product by product ID
@@ -430,6 +432,25 @@ impl<
                 })
                 .map_err(|e| {
                     e.context("Service BaseProduct, search_filters_price endpoint error occured.")
+                        .into()
+                }),
+        )
+    }
+
+    /// search filters
+    fn search_filters_count(&self, mut search_prod: SearchProductsByName) -> ServiceFuture<i32> {
+        let client_handle = self.client_handle.clone();
+        let address = self.elastic_address.clone();
+        let products_el = ProductsElasticImpl::new(client_handle, address);
+
+        Box::new(
+            self.linearize_categories(search_prod.options.clone())
+                .and_then(move |options| {
+                    search_prod.options = options;
+                    products_el.count(search_prod)
+                })
+                .map_err(|e| {
+                    e.context("Service BaseProduct, search_filters_count endpoint error occured.")
                         .into()
                 }),
         )

@@ -543,7 +543,7 @@ impl ProductsElastic for ProductsElasticImpl {
             let store = json!({
                 "term": {"store_id": store_id}
             });
-            query_map.insert("filter".to_string(), store);
+            query_map.insert("query".to_string(), store);
         };
 
         let query = serde_json::Value::Object(query_map).to_string();

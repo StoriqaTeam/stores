@@ -17,6 +17,7 @@ pub enum Route {
     BaseProductsSearchFiltersAttributes,
     BaseProductsSearchFiltersCount,
     BaseProduct(i32),
+    BaseProductWithViewsUpdate(i32),
     BaseProductByProduct(i32),
     BaseProductWithVariant(i32),
     Categories,
@@ -145,6 +146,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(Route::BaseProduct)
+    });
+
+    // Base products/:id/update_view route
+    router.add_route_with_params(r"^/base_products/(\d+)/update_view$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(Route::BaseProductWithViewsUpdate)
     });
 
     // Base products with variants routes

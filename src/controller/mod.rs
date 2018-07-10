@@ -488,6 +488,15 @@ impl<
                 serialize_future(base_products_service.get(base_product_id))
             }
 
+            // GET /base_products/<base_product_id>/update_view
+            (&Get, Some(Route::BaseProductWithViewsUpdate(base_product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /base_products/{}/update_view",
+                    user_id, base_product_id
+                );
+                serialize_future(base_products_service.get_with_views_update(base_product_id))
+            }
+
             // GET base_products/by_product/<product_id>
             (&Get, Some(Route::BaseProductByProduct(product_id))) => {
                 debug!(

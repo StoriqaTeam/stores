@@ -45,6 +45,8 @@ pub trait BaseProductsService {
     fn search_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
     /// Returns product by ID
     fn get(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>>;
+    /// Returns base product by ID with update views
+    fn get_with_views_update(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base_product by product ID
     fn get_by_product(&self, product_id: i32) -> ServiceFuture<Option<BaseProductWithVariants>>;
     /// Deactivates specific product
@@ -596,7 +598,7 @@ impl<
     }
 
     /// Returns product by ID
-    fn get(&self, product_id: i32) -> ServiceFuture<Option<BaseProduct>> {
+    fn get(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -609,10 +611,31 @@ impl<
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            base_products_repo.update_views(product_id)
+                            base_products_repo.find(base_product_id)
                         })
                 })
                 .map_err(|e| e.context("Service BaseProduct, get endpoint error occured.").into()),
+        )
+    }
+
+    /// Returns base product by ID with update views
+    fn get_with_views_update(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            base_products_repo.update_views(base_product_id)
+                        })
+                })
+                .map_err(|e| e.context("Service BaseProduct, get_with_views_update endpoint error occured.").into()),
         )
     }
 

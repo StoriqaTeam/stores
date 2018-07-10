@@ -11,9 +11,6 @@ pipeline:
       - pull_request
       - push
       - tag
-      branch:
-      - master
-      - release
 
 ###
 # Test
@@ -124,8 +121,7 @@ pipeline:
     - source: k8s_stage_addr
       target: k8s_addr
     when:
-      branch: 
-      branch: master
+      branch: release
       event: push
 
 ###
@@ -177,7 +173,6 @@ pipeline:
       target: k8s_addr
     when:
       branch: release
-      branch: master
       event: deployment
       environment: production
 

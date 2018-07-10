@@ -11,6 +11,9 @@ pipeline:
       - pull_request
       - push
       - tag
+      branch:
+      - master
+      - release
 
 ###
 # Test
@@ -63,6 +66,9 @@ pipeline:
     - cargo build --release --locked
     when:
       event: push
+      branch:
+      - master
+      - release
   package:
     image: plugins/docker
     repo: storiqateam/stq-stores
@@ -74,7 +80,12 @@ pipeline:
     - docker_username
     - docker_password
     when:
-      event: [push, tag]
+      event:
+      - push
+      - tag
+      branch:
+      - master
+      - release
   deploy2nightly:
     image: jackthestripper/drone_k8s_rollout:20180607
     object: stores
@@ -113,7 +124,8 @@ pipeline:
     - source: k8s_stage_addr
       target: k8s_addr
     when:
-      branch: release*
+      branch: 
+      branch: master
       event: push
 
 ###
@@ -164,7 +176,8 @@ pipeline:
     - source: k8s_prod_addr
       target: k8s_addr
     when:
-      branch: release*
+      branch: release
+      branch: master
       event: deployment
       environment: production
 
@@ -184,6 +197,7 @@ pipeline:
       - pull_request
       - push
       - tag
+      branch: master
   notify_slack:
     image: plugins/slack
     webhook: https://hooks.slack.com/services/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
@@ -191,15 +205,16 @@ pipeline:
     icon_url: https://drone.io/favicon.ico
     username: cd.stq.cloud
     template: >
-      {{#success build.status}}
-        Build {{build.number}} for {{repo.name}} branch {{build.branch}} succeeded.
-      {{else}}
         Build {{build.number}} for {{repo.name}} branch {{build.branch}} failed.
-      {{/success}}
     when:
-      event: [ push, tag, deployment ]
-      branch: [ master, release* ]
-      status: [ failure, success ]
+      event:
+      - push
+      - tag
+      - deployment
+      branch:
+      - master
+      - release
+      status: failure
 
 ###
 # External dependencies for tests

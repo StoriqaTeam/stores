@@ -691,6 +691,14 @@ pub mod tests {
             })
         }
 
+        fn most_viewed(&self, _count: i32, _offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+            Ok(vec![])
+        }
+
+        fn most_discount(&self, _count: i32, _offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+            Ok(vec![])
+        }
+
         fn convert_from_elastic(&self, _el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
             Ok(vec![])
         }

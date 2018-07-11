@@ -97,29 +97,6 @@ pub struct UpdateBaseProduct {
     pub status: Option<Status>,
 }
 
-/// Payload for updating views on base product
-#[derive(Serialize, Deserialize, Insertable, AsChangeset, Clone)]
-#[table_name = "base_products"]
-pub struct UpdateBaseProductViews {
-    pub views: i32,
-}
-
-impl From<BaseProduct> for UpdateBaseProductViews {
-    fn from(base_product: BaseProduct) -> Self {
-        Self {
-            views: base_product.views + 1,
-        }
-    }
-}
-
-impl<'a> From<&'a BaseProduct> for UpdateBaseProductViews {
-    fn from(base_product: &'a BaseProduct) -> Self {
-        Self {
-            views: base_product.views + 1,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticProduct {
     pub id: i32,

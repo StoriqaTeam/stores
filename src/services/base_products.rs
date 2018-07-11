@@ -287,13 +287,10 @@ impl<
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(
         &self,
-        mut search_product: MostViewedProducts,
+        _search_product: MostViewedProducts,
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
-        let products_el = ProductsElasticImpl::new(client_handle, address);
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
@@ -301,43 +298,36 @@ impl<
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
-            self.linearize_categories(search_product.options.clone())
-                .and_then(move |options| {
-                    search_product.options = options;
-                    products_el
-                        .search_most_viewed(search_product, count, offset)
-                        .and_then(move |el_products| {
-                            cpu_pool.spawn_fn(move || {
-                                db_pool
-                                    .get()
-                                    .map_err(|e| e.context(Error::Connection).into())
-                                    .and_then(move |conn| {
-                                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                        let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                                        base_products_repo.convert_from_elastic(el_products).and_then(|base_products| {
-                                            if let Some(currency_id) = currency_id {
-                                                currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                                    if let Some(currency_map) = currencies_map {
-                                                        base_products
-                                                            .into_iter()
-                                                            .map(|mut b| {
-                                                                for mut variant in &mut b.variants {
-                                                                    if let Some(currency_id) = variant.currency_id {
-                                                                        variant.price *= currency_map[&currency_id];
-                                                                    }
-                                                                }
-                                                                b
-                                                            })
-                                                            .collect()
-                                                    } else {
-                                                        base_products
+            cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            base_products_repo.most_viewed(count, offset).and_then(|base_products| {
+                                if let Some(currency_id) = currency_id {
+                                    currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
+                                        if let Some(currency_map) = currencies_map {
+                                            base_products
+                                                .into_iter()
+                                                .map(|mut b| {
+                                                    for mut variant in &mut b.variants {
+                                                        if let Some(currency_id) = variant.currency_id {
+                                                            variant.price *= currency_map[&currency_id];
+                                                        }
                                                     }
+                                                    b
                                                 })
-                                            } else {
-                                                Ok(base_products)
-                                            }
-                                        })
+                                                .collect()
+                                        } else {
+                                            base_products
+                                        }
                                     })
+                                } else {
+                                    Ok(base_products)
+                                }
                             })
                         })
                 })
@@ -348,13 +338,10 @@ impl<
     /// Find product by dicount pattern limited by `count` and `offset` parameters
     fn search_most_discount(
         &self,
-        mut search_product: MostDiscountProducts,
+        _search_product: MostDiscountProducts,
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
-        let products_el = ProductsElasticImpl::new(client_handle, address);
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
@@ -362,45 +349,38 @@ impl<
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
-            self.linearize_categories(search_product.options.clone())
-                .and_then(move |options| {
-                    search_product.options = options;
-                    products_el.search_most_discount(search_product, count, offset).and_then({
-                        move |el_products| {
-                            cpu_pool.spawn_fn(move || {
-                                db_pool
-                                    .get()
-                                    .map_err(|e| e.context(Error::Connection).into())
-                                    .and_then(move |conn| {
-                                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                        let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                                        base_products_repo.convert_from_elastic(el_products).and_then(|base_products| {
-                                            if let Some(currency_id) = currency_id {
-                                                currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                                    if let Some(currency_map) = currencies_map {
-                                                        base_products
-                                                            .into_iter()
-                                                            .map(|mut b| {
-                                                                for mut variant in &mut b.variants {
-                                                                    if let Some(currency_id) = variant.currency_id {
-                                                                        variant.price *= currency_map[&currency_id];
-                                                                    }
-                                                                }
-                                                                b
-                                                            })
-                                                            .collect()
-                                                    } else {
-                                                        base_products
+            cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            base_products_repo.most_discount(count, offset).and_then(|base_products| {
+                                if let Some(currency_id) = currency_id {
+                                    currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
+                                        if let Some(currency_map) = currencies_map {
+                                            base_products
+                                                .into_iter()
+                                                .map(|mut b| {
+                                                    for mut variant in &mut b.variants {
+                                                        if let Some(currency_id) = variant.currency_id {
+                                                            variant.price *= currency_map[&currency_id];
+                                                        }
                                                     }
+                                                    b
                                                 })
-                                            } else {
-                                                Ok(base_products)
-                                            }
-                                        })
+                                                .collect()
+                                        } else {
+                                            base_products
+                                        }
                                     })
+                                } else {
+                                    Ok(base_products)
+                                }
                             })
-                        }
-                    })
+                        })
                 })
                 .map_err(|e| {
                     e.context("Service BaseProduct, search_most_discount endpoint error occured.")
@@ -635,7 +615,10 @@ impl<
                             base_products_repo.update_views(base_product_id)
                         })
                 })
-                .map_err(|e| e.context("Service BaseProduct, get_with_views_update endpoint error occured.").into()),
+                .map_err(|e| {
+                    e.context("Service BaseProduct, get_with_views_update endpoint error occured.")
+                        .into()
+                }),
         )
     }
 
@@ -805,7 +788,7 @@ impl<
         )
     }
 
-    /// Creates new product
+    /// Creates new base product
     fn create(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
@@ -920,28 +903,7 @@ impl<
                                     .find(product_id)
                                     .and_then(|old_prod| {
                                         if let Some(old_prod) = old_prod {
-                                            let exists = if let Some(slug) = payload.slug.clone() {
-                                                if old_prod.slug == slug {
-                                                    // if updated slug equal base_product slug
-                                                    Ok(false)
-                                                } else {
-                                                    // if updated slug equal other base_product slug
-                                                    base_products_repo.slug_exists(slug)
-                                                }
-                                            } else {
-                                                Ok(false)
-                                            };
-                                            exists.and_then(|exists| {
-                                                if exists {
-                                                    Err(format_err!("Store with slug '{:?}' already exists.", payload.slug.clone())
-                                                        .context(Error::Validate(
-                                                            validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                                                        ))
-                                                        .into())
-                                                } else {
-                                                    Ok(old_prod)
-                                                }
-                                            })
+                                            Ok(old_prod)
                                         } else {
                                             Err(Error::NotFound.into())
                                         }

@@ -17,10 +17,9 @@ use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::base_product::base_products::dsl::*;
+use models::product::products::dsl as Products;
 use models::store::stores::dsl as Stores;
-use models::{
-    BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct, UpdateBaseProductViews,
-};
+use models::{BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct};
 
 /// BaseProducts repository, responsible for handling base_products
 pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -34,6 +33,12 @@ pub trait BaseProductsRepo {
 
     /// Returns list of base_products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Returns most viewed list of base_products, limited by `from` and `offset` parameters
+    fn most_viewed(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
+
+    /// Returns most discount list of base_products, limited by `from` and `offset` parameters
+    fn most_discount(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
 
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
     fn get_products_of_the_store(
@@ -223,21 +228,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Update views on specific base_product
     fn update_views(&self, base_product_id_arg: i32) -> RepoResult<Option<BaseProduct>> {
         debug!("Updating views of base product with id {}.", base_product_id_arg);
-        let query = base_products.find(base_product_id_arg).filter(is_active.eq(true));
+        let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
+        let query = diesel::update(filter).set(views.eq(views + 1));
         query
-            .get_result(self.db_conn)
+            .get_result::<BaseProduct>(self.db_conn)
             .optional()
             .map_err(From::from)
-            .and_then(|base_product: Option<BaseProduct>| {
-                if let Some(base_product) = base_product {
-                    let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
-                    let payload: UpdateBaseProductViews = base_product.into();
-                    let query = diesel::update(filter).set(&payload);
-                    query.get_result::<BaseProduct>(self.db_conn).optional().map_err(From::from)
-                } else {
-                    Ok(None)
-                }
-            })
             .map_err(|e: FailureError| {
                 e.context(format!("Updating views of base product with id {} failed", base_product_id_arg))
                     .into()
@@ -323,6 +319,83 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .into_iter()
                     .zip(variants)
                     .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
+                    .collect())
+            })
+            .map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
+    }
+
+    /// Returns most viewed list of base_products, limited by `from` and `count` parameters
+    fn most_viewed(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+        acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
+            .and_then(|_| {
+                debug!("Querying for most viewed base products.");
+
+                let base_products_query = base_products
+                    .filter(is_active.eq(true))
+                    .order_by(views.desc())
+                    .offset(offset.into())
+                    .limit(count.into());
+
+                let base_products_list: Vec<BaseProduct> = base_products_query.get_results(self.db_conn)?;
+
+                let variants = Product::belonging_to(&base_products_list)
+                    .get_results(self.db_conn)?
+                    .into_iter()
+                    .grouped_by(&base_products_list);
+
+                Ok(base_products_list
+                    .into_iter()
+                    .zip(variants)
+                    .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
+                    .collect())
+            })
+            .map_err(|e: FailureError| e.context("Querying for most viewed base products failed").into())
+    }
+
+    /// Returns most discount list of base_products, limited by `from` and `count` parameters
+    fn most_discount(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+        acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
+            .and_then(|_| {
+                debug!("Querying for most viewed products.");
+
+                let products_query = Products::products
+                    .filter(Products::is_active.eq(true))
+                    .filter(Products::discount.is_not_null())
+                    .distinct()
+                    .order_by(Products::discount.desc())
+                    .offset(offset.into())
+                    .limit(count.into());
+
+                let variants = products_query.get_results::<Product>(self.db_conn)?;
+
+                let base_products_ids = variants.iter().map(|p| p.base_product_id).collect::<Vec<i32>>();
+
+                let hashed_ids = base_products_ids
+                    .clone()
+                    .into_iter()
+                    .enumerate()
+                    .map(|(n, id_arg)| (id_arg, n))
+                    .collect::<HashMap<_, _>>();
+
+                let base_products_query = base_products.filter(id.eq_any(base_products_ids));
+                let base_products_list: Vec<BaseProduct> = base_products_query.get_results(self.db_conn)?;
+
+                // sorting in products order
+                let base_products_list = base_products_list
+                    .into_iter()
+                    .fold(BTreeMap::<usize, BaseProduct>::new(), |mut tree_map, bp| {
+                        let n = hashed_ids[&bp.id];
+                        tree_map.insert(n, bp);
+                        tree_map
+                    })
+                    .into_iter()
+                    .map(|(_, base_product)| base_product)
+                    .collect::<Vec<BaseProduct>>();
+
+                Ok(base_products_list
+                    .into_iter()
+                    .zip(variants)
+                    .map(|(base, var)| BaseProductWithVariants::new(base, vec![var]))
                     .collect())
             })
             .map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())

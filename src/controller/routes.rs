@@ -1,4 +1,5 @@
 use stq_router::RouteParser;
+use stq_types::*;
 
 /// List of all routes with params for the app
 #[derive(Clone, Debug, PartialEq)]
@@ -16,24 +17,24 @@ pub enum Route {
     BaseProductsSearchFiltersCategory,
     BaseProductsSearchFiltersAttributes,
     BaseProductsSearchFiltersCount,
-    BaseProduct(i32),
-    BaseProductWithViewsUpdate(i32),
-    BaseProductByProduct(i32),
-    BaseProductWithVariant(i32),
+    BaseProduct(BaseProductId),
+    BaseProductWithViewsUpdate(BaseProductId),
+    BaseProductByProduct(ProductId),
+    BaseProductWithVariant(BaseProductId),
     Categories,
     Category(i32),
     CategoryAttrs,
     CategoryAttr(i32),
     CurrencyExchange,
     ModeratorProductComments,
-    ModeratorProductComment(i32),
+    ModeratorBaseProductComment(BaseProductId),
     ModeratorStoreComments,
-    ModeratorStoreComment(i32),
+    ModeratorStoreComment(StoreId),
     Products,
     ProductStoreId,
-    Product(i32),
-    ProductAttributes(i32),
-    ProductsByBaseProduct(i32),
+    Product(ProductId),
+    ProductAttributes(ProductId),
+    ProductsByBaseProduct(BaseProductId),
     Stores,
     StoresSearch,
     StoresAutoComplete,
@@ -41,13 +42,13 @@ pub enum Route {
     StoresSearchFiltersCountry,
     StoresSearchFiltersCategory,
     StoresCart,
-    Store(i32),
-    StoreByUser(i32),
-    StoreProducts(i32),
-    StoreProductsCount(i32),
+    Store(StoreId),
+    StoreByUser(UserId),
+    StoreProducts(StoreId),
+    StoreProductsCount(StoreId),
     UserRoles,
-    UserRole(i32),
-    DefaultRole(i32),
+    UserRole(UserId),
+    DefaultRole(UserId),
     WizardStores,
 }
 
@@ -62,7 +63,11 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Stores/:id route
     router.add_route_with_params(r"^/stores/(\d+)$", |params| {
-        params.get(0).and_then(|string_id| string_id.parse::<i32>().ok()).map(Route::Store)
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(StoreId)
+            .map(Route::Store)
     });
 
     // Stores/by_user_id/:id route
@@ -70,6 +75,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(UserId)
             .map(Route::StoreByUser)
     });
 
@@ -78,6 +84,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(StoreId)
             .map(Route::StoreProducts)
     });
 
@@ -86,6 +93,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(StoreId)
             .map(Route::StoreProductsCount)
     });
 
@@ -118,6 +126,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(ProductId)
             .map(Route::Product)
     });
 
@@ -126,6 +135,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(BaseProductId)
             .map(Route::ProductsByBaseProduct)
     });
 
@@ -134,6 +144,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(ProductId)
             .map(Route::ProductAttributes)
     });
 
@@ -145,6 +156,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(BaseProductId)
             .map(Route::BaseProduct)
     });
 
@@ -153,6 +165,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(BaseProductId)
             .map(Route::BaseProductWithViewsUpdate)
     });
 
@@ -164,6 +177,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(BaseProductId)
             .map(Route::BaseProductWithVariant)
     });
 
@@ -172,6 +186,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(ProductId)
             .map(Route::BaseProductByProduct)
     });
 
@@ -211,6 +226,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(UserId)
             .map(Route::UserRole)
     });
 
@@ -241,6 +257,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(UserId)
             .map(Route::DefaultRole)
     });
 
@@ -269,7 +286,8 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(Route::ModeratorProductComment)
+            .map(BaseProductId)
+            .map(Route::ModeratorBaseProductComment)
     });
 
     // Moderator Store Comments Routes
@@ -280,6 +298,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(StoreId)
             .map(Route::ModeratorStoreComment)
     });
 

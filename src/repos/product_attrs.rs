@@ -6,7 +6,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::*;
+use stq_types::{BaseProductId, ProductId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
@@ -15,6 +15,7 @@ use models::authorization::*;
 use models::base_product::base_products::dsl as BaseProducts;
 use models::store::stores::dsl as Stores;
 use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
+use repos::legacy_acl::*;
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -24,10 +25,10 @@ pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManag
 
 pub trait ProductAttrsRepo {
     /// Find product attributes by product ID
-    fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>>;
+    fn find_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>>;
 
     /// Find product attributes by base_product ID
-    fn find_all_attributes_by_base(&self, base_product_id_arg: i32) -> RepoResult<Vec<ProdAttr>>;
+    fn find_all_attributes_by_base(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<ProdAttr>>;
 
     /// Creates new product_attribute
     fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr>;
@@ -36,10 +37,10 @@ pub trait ProductAttrsRepo {
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
 
     /// Delete all attributes values from product
-    fn delete_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>>;
+    fn delete_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>>;
 
     /// Delete all attributes values from product not in the list
-    fn delete_all_attributes_not_in_list(&self, product_id_arg: i32, attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>>;
+    fn delete_all_attributes_not_in_list(&self, product_id_arg: ProductId, attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>>;
 
     /// Delete attribute value
     fn delete(&self, id_arg: i32) -> RepoResult<ProdAttr>;
@@ -55,7 +56,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for ProductAttrsRepoImpl<'a, T>
 {
     /// Find specific product_attributes by product ID
-    fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+    fn find_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>> {
         debug!("Find all attributes of product id {}.", product_id_arg);
         let query = prod_attr_values.filter(prod_id.eq(product_id_arg)).order(id);
 
@@ -77,7 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Find product attributes by base_product ID
-    fn find_all_attributes_by_base(&self, base_product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+    fn find_all_attributes_by_base(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<ProdAttr>> {
         debug!("Find all attributes of base_product id {}.", base_product_id_arg);
         let query = prod_attr_values.filter(base_prod_id.eq(base_product_id_arg)).order(id);
 
@@ -136,7 +137,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Delete all attributes values from product
-    fn delete_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+    fn delete_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>> {
         debug!("Delete all attributes of product id {}.", product_id_arg);
         let filtered = prod_attr_values.filter(prod_id.eq(product_id_arg));
 
@@ -159,7 +160,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Delete all attributes values from product not in the list
-    fn delete_all_attributes_not_in_list(&self, product_id_arg: i32, attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>> {
+    fn delete_all_attributes_not_in_list(&self, product_id_arg: ProductId, attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>> {
         debug!(
             "Delete all attributes of product id {} not in the list {:?}.",
             product_id_arg, attr_values
@@ -206,7 +207,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, ProdAttr>
     for ProductAttrsRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&ProdAttr>) -> bool {
+    fn is_in_scope(&self, user_id: UserId, scope: &Scope, obj: Option<&ProdAttr>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

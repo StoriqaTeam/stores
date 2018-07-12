@@ -9,14 +9,15 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::*;
 use stq_static_resources::Currency;
+use stq_types::{CurrencyId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::currency_exchange::currency_exchange::dsl::*;
 use models::{CurrencyExchange, NewCurrencyExchange};
+use repos::legacy_acl::*;
 
 /// CurrencyExchange repository, responsible for handling prod_attr_values
 pub struct CurrencyExchangeRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -29,7 +30,7 @@ pub trait CurrencyExchangeRepo {
     fn get_latest(&self) -> RepoResult<Option<CurrencyExchange>>;
 
     /// Get latest currency exchanges for currency_id
-    fn get_exchange_for_currency(&self, currency_id: i32) -> RepoResult<Option<HashMap<i32, f64>>>;
+    fn get_exchange_for_currency(&self, currency_id: CurrencyId) -> RepoResult<Option<HashMap<CurrencyId, f64>>>;
 
     /// Adds latest currency to table
     fn update(&self, payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange>;
@@ -69,10 +70,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Get latest currency exchanges for currency_id
-    fn get_exchange_for_currency(&self, currency_id: i32) -> RepoResult<Option<HashMap<i32, f64>>> {
+    fn get_exchange_for_currency(&self, currency_id: CurrencyId) -> RepoResult<Option<HashMap<CurrencyId, f64>>> {
         self.get_latest().map(|currencies| {
             currencies.and_then(|currencies| {
-                match currency_id {
+                match currency_id.0 {
                     x if x == (Currency::Rouble as i32) => currencies.rouble,
                     x if x == (Currency::Euro as i32) => currencies.euro,
                     x if x == (Currency::Dollar as i32) => currencies.dollar,
@@ -82,11 +83,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     _ => return None,
                 }.as_object()
                     .map(|m| {
-                        let mut map = HashMap::<i32, f64>::new();
+                        let mut map = HashMap::<CurrencyId, f64>::new();
                         for (key, val) in m {
                             if let Ok(key) = Currency::from_str(key) {
                                 if let Some(val) = val.as_f64() {
-                                    map.insert(key as i32, val);
+                                    map.insert(CurrencyId(key as i32), val);
                                 }
                             }
                         }
@@ -120,7 +121,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, CurrencyExchange>
     for CurrencyExchangeRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, _user_id: i32, scope: &Scope, _obj: Option<&CurrencyExchange>) -> bool {
+    fn is_in_scope(&self, _user_id: UserId, scope: &Scope, _obj: Option<&CurrencyExchange>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => false,

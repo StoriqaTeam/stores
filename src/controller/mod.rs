@@ -27,9 +27,10 @@ use stq_http::client::ClientHandle;
 use stq_http::controller::Controller;
 use stq_http::controller::ControllerFuture;
 use stq_http::request_util::serialize_future;
-use stq_http::request_util::CurrencyId;
+use stq_http::request_util::CurrencyId as CurrencyIdHeader;
 use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
+use stq_types::*;
 
 use self::routes::Route;
 use config::Config;
@@ -93,12 +94,18 @@ impl<
     fn call(&self, req: Request) -> ControllerFuture {
         let headers = req.headers().clone();
         let auth_header = headers.get::<Authorization<String>>();
-        let user_id = auth_header.map(|auth| auth.0.clone()).and_then(|id| i32::from_str(&id).ok());
+        let user_id = auth_header
+            .map(|auth| auth.0.clone())
+            .and_then(|id| i32::from_str(&id).ok())
+            .map(UserId);
 
         let uuid_header = headers.get::<Cookie>();
         let uuid = uuid_header.and_then(|cookie| cookie.get("UUID"));
 
-        let currency_id = headers.get::<CurrencyId>().and_then(|sid| sid.parse::<i32>().ok());
+        let currency_id = headers
+            .get::<CurrencyIdHeader>()
+            .and_then(|sid| sid.parse::<i32>().ok())
+            .map(CurrencyId);
 
         debug!("User with id = '{:?}' and uuid = {:?} is requesting {}", user_id, uuid, req.path());
 
@@ -165,7 +172,7 @@ impl<
             // GET /stores
             (&Get, Some(Route::Stores)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /stores", user_id);
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => StoreId, "count" => i32) {
                     serialize_future(stores_service.list(offset, count))
                 } else {
                     Box::new(future::err(
@@ -179,8 +186,7 @@ impl<
             // GET /stores/:id/products route
             (&Get, Some(Route::StoreProducts(store_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /stores/:id/products route", user_id);
-                if let (skip_base_product_id, Some(offset), Some(count)) =
-                    parse_query!(req.query().unwrap_or_default(), "skip_base_product_id" => i32, "offset" => i32, "count" => i32)
+                if let (skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "skip_base_product_id" => BaseProductId, "offset" => BaseProductId, "count" => i32)
                 {
                     serialize_future(base_products_service.get_products_of_the_store(store_id, skip_base_product_id, offset, count))
                 } else {
@@ -409,7 +415,7 @@ impl<
             // GET /products/store_id
             (&Get, Some(Route::ProductStoreId)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /products/store_id", user_id);
-                if let Some(product_id) = parse_query!(req.query().unwrap_or_default(), "product_id" => i32) {
+                if let Some(product_id) = parse_query!(req.query().unwrap_or_default(), "product_id" => ProductId) {
                     serialize_future(products_service.get_store_id(product_id))
                 } else {
                     Box::new(future::err(
@@ -509,7 +515,9 @@ impl<
             // GET /base_products
             (&Get, Some(Route::BaseProducts)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /base_products", user_id);
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
+                if let (Some(offset), Some(count)) =
+                    parse_query!(req.query().unwrap_or_default(), "offset" => BaseProductId, "count" => i32)
+                {
                     serialize_future(base_products_service.list(offset, count))
                 } else {
                     Box::new(future::err(
@@ -997,7 +1005,7 @@ impl<
             }
 
             // GET /moderator_product_comments/<base_product_id>
-            (&Get, Some(Route::ModeratorProductComment(base_product_id))) => {
+            (&Get, Some(Route::ModeratorBaseProductComment(base_product_id))) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // GET /moderator_product_comments/{}",
                     user_id, base_product_id

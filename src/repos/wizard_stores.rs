@@ -9,13 +9,14 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::*;
+use stq_types::UserId;
 
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::wizard_store::wizard_stores::dsl::*;
 use models::{NewWizardStore, UpdateWizardStore, WizardStore};
+use repos::legacy_acl::*;
 
 /// Wizard stores repository, responsible for handling wizard stores
 pub struct WizardStoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -25,19 +26,19 @@ pub struct WizardStoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManag
 
 pub trait WizardStoresRepo {
     /// Find specific store by user ID
-    fn find_by_user_id(&self, user_id: i32) -> RepoResult<Option<WizardStore>>;
+    fn find_by_user_id(&self, user_id: UserId) -> RepoResult<Option<WizardStore>>;
 
     /// Creates new wizard store
-    fn create(&self, user_id: i32) -> RepoResult<WizardStore>;
+    fn create(&self, user_id: UserId) -> RepoResult<WizardStore>;
 
     /// Updates specific wizard store
-    fn update(&self, user_id: i32, payload: UpdateWizardStore) -> RepoResult<WizardStore>;
+    fn update(&self, user_id: UserId, payload: UpdateWizardStore) -> RepoResult<WizardStore>;
 
     /// Delete specific wizard store
-    fn delete(&self, user_id: i32) -> RepoResult<WizardStore>;
+    fn delete(&self, user_id: UserId) -> RepoResult<WizardStore>;
 
     /// Check if the wizard already exists
-    fn wizard_exists(&self, user_id: i32) -> RepoResult<bool>;
+    fn wizard_exists(&self, user_id: UserId) -> RepoResult<bool>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WizardStoresRepoImpl<'a, T> {
@@ -54,7 +55,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for WizardStoresRepoImpl<'a, T>
 {
     /// Find specific store by user ID
-    fn find_by_user_id(&self, user_id_arg: i32) -> RepoResult<Option<WizardStore>> {
+    fn find_by_user_id(&self, user_id_arg: UserId) -> RepoResult<Option<WizardStore>> {
         debug!("Find in wizard stores with user id {}.", user_id_arg);
         let query = wizard_stores.filter(user_id.eq(user_id_arg));
         query
@@ -74,7 +75,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Creates new wizard store
-    fn create(&self, user_id_arg: i32) -> RepoResult<WizardStore> {
+    fn create(&self, user_id_arg: UserId) -> RepoResult<WizardStore> {
         debug!("Create wizard store for user {:?}.", user_id_arg);
         let payload = NewWizardStore { user_id: user_id_arg };
         let query_store = diesel::insert_into(wizard_stores).values(&payload);
@@ -91,7 +92,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Updates specific wizard store
-    fn update(&self, user_id_arg: i32, payload: UpdateWizardStore) -> RepoResult<WizardStore> {
+    fn update(&self, user_id_arg: UserId, payload: UpdateWizardStore) -> RepoResult<WizardStore> {
         debug!("Updating wizard store with user_id {} and payload {:?}.", user_id_arg, payload);
         self.execute_query(wizard_stores.filter(user_id.eq(user_id_arg)))
             .and_then(|wizard_store: WizardStore| acl::check(&*self.acl, Resource::WizardStores, Action::Update, self, Some(&wizard_store)))
@@ -110,7 +111,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Delete specific wizard store
-    fn delete(&self, user_id_arg: i32) -> RepoResult<WizardStore> {
+    fn delete(&self, user_id_arg: UserId) -> RepoResult<WizardStore> {
         debug!("Delete wizard store with user_id {}.", user_id_arg);
         self.execute_query(wizard_stores.filter(user_id.eq(user_id_arg)))
             .and_then(|wizard_store: WizardStore| acl::check(&*self.acl, Resource::WizardStores, Action::Delete, self, Some(&wizard_store)))
@@ -126,7 +127,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Check if the wizard already exists
-    fn wizard_exists(&self, user_id_arg: i32) -> RepoResult<bool> {
+    fn wizard_exists(&self, user_id_arg: UserId) -> RepoResult<bool> {
         debug!("Check if wizard already exists for user {}.", user_id_arg);
         let query = diesel::select(exists(wizard_stores.filter(user_id.eq(user_id_arg))));
         query
@@ -143,7 +144,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, WizardStore>
     for WizardStoresRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, user_id_arg: i32, scope: &Scope, obj: Option<&WizardStore>) -> bool {
+    fn is_in_scope(&self, user_id_arg: UserId, scope: &Scope, obj: Option<&WizardStore>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

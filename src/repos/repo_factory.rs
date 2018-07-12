@@ -3,23 +3,24 @@ use diesel::pg::Pg;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::{Acl, SystemACL};
+use stq_types::*;
 
 use models::*;
+use repos::legacy_acl::{Acl, SystemACL};
 use repos::*;
 
 pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>: Clone + Send + 'static {
-    fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<AttributesRepo + 'a>;
-    fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoriesRepo + 'a>;
-    fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a>;
-    fn create_base_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<BaseProductsRepo + 'a>;
-    fn create_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductsRepo + 'a>;
-    fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a>;
-    fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a>;
-    fn create_wizard_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<WizardStoresRepo + 'a>;
-    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a>;
-    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a>;
-    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a>;
+    fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<AttributesRepo + 'a>;
+    fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoriesRepo + 'a>;
+    fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoryAttrsRepo + 'a>;
+    fn create_base_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<BaseProductsRepo + 'a>;
+    fn create_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ProductsRepo + 'a>;
+    fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ProductAttrsRepo + 'a>;
+    fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<StoresRepo + 'a>;
+    fn create_wizard_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<WizardStoresRepo + 'a>;
+    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ModeratorProductRepo + 'a>;
+    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ModeratorStoreRepo + 'a>;
+    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CurrencyExchangeRepo + 'a>;
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a>;
 }
 
@@ -41,16 +42,16 @@ impl ReposFactoryImpl {
 
     pub fn get_roles<'a, C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>(
         &self,
-        id: i32,
+        id: UserId,
         db_conn: &'a C,
-    ) -> Vec<Role> {
+    ) -> Vec<StoresRole> {
         self.create_user_roles_repo(db_conn).list_for_user(id).ok().unwrap_or_default()
     }
 
     fn get_acl<'a, T, C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>(
         &self,
         db_conn: &'a C,
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
     ) -> Box<Acl<Resource, Action, Scope, FailureError, T>> {
         user_id.map_or(
             Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, FailureError, T>>,
@@ -63,47 +64,47 @@ impl ReposFactoryImpl {
 }
 
 impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ReposFactory<C> for ReposFactoryImpl {
-    fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<AttributesRepo + 'a> {
+    fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<AttributesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(AttributesRepoImpl::new(db_conn, acl, self.attribute_cache.clone())) as Box<AttributesRepo>
     }
-    fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoriesRepo + 'a> {
+    fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoriesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CategoriesRepoImpl::new(db_conn, acl, self.category_cache.clone())) as Box<CategoriesRepo>
     }
-    fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a> {
+    fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoryAttrsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CategoryAttrsRepoImpl::new(db_conn, acl)) as Box<CategoryAttrsRepo>
     }
-    fn create_base_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<BaseProductsRepo + 'a> {
+    fn create_base_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<BaseProductsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(BaseProductsRepoImpl::new(db_conn, acl)) as Box<BaseProductsRepo>
     }
-    fn create_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductsRepo + 'a> {
+    fn create_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ProductsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(ProductsRepoImpl::new(db_conn, acl)) as Box<ProductsRepo>
     }
-    fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a> {
+    fn create_product_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ProductAttrsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(ProductAttrsRepoImpl::new(db_conn, acl)) as Box<ProductAttrsRepo>
     }
-    fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<StoresRepo + 'a> {
+    fn create_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<StoresRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(StoresRepoImpl::new(db_conn, acl)) as Box<StoresRepo>
     }
-    fn create_wizard_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<WizardStoresRepo + 'a> {
+    fn create_wizard_stores_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<WizardStoresRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(WizardStoresRepoImpl::new(db_conn, acl)) as Box<WizardStoresRepo>
     }
-    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
+    fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CurrencyExchangeRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CurrencyExchangeRepoImpl::new(db_conn, acl)) as Box<CurrencyExchangeRepo>
     }
-    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a> {
+    fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ModeratorProductRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(ModeratorProductRepoImpl::new(db_conn, acl)) as Box<ModeratorProductRepo>
     }
-    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a> {
+    fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ModeratorStoreRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(ModeratorStoreRepoImpl::new(db_conn, acl)) as Box<ModeratorStoreRepo>
     }
@@ -145,7 +146,8 @@ pub mod tests {
 
     use stq_http;
     use stq_http::client::Config as HttpConfig;
-    use stq_static_resources::Translation;
+    use stq_static_resources::*;
+    use stq_types::*;
 
     use config::Config;
     use models::*;
@@ -153,9 +155,9 @@ pub mod tests {
     use services::*;
 
     pub const MOCK_REPO_FACTORY: ReposFactoryMock = ReposFactoryMock {};
-    pub static MOCK_USER_ID: i32 = 1;
-    pub static MOCK_BASE_PRODUCT_ID: i32 = 1;
-    pub static MOCK_PRODUCT_ID: i32 = 1;
+    pub static MOCK_USER_ID: UserId = UserId(1);
+    pub static MOCK_BASE_PRODUCT_ID: BaseProductId = BaseProductId(1);
+    pub static MOCK_PRODUCT_ID: ProductId = ProductId(1);
     pub static MOCK_STORE_NAME_JSON_EXISTED: &'static str = r##"[{"lang": "en","text": "store"}]"##;
     pub static MOCK_STORE_NAME_JSON: &'static str = r##"[{"lang": "de","text": "Store"}]"##;
     pub static MOCK_STORE_NAME: &'static str = "store";
@@ -166,37 +168,37 @@ pub mod tests {
     pub struct ReposFactoryMock;
 
     impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ReposFactory<C> for ReposFactoryMock {
-        fn create_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<AttributesRepo + 'a> {
+        fn create_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<AttributesRepo + 'a> {
             Box::new(AttributesRepoMock::default()) as Box<AttributesRepo>
         }
-        fn create_categories_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CategoriesRepo + 'a> {
+        fn create_categories_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CategoriesRepo + 'a> {
             Box::new(CategoriesRepoMock::default()) as Box<CategoriesRepo>
         }
-        fn create_category_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CategoryAttrsRepo + 'a> {
+        fn create_category_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CategoryAttrsRepo + 'a> {
             Box::new(CategoryAttrsRepoMock::default()) as Box<CategoryAttrsRepo>
         }
-        fn create_base_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<BaseProductsRepo + 'a> {
+        fn create_base_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<BaseProductsRepo + 'a> {
             Box::new(BaseProductsRepoMock::default()) as Box<BaseProductsRepo>
         }
-        fn create_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ProductsRepo + 'a> {
+        fn create_product_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<ProductsRepo + 'a> {
             Box::new(ProductsRepoMock::default()) as Box<ProductsRepo>
         }
-        fn create_product_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ProductAttrsRepo + 'a> {
+        fn create_product_attrs_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<ProductAttrsRepo + 'a> {
             Box::new(ProductAttrsRepoMock::default()) as Box<ProductAttrsRepo>
         }
-        fn create_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<StoresRepo + 'a> {
+        fn create_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<StoresRepo + 'a> {
             Box::new(StoresRepoMock::default()) as Box<StoresRepo>
         }
-        fn create_wizard_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<WizardStoresRepo + 'a> {
+        fn create_wizard_stores_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<WizardStoresRepo + 'a> {
             Box::new(WizardStoresRepoMock::default()) as Box<WizardStoresRepo>
         }
-        fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<CurrencyExchangeRepo + 'a> {
+        fn create_currency_exchange_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CurrencyExchangeRepo + 'a> {
             Box::new(CurrencyExchangeRepoMock::default()) as Box<CurrencyExchangeRepo>
         }
-        fn create_moderator_product_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorProductRepo + 'a> {
+        fn create_moderator_product_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<ModeratorProductRepo + 'a> {
             Box::new(ModeratorProductRepoMock::default()) as Box<ModeratorProductRepo>
         }
-        fn create_moderator_store_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<i32>) -> Box<ModeratorStoreRepo + 'a> {
+        fn create_moderator_store_comments_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<ModeratorStoreRepo + 'a> {
             Box::new(ModeratorStoreRepoMock::default()) as Box<ModeratorStoreRepo>
         }
         fn create_user_roles_repo<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
@@ -360,10 +362,10 @@ pub mod tests {
 
     impl ModeratorProductRepo for ModeratorProductRepoMock {
         /// Find specific comments by base_product ID
-        fn find_by_base_product_id(&self, base_product_id: i32) -> RepoResult<Option<ModeratorProductComments>> {
+        fn find_by_base_product_id(&self, base_product_id: BaseProductId) -> RepoResult<Option<ModeratorProductComments>> {
             Ok(Some(ModeratorProductComments {
                 id: 1,
-                moderator_id: 1,
+                moderator_id: UserId(1),
                 base_product_id: base_product_id,
                 comments: "comments".to_string(),
                 created_at: SystemTime::now(),
@@ -386,10 +388,10 @@ pub mod tests {
 
     impl ModeratorStoreRepo for ModeratorStoreRepoMock {
         /// Find specific comments by store ID
-        fn find_by_store_id(&self, store_id: i32) -> RepoResult<Option<ModeratorStoreComments>> {
+        fn find_by_store_id(&self, store_id: StoreId) -> RepoResult<Option<ModeratorStoreComments>> {
             Ok(Some(ModeratorStoreComments {
                 id: 1,
-                moderator_id: 1,
+                moderator_id: UserId(1),
                 store_id: store_id,
                 comments: "comments".to_string(),
                 created_at: SystemTime::now(),
@@ -413,7 +415,7 @@ pub mod tests {
 
     impl WizardStoresRepo for WizardStoresRepoMock {
         /// Find specific store by user ID
-        fn find_by_user_id(&self, user_id: i32) -> RepoResult<Option<WizardStore>> {
+        fn find_by_user_id(&self, user_id: UserId) -> RepoResult<Option<WizardStore>> {
             Ok(Some(WizardStore {
                 user_id,
                 ..Default::default()
@@ -421,7 +423,7 @@ pub mod tests {
         }
 
         /// Creates new wizard store
-        fn create(&self, user_id: i32) -> RepoResult<WizardStore> {
+        fn create(&self, user_id: UserId) -> RepoResult<WizardStore> {
             Ok(WizardStore {
                 user_id,
                 ..Default::default()
@@ -429,7 +431,7 @@ pub mod tests {
         }
 
         /// Updates specific wizard store
-        fn update(&self, user_id: i32, payload: UpdateWizardStore) -> RepoResult<WizardStore> {
+        fn update(&self, user_id: UserId, payload: UpdateWizardStore) -> RepoResult<WizardStore> {
             Ok(WizardStore {
                 user_id,
                 id: 1,
@@ -452,14 +454,14 @@ pub mod tests {
         }
 
         /// Delete specific wizard store
-        fn delete(&self, user_id: i32) -> RepoResult<WizardStore> {
+        fn delete(&self, user_id: UserId) -> RepoResult<WizardStore> {
             Ok(WizardStore {
                 user_id,
                 ..Default::default()
             })
         }
 
-        fn wizard_exists(&self, user_id: i32) -> RepoResult<bool> {
+        fn wizard_exists(&self, user_id: UserId) -> RepoResult<bool> {
             if user_id == MOCK_USER_ID {
                 Ok(false)
             } else {
@@ -488,7 +490,7 @@ pub mod tests {
         }
 
         /// Get latest currency exchanges for currency_id
-        fn get_exchange_for_currency(&self, _currency_id: i32) -> RepoResult<Option<HashMap<i32, f64>>> {
+        fn get_exchange_for_currency(&self, _currency_id: CurrencyId) -> RepoResult<Option<HashMap<CurrencyId, f64>>> {
             Ok(None)
         }
 
@@ -513,48 +515,48 @@ pub mod tests {
 
     impl BaseProductsRepo for BaseProductsRepoMock {
         /// Find specific base_product by ID
-        fn find(&self, base_product_id: i32) -> RepoResult<Option<BaseProduct>> {
+        fn find(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>> {
             Ok(Some(BaseProduct {
                 id: base_product_id,
                 is_active: true,
-                store_id: 1,
+                store_id: StoreId(1),
                 name: serde_json::from_str("{}").unwrap(),
                 short_description: serde_json::from_str("{}").unwrap(),
                 long_description: None,
                 seo_title: None,
                 seo_description: None,
-                currency_id: 1,
+                currency_id: CurrencyId(1),
                 category_id: 1,
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published,
+                status: ModerationStatus::Published,
             }))
         }
 
         /// Returns list of base_products, limited by `from` and `count` parameters
-        fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
+        fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
-            for i in from..(from + count) {
+            for i in from.0..(from.0 + count) {
                 let base_product = BaseProduct {
-                    id: i,
+                    id: BaseProductId(i),
                     is_active: true,
-                    store_id: 1,
+                    store_id: StoreId(1),
                     name: serde_json::from_str("{}").unwrap(),
                     short_description: serde_json::from_str("{}").unwrap(),
                     long_description: None,
                     seo_title: None,
                     seo_description: None,
-                    currency_id: 1,
+                    currency_id: CurrencyId(1),
                     category_id: 1,
                     views: 1,
                     rating: 0f64,
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
                     slug: "slug".to_string(),
-                    status: Status::Published,
+                    status: ModerationStatus::Published,
                 };
                 base_products.push(base_product);
             }
@@ -564,15 +566,15 @@ pub mod tests {
         /// Returns list of base_products by store id, limited by 10
         fn get_products_of_the_store(
             &self,
-            store_id: i32,
-            skip_base_product_id: Option<i32>,
-            from: i32,
+            store_id: StoreId,
+            skip_base_product_id: Option<BaseProductId>,
+            from: BaseProductId,
             count: i32,
         ) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
-            for i in (skip_base_product_id.unwrap() + from)..(skip_base_product_id.unwrap() + from + count) {
+            for i in (skip_base_product_id.unwrap().0 + from.0)..(skip_base_product_id.unwrap().0 + from.0 + count) {
                 let base_product = BaseProduct {
-                    id: i,
+                    id: BaseProductId(i),
                     is_active: true,
                     store_id: store_id,
                     name: serde_json::from_str("{}").unwrap(),
@@ -580,14 +582,14 @@ pub mod tests {
                     long_description: None,
                     seo_title: None,
                     seo_description: None,
-                    currency_id: 1,
+                    currency_id: CurrencyId(1),
                     category_id: 1,
                     views: 1,
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
                     rating: 0f64,
                     slug: "slug".to_string(),
-                    status: Status::Published,
+                    status: ModerationStatus::Published,
                 };
                 base_products.push(base_product);
             }
@@ -595,8 +597,8 @@ pub mod tests {
         }
 
         /// Find specific base_product by ID
-        fn count_with_store_id(&self, store_id: i32) -> RepoResult<i32> {
-            Ok(store_id)
+        fn count_with_store_id(&self, _store_id: StoreId) -> RepoResult<i32> {
+            Ok(1)
         }
 
         fn slug_exists(&self, _slug_arg: String) -> RepoResult<bool> {
@@ -606,7 +608,7 @@ pub mod tests {
         /// Creates new base_product
         fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct> {
             Ok(BaseProduct {
-                id: 1,
+                id: BaseProductId(1),
                 is_active: true,
                 store_id: payload.store_id,
                 name: payload.name,
@@ -621,73 +623,73 @@ pub mod tests {
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published,
+                status: ModerationStatus::Published,
             })
         }
 
         /// Updates specific base_product
-        fn update(&self, base_product_id: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
+        fn update(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
             Ok(BaseProduct {
                 id: base_product_id,
                 is_active: true,
-                store_id: 1,
+                store_id: StoreId(1),
                 name: serde_json::from_str("{}").unwrap(),
                 short_description: serde_json::from_str("{}").unwrap(),
                 long_description: payload.long_description,
                 seo_title: payload.seo_title,
                 seo_description: payload.seo_description,
-                currency_id: 1,
+                currency_id: CurrencyId(1),
                 category_id: 3,
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published,
+                status: ModerationStatus::Published,
             })
         }
 
         /// Update views on specific base_product
-        fn update_views(&self, base_product_id_arg: i32) -> RepoResult<Option<BaseProduct>> {
+        fn update_views(&self, base_product_id_arg: BaseProductId) -> RepoResult<Option<BaseProduct>> {
             Ok(Some(BaseProduct {
                 id: base_product_id_arg,
                 is_active: true,
-                store_id: 1,
+                store_id: StoreId(1),
                 name: serde_json::from_str("{}").unwrap(),
                 short_description: serde_json::from_str("{}").unwrap(),
                 long_description: None,
                 seo_title: None,
                 seo_description: None,
-                currency_id: 1,
+                currency_id: CurrencyId(1),
                 category_id: 3,
                 views: 100,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published,
+                status: ModerationStatus::Published,
             }))
         }
 
         /// Deactivates specific base_product
-        fn deactivate(&self, base_product_id: i32) -> RepoResult<BaseProduct> {
+        fn deactivate(&self, base_product_id: BaseProductId) -> RepoResult<BaseProduct> {
             Ok(BaseProduct {
                 id: base_product_id,
                 is_active: false,
-                store_id: 1,
+                store_id: StoreId(1),
                 name: serde_json::from_str("{}").unwrap(),
                 short_description: serde_json::from_str("{}").unwrap(),
                 long_description: None,
                 seo_title: None,
                 seo_description: None,
-                currency_id: 1,
+                currency_id: CurrencyId(1),
                 category_id: 3,
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
                 slug: "slug".to_string(),
-                status: Status::Published,
+                status: ModerationStatus::Published,
             })
         }
 
@@ -709,11 +711,11 @@ pub mod tests {
 
     impl ProductAttrsRepo for ProductAttrsRepoMock {
         /// Find product attributes by product ID
-        fn find_all_attributes(&self, product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+        fn find_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>> {
             Ok(vec![ProdAttr {
                 id: 1,
                 prod_id: product_id_arg,
-                base_prod_id: 1,
+                base_prod_id: BaseProductId(1),
                 attr_id: 1,
                 value: "value".to_string(),
                 value_type: AttributeType::Str,
@@ -722,10 +724,10 @@ pub mod tests {
         }
 
         /// Find product attributes by product ID
-        fn find_all_attributes_by_base(&self, base_product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+        fn find_all_attributes_by_base(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<ProdAttr>> {
             Ok(vec![ProdAttr {
                 id: 1,
-                prod_id: 1,
+                prod_id: ProductId(1),
                 base_prod_id: base_product_id_arg,
                 attr_id: 1,
                 value: "value".to_string(),
@@ -763,8 +765,8 @@ pub mod tests {
         fn delete(&self, id: i32) -> RepoResult<ProdAttr> {
             Ok(ProdAttr {
                 id: id,
-                prod_id: 1,
-                base_prod_id: 1,
+                prod_id: ProductId(1),
+                base_prod_id: BaseProductId(1),
                 attr_id: 1,
                 value: "value".to_string(),
                 value_type: AttributeType::Str,
@@ -772,11 +774,11 @@ pub mod tests {
             })
         }
 
-        fn delete_all_attributes(&self, _product_id_arg: i32) -> RepoResult<Vec<ProdAttr>> {
+        fn delete_all_attributes(&self, _product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>> {
             Ok(vec![])
         }
 
-        fn delete_all_attributes_not_in_list(&self, _product_id_arg: i32, _attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>> {
+        fn delete_all_attributes_not_in_list(&self, _product_id_arg: ProductId, _attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>> {
             Ok(vec![])
         }
     }
@@ -785,10 +787,10 @@ pub mod tests {
     pub struct UserRolesRepoMock;
 
     impl UserRolesRepo for UserRolesRepoMock {
-        fn list_for_user(&self, user_id_value: i32) -> RepoResult<Vec<Role>> {
-            Ok(match user_id_value {
-                1 => vec![Role::Superuser],
-                _ => vec![Role::User],
+        fn list_for_user(&self, user_id_value: UserId) -> RepoResult<Vec<StoresRole>> {
+            Ok(match user_id_value.0 {
+                1 => vec![StoresRole::Superuser],
+                _ => vec![StoresRole::User],
             })
         }
 
@@ -808,11 +810,11 @@ pub mod tests {
             })
         }
 
-        fn delete_by_user_id(&self, user_id_arg: i32) -> RepoResult<UserRole> {
+        fn delete_by_user_id(&self, user_id_arg: UserId) -> RepoResult<UserRole> {
             Ok(UserRole {
                 id: 123,
                 user_id: user_id_arg,
-                role: Role::User,
+                role: StoresRole::User,
             })
         }
     }
@@ -821,7 +823,7 @@ pub mod tests {
     pub struct StoresRepoMock;
 
     impl StoresRepo for StoresRepoMock {
-        fn find(&self, store_id: i32) -> RepoResult<Option<Store>> {
+        fn find(&self, store_id: StoreId) -> RepoResult<Option<Store>> {
             let store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             Ok(Some(store))
         }
@@ -834,21 +836,21 @@ pub mod tests {
             Ok(slug == MOCK_STORE_SLUG.to_string())
         }
 
-        fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Store>> {
+        fn list(&self, from: StoreId, count: i32) -> RepoResult<Vec<Store>> {
             let mut stores = vec![];
-            for i in from..(from + count) {
-                let store = create_store(i, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
+            for i in from.0..(from.0 + count) {
+                let store = create_store(StoreId(i), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
                 stores.push(store);
             }
             Ok(stores)
         }
 
         fn create(&self, payload: NewStore) -> RepoResult<Store> {
-            let store = create_store(1, payload.name);
+            let store = create_store(StoreId(1), payload.name);
             Ok(store)
         }
 
-        fn update(&self, store_id: i32, payload: UpdateStore) -> RepoResult<Store> {
+        fn update(&self, store_id: StoreId, payload: UpdateStore) -> RepoResult<Store> {
             let name = if let Some(payload_name) = payload.name {
                 payload_name
             } else {
@@ -858,24 +860,24 @@ pub mod tests {
             Ok(store)
         }
 
-        fn deactivate(&self, store_id: i32) -> RepoResult<Store> {
+        fn deactivate(&self, store_id: StoreId) -> RepoResult<Store> {
             let mut store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             store.is_active = false;
             Ok(store)
         }
 
-        fn delete_by_user(&self, _user_id_arg: i32) -> RepoResult<Option<Store>> {
+        fn delete_by_user(&self, _user_id_arg: UserId) -> RepoResult<Option<Store>> {
             Ok(None)
         }
 
-        fn get_by_user(&self, _user_id_arg: i32) -> RepoResult<Option<Store>> {
+        fn get_by_user(&self, _user_id_arg: UserId) -> RepoResult<Option<Store>> {
             Ok(None)
         }
     }
 
     #[allow(unused)]
     fn create_store_service(
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
         handle: Arc<Handle>,
     ) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
@@ -900,10 +902,10 @@ pub mod tests {
         }
     }
 
-    fn create_store(id: i32, name: serde_json::Value) -> Store {
+    fn create_store(id: StoreId, name: serde_json::Value) -> Store {
         Store {
             id: id,
-            user_id: 1,
+            user_id: UserId(1),
             name: name,
             is_active: true,
             short_description: serde_json::from_str("{}").unwrap(),
@@ -924,7 +926,7 @@ pub mod tests {
             country: None,
             rating: 0f64,
             product_categories: Some(serde_json::from_str("{}").unwrap()),
-            status: Status::Published,
+            status: ModerationStatus::Published,
             administrative_area_level_1: None,
             administrative_area_level_2: None,
             locality: None,
@@ -1000,12 +1002,12 @@ pub mod tests {
     pub struct ProductsRepoMock;
 
     impl ProductsRepo for ProductsRepoMock {
-        fn find(&self, product_id: i32) -> RepoResult<Option<Product>> {
+        fn find(&self, product_id: ProductId) -> RepoResult<Option<Product>> {
             let product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
             Ok(Some(product))
         }
 
-        fn find_with_base_id(&self, base_id: i32) -> RepoResult<Vec<Product>> {
+        fn find_with_base_id(&self, base_id: BaseProductId) -> RepoResult<Vec<Product>> {
             let mut products = vec![];
             let product = create_product(MOCK_PRODUCT_ID, base_id);
             products.push(product);
@@ -1015,7 +1017,7 @@ pub mod tests {
         fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>> {
             let mut products = vec![];
             for i in from..(from + count) {
-                let product = create_product(i, MOCK_BASE_PRODUCT_ID);
+                let product = create_product(ProductId(i), MOCK_BASE_PRODUCT_ID);
                 products.push(product);
             }
             Ok(products)
@@ -1026,19 +1028,19 @@ pub mod tests {
             Ok(product)
         }
 
-        fn update(&self, product_id: i32, _payload: UpdateProduct) -> RepoResult<Product> {
+        fn update(&self, product_id: ProductId, _payload: UpdateProduct) -> RepoResult<Product> {
             let product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
 
             Ok(product)
         }
 
-        fn deactivate(&self, product_id: i32) -> RepoResult<Product> {
+        fn deactivate(&self, product_id: ProductId) -> RepoResult<Product> {
             let mut product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
             product.is_active = false;
             Ok(product)
         }
 
-        fn update_currency_id(&self, _currency_id_arg: i32, _base_product_id_arg: i32) -> RepoResult<usize> {
+        fn update_currency_id(&self, _currency_id_arg: CurrencyId, _base_product_id_arg: BaseProductId) -> RepoResult<usize> {
             Ok(1)
         }
     }
@@ -1135,7 +1137,7 @@ pub mod tests {
         }
     }
 
-    pub fn create_product(id: i32, base_product_id: i32) -> Product {
+    pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
         Product {
             id: id,
             base_product_id: base_product_id,
@@ -1145,7 +1147,7 @@ pub mod tests {
             vendor_code: "vendor_code".to_string(),
             cashback: None,
             additional_photos: None,
-            price: 0f64,
+            price: ProductPrice(0f64),
             currency_id: None,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),

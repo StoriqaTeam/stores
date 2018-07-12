@@ -8,9 +8,10 @@ use future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::Error;
+use stq_types::UserId;
 
 use super::types::ServiceFuture;
+use errors::Error;
 use models::*;
 use repos::ReposFactory;
 
@@ -33,7 +34,7 @@ pub struct WizardStoresServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub user_id: Option<i32>,
+    pub user_id: Option<UserId>,
     pub repo_factory: F,
 }
 
@@ -43,7 +44,7 @@ impl<
         F: ReposFactory<T>,
     > WizardStoresServiceImpl<T, M, F>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<UserId>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -221,12 +222,14 @@ pub mod tests {
     use tokio_core::reactor::Core;
     use tokio_core::reactor::Handle;
 
+    use stq_types::*;
+
     use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
 
     fn create_wizard_store_service(
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
         _handle: Arc<Handle>,
     ) -> WizardStoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();

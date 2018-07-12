@@ -13,6 +13,7 @@ use r2d2::{ManageConnection, Pool};
 use serde_json;
 
 use stq_http::client::ClientHandle;
+use stq_types::{BaseProductId, CurrencyId, ProductId, StoreId, UserId};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -44,27 +45,27 @@ pub trait BaseProductsService {
     /// search filters
     fn search_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
     /// Returns product by ID
-    fn get(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>>;
+    fn get(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base product by ID with update views
-    fn get_with_views_update(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>>;
+    fn get_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base_product by product ID
-    fn get_by_product(&self, product_id: i32) -> ServiceFuture<Option<BaseProductWithVariants>>;
+    fn get_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>>;
     /// Deactivates specific product
-    fn deactivate(&self, base_product_id: i32) -> ServiceFuture<BaseProduct>;
+    fn deactivate(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
     /// Creates base product
     fn create(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Lists base products limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
+    fn list(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
     fn get_products_of_the_store(
         &self,
-        store_id: i32,
-        skip_base_product_id: Option<i32>,
-        from: i32,
+        store_id: StoreId,
+        skip_base_product_id: Option<BaseProductId>,
+        from: BaseProductId,
         count: i32,
     ) -> ServiceFuture<Vec<BaseProduct>>;
     /// Updates base product
-    fn update(&self, product_id: i32, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
+    fn update(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Cart
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
 }
@@ -77,8 +78,8 @@ pub struct BaseProductsServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub user_id: Option<i32>,
-    pub currency_id: Option<i32>,
+    pub user_id: Option<UserId>,
+    pub currency_id: Option<CurrencyId>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
@@ -93,11 +94,11 @@ impl<
     pub fn new(
         db_pool: Pool<M>,
         cpu_pool: CpuPool,
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
         client_handle: ClientHandle,
         elastic_address: String,
         repo_factory: F,
-        currency_id: Option<i32>,
+        currency_id: Option<CurrencyId>,
     ) -> Self {
         Self {
             db_pool,
@@ -265,7 +266,7 @@ impl<
                                                 .map(|mut b| {
                                                     for mut variant in &mut b.variants {
                                                         if let Some(currency_id) = variant.currency_id {
-                                                            variant.price *= currency_map[&currency_id];
+                                                            variant.price.0 *= currency_map[&currency_id];
                                                         }
                                                     }
                                                     b
@@ -315,7 +316,7 @@ impl<
                                                 .map(|mut b| {
                                                     for mut variant in &mut b.variants {
                                                         if let Some(currency_id) = variant.currency_id {
-                                                            variant.price *= currency_map[&currency_id];
+                                                            variant.price.0 *= currency_map[&currency_id];
                                                         }
                                                     }
                                                     b
@@ -366,7 +367,7 @@ impl<
                                                 .map(|mut b| {
                                                     for mut variant in &mut b.variants {
                                                         if let Some(currency_id) = variant.currency_id {
-                                                            variant.price *= currency_map[&currency_id];
+                                                            variant.price.0 *= currency_map[&currency_id];
                                                         }
                                                     }
                                                     b
@@ -578,7 +579,7 @@ impl<
     }
 
     /// Returns product by ID
-    fn get(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>> {
+    fn get(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -599,7 +600,7 @@ impl<
     }
 
     /// Returns base product by ID with update views
-    fn get_with_views_update(&self, base_product_id: i32) -> ServiceFuture<Option<BaseProduct>> {
+    fn get_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -623,7 +624,7 @@ impl<
     }
 
     /// Returns base_product by product ID
-    fn get_by_product(&self, product_id: i32) -> ServiceFuture<Option<BaseProductWithVariants>> {
+    fn get_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -645,7 +646,7 @@ impl<
                                         currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
                                             if let Some(currency_map) = currencies_map {
                                                 if let Some(currency_id) = product.currency_id {
-                                                    product.price *= currency_map[&currency_id];
+                                                    product.price.0 *= currency_map[&currency_id];
                                                 };
                                             };
                                             product
@@ -669,7 +670,7 @@ impl<
     }
 
     /// Deactivates specific base product
-    fn deactivate(&self, product_id: i32) -> ServiceFuture<BaseProduct> {
+    fn deactivate(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -684,7 +685,7 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                            base_products_repo.deactivate(product_id).and_then(|prod| {
+                            base_products_repo.deactivate(base_product_id).and_then(|prod| {
                                 categories_repo
                                     .get_all()
                                     .and_then(|category_root| {
@@ -738,7 +739,7 @@ impl<
     }
 
     /// Lists base products limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<BaseProduct>> {
+    fn list(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
@@ -761,9 +762,9 @@ impl<
     /// Returns list of base_products by store id and exclude skip_base_product_id, limited by from and count
     fn get_products_of_the_store(
         &self,
-        store_id: i32,
-        skip_base_product_id: Option<i32>,
-        from: i32,
+        store_id: StoreId,
+        skip_base_product_id: Option<BaseProductId>,
+        from: BaseProductId,
         count: i32,
     ) -> ServiceFuture<Vec<BaseProduct>> {
         let db_pool = self.db_pool.clone();
@@ -881,7 +882,7 @@ impl<
     }
 
     /// Updates specific product
-    fn update(&self, product_id: i32, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct> {
+    fn update(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let cpu_pool = self.cpu_pool.clone();
@@ -900,7 +901,7 @@ impl<
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             conn.transaction::<(BaseProduct), FailureError, _>(move || {
                                 base_products_repo
-                                    .find(product_id)
+                                    .find(base_product_id)
                                     .and_then(|old_prod| {
                                         if let Some(old_prod) = old_prod {
                                             Ok(old_prod)
@@ -910,7 +911,7 @@ impl<
                                     })
                                     .and_then(|old_prod| {
                                         base_products_repo
-                                            .update(product_id, payload.clone())
+                                            .update(base_product_id, payload.clone())
                                             .map(|updated_prod| (old_prod, updated_prod))
                                     })
                                     .and_then(|(old_prod, updated_prod)| {
@@ -1001,7 +1002,7 @@ impl<
                                 .collect::<RepoResult<Vec<Product>>>();
                             products
                                 .and_then(|products| {
-                                    let mut group_by_base_product_id = BTreeMap::<i32, Vec<Product>>::default();
+                                    let mut group_by_base_product_id = BTreeMap::<BaseProductId, Vec<Product>>::default();
                                     for product in products {
                                         let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
                                         p.push(product);
@@ -1033,7 +1034,7 @@ impl<
                                                     .map(|mut b| {
                                                         for mut variant in &mut b.variants {
                                                             if let Some(currency_id) = variant.currency_id {
-                                                                variant.price *= currency_map[&currency_id];
+                                                                variant.price.0 *= currency_map[&currency_id];
                                                             }
                                                         }
                                                         b
@@ -1048,7 +1049,7 @@ impl<
                                     }
                                 })
                                 .and_then(|base_products| {
-                                    let mut group_by_store_id = BTreeMap::<i32, Vec<BaseProductWithVariants>>::default();
+                                    let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
                                     for base_product in base_products {
                                         let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
                                         bp.push(base_product);
@@ -1090,6 +1091,7 @@ pub mod tests {
 
     use stq_http;
     use stq_http::client::Config as HttpConfig;
+    use stq_types::*;
 
     use config::Config;
     use models::*;
@@ -1098,7 +1100,7 @@ pub mod tests {
 
     #[allow(unused)]
     fn create_base_product_service(
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
         handle: Arc<Handle>,
     ) -> BaseProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
@@ -1127,12 +1129,12 @@ pub mod tests {
     pub fn create_new_base_product(name: &str) -> NewBaseProduct {
         NewBaseProduct {
             name: serde_json::from_str(name).unwrap(),
-            store_id: 1,
+            store_id: StoreId(1),
             short_description: serde_json::from_str("{}").unwrap(),
             long_description: None,
             seo_title: None,
             seo_description: None,
-            currency_id: 1,
+            currency_id: CurrencyId(1),
             category_id: 3,
             slug: Some("slug".to_string()),
         }
@@ -1145,7 +1147,7 @@ pub mod tests {
             long_description: None,
             seo_title: None,
             seo_description: None,
-            currency_id: Some(1),
+            currency_id: Some(CurrencyId(1)),
             category_id: None,
             rating: None,
             slug: None,
@@ -1158,9 +1160,9 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_base_product_service(Some(MOCK_USER_ID), handle);
-        let work = service.get(1);
+        let work = service.get(BaseProductId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.unwrap().id, 1);
+        assert_eq!(result.unwrap().id, BaseProductId(1));
     }
 
     #[test]
@@ -1168,7 +1170,7 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_base_product_service(Some(MOCK_USER_ID), handle);
-        let work = service.list(1, 5);
+        let work = service.list(BaseProductId(1), 5);
         let result = core.run(work).unwrap();
         assert_eq!(result.len(), 5);
     }
@@ -1190,9 +1192,9 @@ pub mod tests {
         let handle = Arc::new(core.handle());
         let service = create_base_product_service(Some(MOCK_USER_ID), handle);
         let new_base_product = create_update_base_product(MOCK_BASE_PRODUCT_NAME_JSON);
-        let work = service.update(1, new_base_product);
+        let work = service.update(BaseProductId(1), new_base_product);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, BaseProductId(1));
         assert_eq!(result.id, MOCK_BASE_PRODUCT_ID);
     }
 
@@ -1201,9 +1203,9 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_base_product_service(Some(MOCK_USER_ID), handle);
-        let work = service.deactivate(1);
+        let work = service.deactivate(BaseProductId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, BaseProductId(1));
         assert_eq!(result.is_active, false);
     }
 

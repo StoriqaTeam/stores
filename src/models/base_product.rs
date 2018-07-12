@@ -1,13 +1,15 @@
 //! Module containg base_product model for query, insert, update
 use std::time::SystemTime;
 
+use serde_json;
 use validator::Validate;
 
-use serde_json;
+use stq_static_resources::ModerationStatus;
+use stq_types::{BaseProductId, CurrencyId, ProductId, ProductPrice, StoreId};
 
 use super::Store;
 use models::validation_rules::*;
-use models::{Product, Status};
+use models::Product;
 
 /// diesel table for base_products
 table! {
@@ -36,22 +38,22 @@ table! {
 #[belongs_to(Store)]
 #[table_name = "base_products"]
 pub struct BaseProduct {
-    pub id: i32,
+    pub id: BaseProductId,
     pub is_active: bool,
-    pub store_id: i32,
+    pub store_id: StoreId,
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub seo_title: Option<serde_json::Value>,
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: i32,
+    pub currency_id: CurrencyId,
     pub category_id: i32,
     pub views: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
     pub rating: f64,
     pub slug: String,
-    pub status: Status,
+    pub status: ModerationStatus,
 }
 
 /// Payload for creating base_products
@@ -60,7 +62,7 @@ pub struct BaseProduct {
 pub struct NewBaseProduct {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
-    pub store_id: i32,
+    pub store_id: StoreId,
     #[validate(custom = "validate_translation")]
     pub short_description: serde_json::Value,
     #[validate(custom = "validate_translation")]
@@ -69,7 +71,7 @@ pub struct NewBaseProduct {
     pub seo_title: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: i32,
+    pub currency_id: CurrencyId,
     pub category_id: i32,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
@@ -89,17 +91,17 @@ pub struct UpdateBaseProduct {
     pub seo_title: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: Option<i32>,
+    pub currency_id: Option<CurrencyId>,
     pub category_id: Option<i32>,
     pub rating: Option<f64>,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
-    pub status: Option<Status>,
+    pub status: Option<ModerationStatus>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticProduct {
-    pub id: i32,
+    pub id: BaseProductId,
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
@@ -107,14 +109,14 @@ pub struct ElasticProduct {
     pub rating: Option<f64>,
     pub variants: Vec<ElasticVariant>,
     pub category_id: i32,
-    pub matched_variants_ids: Option<Vec<i32>>,
+    pub matched_variants_ids: Option<Vec<ProductId>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticVariant {
-    pub prod_id: i32,
+    pub prod_id: ProductId,
     pub discount: Option<f64>,
-    pub price: f64,
+    pub price: ProductPrice,
     pub attrs: Vec<ElasticAttrValue>,
 }
 
@@ -127,22 +129,22 @@ pub struct ElasticAttrValue {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseProductWithVariants {
-    pub id: i32,
+    pub id: BaseProductId,
     pub is_active: bool,
-    pub store_id: i32,
+    pub store_id: StoreId,
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
     pub seo_title: Option<serde_json::Value>,
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: i32,
+    pub currency_id: CurrencyId,
     pub category_id: i32,
     pub views: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
     pub rating: f64,
     pub slug: String,
-    pub status: Status,
+    pub status: ModerationStatus,
     pub variants: Vec<Product>,
 }
 

@@ -10,7 +10,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::{Acl, CheckScope};
+use stq_types::UserId;
 
 use models::attribute::attributes::dsl as Attributes;
 use models::authorization::*;
@@ -18,6 +18,7 @@ use models::category::categories::dsl::*;
 use models::category_attribute::cat_attr_values::dsl as CategoryAttributes;
 use models::{Attribute, CatAttr, Category, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
+use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
 
 pub mod category_attrs;
@@ -243,7 +244,7 @@ pub fn set_attributes<S: BuildHasher>(cat: &mut Category, attrs_hash: &HashMap<i
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Category>
     for CategoriesRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, _user_id: i32, scope: &Scope, _obj: Option<&Category>) -> bool {
+    fn is_in_scope(&self, _user_id: UserId, scope: &Scope, _obj: Option<&Category>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => false,

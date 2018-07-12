@@ -8,22 +8,24 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use stq_types::*;
+
 use stores_lib::models::*;
 
 pub fn create_new_base_product(name: &str, short_description: &str) -> NewBaseProduct {
     NewBaseProduct {
         name: serde_json::from_str(name).unwrap(),
-        store_id: 1,
+        store_id: StoreId(1),
         short_description: serde_json::from_str(short_description).unwrap(),
         long_description: None,
         seo_title: None,
         seo_description: None,
-        currency_id: 1,
+        currency_id: CurrencyId(1),
         category_id: 12,
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
     }
 }
-pub fn create_product(id: i32, base_product_id: i32) -> Product {
+pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
     Product {
         id: id,
         base_product_id: base_product_id,
@@ -33,21 +35,21 @@ pub fn create_product(id: i32, base_product_id: i32) -> Product {
         vendor_code: "vendor code".to_string(),
         cashback: None,
         additional_photos: None,
-        price: 1f64,
+        price: ProductPrice(1f64),
         currency_id: None,
         created_at: SystemTime::now(),
         updated_at: SystemTime::now(),
     }
 }
 
-pub fn create_new_product_with_attributes(base_product_id: i32) -> NewProductWithAttributes {
+pub fn create_new_product_with_attributes(base_product_id: BaseProductId) -> NewProductWithAttributes {
     NewProductWithAttributes {
         product: create_new_product(base_product_id),
         attributes: vec![],
     }
 }
 
-pub fn create_new_product(base_product_id: i32) -> NewProduct {
+pub fn create_new_product(base_product_id: BaseProductId) -> NewProduct {
     NewProduct {
         base_product_id: base_product_id,
         discount: None,
@@ -55,7 +57,7 @@ pub fn create_new_product(base_product_id: i32) -> NewProduct {
         vendor_code: "vendor code".to_string(),
         cashback: None,
         additional_photos: None,
-        price: 1f64,
+        price: ProductPrice(1f64),
         currency_id: None,
     }
 }
@@ -67,7 +69,7 @@ pub fn create_update_product() -> UpdateProduct {
         vendor_code: None,
         cashback: None,
         additional_photos: None,
-        price: Some(2f64),
+        price: Some(ProductPrice(2f64)),
         currency_id: None,
     }
 }

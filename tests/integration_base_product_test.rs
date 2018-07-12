@@ -7,17 +7,19 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use stq_types::*;
+
 use stores_lib::models::*;
 
 pub fn create_new_base_product(name: &str, short_description: &str) -> NewBaseProduct {
     NewBaseProduct {
         name: serde_json::from_str(name).unwrap(),
-        store_id: 1,
+        store_id: StoreId(1),
         short_description: serde_json::from_str(short_description).unwrap(),
         long_description: None,
         seo_title: None,
         seo_description: None,
-        currency_id: 1,
+        currency_id: CurrencyId(1),
         category_id: 12,
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
     }
@@ -30,7 +32,7 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         long_description: None,
         seo_title: None,
         seo_description: None,
-        currency_id: Some(1),
+        currency_id: Some(CurrencyId(1)),
         category_id: Some(12),
         rating: None,
         slug: None,

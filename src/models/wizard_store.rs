@@ -1,6 +1,8 @@
 //! Module containg wizard_stores model for query, insert, update
 use validator::Validate;
 
+use stq_types::{StoreId, UserId};
+
 use models::validation_rules::*;
 
 /// diesel table for wizard_stores
@@ -31,8 +33,8 @@ table! {
 #[table_name = "wizard_stores"]
 pub struct WizardStore {
     pub id: i32,
-    pub user_id: i32,
-    pub store_id: Option<i32>,
+    pub user_id: UserId,
+    pub store_id: Option<StoreId>,
     pub name: Option<String>,
     pub short_description: Option<String>,
     pub default_language: Option<String>,
@@ -53,14 +55,14 @@ pub struct WizardStore {
 #[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[table_name = "wizard_stores"]
 pub struct NewWizardStore {
-    pub user_id: i32,
+    pub user_id: UserId,
 }
 
 /// Payload for updating wizard_stores
 #[derive(Default, Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
 #[table_name = "wizard_stores"]
 pub struct UpdateWizardStore {
-    pub store_id: Option<i32>,
+    pub store_id: Option<StoreId>,
     pub name: Option<String>,
     pub short_description: Option<String>,
     pub default_language: Option<String>,

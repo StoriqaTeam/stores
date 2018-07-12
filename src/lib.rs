@@ -35,6 +35,7 @@ extern crate serde_json;
 extern crate stq_http;
 extern crate stq_router;
 extern crate stq_static_resources;
+extern crate stq_types;
 extern crate tokio_core;
 extern crate validator;
 #[macro_use]

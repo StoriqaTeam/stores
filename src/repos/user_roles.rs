@@ -11,18 +11,20 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
+use stq_types::{StoresRole, UserId};
+
 use repos::legacy_acl::*;
 
 use super::types::RepoResult;
 use models::authorization::*;
 use models::user_role::user_roles::dsl::*;
-use models::{NewUserRole, OldUserRole, Role, UserRole};
+use models::{NewUserRole, OldUserRole, UserRole};
 use repos::RolesCacheImpl;
 
 /// UserRoles repository for handling UserRoles
 pub trait UserRolesRepo {
     /// Returns list of user_roles for a specific user
-    fn list_for_user(&self, user_id: i32) -> RepoResult<Vec<Role>>;
+    fn list_for_user(&self, user_id: UserId) -> RepoResult<Vec<StoresRole>>;
 
     /// Create a new user role
     fn create(&self, payload: NewUserRole) -> RepoResult<UserRole>;
@@ -31,7 +33,7 @@ pub trait UserRolesRepo {
     fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole>;
 
     /// Delete user roles by user id
-    fn delete_by_user_id(&self, user_id_arg: i32) -> RepoResult<UserRole>;
+    fn delete_by_user_id(&self, user_id_arg: UserId) -> RepoResult<UserRole>;
 }
 
 /// Implementation of UserRoles trait
@@ -52,7 +54,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> UserRolesRepo for UserRolesRepoImpl<'a, T> {
-    fn list_for_user(&self, user_id_value: i32) -> RepoResult<Vec<Role>> {
+    fn list_for_user(&self, user_id_value: UserId) -> RepoResult<Vec<StoresRole>> {
         debug!("list user roles for id {}.", user_id_value);
         if self.cached_roles.contains(user_id_value) {
             let roles = self.cached_roles.get(user_id_value);
@@ -62,7 +64,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             query
                 .get_results::<UserRole>(self.db_conn)
                 .and_then(|user_roles_arg| {
-                    let roles = user_roles_arg.into_iter().map(|user_role| user_role.role).collect::<Vec<Role>>();
+                    let roles = user_roles_arg
+                        .into_iter()
+                        .map(|user_role| user_role.role)
+                        .collect::<Vec<StoresRole>>();
                     Ok(roles)
                 })
                 .and_then(|roles| {
@@ -94,7 +99,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(move |e| e.context(format!("delete user role {:?}.", payload)).into())
     }
 
-    fn delete_by_user_id(&self, user_id_arg: i32) -> RepoResult<UserRole> {
+    fn delete_by_user_id(&self, user_id_arg: UserId) -> RepoResult<UserRole> {
         debug!("delete user role by id {}.", user_id_arg);
         self.cached_roles.remove(user_id_arg);
         let filtered = user_roles.filter(user_id.eq(user_id_arg));
@@ -108,7 +113,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, UserRole>
     for UserRolesRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, user_id_arg: i32, scope: &Scope, obj: Option<&UserRole>) -> bool {
+    fn is_in_scope(&self, user_id_arg: UserId, scope: &Scope, obj: Option<&UserRole>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

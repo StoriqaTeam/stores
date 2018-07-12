@@ -1,6 +1,8 @@
 //! Module containg moderator_product_comments model for query, insert, update
 use std::time::SystemTime;
 
+use stq_types::{BaseProductId, UserId};
+
 /// diesel table for moderator_product_comments
 table! {
     moderator_product_comments (id) {
@@ -17,8 +19,8 @@ table! {
 #[table_name = "moderator_product_comments"]
 pub struct ModeratorProductComments {
     pub id: i32,
-    pub moderator_id: i32,
-    pub base_product_id: i32,
+    pub moderator_id: UserId,
+    pub base_product_id: BaseProductId,
     pub comments: String,
     pub created_at: SystemTime,
 }
@@ -27,7 +29,7 @@ pub struct ModeratorProductComments {
 #[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[table_name = "moderator_product_comments"]
 pub struct NewModeratorProductComments {
-    pub moderator_id: i32,
-    pub base_product_id: i32,
+    pub moderator_id: UserId,
+    pub base_product_id: BaseProductId,
     pub comments: String,
 }

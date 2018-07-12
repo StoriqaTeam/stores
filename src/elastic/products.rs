@@ -5,7 +5,9 @@ use futures::Future;
 use hyper::header::{ContentLength, ContentType, Headers};
 use hyper::Method;
 use serde_json;
+
 use stq_http::client::ClientHandle;
+use stq_types::ProductId;
 
 use super::{log_elastic_req, log_elastic_resp};
 use models::*;
@@ -61,7 +63,7 @@ impl ProductsElasticImpl {
                                 if let Some(ids) = ids {
                                     for id in ids {
                                         if let Some(id) = id.as_i64() {
-                                            variant_ids.push(id as i32);
+                                            variant_ids.push(ProductId(id as i32));
                                         }
                                     }
                                 }

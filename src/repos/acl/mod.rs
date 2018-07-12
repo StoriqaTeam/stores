@@ -14,6 +14,8 @@ use std::rc::Rc;
 use errors::Error;
 use failure::Error as FailureError;
 
+use stq_types::{StoresRole, UserId};
+
 use self::legacy_acl::{Acl, CheckScope};
 
 use models::authorization::*;
@@ -39,16 +41,16 @@ pub fn check<T>(
 /// ApplicationAcl contains main logic for manipulation with recources
 #[derive(Clone)]
 pub struct ApplicationAcl {
-    acls: Rc<HashMap<Role, Vec<Permission>>>,
-    roles: Vec<Role>,
-    user_id: i32,
+    acls: Rc<HashMap<StoresRole, Vec<Permission>>>,
+    roles: Vec<StoresRole>,
+    user_id: UserId,
 }
 
 impl ApplicationAcl {
-    pub fn new(roles: Vec<Role>, user_id: i32) -> Self {
+    pub fn new(roles: Vec<StoresRole>, user_id: UserId) -> Self {
         let mut hash = ::std::collections::HashMap::new();
         hash.insert(
-            Role::Superuser,
+            StoresRole::Superuser,
             vec![
                 permission!(Resource::Stores),
                 permission!(Resource::Products),
@@ -65,7 +67,7 @@ impl ApplicationAcl {
             ],
         );
         hash.insert(
-            Role::User,
+            StoresRole::User,
             vec![
                 permission!(Resource::Stores, Action::Read),
                 permission!(Resource::Stores, Action::All, Scope::Owned),
@@ -163,13 +165,16 @@ mod tests {
     use repos::legacy_acl::{Acl, CheckScope};
     use serde_json;
 
+    use stq_static_resources::*;
+    use stq_types::*;
+
     use models::*;
     use repos::*;
 
     fn create_store() -> Store {
         Store {
-            id: 1,
-            user_id: 1,
+            id: StoreId(1),
+            user_id: UserId(1),
             name: serde_json::from_str("{}").unwrap(),
             is_active: true,
             short_description: serde_json::from_str("{}").unwrap(),
@@ -190,7 +195,7 @@ mod tests {
             country: None,
             rating: 0f64,
             product_categories: Some(serde_json::from_str("{}").unwrap()),
-            status: Status::Published,
+            status: ModerationStatus::Published,
             administrative_area_level_1: None,
             administrative_area_level_2: None,
             locality: None,
@@ -206,7 +211,7 @@ mod tests {
     struct ScopeChecker;
 
     impl CheckScope<Scope, Store> for ScopeChecker {
-        fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&Store>) -> bool {
+        fn is_in_scope(&self, user_id: UserId, scope: &Scope, obj: Option<&Store>) -> bool {
             match *scope {
                 Scope::All => true,
                 Scope::Owned => {
@@ -221,7 +226,7 @@ mod tests {
     }
 
     impl CheckScope<Scope, UserRole> for ScopeChecker {
-        fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&UserRole>) -> bool {
+        fn is_in_scope(&self, user_id: UserId, scope: &Scope, obj: Option<&UserRole>) -> bool {
             match *scope {
                 Scope::All => true,
                 Scope::Owned => {
@@ -237,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_super_user_for_stores() {
-        let acl = ApplicationAcl::new(vec![Role::Superuser], 1232);
+        let acl = ApplicationAcl::new(vec![StoresRole::Superuser], UserId(1232));
         let s = ScopeChecker::default();
         let resource = create_store();
         assert_eq!(acl.allows(Resource::Stores, Action::All, &s, Some(&resource)).unwrap(), true);
@@ -247,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_ordinary_user_for_store() {
-        let acl = ApplicationAcl::new(vec![Role::User], 2);
+        let acl = ApplicationAcl::new(vec![StoresRole::User], UserId(2));
         let s = ScopeChecker::default();
         let resource = create_store();
 
@@ -258,13 +263,13 @@ mod tests {
 
     #[test]
     fn test_super_user_for_user_roles() {
-        let acl = ApplicationAcl::new(vec![Role::Superuser], 1232);
+        let acl = ApplicationAcl::new(vec![StoresRole::Superuser], UserId(1232));
         let s = ScopeChecker::default();
 
         let resource = UserRole {
             id: 1,
-            user_id: 1,
-            role: Role::User,
+            user_id: UserId(1),
+            role: StoresRole::User,
         };
 
         assert_eq!(acl.allows(Resource::UserRoles, Action::All, &s, Some(&resource)).unwrap(), true);
@@ -274,13 +279,13 @@ mod tests {
 
     #[test]
     fn test_user_for_user_roles() {
-        let acl = ApplicationAcl::new(vec![Role::User], 2);
+        let acl = ApplicationAcl::new(vec![StoresRole::User], UserId(2));
         let s = ScopeChecker::default();
 
         let resource = UserRole {
             id: 1,
-            user_id: 1,
-            role: Role::User,
+            user_id: UserId(1),
+            role: StoresRole::User,
         };
 
         assert_eq!(acl.allows(Resource::UserRoles, Action::All, &s, Some(&resource)).unwrap(), false);

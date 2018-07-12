@@ -9,6 +9,8 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
+use stq_types::UserId;
+
 use errors::Error;
 
 use super::types::ServiceFuture;
@@ -42,7 +44,7 @@ pub struct CategoriesServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub user_id: Option<i32>,
+    pub user_id: Option<UserId>,
     pub repo_factory: F,
 }
 
@@ -52,7 +54,7 @@ impl<
         F: ReposFactory<T>,
     > CategoriesServiceImpl<T, M, F>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<UserId>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -252,11 +254,15 @@ pub mod tests {
     use serde_json;
     use tokio_core::reactor::Core;
 
+    use stq_types::*;
+
     use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
 
-    fn create_categories_service(user_id: Option<i32>) -> CategoriesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+    fn create_categories_service(
+        user_id: Option<UserId>,
+    ) -> CategoriesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
         let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
@@ -303,7 +309,7 @@ pub mod tests {
         let new_categories = create_new_categories(MOCK_BASE_PRODUCT_NAME_JSON);
         let work = service.create(new_categories);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, MOCK_BASE_PRODUCT_ID);
+        assert_eq!(result.id, 1);
     }
 
     #[test]

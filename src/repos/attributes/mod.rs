@@ -7,12 +7,13 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::{Acl, CheckScope};
+use stq_types::UserId;
 
 use models::attribute::attributes::dsl::*;
 use models::authorization::*;
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::acl;
+use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
 
 pub mod attributes_cache;
@@ -129,7 +130,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Attribute>
     for AttributesRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, _user_id: i32, scope: &Scope, _obj: Option<&Attribute>) -> bool {
+    fn is_in_scope(&self, _user_id: UserId, scope: &Scope, _obj: Option<&Attribute>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => false,

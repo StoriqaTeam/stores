@@ -10,6 +10,7 @@ use r2d2::{ManageConnection, Pool};
 
 use errors::Error;
 use stq_http::client::ClientHandle;
+use stq_types::{StoreId, UserId};
 
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
@@ -29,21 +30,21 @@ pub trait StoresService {
     /// Find stores auto complete limited by `count` parameters
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
-    fn get(&self, store_id: i32) -> ServiceFuture<Option<Store>>;
+    fn get(&self, store_id: StoreId) -> ServiceFuture<Option<Store>>;
     /// Returns products count
-    fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32>;
+    fn get_products_count(&self, store_id: StoreId) -> ServiceFuture<i32>;
     /// Deactivates specific store
-    fn deactivate(&self, store_id: i32) -> ServiceFuture<Store>;
+    fn deactivate(&self, store_id: StoreId) -> ServiceFuture<Store>;
     /// Get store by user id
-    fn get_by_user(&self, user_id: i32) -> ServiceFuture<Option<Store>>;
+    fn get_by_user(&self, user_id: UserId) -> ServiceFuture<Option<Store>>;
     /// Deactivates store by user id
-    fn delete_by_user(&self, user_id: i32) -> ServiceFuture<Option<Store>>;
+    fn delete_by_user(&self, user_id: UserId) -> ServiceFuture<Option<Store>>;
     /// Creates new store
     fn create(&self, payload: NewStore) -> ServiceFuture<Store>;
     /// Lists stores limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Store>>;
+    fn list(&self, from: StoreId, count: i32) -> ServiceFuture<Vec<Store>>;
     /// Updates specific store
-    fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store>;
+    fn update(&self, store_id: StoreId, payload: UpdateStore) -> ServiceFuture<Store>;
 }
 
 /// Stores services, responsible for Store-related CRUD operations
@@ -54,7 +55,7 @@ pub struct StoresServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub user_id: Option<i32>,
+    pub user_id: Option<UserId>,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
@@ -69,7 +70,7 @@ impl<
     pub fn new(
         db_pool: Pool<M>,
         cpu_pool: CpuPool,
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
         client_handle: ClientHandle,
         elastic_address: String,
         repo_factory: F,
@@ -205,7 +206,7 @@ impl<
     }
 
     /// Returns store by ID
-    fn get(&self, store_id: i32) -> ServiceFuture<Option<Store>> {
+    fn get(&self, store_id: StoreId) -> ServiceFuture<Option<Store>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -227,7 +228,7 @@ impl<
     }
 
     /// Returns products count
-    fn get_products_count(&self, store_id: i32) -> ServiceFuture<i32> {
+    fn get_products_count(&self, store_id: StoreId) -> ServiceFuture<i32> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -249,7 +250,7 @@ impl<
     }
 
     /// Deactivates specific store
-    fn deactivate(&self, store_id: i32) -> ServiceFuture<Store> {
+    fn deactivate(&self, store_id: StoreId) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -271,7 +272,7 @@ impl<
     }
 
     /// Delete store by user id
-    fn delete_by_user(&self, user_id_arg: i32) -> ServiceFuture<Option<Store>> {
+    fn delete_by_user(&self, user_id_arg: UserId) -> ServiceFuture<Option<Store>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -293,7 +294,7 @@ impl<
     }
 
     /// Get store by user id
-    fn get_by_user(&self, user_id_arg: i32) -> ServiceFuture<Option<Store>> {
+    fn get_by_user(&self, user_id_arg: UserId) -> ServiceFuture<Option<Store>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -315,7 +316,7 @@ impl<
     }
 
     /// Lists users limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Store>> {
+    fn list(&self, from: StoreId, count: i32) -> ServiceFuture<Vec<Store>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -386,7 +387,7 @@ impl<
     }
 
     /// Updates specific store
-    fn update(&self, store_id: i32, payload: UpdateStore) -> ServiceFuture<Store> {
+    fn update(&self, store_id: StoreId, payload: UpdateStore) -> ServiceFuture<Store> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
 
@@ -449,6 +450,7 @@ pub mod tests {
 
     use stq_http;
     use stq_http::client::Config as HttpConfig;
+    use stq_types::*;
 
     use config::Config;
     use models::*;
@@ -456,7 +458,7 @@ pub mod tests {
     use services::*;
 
     fn create_store_service(
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
         handle: Arc<Handle>,
     ) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
@@ -546,9 +548,9 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_store_service(Some(MOCK_USER_ID), handle);
-        let work = service.get(1);
+        let work = service.get(StoreId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.unwrap().id, 1);
+        assert_eq!(result.unwrap().id, StoreId(1));
     }
 
     #[test]
@@ -556,7 +558,7 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_store_service(Some(MOCK_USER_ID), handle);
-        let work = service.list(1, 5);
+        let work = service.list(StoreId(1), 5);
         let result = core.run(work).unwrap();
         assert_eq!(result.len(), 5);
     }
@@ -581,9 +583,9 @@ pub mod tests {
         let handle = Arc::new(core.handle());
         let service = create_store_service(Some(MOCK_USER_ID), handle);
         let new_store = create_update_store(serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
-        let work = service.update(1, new_store);
+        let work = service.update(StoreId(1), new_store);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, StoreId(1));
         assert_eq!(
             result.name,
             serde_json::from_str::<serde_json::Value>(MOCK_STORE_NAME_JSON).unwrap()
@@ -595,9 +597,9 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_store_service(Some(MOCK_USER_ID), handle);
-        let work = service.deactivate(1);
+        let work = service.deactivate(StoreId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, StoreId(1));
         assert_eq!(result.is_active, false);
     }
 

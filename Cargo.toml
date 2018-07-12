@@ -33,4 +33,5 @@ isolang="0.2"
 stq_http = { path = "vendor/libstqbackend/http" }
 stq_router = { path = "vendor/libstqbackend/router" }
 stq_static_resources = { path = "vendor/libstqbackend/static_resources" }
+stq_types = { path = "vendor/libstqbackend/types" }
 rand = "*"

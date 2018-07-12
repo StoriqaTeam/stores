@@ -11,7 +11,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
-use repos::legacy_acl::*;
+use stq_types::{BaseProductId, ProductId, StoreId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
@@ -20,6 +20,7 @@ use models::base_product::base_products::dsl::*;
 use models::product::products::dsl as Products;
 use models::store::stores::dsl as Stores;
 use models::{BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct};
+use repos::legacy_acl::*;
 
 /// BaseProducts repository, responsible for handling base_products
 pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -29,10 +30,10 @@ pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManag
 
 pub trait BaseProductsRepo {
     /// Find specific base_product by ID
-    fn find(&self, base_product_id: i32) -> RepoResult<Option<BaseProduct>>;
+    fn find(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>>;
 
     /// Returns list of base_products, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>>;
+    fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns most viewed list of base_products, limited by `from` and `offset` parameters
     fn most_viewed(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
@@ -43,26 +44,26 @@ pub trait BaseProductsRepo {
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
     fn get_products_of_the_store(
         &self,
-        store_id: i32,
-        skip_base_product_id: Option<i32>,
-        from: i32,
+        store_id: StoreId,
+        skip_base_product_id: Option<BaseProductId>,
+        from: BaseProductId,
         count: i32,
     ) -> RepoResult<Vec<BaseProduct>>;
 
     /// Counts products by store id
-    fn count_with_store_id(&self, store_id: i32) -> RepoResult<i32>;
+    fn count_with_store_id(&self, store_id: StoreId) -> RepoResult<i32>;
 
     /// Creates new base_product
     fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct>;
 
     /// Updates specific base_product
-    fn update(&self, base_product_id: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct>;
+    fn update(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> RepoResult<BaseProduct>;
 
     /// Update views on specific base_product
-    fn update_views(&self, base_product_id: i32) -> RepoResult<Option<BaseProduct>>;
+    fn update_views(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>>;
 
     /// Deactivates specific base_product
-    fn deactivate(&self, base_product_id: i32) -> RepoResult<BaseProduct>;
+    fn deactivate(&self, base_product_id: BaseProductId) -> RepoResult<BaseProduct>;
 
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
@@ -85,7 +86,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for BaseProductsRepoImpl<'a, T>
 {
     /// Find specific base_product by ID
-    fn find(&self, base_product_id_arg: i32) -> RepoResult<Option<BaseProduct>> {
+    fn find(&self, base_product_id_arg: BaseProductId) -> RepoResult<Option<BaseProduct>> {
         debug!("Find in base products with id {}.", base_product_id_arg);
         let query = base_products.find(base_product_id_arg);
         query
@@ -105,7 +106,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Counts products by store id
-    fn count_with_store_id(&self, store_id_arg: i32) -> RepoResult<i32> {
+    fn count_with_store_id(&self, store_id_arg: StoreId) -> RepoResult<i32> {
         debug!("Counts products with store id {}.", store_id_arg);
         let query = base_products.filter(is_active.eq(true)).filter(store_id.eq(store_id_arg)).count();
 
@@ -133,7 +134,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of base_products, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<BaseProduct>> {
+    fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>> {
         debug!("Find in base products with ids from {} count {}.", from, count);
         let query = base_products
             .filter(is_active.eq(true))
@@ -161,9 +162,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Returns list of base_products by store id and skip skip_base_product_id, limited by from and count
     fn get_products_of_the_store(
         &self,
-        store_id_arg: i32,
-        skip_base_product_id: Option<i32>,
-        from: i32,
+        store_id_arg: StoreId,
+        skip_base_product_id: Option<BaseProductId>,
+        from: BaseProductId,
         count: i32,
     ) -> RepoResult<Vec<BaseProduct>> {
         debug!(
@@ -207,7 +208,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Updates specific base_product
-    fn update(&self, base_product_id_arg: i32, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
+    fn update(&self, base_product_id_arg: BaseProductId, payload: UpdateBaseProduct) -> RepoResult<BaseProduct> {
         debug!("Updating base product with id {} and payload {:?}.", base_product_id_arg, payload);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| acl::check(&*self.acl, Resource::BaseProducts, Action::Update, self, Some(&base_product)))
@@ -226,7 +227,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Update views on specific base_product
-    fn update_views(&self, base_product_id_arg: i32) -> RepoResult<Option<BaseProduct>> {
+    fn update_views(&self, base_product_id_arg: BaseProductId) -> RepoResult<Option<BaseProduct>> {
         debug!("Updating views of base product with id {}.", base_product_id_arg);
         let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
         let query = diesel::update(filter).set(views.eq(views + 1));
@@ -241,7 +242,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Deactivates specific base_product
-    fn deactivate(&self, base_product_id_arg: i32) -> RepoResult<BaseProduct> {
+    fn deactivate(&self, base_product_id_arg: BaseProductId) -> RepoResult<BaseProduct> {
         debug!("Deactivate base product with id {}.", base_product_id_arg);
         self.execute_query(base_products.find(base_product_id_arg))
             .and_then(|base_product: BaseProduct| acl::check(&*self.acl, Resource::BaseProducts, Action::Delete, self, Some(&base_product)))
@@ -271,7 +272,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
             .and_then(|_| {
-                let base_products_ids = el_products.iter().map(|b| b.id).collect::<Vec<i32>>();
+                let base_products_ids = el_products.iter().map(|b| b.id).collect::<Vec<BaseProductId>>();
                 debug!(
                     "Converting data from elastic to PG models for base_products with ids: {:?}",
                     base_products_ids
@@ -307,7 +308,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                             p.variants.iter().map(|variant| variant.prod_id).collect()
                         }
                     })
-                    .collect::<Vec<i32>>();
+                    .collect::<Vec<ProductId>>();
 
                 let variants = Product::belonging_to(&base_products_list)
                     .get_results(self.db_conn)?
@@ -356,19 +357,18 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn most_discount(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
             .and_then(|_| {
-                debug!("Querying for most viewed products.");
+                debug!("Querying for most discount products.");
 
                 let products_query = Products::products
                     .filter(Products::is_active.eq(true))
                     .filter(Products::discount.is_not_null())
-                    .distinct()
                     .order_by(Products::discount.desc())
                     .offset(offset.into())
                     .limit(count.into());
 
                 let variants = products_query.get_results::<Product>(self.db_conn)?;
 
-                let base_products_ids = variants.iter().map(|p| p.base_product_id).collect::<Vec<i32>>();
+                let base_products_ids = variants.iter().map(|p| p.base_product_id).collect::<Vec<BaseProductId>>();
 
                 let hashed_ids = base_products_ids
                     .clone()
@@ -398,14 +398,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|(base, var)| BaseProductWithVariants::new(base, vec![var]))
                     .collect())
             })
-            .map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
+            .map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
     }
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, BaseProduct>
     for BaseProductsRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&BaseProduct>) -> bool {
+    fn is_in_scope(&self, user_id: UserId, scope: &Scope, obj: Option<&BaseProduct>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

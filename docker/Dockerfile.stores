@@ -1,4 +1,4 @@
-FROM rust:latest
+FROM rust:1.26
 
 # Install libpq-10
 RUN wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add - && \ 

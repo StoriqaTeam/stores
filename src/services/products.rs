@@ -173,7 +173,12 @@ impl<
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            products_repo.deactivate(product_id)
+                            let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+                            conn.transaction::<(Product), FailureError, _>(move || {
+                                products_repo
+                                    .deactivate(product_id)
+                                    .and_then(|p| prod_attr_repo.delete_all_attributes(p.id).map(|_| p))
+                            })
                         })
                 })
                 .map_err(|e| e.context("Service Product, deactivate endpoint error occured.").into()),

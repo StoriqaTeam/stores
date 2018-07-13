@@ -9,6 +9,8 @@ use hyper::{Method, Request};
 
 use stores_lib::models::*;
 
+use stq_static_resources::*;
+
 pub fn create_new_attribute(name: &str) -> NewAttribute {
     NewAttribute {
         name: serde_json::from_str(name).unwrap(),

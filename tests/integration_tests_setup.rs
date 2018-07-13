@@ -3,6 +3,8 @@ extern crate hyper;
 extern crate rand;
 extern crate stores_lib;
 extern crate stq_http;
+extern crate stq_static_resources;
+extern crate stq_types;
 extern crate tokio_core;
 
 use std::thread;

@@ -7,12 +7,14 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use stq_types::*;
+
 use stores_lib::models::*;
 
 fn create_new_store(name: &str, short_description: &str) -> NewStore {
     NewStore {
         name: serde_json::from_str(name).unwrap(),
-        user_id: 1,
+        user_id: UserId(1),
         short_description: serde_json::from_str(short_description).unwrap(),
         long_description: None,
         slug: rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase(),

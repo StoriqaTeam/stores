@@ -9,14 +9,15 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::*;
 use stq_static_resources::Translation;
+use stq_types::{StoreId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::store::stores::dsl::*;
 use models::{NewStore, Store, UpdateStore};
+use repos::legacy_acl::*;
 
 /// Stores repository, responsible for handling stores
 pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -26,25 +27,25 @@ pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = A
 
 pub trait StoresRepo {
     /// Find specific store by ID
-    fn find(&self, store_id: i32) -> RepoResult<Option<Store>>;
+    fn find(&self, store_id: StoreId) -> RepoResult<Option<Store>>;
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Store>>;
+    fn list(&self, from: StoreId, count: i32) -> RepoResult<Vec<Store>>;
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store>;
 
     /// Updates specific store
-    fn update(&self, store_id: i32, payload: UpdateStore) -> RepoResult<Store>;
+    fn update(&self, store_id: StoreId, payload: UpdateStore) -> RepoResult<Store>;
 
     /// Deactivates specific store
-    fn deactivate(&self, store_id: i32) -> RepoResult<Store>;
+    fn deactivate(&self, store_id: StoreId) -> RepoResult<Store>;
 
     /// Delete store by user id
-    fn delete_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>>;
+    fn delete_by_user(&self, user_id_arg: UserId) -> RepoResult<Option<Store>>;
 
     /// Get store by user id
-    fn get_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>>;
+    fn get_by_user(&self, user_id_arg: UserId) -> RepoResult<Option<Store>>;
 
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
@@ -65,7 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepo for StoresRepoImpl<'a, T> {
     /// Find specific store by ID
-    fn find(&self, store_id_arg: i32) -> RepoResult<Option<Store>> {
+    fn find(&self, store_id_arg: StoreId) -> RepoResult<Option<Store>> {
         debug!("Find in stores with id {}.", store_id_arg);
         let query = stores.find(store_id_arg).filter(is_active.eq(true));
         query
@@ -93,7 +94,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Store>> {
+    fn list(&self, from: StoreId, count: i32) -> RepoResult<Vec<Store>> {
         debug!("Find in stores from {} count {}.", from, count);
         let query = stores.filter(is_active.eq(true)).filter(id.gt(from)).order(id).limit(count.into());
 
@@ -113,7 +114,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Updates specific store
-    fn update(&self, store_id_arg: i32, payload: UpdateStore) -> RepoResult<Store> {
+    fn update(&self, store_id_arg: StoreId, payload: UpdateStore) -> RepoResult<Store> {
         debug!("Updating store with id {} and payload {:?}.", store_id_arg, payload);
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| acl::check(&*self.acl, Resource::Stores, Action::Update, self, Some(&store)))
@@ -132,7 +133,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Deactivates specific store
-    fn deactivate(&self, store_id_arg: i32) -> RepoResult<Store> {
+    fn deactivate(&self, store_id_arg: StoreId) -> RepoResult<Store> {
         debug!("Deactivate store with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
             .and_then(|store: Store| acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store)))
@@ -148,7 +149,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Delete store by user id
-    fn delete_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>> {
+    fn delete_by_user(&self, user_id_arg: UserId) -> RepoResult<Option<Store>> {
         debug!("Delete store by user id {}.", user_id_arg);
         let query = stores.filter(user_id.eq(user_id_arg));
 
@@ -170,7 +171,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Get store by user id
-    fn get_by_user(&self, user_id_arg: i32) -> RepoResult<Option<Store>> {
+    fn get_by_user(&self, user_id_arg: UserId) -> RepoResult<Option<Store>> {
         debug!("get store by user id {}.", user_id_arg);
         let query = stores.filter(user_id.eq(user_id_arg)).filter(is_active.eq(true));
 
@@ -224,7 +225,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Store>
     for StoresRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, user_id_arg: i32, scope: &Scope, obj: Option<&Store>) -> bool {
+    fn is_in_scope(&self, user_id_arg: UserId, scope: &Scope, obj: Option<&Store>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

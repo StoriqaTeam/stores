@@ -4,8 +4,11 @@ use std::time::SystemTime;
 use serde_json;
 use validator::Validate;
 
+use stq_static_resources::ModerationStatus;
+use stq_types::{StoreId, UserId};
+
 use models::validation_rules::*;
-use models::{BaseProductWithVariants, Status};
+use models::BaseProductWithVariants;
 
 /// diesel table for stores
 table! {
@@ -47,8 +50,8 @@ table! {
 /// Payload for querying stores
 #[derive(Debug, Serialize, Deserialize, Queryable, Clone, Identifiable)]
 pub struct Store {
-    pub id: i32,
-    pub user_id: i32,
+    pub id: StoreId,
+    pub user_id: UserId,
     pub is_active: bool,
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
@@ -69,7 +72,7 @@ pub struct Store {
     pub rating: f64,
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
-    pub status: Status,
+    pub status: ModerationStatus,
     pub administrative_area_level_1: Option<String>,
     pub administrative_area_level_2: Option<String>,
     pub locality: Option<String>,
@@ -82,8 +85,8 @@ pub struct Store {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ElasticStore {
-    pub id: i32,
-    pub user_id: i32,
+    pub id: StoreId,
+    pub user_id: UserId,
     pub name: serde_json::Value,
 }
 
@@ -103,7 +106,7 @@ impl From<Store> for ElasticStore {
 pub struct NewStore {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
-    pub user_id: i32,
+    pub user_id: UserId,
     #[validate(custom = "validate_translation")]
     pub short_description: serde_json::Value,
     #[validate(custom = "validate_translation")]
@@ -162,7 +165,7 @@ pub struct UpdateStore {
     pub rating: Option<f64>,
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
-    pub status: Option<Status>,
+    pub status: Option<ModerationStatus>,
     pub administrative_area_level_1: Option<String>,
     pub administrative_area_level_2: Option<String>,
     pub locality: Option<String>,
@@ -233,7 +236,7 @@ impl ProductCategories {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StoreWithBaseProducts {
-    pub id: i32,
+    pub id: StoreId,
     pub name: serde_json::Value,
     pub is_active: bool,
     pub short_description: serde_json::Value,
@@ -251,7 +254,7 @@ pub struct StoreWithBaseProducts {
     pub slogan: Option<String>,
     pub rating: f64,
     pub country: Option<String>,
-    pub status: Status,
+    pub status: ModerationStatus,
     pub administrative_area_level_1: Option<String>,
     pub administrative_area_level_2: Option<String>,
     pub locality: Option<String>,

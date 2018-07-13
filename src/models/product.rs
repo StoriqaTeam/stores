@@ -5,6 +5,8 @@ use std::time::SystemTime;
 use serde_json;
 use validator::Validate;
 
+use stq_types::{BaseProductId, CurrencyId, ProductId, ProductPrice, Quantity, StoreId};
+
 use models::validation_rules::*;
 use models::{AttrValue, AttributeFilter, BaseProduct, RangeFilter};
 
@@ -31,16 +33,16 @@ table! {
 #[belongs_to(BaseProduct)]
 #[table_name = "products"]
 pub struct Product {
-    pub id: i32,
-    pub base_product_id: i32,
+    pub id: ProductId,
+    pub base_product_id: BaseProductId,
     pub is_active: bool,
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
     pub additional_photos: Option<serde_json::Value>,
     pub vendor_code: String,
     pub cashback: Option<f64>,
-    pub price: f64,
-    pub currency_id: Option<i32>,
+    pub price: ProductPrice,
+    pub currency_id: Option<CurrencyId>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -49,7 +51,7 @@ pub struct Product {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone, Debug)]
 #[table_name = "products"]
 pub struct NewProduct {
-    pub base_product_id: i32,
+    pub base_product_id: BaseProductId,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
@@ -60,8 +62,8 @@ pub struct NewProduct {
     #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative")]
-    pub price: f64,
-    pub currency_id: Option<i32>,
+    pub price: ProductPrice,
+    pub currency_id: Option<CurrencyId>,
 }
 
 /// Payload for creating products and attributes
@@ -84,8 +86,8 @@ pub struct UpdateProduct {
     #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative")]
-    pub price: Option<f64>,
-    pub currency_id: Option<i32>,
+    pub price: Option<ProductPrice>,
+    pub currency_id: Option<CurrencyId>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -97,11 +99,11 @@ pub struct UpdateProductWithAttributes {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
-    pub currency_id: Option<i32>,
-    pub currency_map: Option<HashMap<i32, f64>>,
+    pub currency_id: Option<CurrencyId>,
+    pub currency_map: Option<HashMap<CurrencyId, f64>>,
     pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
-    pub store_id: Option<i32>,
+    pub store_id: Option<StoreId>,
     pub categories_ids: Option<Vec<i32>>,
     pub sort_by: Option<ProductsSorting>,
 }
@@ -115,7 +117,7 @@ pub struct SearchProductsByName {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct AutoCompleteProductName {
     pub name: String,
-    pub store_id: Option<i32>,
+    pub store_id: Option<StoreId>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -138,6 +140,6 @@ pub struct MostDiscountProducts {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CartProduct {
-    pub product_id: i32,
-    pub quantity: i32,
+    pub product_id: ProductId,
+    pub quantity: Quantity,
 }

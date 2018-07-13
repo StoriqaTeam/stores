@@ -7,13 +7,14 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::*;
+use stq_types::{StoreId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::moderator_store_comment::moderator_store_comments::dsl::*;
 use models::{ModeratorStoreComments, NewModeratorStoreComments};
+use repos::legacy_acl::*;
 
 /// Moderator product comments repository
 pub struct ModeratorStoreRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -23,7 +24,7 @@ pub struct ModeratorStoreRepoImpl<'a, T: Connection<Backend = Pg, TransactionMan
 
 pub trait ModeratorStoreRepo {
     /// Find comments by store ID
-    fn find_by_store_id(&self, store_id: i32) -> RepoResult<Option<ModeratorStoreComments>>;
+    fn find_by_store_id(&self, store_id: StoreId) -> RepoResult<Option<ModeratorStoreComments>>;
 
     /// Creates new comment
     fn create(&self, payload: NewModeratorStoreComments) -> RepoResult<ModeratorStoreComments>;
@@ -39,7 +40,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for ModeratorStoreRepoImpl<'a, T>
 {
     /// Find comments by store ID
-    fn find_by_store_id(&self, store_id_arg: i32) -> RepoResult<Option<ModeratorStoreComments>> {
+    fn find_by_store_id(&self, store_id_arg: StoreId) -> RepoResult<Option<ModeratorStoreComments>> {
         debug!("Find moderator comments for store id {}.", store_id_arg);
         let query = moderator_store_comments
             .filter(store_id.eq(store_id_arg))
@@ -76,7 +77,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, ModeratorStoreComments>
     for ModeratorStoreRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, user_id_arg: i32, scope: &Scope, obj: Option<&ModeratorStoreComments>) -> bool {
+    fn is_in_scope(&self, user_id_arg: UserId, scope: &Scope, obj: Option<&ModeratorStoreComments>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

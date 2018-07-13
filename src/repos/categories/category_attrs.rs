@@ -7,12 +7,13 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
-use repos::legacy_acl::{Acl, CheckScope};
+use stq_types::UserId;
 
 use models::authorization::*;
 use models::category_attribute::cat_attr_values::dsl::*;
 use models::{CatAttr, NewCatAttr, OldCatAttr};
 use repos::acl;
+use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
 
 /// CatAttr repository, responsible for handling cat_attr_values
@@ -86,7 +87,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, CatAttr>
     for CategoryAttrsRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, _user_id: i32, scope: &Scope, _obj: Option<&CatAttr>) -> bool {
+    fn is_in_scope(&self, _user_id: UserId, scope: &Scope, _obj: Option<&CatAttr>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => false,

@@ -9,6 +9,8 @@ use failure::Fail;
 use futures::future::*;
 use r2d2::{ManageConnection, Pool};
 
+use stq_types::UserId;
+
 use errors::Error;
 
 use super::types::ServiceFuture;
@@ -31,7 +33,7 @@ pub struct CurrencyExchangeServiceImpl<
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub repo_factory: F,
-    pub user_id: Option<i32>,
+    pub user_id: Option<UserId>,
 }
 
 impl<
@@ -40,7 +42,7 @@ impl<
         F: ReposFactory<T>,
     > CurrencyExchangeServiceImpl<T, M, F>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<UserId>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -105,6 +107,8 @@ pub mod tests {
     use serde_json;
     use tokio_core::reactor::Core;
 
+    use stq_types::UserId;
+
     use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
@@ -118,7 +122,7 @@ pub mod tests {
             db_pool: db_pool,
             cpu_pool: cpu_pool,
             repo_factory: MOCK_REPO_FACTORY,
-            user_id: Some(1),
+            user_id: Some(UserId(1)),
         }
     }
 

@@ -7,12 +7,13 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use repos::legacy_acl::*;
+use stq_types::{BaseProductId, CurrencyId, ProductId, UserId};
 
 use models::base_product::base_products::dsl as BaseProducts;
 use models::product::products::dsl::*;
 use models::store::stores::dsl as Stores;
 use models::{BaseProduct, NewProduct, Product, Store, UpdateProduct};
+use repos::legacy_acl::*;
 
 use super::acl;
 use super::types::RepoResult;
@@ -26,25 +27,25 @@ pub struct ProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager =
 
 pub trait ProductsRepo {
     /// Find specific product by ID
-    fn find(&self, product_id: i32) -> RepoResult<Option<Product>>;
+    fn find(&self, product_id: ProductId) -> RepoResult<Option<Product>>;
 
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>>;
 
     /// Returns list of products with base id
-    fn find_with_base_id(&self, base_id: i32) -> RepoResult<Vec<Product>>;
+    fn find_with_base_id(&self, base_id: BaseProductId) -> RepoResult<Vec<Product>>;
 
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<Product>;
 
     /// Updates specific product
-    fn update(&self, product_id: i32, payload: UpdateProduct) -> RepoResult<Product>;
+    fn update(&self, product_id: ProductId, payload: UpdateProduct) -> RepoResult<Product>;
 
     /// Deactivates specific product
-    fn deactivate(&self, product_id: i32) -> RepoResult<Product>;
+    fn deactivate(&self, product_id: ProductId) -> RepoResult<Product>;
 
     /// Update currency_id on all prodouct with base_product_id
-    fn update_currency_id(&self, currency_id: i32, base_product_id: i32) -> RepoResult<usize>;
+    fn update_currency_id(&self, currency_id: CurrencyId, base_product_id: BaseProductId) -> RepoResult<usize>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepoImpl<'a, T> {
@@ -59,7 +60,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepo for ProductsRepoImpl<'a, T> {
     /// Find specific product by ID
-    fn find(&self, product_id_arg: i32) -> RepoResult<Option<Product>> {
+    fn find(&self, product_id_arg: ProductId) -> RepoResult<Option<Product>> {
         debug!("Find in products with id {}.", product_id_arg);
         let query = products.find(product_id_arg).filter(is_active.eq(true));
         query
@@ -111,7 +112,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of products with base id
-    fn find_with_base_id(&self, base_id_arg: i32) -> RepoResult<Vec<Product>> {
+    fn find_with_base_id(&self, base_id_arg: BaseProductId) -> RepoResult<Vec<Product>> {
         debug!("Find in products with id {}.", base_id_arg);
         let query = products
             .filter(base_product_id.eq(base_id_arg))
@@ -131,7 +132,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Updates specific product
-    fn update(&self, product_id_arg: i32, payload: UpdateProduct) -> RepoResult<Product> {
+    fn update(&self, product_id_arg: ProductId, payload: UpdateProduct) -> RepoResult<Product> {
         debug!("Updating product with id {} and payload {:?}.", product_id_arg, payload);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| acl::check(&*self.acl, Resource::Products, Action::Update, self, Some(&product)))
@@ -150,7 +151,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Deactivates specific product
-    fn deactivate(&self, product_id_arg: i32) -> RepoResult<Product> {
+    fn deactivate(&self, product_id_arg: ProductId) -> RepoResult<Product> {
         debug!("Deactivate product with id {}.", product_id_arg);
         self.execute_query(products.find(product_id_arg))
             .and_then(|product: Product| acl::check(&*self.acl, Resource::Products, Action::Delete, self, Some(&product)))
@@ -166,7 +167,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Update currency_id on all product with base_product_id
-    fn update_currency_id(&self, currency_id_arg: i32, base_product_id_arg: i32) -> RepoResult<usize> {
+    fn update_currency_id(&self, currency_id_arg: CurrencyId, base_product_id_arg: BaseProductId) -> RepoResult<usize> {
         debug!(
             "Setting currency_id {} on all product with base_product_id {}.",
             currency_id_arg, base_product_id_arg
@@ -203,7 +204,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Product>
     for ProductsRepoImpl<'a, T>
 {
-    fn is_in_scope(&self, user_id: i32, scope: &Scope, obj: Option<&Product>) -> bool {
+    fn is_in_scope(&self, user_id: UserId, scope: &Scope, obj: Option<&Product>) -> bool {
         match *scope {
             Scope::All => true,
             Scope::Owned => {

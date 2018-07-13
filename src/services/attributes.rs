@@ -8,8 +8,9 @@ use futures::Future;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::Error;
+use stq_types::UserId;
 
+use errors::Error;
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::ReposFactory;
 use services::types::ServiceFuture;
@@ -33,7 +34,7 @@ pub struct AttributesServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
-    pub user_id: Option<i32>,
+    pub user_id: Option<UserId>,
     pub repo_factory: F,
 }
 
@@ -43,7 +44,7 @@ impl<
         M: ManageConnection<Connection = T>,
     > AttributesServiceImpl<T, F, M>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<i32>, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<UserId>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
@@ -154,13 +155,16 @@ pub mod tests {
     use tokio_core::reactor::Core;
     use tokio_core::reactor::Handle;
 
+    use stq_static_resources::*;
+    use stq_types::*;
+
     use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
 
     #[allow(unused)]
     fn create_attribute_service(
-        user_id: Option<i32>,
+        user_id: Option<UserId>,
         handle: Arc<Handle>,
     ) -> AttributesServiceImpl<MockConnection, ReposFactoryMock, MockConnectionManager> {
         let manager = MockConnectionManager::default();
@@ -208,7 +212,7 @@ pub mod tests {
         let new_attribute = create_new_attribute(MOCK_BASE_PRODUCT_NAME_JSON);
         let work = service.create(new_attribute);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, MOCK_BASE_PRODUCT_ID);
+        assert_eq!(result.id, 1);
     }
 
     #[test]

@@ -191,7 +191,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Checks slug exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool> {
         debug!("Check if store slug {} exists.", slug_arg);
-        let query = diesel::select(exists(stores.filter(slug.eq(slug_arg.clone()))));
+        let query = diesel::select(exists(stores.filter(slug.eq(slug_arg.clone())).filter(is_active.eq(true))));
         query
             .get_result(self.db_conn)
             .map_err(From::from)

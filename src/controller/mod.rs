@@ -1050,6 +1050,15 @@ impl<
                 )
             }
 
+            // GET /products/<product_id>/seller_price
+            (&Get, Some(Route::SellerProductPrice(product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /products/{}/seller_price",
+                    user_id, product_id
+                );
+                serialize_future(products_service.get_seller_price(product_id))
+            }
+
             // Fallback
             (m, _) => Box::new(future::err(
                 format_err!("Request to non existing endpoint in stores microservice! {:?} {:?}", m, path)

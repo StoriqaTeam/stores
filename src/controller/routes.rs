@@ -35,6 +35,7 @@ pub enum Route {
     Product(ProductId),
     ProductAttributes(ProductId),
     ProductsByBaseProduct(BaseProductId),
+    SellerProductPrice(ProductId),
     Stores,
     StoresSearch,
     StoresAutoComplete,
@@ -128,6 +129,15 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(ProductId)
             .map(Route::Product)
+    });
+
+    // Products/:id route
+    router.add_route_with_params(r"^/products/(\d+)/seller_price$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(ProductId)
+            .map(Route::SellerProductPrice)
     });
 
     // Products/by_base_product/:id route

@@ -12,7 +12,7 @@ use r2d2::{ManageConnection, Pool};
 
 use errors::Error;
 use stq_http::client::ClientHandle;
-use stq_types::{BaseProductId, CurrencyId, ProductId, StoreId, UserId};
+use stq_types::{BaseProductId, CurrencyId, ProductId, ProductSellerPrice, StoreId, UserId};
 
 use super::types::ServiceFuture;
 use models::*;
@@ -21,6 +21,8 @@ use repos::ReposFactory;
 pub trait ProductsService {
     /// Returns product by ID
     fn get(&self, product_id: ProductId) -> ServiceFuture<Option<Product>>;
+    /// Returns product seller price by ID
+    fn get_seller_price(&self, product_id: ProductId) -> ServiceFuture<Option<ProductSellerPrice>>;
     /// Returns store_id by ID
     fn get_store_id(&self, product_id: ProductId) -> ServiceFuture<Option<StoreId>>;
     /// Deactivates specific product
@@ -115,6 +117,43 @@ impl<
                                     } else {
                                         Ok(Some(product))
                                     }
+                                } else {
+                                    Ok(None)
+                                }
+                            })
+                        })
+                })
+                .map_err(|e| e.context("Service Product, get endpoint error occured.").into()),
+        )
+    }
+
+    /// Returns product seller price by ID
+    fn get_seller_price(&self, product_id: ProductId) -> ServiceFuture<Option<ProductSellerPrice>> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            products_repo.find(product_id).and_then(move |product| {
+                                if let Some(product) = product {
+                                    base_products_repo.find(product.base_product_id).map(|base_product| {
+                                        if let Some(base_product) = base_product {
+                                            Some(ProductSellerPrice {
+                                                price: product.price,
+                                                currency_id: base_product.currency_id,
+                                            })
+                                        } else {
+                                            None
+                                        }
+                                    })
                                 } else {
                                     Ok(None)
                                 }

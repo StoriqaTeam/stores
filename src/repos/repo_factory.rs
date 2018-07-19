@@ -450,6 +450,7 @@ pub mod tests {
                 route: payload.route,
                 street_number: payload.street_number,
                 place_id: payload.place_id,
+                completed: false,
             })
         }
 

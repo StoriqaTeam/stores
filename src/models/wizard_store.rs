@@ -25,6 +25,7 @@ table! {
         route -> Nullable<VarChar>,
         street_number -> Nullable<VarChar>,
         place_id -> Nullable<VarChar>,
+        completed -> Bool,
     }
 }
 
@@ -49,6 +50,7 @@ pub struct WizardStore {
     pub route: Option<String>,
     pub street_number: Option<String>,
     pub place_id: Option<String>,
+    pub completed: bool,
 }
 
 /// Payload for creating wizard_stores

@@ -1,0 +1,1 @@
+ALTER TABLE wizard_stores ADD COLUMN completed BOOLEAN NOT NULL DEFAULT 'f';

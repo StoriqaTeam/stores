@@ -98,7 +98,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|wizard_store: WizardStore| acl::check(&*self.acl, Resource::WizardStores, Action::Update, self, Some(&wizard_store)))
             .and_then(|_| {
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
-
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<WizardStore>(self.db_conn).map_err(From::from)
             })
@@ -110,15 +109,15 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
-    /// Delete specific wizard store
+    /// Set specific wizard store completed
     fn delete(&self, user_id_arg: UserId) -> RepoResult<WizardStore> {
         debug!("Delete wizard store with user_id {}.", user_id_arg);
         self.execute_query(wizard_stores.filter(user_id.eq(user_id_arg)))
             .and_then(|wizard_store: WizardStore| acl::check(&*self.acl, Resource::WizardStores, Action::Delete, self, Some(&wizard_store)))
             .and_then(|_| {
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
-                let query = diesel::delete(filter);
-                self.execute_query(query)
+                let query = diesel::update(filter).set(completed.eq(true));
+                query.get_result::<WizardStore>(self.db_conn).map_err(From::from)
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Delete wizard store with user_id {} error occured.", user_id_arg))

@@ -1,0 +1,2 @@
+[graylog]
+addr = "udplog.stq.cloud:32303"

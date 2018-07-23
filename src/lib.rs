@@ -33,6 +33,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
 extern crate stq_http;
+extern crate stq_logging;
 extern crate stq_router;
 extern crate stq_static_resources;
 extern crate stq_types;
@@ -51,19 +52,14 @@ pub mod models;
 pub mod repos;
 pub mod services;
 
-use std::env;
-use std::io::Write;
 use std::process;
 use std::sync::Arc;
 
-use chrono::prelude::*;
 use diesel::pg::PgConnection;
-use env_logger::Builder as LogBuilder;
 use futures::future;
 use futures::{Future, Stream};
 use futures_cpupool::CpuPool;
 use hyper::server::Http;
-use log::LevelFilter as LogLevelFilter;
 use r2d2_diesel::ConnectionManager;
 use tokio_core::reactor::Core;
 
@@ -79,21 +75,6 @@ use repos::repo_factory::ReposFactoryImpl;
 
 /// Starts new web service from provided `Config`
 pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>, callback: F) {
-    let mut builder = LogBuilder::new();
-    builder
-        .format(|formatter, record| {
-            let now = Utc::now();
-            writeln!(formatter, "{} - {:5} - {}", now.to_rfc3339(), record.level(), record.args())
-        })
-        .filter(None, LogLevelFilter::Info);
-
-    if env::var("RUST_LOG").is_ok() {
-        builder.parse(&env::var("RUST_LOG").unwrap());
-    }
-
-    // Prepare logger
-    builder.init();
-
     // Prepare reactor
     let mut core = Core::new().expect("Unexpected error creating event loop core");
     let handle = Arc::new(core.handle());

@@ -34,4 +34,5 @@ stq_http = { path = "vendor/libstqbackend/http" }
 stq_router = { path = "vendor/libstqbackend/router" }
 stq_static_resources = { path = "vendor/libstqbackend/static_resources" }
 stq_types = { path = "vendor/libstqbackend/types" }
-rand = "*"
+stq_logging = { path = "vendor/libstqbackend/logging" }
+rand = "0.4"

@@ -92,7 +92,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
         debug!("delete user role {:?}.", payload);
         self.cached_roles.remove(payload.user_id);
-        let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role.clone()));
+        let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role));
         let query = diesel::delete(filtered);
         query
             .get_result(self.db_conn)

@@ -1,18 +1,7 @@
 use stq_static_resources::AttributeType;
 use stq_types::{BaseProductId, ProductId};
 
-/// diesel table for product attributes
-table! {
-    prod_attr_values (id) {
-        id -> Integer,
-        prod_id -> Integer,
-        base_prod_id -> Integer,
-        attr_id -> Integer,
-        value -> VarChar,
-        value_type -> VarChar,
-        meta_field -> Nullable<VarChar>,
-    }
-}
+use schema::prod_attr_values;
 
 /// Payload for querying product attributes
 #[derive(Debug, Deserialize, Associations, Queryable, Clone, Identifiable)]

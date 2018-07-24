@@ -12,14 +12,14 @@ use failure::Error as FailureError;
 
 use stq_types::UserId;
 
-use models::attribute::attributes::dsl as Attributes;
 use models::authorization::*;
-use models::category::categories::dsl::*;
-use models::category_attribute::cat_attr_values::dsl as CategoryAttributes;
 use models::{Attribute, CatAttr, Category, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
 use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
+use schema::attributes::dsl as Attributes;
+use schema::cat_attr_values::dsl as CategoryAttributes;
+use schema::categories::dsl::*;
 
 pub mod category_attrs;
 pub mod category_cache;

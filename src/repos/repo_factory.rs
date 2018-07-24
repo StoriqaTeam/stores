@@ -694,11 +694,11 @@ pub mod tests {
             })
         }
 
-        fn most_viewed(&self, _count: i32, _offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+        fn most_viewed(&self, _prod: MostViewedProducts, _count: i32, _offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
             Ok(vec![])
         }
 
-        fn most_discount(&self, _count: i32, _offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+        fn most_discount(&self, _prod: MostDiscountProducts, _count: i32, _offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
             Ok(vec![])
         }
 

@@ -1,13 +1,7 @@
 //! Models for managing Roles
 use stq_types::{StoresRole, UserId};
 
-table! {
-    user_roles (id) {
-        id -> Integer,
-        user_id -> Integer,
-        role -> VarChar,
-    }
-}
+use schema::user_roles;
 
 #[derive(Serialize, Queryable, Insertable, Debug)]
 #[table_name = "user_roles"]

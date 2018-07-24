@@ -4,30 +4,7 @@ use validator::Validate;
 use stq_types::{StoreId, UserId};
 
 use models::validation_rules::*;
-
-/// diesel table for wizard_stores
-table! {
-    wizard_stores (id) {
-        id -> Integer,
-        user_id -> Integer,
-        store_id -> Nullable<Integer>,
-        name -> Nullable<VarChar>,
-        short_description -> Nullable<VarChar>,
-        default_language -> Nullable<VarChar>,
-        slug -> Nullable<VarChar>,
-        country -> Nullable<VarChar>,
-        address -> Nullable<VarChar>,
-        administrative_area_level_1 -> Nullable<VarChar>,
-        administrative_area_level_2 -> Nullable<VarChar>,
-        locality -> Nullable<VarChar>,
-        political -> Nullable<VarChar>,
-        postal_code -> Nullable<VarChar>,
-        route -> Nullable<VarChar>,
-        street_number -> Nullable<VarChar>,
-        place_id -> Nullable<VarChar>,
-        completed -> Bool,
-    }
-}
+use schema::wizard_stores;
 
 /// Payload for querying wizard_stores
 #[derive(Debug, Serialize, Deserialize, Queryable, Clone, Identifiable, Default)]

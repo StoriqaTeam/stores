@@ -9,12 +9,12 @@ use failure::Error as FailureError;
 
 use stq_types::UserId;
 
-use models::attribute::attributes::dsl::*;
 use models::authorization::*;
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::acl;
 use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
+use schema::attributes::dsl::*;
 
 pub mod attributes_cache;
 

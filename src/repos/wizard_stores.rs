@@ -14,9 +14,9 @@ use stq_types::UserId;
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::wizard_store::wizard_stores::dsl::*;
 use models::{NewWizardStore, UpdateWizardStore, WizardStore};
 use repos::legacy_acl::*;
+use schema::wizard_stores::dsl::*;
 
 /// Wizard stores repository, responsible for handling wizard stores
 pub struct WizardStoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {

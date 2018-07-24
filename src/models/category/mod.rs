@@ -1,24 +1,15 @@
 //! Models contains all structures that are used in different
 //! modules of the app
 //! EAV model categories
+pub mod category_attribute;
+
 use serde_json;
 use validator::Validate;
 
+pub use self::category_attribute::*;
 use models::validation_rules::*;
 use models::Attribute;
-
-pub mod category_attribute;
-pub use self::category_attribute::*;
-
-table! {
-    categories {
-        id -> Integer,
-        name -> Jsonb,
-        meta_field -> Nullable<Jsonb>,
-        parent_id -> Nullable<Integer>,
-        level -> Integer,
-    }
-}
+use schema::categories;
 
 /// RawCategory is an object stored in PG, used only for Category tree creation,
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]

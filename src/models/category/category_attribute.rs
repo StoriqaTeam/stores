@@ -1,13 +1,6 @@
 /// diesel table for category attributes
 use models::{Attribute, RawCategory};
-
-table! {
-    cat_attr_values (id) {
-        id -> Integer,
-        cat_id -> Integer,
-        attr_id -> Integer,
-    }
-}
+use schema::cat_attr_values;
 
 /// Payload for querying category attributes
 #[derive(Debug, Deserialize, Associations, Queryable, Clone, Identifiable)]

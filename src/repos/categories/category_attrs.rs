@@ -10,11 +10,11 @@ use failure::Fail;
 use stq_types::UserId;
 
 use models::authorization::*;
-use models::category_attribute::cat_attr_values::dsl::*;
 use models::{CatAttr, NewCatAttr, OldCatAttr};
 use repos::acl;
 use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
+use schema::cat_attr_values::dsl::*;
 
 /// CatAttr repository, responsible for handling cat_attr_values
 pub struct CategoryAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {

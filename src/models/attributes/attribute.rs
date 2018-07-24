@@ -6,15 +6,7 @@ use stq_static_resources::AttributeType;
 
 use models::validation_rules::*;
 use models::*;
-
-table! {
-    attributes {
-        id -> Integer,
-        name -> Jsonb,
-        value_type -> VarChar,
-        meta_field -> Nullable<Jsonb>,
-    }
-}
+use schema::attributes;
 
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "attributes"]

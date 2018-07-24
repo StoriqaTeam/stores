@@ -7,31 +7,10 @@ use validator::Validate;
 use stq_static_resources::ModerationStatus;
 use stq_types::{BaseProductId, CurrencyId, ProductId, ProductPrice, StoreId};
 
-use super::Store;
 use models::validation_rules::*;
 use models::Product;
-
-/// diesel table for base_products
-table! {
-    base_products (id) {
-        id -> Integer,
-        is_active -> Bool,
-        store_id -> Integer,
-        name -> Jsonb,
-        short_description -> Jsonb,
-        long_description -> Nullable<Jsonb>,
-        seo_title -> Nullable<Jsonb>,
-        seo_description -> Nullable<Jsonb>,
-        currency_id -> Integer,
-        category_id -> Integer,
-        views -> Integer,
-        created_at -> Timestamp, // UTC 0, generated at db level
-        updated_at -> Timestamp, // UTC 0, generated at db level
-        rating -> Double,
-        slug -> VarChar,
-        status -> VarChar,
-    }
-}
+use models::Store;
+use schema::base_products;
 
 /// Payload for querying base_products
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]

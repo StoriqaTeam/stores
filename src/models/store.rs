@@ -9,43 +9,7 @@ use stq_types::{StoreId, UserId};
 
 use models::validation_rules::*;
 use models::BaseProductWithVariants;
-
-/// diesel table for stores
-table! {
-    stores (id) {
-        id -> Integer,
-        user_id -> Integer,
-        is_active -> Bool,
-        name -> Jsonb,
-        short_description -> Jsonb,
-        long_description -> Nullable<Jsonb>,
-        slug -> VarChar,
-        cover -> Nullable<VarChar>,
-        logo -> Nullable<VarChar>,
-        phone -> Nullable<VarChar>,
-        email -> Nullable<VarChar>,
-        address -> Nullable<VarChar>,
-        facebook_url -> Nullable<VarChar>,
-        twitter_url -> Nullable<VarChar>,
-        instagram_url -> Nullable<VarChar>,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-        default_language -> VarChar,
-        slogan -> Nullable<VarChar>,
-        rating -> Double,
-        country -> Nullable<VarChar>,
-        product_categories -> Nullable<Jsonb>,
-        status -> VarChar,
-        administrative_area_level_1 -> Nullable<VarChar>,
-        administrative_area_level_2 -> Nullable<VarChar>,
-        locality -> Nullable<VarChar>,
-        political -> Nullable<VarChar>,
-        postal_code -> Nullable<VarChar>,
-        route -> Nullable<VarChar>,
-        street_number -> Nullable<VarChar>,
-        place_id -> Nullable<VarChar>,
-    }
-}
+use schema::stores;
 
 /// Payload for querying stores
 #[derive(Debug, Serialize, Deserialize, Queryable, Clone, Identifiable)]

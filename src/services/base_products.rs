@@ -288,7 +288,7 @@ impl<
     /// Find product by views limited by `count` and `offset` parameters
     fn search_most_viewed(
         &self,
-        _search_product: MostViewedProducts,
+        search_product: MostViewedProducts,
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
@@ -307,29 +307,31 @@ impl<
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            base_products_repo.most_viewed(count, offset).and_then(|base_products| {
-                                if let Some(currency_id) = currency_id {
-                                    currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                        if let Some(currency_map) = currencies_map {
-                                            base_products
-                                                .into_iter()
-                                                .map(|mut b| {
-                                                    for mut variant in &mut b.variants {
-                                                        if let Some(currency_id) = variant.currency_id {
-                                                            variant.price.0 *= currency_map[&currency_id];
+                            base_products_repo
+                                .most_viewed(search_product, count, offset)
+                                .and_then(|base_products| {
+                                    if let Some(currency_id) = currency_id {
+                                        currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
+                                            if let Some(currency_map) = currencies_map {
+                                                base_products
+                                                    .into_iter()
+                                                    .map(|mut b| {
+                                                        for mut variant in &mut b.variants {
+                                                            if let Some(currency_id) = variant.currency_id {
+                                                                variant.price.0 *= currency_map[&currency_id];
+                                                            }
                                                         }
-                                                    }
-                                                    b
-                                                })
-                                                .collect()
-                                        } else {
-                                            base_products
-                                        }
-                                    })
-                                } else {
-                                    Ok(base_products)
-                                }
-                            })
+                                                        b
+                                                    })
+                                                    .collect()
+                                            } else {
+                                                base_products
+                                            }
+                                        })
+                                    } else {
+                                        Ok(base_products)
+                                    }
+                                })
                         })
                 })
                 .map_err(|e| e.context("Service BaseProduct, search_most_viewed endpoint error occured.").into()),
@@ -339,7 +341,7 @@ impl<
     /// Find product by dicount pattern limited by `count` and `offset` parameters
     fn search_most_discount(
         &self,
-        _search_product: MostDiscountProducts,
+        search_product: MostDiscountProducts,
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
@@ -358,29 +360,31 @@ impl<
                         .and_then(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            base_products_repo.most_discount(count, offset).and_then(|base_products| {
-                                if let Some(currency_id) = currency_id {
-                                    currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                        if let Some(currency_map) = currencies_map {
-                                            base_products
-                                                .into_iter()
-                                                .map(|mut b| {
-                                                    for mut variant in &mut b.variants {
-                                                        if let Some(currency_id) = variant.currency_id {
-                                                            variant.price.0 *= currency_map[&currency_id];
+                            base_products_repo
+                                .most_discount(search_product, count, offset)
+                                .and_then(|base_products| {
+                                    if let Some(currency_id) = currency_id {
+                                        currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
+                                            if let Some(currency_map) = currencies_map {
+                                                base_products
+                                                    .into_iter()
+                                                    .map(|mut b| {
+                                                        for mut variant in &mut b.variants {
+                                                            if let Some(currency_id) = variant.currency_id {
+                                                                variant.price.0 *= currency_map[&currency_id];
+                                                            }
                                                         }
-                                                    }
-                                                    b
-                                                })
-                                                .collect()
-                                        } else {
-                                            base_products
-                                        }
-                                    })
-                                } else {
-                                    Ok(base_products)
-                                }
-                            })
+                                                        b
+                                                    })
+                                                    .collect()
+                                            } else {
+                                                base_products
+                                            }
+                                        })
+                                    } else {
+                                        Ok(base_products)
+                                    }
+                                })
                         })
                 })
                 .map_err(|e| {

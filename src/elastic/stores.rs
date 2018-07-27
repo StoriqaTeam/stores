@@ -141,17 +141,26 @@ impl StoresElastic for StoresElasticImpl {
     /// Auto Complete
     fn auto_complete(&self, name: String, count: i32, _offset: i32) -> RepoFuture<Vec<String>> {
         log_elastic_req(&name);
-        let query = json!({
-            "suggest": {
-                "name-suggest" : {
-                    "prefix" : name,
-                    "completion" : {
-                        "field" : "suggest",
-                        "size" : count
+        
+        let suggest = json!({
+            "name-suggest" : {
+                "prefix" : name,
+                "completion" : {
+                    "field" : "suggest_2",
+                    "size" : count,
+                    "skip_duplicates": true, 
+                    "fuzzy": true,
+                    "contexts": {
+                        "status": "published"
                     }
                 }
             }
-        }).to_string();
+        });
+
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        query_map.insert("_source".to_string(), serde_json::Value::Bool(false));
+        query_map.insert("suggest".to_string(), suggest);
+        let query = serde_json::Value::Object(query_map).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();

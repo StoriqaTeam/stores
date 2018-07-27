@@ -11,6 +11,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
+use stq_static_resources::ModerationStatus;
 use stq_types::{BaseProductId, ProductId, StoreId, UserId};
 
 use super::acl;
@@ -174,24 +175,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             "Find in base products with store id {} skip {:?} from {} count {}.",
             store_id_arg, skip_base_product_id, from, count
         );
-        let query = if let Some(skip_base_product_id) = skip_base_product_id {
-            base_products
-                .filter(is_active.eq(true))
-                .filter(store_id.eq(store_id_arg))
-                .filter(id.ne(skip_base_product_id))
-                .filter(id.ge(from))
-                .order(id)
-                .limit(count.into())
-                .into_boxed()
-        } else {
-            base_products
-                .filter(is_active.eq(true))
-                .filter(store_id.eq(store_id_arg))
-                .filter(id.ge(from))
-                .order(id)
-                .limit(count.into())
-                .into_boxed()
-        };
+        let mut query = base_products
+            .filter(is_active.eq(true))
+            .filter(store_id.eq(store_id_arg))
+            .into_boxed();
+
+        if let Some(skip_base_product_id) = skip_base_product_id {
+            query = query.filter(id.ne(skip_base_product_id));
+        }
+
+        query = query.filter(id.ge(from)).order(id).limit(count.into());
 
         query
             .get_results(self.db_conn)
@@ -334,7 +327,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|_| {
                 debug!("Querying for most viewed base products.");
 
-                let mut base_products_query = base_products.filter(is_active.eq(true)).into_boxed();
+                let mut base_products_query = base_products
+                    .filter(is_active.eq(true))
+                    .filter(status.eq(ModerationStatus::Published))
+                    .into_boxed();
 
                 if let Some(options) = search_product.options {
                     if let Some(store_id_arg) = options.store_id {
@@ -384,7 +380,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|(n, id_arg)| (id_arg, n))
                     .collect::<HashMap<_, _>>();
 
-                let mut base_products_query = base_products.filter(id.eq_any(base_products_ids)).into_boxed();
+                let mut base_products_query = base_products
+                    .filter(id.eq_any(base_products_ids))
+                    .filter(status.eq(ModerationStatus::Published))
+                    .into_boxed();
 
                 if let Some(options) = search_product.options {
                     if let Some(store_id_arg) = options.store_id {

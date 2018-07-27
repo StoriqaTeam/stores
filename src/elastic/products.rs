@@ -537,12 +537,12 @@ impl ProductsElastic for ProductsElasticImpl {
             "name-suggest" : {
                 "prefix" : name.name,
                 "completion" : {
-                    "field" : "suggest_",
+                    "field" : "suggest_2",
                     "size" : count,
                     "skip_duplicates": true, 
                     "fuzzy": true,
                     "contexts": {
-                        "store": store
+                        "store_and_status": format!("{}_published", store) // workaround because elastic doesn't afford to ANY contexts
                     }
                 }
             }

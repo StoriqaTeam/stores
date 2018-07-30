@@ -355,6 +355,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("search_by_name query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -417,6 +418,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("search_most_viewed query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -509,6 +511,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("search_most_discount query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -528,9 +531,9 @@ impl ProductsElastic for ProductsElasticImpl {
         log_elastic_req(&name);
 
         let store = if let Some(store_id) = name.store_id {
-            json!([store_id.to_string()])
+            json!([format!("{}_published", store_id)]) // workaround because elastic doesn't afford to ANY contexts
         } else {
-            json!([])
+            json!(["published"])
         };
 
         let suggest = json!({
@@ -542,7 +545,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     "skip_duplicates": true, 
                     "fuzzy": true,
                     "contexts": {
-                        "store_and_status": format!("{}_published", store) // workaround because elastic doesn't afford to ANY contexts
+                        "store_and_status": store 
                     }
                 }
             }
@@ -552,6 +555,7 @@ impl ProductsElastic for ProductsElasticImpl {
         query_map.insert("_source".to_string(), serde_json::Value::Bool(false));
         query_map.insert("suggest".to_string(), suggest);
         let query = serde_json::Value::Object(query_map).to_string();
+        trace!("auto_complete query = '{}'", query);
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -632,6 +636,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("aggregate_categories query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -768,6 +773,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("aggregate_price query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -860,6 +866,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("count query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<CountResponse>(Method::Post, url, Some(query), Some(headers))

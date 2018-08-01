@@ -15,9 +15,9 @@ use stq_types::{CurrencyId, UserId};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::currency_exchange::currency_exchange::dsl::*;
 use models::{CurrencyExchange, NewCurrencyExchange};
 use repos::legacy_acl::*;
+use schema::currency_exchange::dsl::*;
 
 /// CurrencyExchange repository, responsible for handling prod_attr_values
 pub struct CurrencyExchangeRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {

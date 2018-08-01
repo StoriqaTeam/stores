@@ -5,20 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use models::validation_rules::*;
-
-table! {
-    currency_exchange (id) {
-        id -> Integer,
-        rouble -> Jsonb,
-        euro -> Jsonb,
-        dollar -> Jsonb,
-        bitcoin -> Jsonb,
-        etherium -> Jsonb,
-        stq -> Jsonb,
-        created_at -> Timestamp, // UTC 0, generated at db level
-        updated_at -> Timestamp, // UTC 0, generated at db level
-    }
-}
+use schema::currency_exchange;
 
 #[derive(Serialize, Queryable, Insertable, Debug)]
 #[table_name = "currency_exchange"]

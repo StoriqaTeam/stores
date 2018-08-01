@@ -9,24 +9,7 @@ use stq_types::{BaseProductId, CurrencyId, ProductId, ProductPrice, Quantity, St
 
 use models::validation_rules::*;
 use models::{AttrValue, AttributeFilter, BaseProduct, RangeFilter};
-
-/// diesel table for products
-table! {
-    products (id) {
-        id -> Integer,
-        base_product_id -> Integer,
-        is_active -> Bool,
-        discount -> Nullable<Double>,
-        photo_main -> Nullable<VarChar>,
-        additional_photos -> Nullable<Jsonb>,
-        vendor_code -> VarChar,
-        cashback -> Nullable<Double>,
-        price -> Double,
-        currency_id -> Nullable<Integer>,
-        created_at -> Timestamp, // UTC 0, generated at db level
-        updated_at -> Timestamp, // UTC 0, generated at db level
-    }
-}
+use schema::products;
 
 /// Payload for querying products
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]

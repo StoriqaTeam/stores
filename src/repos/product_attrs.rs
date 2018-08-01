@@ -10,12 +10,12 @@ use stq_types::{BaseProductId, ProductId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
-use models::attribute_product::prod_attr_values::dsl::*;
 use models::authorization::*;
-use models::base_product::base_products::dsl as BaseProducts;
-use models::store::stores::dsl as Stores;
 use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
 use repos::legacy_acl::*;
+use schema::base_products::dsl as BaseProducts;
+use schema::prod_attr_values::dsl::*;
+use schema::stores::dsl as Stores;
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {

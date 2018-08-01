@@ -12,9 +12,9 @@ use stq_types::{BaseProductId, UserId};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::moderator_product_comment::moderator_product_comments::dsl::*;
 use models::{ModeratorProductComments, NewModeratorProductComments};
 use repos::legacy_acl::*;
+use schema::moderator_product_comments::dsl::*;
 
 /// Moderator product comments repository
 pub struct ModeratorProductRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {

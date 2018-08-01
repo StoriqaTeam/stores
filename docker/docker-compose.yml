@@ -13,7 +13,7 @@ services:
       - stq_cargo_cache:/usr/local/cargo
     environment:
       - DATABASE_URL=postgresql://stores:stores@stores-pg/stores
-      - "RUST_LOG=stores=debug"
+      - "RUST_LOG=stores=trace"
     expose:
       - 8000
     stdin_open: true
@@ -34,9 +34,6 @@ services:
         ZOO_MY_ID: 1
         ZOO_PORT: 2181
         ZOO_SERVERS: server.1=zoo1:2888:3888
-    volumes:
-      - ./kafka_connect/data/zoo1/data:/data
-      - ./kafka_connect/data/zoo1/datalog:/datalog
 
   kafka1:
     image: confluentinc/cp-kafka:4.0.0
@@ -50,8 +47,6 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    volumes:
-      - ./kafka_connect/data/kafka1/data:/var/lib/kafka/data
     depends_on:
       - zoo1
 
@@ -66,7 +61,6 @@ services:
       SCHEMA_REGISTRY_HOST_NAME: kafka-schema-registry
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
     depends_on:
-      - zoo1
       - kafka1
 
   schema-registry-ui:
@@ -111,7 +105,7 @@ services:
       - kafka-rest-proxy
 
   kafka-connect:
-    image: storiqateam/kafka-connect:master123
+    image: storiqateam/kafka-connect:master204
     hostname: kafka-connect
     ports:
       - "8083:8083"
@@ -130,22 +124,23 @@ services:
       CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
       CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
       CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
-      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR"
+      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR,io.debezium=INFO,org.skynyrd=DEBUG"
       CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
       CONNECT_PLUGIN_PATH: /etc/kafka-connect/plugins
+      ES_URL: "http://stores-es:9200"
     depends_on:
-      - zoo1
-      - kafka1
       - kafka-schema-registry
-      - kafka-rest-proxy
+      - stores-es
 
   kafka-connect-init:
-    build:
-      context: ./kafka_connect
-      dockerfile: Dockerfile.kafka_connect_init
-    command: ["sh", "-c", "/utils/init_connectors.sh kafka-connect:8083"]
+    image: storiqateam/stq-init:20180705
+    environment:
+      ES_HOST: "stores-es"
+      DB_HOST: "stores-pg"
+      KC_HOST: "docker_kafka-connect_1"
+      SR_HOST: "docker_kafka-schema-registry_1"
     depends_on:
       - kafka-connect
 
@@ -159,27 +154,6 @@ services:
       PROXY: "true"
     depends_on:
       - kafka-connect
-
-  # zoonavigator-web:
-  #   image: elkozmon/zoonavigator-web:0.2.3
-  #   ports:
-  #     - "8004:8000"
-  #   environment:
-  #     API_HOST: "zoonavigator-api"
-  #     API_PORT: 9000
-  #   links:
-  #     - zoonavigator-api
-  #   depends_on:
-  #     - zoonavigator-api
-  #   restart: unless-stopped
-
-  # zoonavigator-api:
-  #   image: elkozmon/zoonavigator-api:0.2.3
-  #   environment:
-  #     SERVER_HTTP_PORT: 9000
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - zoo1
 
   stores-pg:
     image: debezium/postgres

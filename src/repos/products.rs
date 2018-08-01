@@ -9,11 +9,11 @@ use failure::Error as FailureError;
 
 use stq_types::{BaseProductId, CurrencyId, ProductId, UserId};
 
-use models::base_product::base_products::dsl as BaseProducts;
-use models::product::products::dsl::*;
-use models::store::stores::dsl as Stores;
 use models::{BaseProduct, NewProduct, Product, Store, UpdateProduct};
 use repos::legacy_acl::*;
+use schema::base_products::dsl as BaseProducts;
+use schema::products::dsl::*;
+use schema::stores::dsl as Stores;
 
 use super::acl;
 use super::types::RepoResult;

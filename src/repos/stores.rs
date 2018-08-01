@@ -15,9 +15,9 @@ use stq_types::{StoreId, UserId};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::store::stores::dsl::*;
 use models::{NewStore, Store, UpdateStore};
 use repos::legacy_acl::*;
+use schema::stores::dsl::*;
 
 /// Stores repository, responsible for handling stores
 pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {

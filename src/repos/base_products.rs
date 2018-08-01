@@ -11,16 +11,20 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
+use stq_static_resources::ModerationStatus;
 use stq_types::{BaseProductId, ProductId, StoreId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::base_product::base_products::dsl::*;
-use models::product::products::dsl as Products;
-use models::store::stores::dsl as Stores;
-use models::{BaseProduct, BaseProductWithVariants, ElasticProduct, NewBaseProduct, Product, Store, UpdateBaseProduct};
+use models::{
+    BaseProduct, BaseProductWithVariants, ElasticProduct, MostDiscountProducts, MostViewedProducts, NewBaseProduct, Product, Store,
+    UpdateBaseProduct,
+};
 use repos::legacy_acl::*;
+use schema::base_products::dsl::*;
+use schema::products::dsl as Products;
+use schema::stores::dsl as Stores;
 
 /// BaseProducts repository, responsible for handling base_products
 pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -36,10 +40,10 @@ pub trait BaseProductsRepo {
     fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns most viewed list of base_products, limited by `from` and `offset` parameters
-    fn most_viewed(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
+    fn most_viewed(&self, search_product: MostViewedProducts, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
 
     /// Returns most discount list of base_products, limited by `from` and `offset` parameters
-    fn most_discount(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
+    fn most_discount(&self, search_product: MostDiscountProducts, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
 
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
     fn get_products_of_the_store(
@@ -171,24 +175,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             "Find in base products with store id {} skip {:?} from {} count {}.",
             store_id_arg, skip_base_product_id, from, count
         );
-        let query = if let Some(skip_base_product_id) = skip_base_product_id {
-            base_products
-                .filter(is_active.eq(true))
-                .filter(store_id.eq(store_id_arg))
-                .filter(id.ne(skip_base_product_id))
-                .filter(id.ge(from))
-                .order(id)
-                .limit(count.into())
-                .into_boxed()
-        } else {
-            base_products
-                .filter(is_active.eq(true))
-                .filter(store_id.eq(store_id_arg))
-                .filter(id.ge(from))
-                .order(id)
-                .limit(count.into())
-                .into_boxed()
-        };
+        let mut query = base_products
+            .filter(is_active.eq(true))
+            .filter(store_id.eq(store_id_arg))
+            .into_boxed();
+
+        if let Some(skip_base_product_id) = skip_base_product_id {
+            query = query.filter(id.ne(skip_base_product_id));
+        }
+
+        query = query.filter(id.ge(from)).order(id).limit(count.into());
 
         query
             .get_results(self.db_conn)
@@ -326,16 +322,23 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns most viewed list of base_products, limited by `from` and `count` parameters
-    fn most_viewed(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+    fn most_viewed(&self, search_product: MostViewedProducts, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
             .and_then(|_| {
                 debug!("Querying for most viewed base products.");
 
-                let base_products_query = base_products
+                let mut base_products_query = base_products
                     .filter(is_active.eq(true))
-                    .order_by(views.desc())
-                    .offset(offset.into())
-                    .limit(count.into());
+                    .filter(status.eq(ModerationStatus::Published))
+                    .into_boxed();
+
+                if let Some(options) = search_product.options {
+                    if let Some(store_id_arg) = options.store_id {
+                        base_products_query = base_products_query.filter(store_id.eq(store_id_arg));
+                    }
+                }
+
+                base_products_query = base_products_query.order_by(views.desc()).offset(offset.into()).limit(count.into());
 
                 let base_products_list: Vec<BaseProduct> = base_products_query.get_results(self.db_conn)?;
 
@@ -354,7 +357,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns most discount list of base_products, limited by `from` and `count` parameters
-    fn most_discount(&self, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
+    fn most_discount(&self, search_product: MostDiscountProducts, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
             .and_then(|_| {
                 debug!("Querying for most discount products.");
@@ -377,7 +380,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|(n, id_arg)| (id_arg, n))
                     .collect::<HashMap<_, _>>();
 
-                let base_products_query = base_products.filter(id.eq_any(base_products_ids));
+                let mut base_products_query = base_products
+                    .filter(id.eq_any(base_products_ids))
+                    .filter(status.eq(ModerationStatus::Published))
+                    .into_boxed();
+
+                if let Some(options) = search_product.options {
+                    if let Some(store_id_arg) = options.store_id {
+                        base_products_query = base_products_query.filter(store_id.eq(store_id_arg));
+                    }
+                }
+
                 let base_products_list: Vec<BaseProduct> = base_products_query.get_results(self.db_conn)?;
 
                 // sorting in products order

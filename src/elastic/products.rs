@@ -355,6 +355,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("search_by_name query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -417,6 +418,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("search_most_viewed query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -509,6 +511,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("search_most_discount query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -527,29 +530,32 @@ impl ProductsElastic for ProductsElasticImpl {
     fn auto_complete(&self, name: AutoCompleteProductName, count: i32, _offset: i32) -> RepoFuture<Vec<String>> {
         log_elastic_req(&name);
 
-        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        let store = if let Some(store_id) = name.store_id {
+            json!([format!("{}_published", store_id)]) // workaround because elastic doesn't afford to ANY contexts
+        } else {
+            json!(["published"])
+        };
 
         let suggest = json!({
             "name-suggest" : {
                 "prefix" : name.name,
                 "completion" : {
-                    "field" : "suggest",
-                    "size" : count
+                    "field" : "suggest_2",
+                    "size" : count,
+                    "skip_duplicates": true, 
+                    "fuzzy": true,
+                    "contexts": {
+                        "store_and_status": store 
+                    }
                 }
             }
         });
 
+        let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
+        query_map.insert("_source".to_string(), serde_json::Value::Bool(false));
         query_map.insert("suggest".to_string(), suggest);
-
-        if let Some(store_id) = name.store_id {
-            let store = json!({
-                "term": {"store_id": store_id}
-            });
-            query_map.insert("query".to_string(), store);
-        };
-
         let query = serde_json::Value::Object(query_map).to_string();
-
+        trace!("auto_complete query = '{}'", query);
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
         headers.set(ContentType::json());
@@ -561,7 +567,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 .map(|res| res.suggested_texts())
                 .map_err(move |e| {
                     e.context(format!(
-                        "Auto complete product name error occured. Name: {:?}, count: {:?}, offset: {:?}",
+                        "Auto complete product name error occured. Name: {:?}, count: {}, offset: {}",
                         name, count, _offset
                     )).context(Error::ElasticSearch)
                         .into()
@@ -630,6 +636,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("aggregate_categories query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -766,6 +773,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("aggregate_price query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<SearchResponse<ElasticProduct>>(Method::Post, url, Some(query), Some(headers))
@@ -858,6 +866,7 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
         headers.set(ContentLength(query.len() as u64));
+        trace!("count query = '{}'", query);
         Box::new(
             self.client_handle
                 .request::<CountResponse>(Method::Post, url, Some(query), Some(headers))

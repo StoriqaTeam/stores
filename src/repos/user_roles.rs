@@ -17,9 +17,9 @@ use repos::legacy_acl::*;
 
 use super::types::RepoResult;
 use models::authorization::*;
-use models::user_role::user_roles::dsl::*;
 use models::{NewUserRole, OldUserRole, UserRole};
 use repos::RolesCacheImpl;
+use schema::user_roles::dsl::*;
 
 /// UserRoles repository for handling UserRoles
 pub trait UserRolesRepo {
@@ -92,7 +92,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
         debug!("delete user role {:?}.", payload);
         self.cached_roles.remove(payload.user_id);
-        let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role.clone()));
+        let filtered = user_roles.filter(user_id.eq(payload.user_id)).filter(role.eq(payload.role));
         let query = diesel::delete(filtered);
         query
             .get_result(self.db_conn)

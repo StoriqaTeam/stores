@@ -45,6 +45,8 @@ pub trait StoresService {
     fn list(&self, from: StoreId, count: i32) -> ServiceFuture<Vec<Store>>;
     /// Updates specific store
     fn update(&self, store_id: StoreId, payload: UpdateStore) -> ServiceFuture<Store>;
+    /// Checks that slug exists
+    fn slug_exists(&self, slug: String) -> ServiceFuture<bool>;
 }
 
 /// Stores services, responsible for Store-related CRUD operations
@@ -434,6 +436,26 @@ impl<
                         })
                 })
                 .map_err(|e| e.context("Service Stores, update endpoint error occured.").into()),
+        )
+    }
+
+    /// Checks that slug exists
+    fn slug_exists(&self, slug: String) -> ServiceFuture<bool> {
+        let db_pool = self.db_pool.clone();
+        let user_id = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                            stores_repo.slug_exists(slug)
+                        })
+                })
+                .map_err(|e| e.context("Service Stores, slug_exists endpoint error occured.").into()),
         )
     }
 }

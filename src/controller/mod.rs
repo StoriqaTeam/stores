@@ -204,6 +204,19 @@ impl<
                 serialize_future(stores_service.get_products_count(store_id))
             }
 
+            // GET /stores/slug_exists route
+            (&Get, Some(Route::StoresSlugExists)) => {
+                if let Some(slug) = parse_query!(req.query().unwrap_or_default(), "slug" => String) {
+                    serialize_future(stores_service.slug_exists(slug))
+                } else {
+                    Box::new(future::err(
+                        format_err!("Parsing query parameters // GET /stores/slug_exists failed!")
+                            .context(Error::Parse)
+                            .into(),
+                    ))
+                }
+            }
+
             // POST /stores/cart
             (&Post, Some(Route::StoresCart)) => {
                 debug!("User with id = '{:?}' is requesting  // POST /stores/cart", user_id);

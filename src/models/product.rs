@@ -5,6 +5,7 @@ use std::time::SystemTime;
 use serde_json;
 use validator::Validate;
 
+use stq_static_resources::ModerationStatus;
 use stq_types::{BaseProductId, CurrencyId, ProductId, ProductPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
@@ -89,6 +90,7 @@ pub struct ProductsSearchOptions {
     pub store_id: Option<StoreId>,
     pub categories_ids: Option<Vec<i32>>,
     pub sort_by: Option<ProductsSorting>,
+    pub status: Option<ModerationStatus>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -101,6 +103,7 @@ pub struct SearchProductsByName {
 pub struct AutoCompleteProductName {
     pub name: String,
     pub store_id: Option<StoreId>,
+    pub status: Option<ModerationStatus>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

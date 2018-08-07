@@ -214,7 +214,7 @@ impl ProductsElasticImpl {
     fn create_status_filter(options: Option<ProductsSearchOptions>) -> Option<serde_json::Value> {
         options.and_then(|o| o.status).map(|status| {
             json!({
-                "term": {"status": status}
+                "term": {"status": status.to_string()}
             })
         })
     }

@@ -58,7 +58,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific product_attributes by product ID
     fn find_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>> {
         debug!("Find all attributes of product id {}.", product_id_arg);
-        let query = prod_attr_values.filter(prod_id.eq(product_id_arg)).order(id);
+        let query = prod_attr_values.filter(prod_id.eq(product_id_arg)).order(attr_id);
 
         query
             .get_results(self.db_conn)
@@ -80,7 +80,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find product attributes by base_product ID
     fn find_all_attributes_by_base(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<ProdAttr>> {
         debug!("Find all attributes of base_product id {}.", base_product_id_arg);
-        let query = prod_attr_values.filter(base_prod_id.eq(base_product_id_arg)).order(id);
+        let query = prod_attr_values.filter(base_prod_id.eq(base_product_id_arg)).order(attr_id);
 
         query
             .get_results(self.db_conn)

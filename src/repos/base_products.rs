@@ -17,10 +17,8 @@ use stq_types::{BaseProductId, ProductId, StoreId, UserId};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::{
-    BaseProduct, BaseProductWithVariants, ElasticProduct, MostDiscountProducts, MostViewedProducts, NewBaseProduct, Product, Store,
-    UpdateBaseProduct,
-};
+use models::{BaseProduct, BaseProductWithVariants, ElasticProduct, MostDiscountProducts, MostViewedProducts, NewBaseProduct, Product,
+             Store, UpdateBaseProduct};
 use repos::legacy_acl::*;
 use schema::base_products::dsl::*;
 use schema::products::dsl as Products;

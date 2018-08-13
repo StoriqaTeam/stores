@@ -43,6 +43,7 @@ pub enum Route {
     StoresSearchFiltersCountry,
     StoresSearchFiltersCategory,
     StoresCart,
+    StoresSlugExists,
     Store(StoreId),
     StoreByUser(UserId),
     StoreProducts(StoreId),
@@ -100,6 +101,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Stores Cart route
     router.add_route(r"^/stores/cart$", || Route::StoresCart);
+
+    // Stores Slug exists
+    router.add_route(r"^/stores/slug_exists$", || Route::StoresSlugExists);
 
     // Stores Search route
     router.add_route(r"^/stores/search$", || Route::StoresSearch);

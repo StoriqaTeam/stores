@@ -7,6 +7,7 @@ use hyper::Method;
 use serde_json;
 
 use stq_http::client::ClientHandle;
+use stq_static_resources::ModerationStatus;
 use stq_types::ProductId;
 
 use super::{log_elastic_req, log_elastic_resp};
@@ -210,6 +211,14 @@ impl ProductsElasticImpl {
         })
     }
 
+    fn create_status_filter(options: Option<ProductsSearchOptions>) -> Option<serde_json::Value> {
+        options.and_then(|o| o.status).map(|status| {
+            json!({
+                "term": {"status": status.to_string()}
+            })
+        })
+    }
+
     fn create_sorting(options: Option<ProductsSearchOptions>) -> Vec<serde_json::Value> {
         let mut sorting: Vec<serde_json::Value> = vec![];
         if let Some(options) = options {
@@ -338,7 +347,11 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(store_filter);
         }
 
-        filters.push(json!({ "term": {"status": "published"}}));
+        let status_filter = ProductsElasticImpl::create_status_filter(prod.options.clone());
+        if let Some(status_filter) = status_filter {
+            filters.push(status_filter);
+        }
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let sorting = ProductsElasticImpl::create_sorting(prod.options.clone());
@@ -403,7 +416,11 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(store_filter);
         }
 
-        filters.push(json!({ "term": {"status": "published"}}));
+        let status_filter = ProductsElasticImpl::create_status_filter(prod.options.clone());
+        if let Some(status_filter) = status_filter {
+            filters.push(status_filter);
+        }
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -488,7 +505,11 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(store_filter);
         }
 
-        filters.push(json!({ "term": {"status": "published"}}));
+        let status_filter = ProductsElasticImpl::create_status_filter(prod.options.clone());
+        if let Some(status_filter) = status_filter {
+            filters.push(status_filter);
+        }
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -531,9 +552,18 @@ impl ProductsElastic for ProductsElasticImpl {
         log_elastic_req(&name);
 
         let store = if let Some(store_id) = name.store_id {
-            json!([format!("{}_published", store_id)]) // workaround because elastic doesn't afford to ANY contexts
+            if let Some(status) = name.status {
+                json!([format!("{}_{}", store_id, status)]) // workaround because elastic doesn't afford to ANY contexts
+            } else {
+                let statuses: Vec<String> = ModerationStatus::enum_iter().map(|m| format!("{}_{}", store_id, m)).collect();
+                json!(statuses)
+            }
         } else {
-            json!(["published"])
+            if let Some(status) = name.status {
+                json!([status])
+            } else {
+                json!([])
+            }
         };
 
         let suggest = json!({
@@ -710,7 +740,11 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         }
 
-        filters.push(json!({ "term": {"status": "published"}}));
+        let status_filter = ProductsElasticImpl::create_status_filter(prod.options.clone());
+        if let Some(status_filter) = status_filter {
+            filters.push(status_filter);
+        }
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let currency_map = prod.options.clone().and_then(|o| o.currency_map);
@@ -853,7 +887,11 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         }
 
-        filters.push(json!({ "term": {"status": "published"}}));
+        let status_filter = ProductsElasticImpl::create_status_filter(prod.options.clone());
+        if let Some(status_filter) = status_filter {
+            filters.push(status_filter);
+        }
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({

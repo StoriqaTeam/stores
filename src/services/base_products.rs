@@ -999,7 +999,8 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            let products = cart.into_iter()
+                            let products = cart
+                                .into_iter()
                                 .map(|cart_product| {
                                     products_repo.find(cart_product.product_id).and_then(|product| {
                                         if let Some(product) = product {

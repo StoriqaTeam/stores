@@ -305,7 +305,8 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut filters: Vec<serde_json::Value> = vec![];
         let variants_map = ProductsElasticImpl::create_variants_map_filters(&prod.options);
 
-        let sorting_in_variants = prod.options
+        let sorting_in_variants = prod
+            .options
             .clone()
             .and_then(|options| options.sort_by)
             .map(|sort_by| match sort_by {

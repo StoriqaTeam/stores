@@ -12,6 +12,7 @@ use stq_types::UserId;
 use models::authorization::*;
 use models::{CatAttr, NewCatAttr, OldCatAttr};
 use repos::acl;
+use repos::categories::CategoryCacheImpl;
 use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
 use schema::cat_attr_values::dsl::*;
@@ -20,6 +21,7 @@ use schema::cat_attr_values::dsl::*;
 pub struct CategoryAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
     pub acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>,
+    pub cache: CategoryCacheImpl,
 }
 
 pub trait CategoryAttrsRepo {
@@ -34,8 +36,8 @@ pub trait CategoryAttrsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoryAttrsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>) -> Self {
-        Self { db_conn, acl }
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>, cache: CategoryCacheImpl) -> Self {
+        Self { db_conn, acl, cache }
     }
 }
 
@@ -59,6 +61,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn create(&self, payload: NewCatAttr) -> RepoResult<()> {
         debug!("Create new category attribute {:?}.", payload);
         acl::check(&*self.acl, Resource::CategoryAttrs, Action::Create, self, None)?;
+        self.cache.clear();
         let query_category_attribute = diesel::insert_into(cat_attr_values).values(&payload);
         query_category_attribute
             .get_result::<CatAttr>(self.db_conn)
@@ -73,6 +76,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
         debug!("Delete category attributewith payload {:?}.", payload);
         acl::check(&*self.acl, Resource::CategoryAttrs, Action::Delete, self, None)?;
+        self.cache.clear();
         let filtered = cat_attr_values
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));

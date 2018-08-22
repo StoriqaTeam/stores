@@ -233,7 +233,7 @@ pub fn get_all_children_till_the_end(cat: Category) -> Vec<Category> {
 pub fn set_attributes<S: BuildHasher>(cat: &mut Category, attrs_hash: &HashMap<i32, Vec<Attribute>, S>) {
     if cat.children.is_empty() {
         let attributes = attrs_hash.get(&cat.id).cloned();
-        cat.attributes = attributes;
+        cat.attributes = attributes.unwrap_or_default();
     } else {
         for cat_child in &mut cat.children {
             set_attributes(cat_child, attrs_hash);
@@ -266,7 +266,7 @@ mod tests {
             children: vec![],
             level: 3,
             parent_id: Some(2),
-            attributes: None,
+            attributes: vec![],
         };
         let cat_2 = Category {
             id: 2,
@@ -275,7 +275,7 @@ mod tests {
             children: vec![cat_3],
             level: 2,
             parent_id: Some(1),
-            attributes: None,
+            attributes: vec![],
         };
         let cat_1 = Category {
             id: 1,
@@ -284,7 +284,7 @@ mod tests {
             children: vec![cat_2],
             level: 1,
             parent_id: Some(0),
-            attributes: None,
+            attributes: vec![],
         };
         Category {
             id: 0,
@@ -293,7 +293,7 @@ mod tests {
             children: vec![cat_1],
             level: 0,
             parent_id: None,
-            attributes: None,
+            attributes: vec![],
         }
     }
 

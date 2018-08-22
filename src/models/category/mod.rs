@@ -54,7 +54,7 @@ pub struct Category {
     pub level: i32,
     pub parent_id: Option<i32>,
     pub children: Vec<Category>,
-    pub attributes: Option<Vec<Attribute>>,
+    pub attributes: Vec<Attribute>,
 }
 
 impl Default for Category {
@@ -66,7 +66,7 @@ impl Default for Category {
             children: vec![],
             level: 0,
             parent_id: None,
-            attributes: None,
+            attributes: vec![],
         }
     }
 }
@@ -80,7 +80,7 @@ impl<'a> From<&'a RawCategory> for Category {
             children: vec![],
             parent_id: cat.parent_id,
             level: cat.level,
-            attributes: None,
+            attributes: vec![],
         }
     }
 }
@@ -94,7 +94,7 @@ impl From<RawCategory> for Category {
             children: vec![],
             parent_id: cat.parent_id,
             level: cat.level,
-            attributes: None,
+            attributes: vec![],
         }
     }
 }

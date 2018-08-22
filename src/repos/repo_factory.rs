@@ -74,7 +74,7 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
     }
     fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoryAttrsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
-        Box::new(CategoryAttrsRepoImpl::new(db_conn, acl)) as Box<CategoryAttrsRepo>
+        Box::new(CategoryAttrsRepoImpl::new(db_conn, acl, self.category_cache.clone())) as Box<CategoryAttrsRepo>
     }
     fn create_base_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<BaseProductsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
@@ -259,7 +259,7 @@ pub mod tests {
                 children: vec![],
                 level: id_arg,
                 parent_id: Some(id_arg - 1),
-                attributes: None,
+                attributes: vec![],
             }))
         }
 
@@ -272,7 +272,7 @@ pub mod tests {
                 children: vec![],
                 level: 0,
                 parent_id: Some(0),
-                attributes: None,
+                attributes: vec![],
             })
         }
 
@@ -285,7 +285,7 @@ pub mod tests {
                 children: vec![],
                 level: 0,
                 parent_id: Some(0),
-                attributes: None,
+                attributes: vec![],
             })
         }
 
@@ -303,7 +303,7 @@ pub mod tests {
             children: vec![],
             level: 3,
             parent_id: Some(2),
-            attributes: None,
+            attributes: vec![],
         };
         let cat_2 = Category {
             id: 2,
@@ -312,7 +312,7 @@ pub mod tests {
             children: vec![cat_3],
             level: 2,
             parent_id: Some(1),
-            attributes: None,
+            attributes: vec![],
         };
         let cat_1 = Category {
             id: 1,
@@ -321,7 +321,7 @@ pub mod tests {
             children: vec![cat_2],
             level: 1,
             parent_id: Some(0),
-            attributes: None,
+            attributes: vec![],
         };
         Category {
             id: 0,
@@ -330,7 +330,7 @@ pub mod tests {
             children: vec![cat_1],
             level: 0,
             parent_id: None,
-            attributes: None,
+            attributes: vec![],
         }
     }
 

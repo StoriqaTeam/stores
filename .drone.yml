@@ -192,10 +192,7 @@ pipeline:
     - deps
     rebuild: true
     when:
-      event:
-      - pull_request
-      - push
-      - tag
+      event: push
       branch: master
   slack:
     image: plugins/slack

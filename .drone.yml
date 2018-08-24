@@ -3,8 +3,7 @@ pipeline:
     image: plugins/s3-cache:1
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
-    mount:
-    - deps
+    mount: deps
     restore: true
     when:
       event:
@@ -13,7 +12,7 @@ pipeline:
       - tag
 
 ###
-# Test
+# Test PR
 ###
 
   update_pr:
@@ -29,21 +28,23 @@ pipeline:
   test:
     image: rust:1.28-stretch
     environment:
-    - PGPASSWORD=a1a1a1a1
     - RUN_MODE=k8s
     - DATABASE_HOST=db-postgresql
     - DATABASE_URL=postgresql://stores:stores@db-postgresql/stores
+    - RUST_BACKTRACE=1
     - CARGO_HOME=deps
+    - PGPASSWORD=a1a1a1a1
     commands:
     - rustup component add rustfmt-preview
     - cargo fmt -- --check
-    - apt-get update && apt-get install -y wget gnupg2
+    - apt-get update && apt-get install -y ca-certificates wget gnupg2
+    - update-ca-certificates
     - wget -q https://www.postgresql.org/media/keys/ACCC4CF8.asc -O - | apt-key add -
     - echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
-    - apt-get update
-    - apt-get install -y libpq5 postgresql-client-10
+    - apt-get update && apt-get install -y libpq5 postgresql-client-10
     - psql -U postgres -h db-postgresql -c "CREATE ROLE stores WITH PASSWORD 'stores' LOGIN REPLICATION" -c "CREATE DATABASE stores OWNER stores"
     - psql -U postgres -h db-postgresql -d stores -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"";
+    - mkdir -p /usr/local/cargo/bin || true
     - wget -q https://s3.eu-central-1.amazonaws.com/dumpster.stq/diesel -O /usr/local/cargo/bin/diesel
     - chmod +x /usr/local/cargo/bin/diesel
     - diesel migration run
@@ -52,7 +53,7 @@ pipeline:
       event: pull_request
 
 ###
-# Build and deploy to nightly/stage
+# Build and deploy to nightly / stage
 ###
 
   build:
@@ -68,10 +69,10 @@ pipeline:
   package:
     image: plugins/docker
     repo: storiqateam/stq-stores
+    dockerfile: docker/Dockerfile.run
     tags:
     - ${DRONE_BRANCH//\//_}
     - ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
-    dockerfile: docker/Dockerfile.run
     secrets:
     - docker_username
     - docker_password
@@ -80,10 +81,10 @@ pipeline:
   package:
     image: plugins/docker
     repo: storiqateam/stq-stores
+    dockerfile: docker/Dockerfile.run
     tags:
     - '${DRONE_TAG}'
     - latest
-    dockerfile: docker/Dockerfile.run
     secrets:
     - docker_username
     - docker_password
@@ -91,9 +92,9 @@ pipeline:
       event: tag
   deploy2nightly:
     image: jackthestripper/drone_setimage
+    namespace: default
     object: stores
     kind: deployment
-    namespace: default
     img_names: storiqateam/stq-stores
     img_cnts: stores
     img_tags: ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
@@ -111,9 +112,9 @@ pipeline:
       event: push
   deploy2stage:
     image: jackthestripper/drone_setimage
+    namespace: default
     object: stores
     kind: deployment
-    namespace: default
     img_names: storiqateam/stq-stores
     img_cnts: stores
     img_tags: '${DRONE_TAG}'
@@ -130,14 +131,14 @@ pipeline:
       event: tag
 
 ###
-# Deploy to stable
+# Deploy to stable / production
 ###
 
   deploy2stable:
     image: jackthestripper/drone_setimage
+    namespace: default
     object: stores
     kind: deployment
-    namespace: default
     img_names: storiqateam/stq-stores
     img_cnts: stores
     img_tags: ${DRONE_BRANCH//\//_}${DRONE_PARENT_BUILD_NUMBER}
@@ -154,11 +155,6 @@ pipeline:
       branch: master
       event: deployment
       environment: stable
-
-###
-# Deploy to production
-###
-
   deploy2production:
     image: jackthestripper/drone_setimage
     namespace: default
@@ -181,15 +177,14 @@ pipeline:
       environment: production
 
 ###
-# Notifications and post-deploy ops
+# Notifications and post deploy ops
 ###
 
   rebuild-cache:
     image: plugins/s3-cache:1
     pull: true
     secrets: [ aws_access_key_id, aws_secret_access_key ]
-    mount:
-    - deps
+    mount: deps
     rebuild: true
     when:
       event: push
@@ -231,7 +226,7 @@ pipeline:
       - failure
 
 ###
-# External dependencies for tests
+# Test services
 ###
 
 services:

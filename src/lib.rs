@@ -64,7 +64,6 @@ use hyper::server::Http;
 use r2d2_diesel::ConnectionManager;
 use tokio_core::reactor::Core;
 
-use stq_http::client::Config as HttpConfig;
 use stq_http::controller::Application;
 
 use config::Config;

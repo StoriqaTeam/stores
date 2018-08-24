@@ -58,10 +58,7 @@ fn test_request() {
         .unwrap();
 
     let config = Config::new().unwrap();
-    let http_config = HttpConfig {
-        http_client_retries: config.client.http_client_retries,
-        http_client_buffer_size: config.client.http_client_buffer_size,
-    };
+    let http_config = config.to_http_config();
     let client = Client::new(&http_config, &handle);
     let client_handle = client.handle();
     let client_stream = client.stream();

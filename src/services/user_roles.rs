@@ -152,12 +152,12 @@ impl<
                         .get()
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
-                            let defaul_role = NewUserRole {
+                            let default_role = NewUserRole {
                                 user_id: user_id_arg,
                                 role: StoresRole::User,
                             };
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
-                            user_roles_repo.create(defaul_role)
+                            user_roles_repo.create(default_role)
                         })
                 })
                 .map_err(|e| e.context("Service UserRoles, create_default endpoint error occured.").into()),

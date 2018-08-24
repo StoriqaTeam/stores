@@ -61,6 +61,7 @@ fn test_request() {
     let http_config = HttpConfig {
         http_client_retries: config.client.http_client_retries,
         http_client_buffer_size: config.client.http_client_buffer_size,
+        timeout_duration_ms: config.client.http_timeout_ms,
     };
     let client = Client::new(&http_config, &handle);
     let client_handle = client.handle();

@@ -145,7 +145,6 @@ pub mod tests {
     use tokio_core::reactor::Handle;
 
     use stq_http;
-    use stq_http::client::Config as HttpConfig;
     use stq_static_resources::*;
     use stq_types::*;
 
@@ -478,35 +477,27 @@ pub mod tests {
         /// Get latest currency exchanges
         fn get_latest(&self) -> RepoResult<Option<CurrencyExchange>> {
             Ok(Some(CurrencyExchange {
-                id: 1,
-                rouble: serde_json::from_str("{}").unwrap(),
-                euro: serde_json::from_str("{}").unwrap(),
-                dollar: serde_json::from_str("{}").unwrap(),
-                bitcoin: serde_json::from_str("{}").unwrap(),
-                etherium: serde_json::from_str("{}").unwrap(),
-                stq: serde_json::from_str("{}").unwrap(),
+                id: Default::default(),
+                data: Currency::enum_iter()
+                    .map(|cur| (cur, serde_json::from_str("{}").unwrap()))
+                    .collect(),
                 created_at: SystemTime::now(),
-                updated_at: SystemTime::now(),
             }))
         }
 
-        /// Get latest currency exchanges for currency_id
-        fn get_exchange_for_currency(&self, _currency_id: CurrencyId) -> RepoResult<Option<HashMap<CurrencyId, f64>>> {
+        /// Get latest currency exchanges for currency
+        fn get_exchange_for_currency(&self, _currency: Currency) -> RepoResult<Option<HashMap<Currency, ExchangeRate>>> {
             Ok(None)
         }
 
         /// Adds latest currency to table
         fn update(&self, _payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange> {
             Ok(CurrencyExchange {
-                id: 1,
-                rouble: serde_json::from_str("{}").unwrap(),
-                euro: serde_json::from_str("{}").unwrap(),
-                dollar: serde_json::from_str("{}").unwrap(),
-                bitcoin: serde_json::from_str("{}").unwrap(),
-                etherium: serde_json::from_str("{}").unwrap(),
-                stq: serde_json::from_str("{}").unwrap(),
+                id: Default::default(),
+                data: Currency::enum_iter()
+                    .map(|cur| (cur, serde_json::from_str("{}").unwrap()))
+                    .collect(),
                 created_at: SystemTime::now(),
-                updated_at: SystemTime::now(),
             })
         }
     }
@@ -526,7 +517,7 @@ pub mod tests {
                 long_description: None,
                 seo_title: None,
                 seo_description: None,
-                currency_id: CurrencyId(1),
+                currency: Currency::STQ,
                 category_id: 1,
                 views: 1,
                 created_at: SystemTime::now(),
@@ -550,7 +541,7 @@ pub mod tests {
                     long_description: None,
                     seo_title: None,
                     seo_description: None,
-                    currency_id: CurrencyId(1),
+                    currency: Currency::STQ,
                     category_id: 1,
                     views: 1,
                     rating: 0f64,
@@ -583,7 +574,7 @@ pub mod tests {
                     long_description: None,
                     seo_title: None,
                     seo_description: None,
-                    currency_id: CurrencyId(1),
+                    currency: Currency::STQ,
                     category_id: 1,
                     views: 1,
                     created_at: SystemTime::now(),
@@ -617,7 +608,7 @@ pub mod tests {
                 long_description: payload.long_description,
                 seo_title: payload.seo_title,
                 seo_description: payload.seo_description,
-                currency_id: payload.currency_id,
+                currency: payload.currency,
                 category_id: payload.category_id,
                 views: 1,
                 created_at: SystemTime::now(),
@@ -639,7 +630,7 @@ pub mod tests {
                 long_description: payload.long_description,
                 seo_title: payload.seo_title,
                 seo_description: payload.seo_description,
-                currency_id: CurrencyId(1),
+                currency: Currency::STQ,
                 category_id: 3,
                 views: 1,
                 created_at: SystemTime::now(),
@@ -661,7 +652,7 @@ pub mod tests {
                 long_description: None,
                 seo_title: None,
                 seo_description: None,
-                currency_id: CurrencyId(1),
+                currency: Currency::STQ,
                 category_id: 3,
                 views: 100,
                 created_at: SystemTime::now(),
@@ -683,7 +674,7 @@ pub mod tests {
                 long_description: None,
                 seo_title: None,
                 seo_description: None,
-                currency_id: CurrencyId(1),
+                currency: Currency::STQ,
                 category_id: 3,
                 views: 1,
                 created_at: SystemTime::now(),
@@ -1038,7 +1029,7 @@ pub mod tests {
             Ok(product)
         }
 
-        fn update_currency_id(&self, _currency_id_arg: CurrencyId, _base_product_id_arg: BaseProductId) -> RepoResult<usize> {
+        fn update_currency(&self, _currency_arg: Currency, _base_product_id_arg: BaseProductId) -> RepoResult<usize> {
             Ok(1)
         }
     }
@@ -1146,7 +1137,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: ProductPrice(0f64),
-            currency_id: None,
+            currency: Currency::STQ,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
         }

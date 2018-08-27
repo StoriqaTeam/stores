@@ -30,6 +30,7 @@ use stq_http::request_util::serialize_future;
 use stq_http::request_util::CurrencyId as CurrencyIdHeader;
 use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
+use stq_static_resources::Currency;
 use stq_types::*;
 
 use self::routes::Route;
@@ -102,10 +103,14 @@ impl<
         let uuid_header = headers.get::<Cookie>();
         let uuid = uuid_header.and_then(|cookie| cookie.get("UUID"));
 
-        let currency_id = headers
-            .get::<CurrencyIdHeader>()
-            .and_then(|sid| sid.parse::<i32>().ok())
-            .map(CurrencyId);
+        let currency = match headers.get::<CurrencyIdHeader>().and_then(|sid| Currency::from_code(sid)) {
+            Some(v) => v,
+            None => {
+                return Box::new(future::err(
+                    format_err!("Failed to extract currency header").context(Error::Parse).into(),
+                ));
+            }
+        };
 
         debug!("User with id = '{:?}' and uuid = {:?} is requesting {}", user_id, uuid, req.path());
 
@@ -125,7 +130,7 @@ impl<
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
             self.repo_factory.clone(),
-            currency_id,
+            currency,
         );
 
         let base_products_service = BaseProductsServiceImpl::new(
@@ -135,7 +140,7 @@ impl<
             self.client_handle.clone(),
             self.config.server.elastic.clone(),
             self.repo_factory.clone(),
-            currency_id,
+            currency,
         );
 
         let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), self.repo_factory.clone());

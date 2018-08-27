@@ -70,7 +70,7 @@ table! {
         long_description -> Nullable<Jsonb>,
         seo_title -> Nullable<Jsonb>,
         seo_description -> Nullable<Jsonb>,
-        currency_id -> Integer,
+        currency -> VarChar,
         category_id -> Integer,
         views -> Integer,
         created_at -> Timestamp, // UTC 0, generated at db level
@@ -93,7 +93,7 @@ table! {
         vendor_code -> VarChar,
         cashback -> Nullable<Double>,
         price -> Double,
-        currency_id -> Nullable<Integer>,
+        currency -> VarChar,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }
@@ -144,13 +144,8 @@ table! {
 
 table! {
     currency_exchange (id) {
-        id -> Integer,
-        rouble -> Jsonb,
-        euro -> Jsonb,
-        dollar -> Jsonb,
-        bitcoin -> Jsonb,
-        etherium -> Jsonb,
-        stq -> Jsonb,
+        id -> Uuid,
+        data -> Jsonb,
         created_at -> Timestamp, // UTC 0, generated at db level
         updated_at -> Timestamp, // UTC 0, generated at db level
     }

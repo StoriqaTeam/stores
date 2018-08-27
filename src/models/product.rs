@@ -5,8 +5,8 @@ use std::time::SystemTime;
 use serde_json;
 use validator::Validate;
 
-use stq_static_resources::ModerationStatus;
-use stq_types::{BaseProductId, CurrencyId, ProductId, ProductPrice, Quantity, StoreId};
+use stq_static_resources::{Currency, ModerationStatus};
+use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
 use models::{AttrValue, AttributeFilter, BaseProduct, RangeFilter};
@@ -26,7 +26,7 @@ pub struct Product {
     pub vendor_code: String,
     pub cashback: Option<f64>,
     pub price: ProductPrice,
-    pub currency_id: Option<CurrencyId>,
+    pub currency: Currency,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
@@ -45,9 +45,9 @@ pub struct NewProduct {
     pub vendor_code: String,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
-    #[validate(custom = "validate_non_negative")]
+    #[validate(custom = "validate_non_negative_price")]
     pub price: ProductPrice,
-    pub currency_id: Option<CurrencyId>,
+    pub currency: Currency,
 }
 
 /// Payload for creating products and attributes
@@ -69,9 +69,9 @@ pub struct UpdateProduct {
     pub vendor_code: Option<String>,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
-    #[validate(custom = "validate_non_negative")]
+    #[validate(custom = "validate_non_negative_price")]
     pub price: Option<ProductPrice>,
-    pub currency_id: Option<CurrencyId>,
+    pub currency: Option<Currency>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -83,8 +83,7 @@ pub struct UpdateProductWithAttributes {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
-    pub currency_id: Option<CurrencyId>,
-    pub currency_map: Option<HashMap<CurrencyId, f64>>,
+    pub currency_map: Option<HashMap<Currency, ExchangeRate>>,
     pub price_filter: Option<RangeFilter>,
     pub category_id: Option<i32>,
     pub store_id: Option<StoreId>,

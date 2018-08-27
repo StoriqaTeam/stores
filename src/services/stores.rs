@@ -471,7 +471,6 @@ pub mod tests {
     use tokio_core::reactor::Handle;
 
     use stq_http;
-    use stq_http::client::Config as HttpConfig;
     use stq_types::*;
 
     use config::Config;

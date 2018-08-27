@@ -7,6 +7,7 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use stq_static_resources::*;
 use stq_types::*;
 
 use stores_lib::models::*;
@@ -19,7 +20,7 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         long_description: None,
         seo_title: None,
         seo_description: None,
-        currency_id: CurrencyId(1),
+        currency: Currency::STQ,
         category_id: 12,
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
     }
@@ -32,7 +33,7 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         long_description: None,
         seo_title: None,
         seo_description: None,
-        currency_id: Some(CurrencyId(1)),
+        currency: Some(Currency::STQ),
         category_id: Some(12),
         rating: None,
         slug: None,

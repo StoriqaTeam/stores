@@ -116,29 +116,29 @@ INSERT INTO stores (user_id, slug, name, logo, cover, short_description, default
 (5,'slug 22','[{"lang": "de", "text": "twelve store 22 foo"}, {"lang": "en", "text": "foobar"}]', 'https://image.ibb.co/isVHNH/35e3138162918f3eb2af0c5738423bf5.png', 'https://preview.ibb.co/bGDRGc/boutique_shop_free_cute_facebook_timeline_cover1.jpg', '[{"lang": "en", "text": "foobar"}]', 'en'),
 (5,'slug 23','[{"lang": "de", "text": "twelve store 23 foo"}, {"lang": "en", "text": "foobar"}]', 'https://image.ibb.co/isVHNH/35e3138162918f3eb2af0c5738423bf5.png', 'https://preview.ibb.co/bGDRGc/boutique_shop_free_cute_facebook_timeline_cover1.jpg', '[{"lang": "en", "text": "foobar"}]', 'en');
 
-INSERT INTO base_products (store_id, name, short_description, currency_id, category_id, views) VALUES
-(1, '[{"lang": "en", "text": "test product 16"}, {"lang": "ru", "text": "тест продукт16"}]','[{"lang": "en", "text": "test"}]',2,10,792),
-(2, '[{"lang": "en", "text": "test product 15"}, {"lang": "ru", "text": "тест продукт15"}]','[{"lang": "en", "text": "test"}]',2,11,791),
-(3, '[{"lang": "en", "text": "test product 17"}, {"lang": "ru", "text": "тест продукт17"}]','[{"lang": "en", "text": "test"}]',2,12,791),
-(4, '[{"lang": "en", "text": "test product 18"}, {"lang": "ru", "text": "тест продукт18"}]','[{"lang": "en", "text": "test"}]',2,13,790),
-(5, '[{"lang": "en", "text": "test product 04.09_113700"}, {"lang": "ru", "text": "тест продукт 04.09_113700"}]','[{"lang": "en", "text": "test"}]',2,14,80),
-(6, '[{"lang": "en", "text": "test product 04.09_113710"}, {"lang": "ru", "text": "тест продукт 04.09_113710"}]','[{"lang": "en", "text": "test"}]',2,15,79),
-(7, '[{"lang": "en", "text": "test product 04.09_120135"}, {"lang": "ru", "text": "тест продукт 04.09_120135"}]','[{"lang": "en", "text": "test"}]',2,16,61),
-(8, '[{"lang": "en", "text": "test product 04.09_120604"}, {"lang": "ru", "text": "тест продукт 04.09_120604"}]','[{"lang": "en", "text": "test"}]',2,17,60),
-(9, '[{"lang": "en", "text": "test product 04.09_120727"}, {"lang": "ru", "text": "тест продукт 04.09_120727"}]','[{"lang": "en", "text": "test"}]',2,18,59),
-(10, '[{"lang": "en", "text": "test product 14"}, {"lang": "ru", "text": "тест продукт 14"}]','[{"lang": "en", "text": "test"}]',2,19, 806);
+INSERT INTO base_products (store_id, name, short_description, currency, category_id, views) VALUES
+(1, '[{"lang": "en", "text": "test product 16"}, {"lang": "ru", "text": "тест продукт16"}]','[{"lang": "en", "text": "test"}]','EUR',10,792),
+(2, '[{"lang": "en", "text": "test product 15"}, {"lang": "ru", "text": "тест продукт15"}]','[{"lang": "en", "text": "test"}]','EUR',11,791),
+(3, '[{"lang": "en", "text": "test product 17"}, {"lang": "ru", "text": "тест продукт17"}]','[{"lang": "en", "text": "test"}]','EUR',12,791),
+(4, '[{"lang": "en", "text": "test product 18"}, {"lang": "ru", "text": "тест продукт18"}]','[{"lang": "en", "text": "test"}]','EUR',13,790),
+(5, '[{"lang": "en", "text": "test product 04.09_113700"}, {"lang": "ru", "text": "тест продукт 04.09_113700"}]','[{"lang": "en", "text": "test"}]','EUR',14,80),
+(6, '[{"lang": "en", "text": "test product 04.09_113710"}, {"lang": "ru", "text": "тест продукт 04.09_113710"}]','[{"lang": "en", "text": "test"}]','EUR',15,79),
+(7, '[{"lang": "en", "text": "test product 04.09_120135"}, {"lang": "ru", "text": "тест продукт 04.09_120135"}]','[{"lang": "en", "text": "test"}]','EUR',16,61),
+(8, '[{"lang": "en", "text": "test product 04.09_120604"}, {"lang": "ru", "text": "тест продукт 04.09_120604"}]','[{"lang": "en", "text": "test"}]','EUR',17,60),
+(9, '[{"lang": "en", "text": "test product 04.09_120727"}, {"lang": "ru", "text": "тест продукт 04.09_120727"}]','[{"lang": "en", "text": "test"}]','EUR',18,59),
+(10, '[{"lang": "en", "text": "test product 14"}, {"lang": "ru", "text": "тест продукт 14"}]','[{"lang": "en", "text": "test"}]','EUR',19, 806);
 
-INSERT INTO products (discount, base_product_id, price, photo_main, currency_id) VALUES
-(0.2, 1,100, 'https://image.ibb.co/k66QZn/1.jpg', 1),
-(0.25, 2,200, 'https://image.ibb.co/k66QZn/1.jpg', 1),
-(0.25, 3,200, 'https://image.ibb.co/k66QZn/1.jpg', 1),
-(0.25, 4,200, 'https://image.ibb.co/k66QZn/1.jpg', 1),
-(0.25, 5,200, 'https://image.ibb.co/bWz177/3.jpg', 1),
-(0.35, 6,200, 'https://image.ibb.co/bWz177/3.jpg', 1),
-(0.25, 7,200, 'https://image.ibb.co/bWz177/3.jpg', 1),
-(0.25, 8,200, 'https://image.ibb.co/eRz177/2.jpg', 1),
-(0.15, 9,200, 'https://image.ibb.co/eRz177/2.jpg', 1),
-(0.25, 10,200, 'https://image.ibb.co/eRz177/2.jpg', 1);
+INSERT INTO products (discount, base_product_id, price, photo_main, currency) VALUES
+(0.2, 1,100, 'https://image.ibb.co/k66QZn/1.jpg', 'RUB'),
+(0.25, 2,200, 'https://image.ibb.co/k66QZn/1.jpg', 'RUB'),
+(0.25, 3,200, 'https://image.ibb.co/k66QZn/1.jpg', 'RUB'),
+(0.25, 4,200, 'https://image.ibb.co/k66QZn/1.jpg', 'RUB'),
+(0.25, 5,200, 'https://image.ibb.co/bWz177/3.jpg', 'RUB'),
+(0.35, 6,200, 'https://image.ibb.co/bWz177/3.jpg', 'RUB'),
+(0.25, 7,200, 'https://image.ibb.co/bWz177/3.jpg', 'RUB'),
+(0.25, 8,200, 'https://image.ibb.co/eRz177/2.jpg', 'RUB'),
+(0.15, 9,200, 'https://image.ibb.co/eRz177/2.jpg', 'RUB'),
+(0.25, 10,200, 'https://image.ibb.co/eRz177/2.jpg', 'RUB');
 
 INSERT INTO prod_attr_values (prod_id, attr_id, value, value_type, meta_field, base_prod_id) VALUES
 (1,1,'44','str','dfasfas',1),

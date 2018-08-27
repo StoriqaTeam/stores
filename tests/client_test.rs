@@ -18,7 +18,6 @@ use hyper::Method;
 use tokio_core::reactor::Core;
 
 use stores_lib::config::Config;
-use stq_http::client::Config as HttpConfig;
 use stq_http::client::{Client, Error};
 
 #[test]

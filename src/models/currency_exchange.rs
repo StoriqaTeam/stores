@@ -1,49 +1,55 @@
 //! Models for managing currency exchange
-use std::time::SystemTime;
-
 use serde_json;
-use validator::Validate;
+use std::collections::HashMap;
+use std::time::SystemTime;
+use stq_static_resources::Currency;
+use stq_types::{CurrencyExchangeId, ExchangeRate};
 
-use models::validation_rules::*;
 use schema::currency_exchange;
 
-#[derive(Serialize, Queryable, Insertable, Debug)]
-#[table_name = "currency_exchange"]
+pub type Data = HashMap<Currency, HashMap<Currency, ExchangeRate>>;
+
+#[derive(Clone, Debug, Serialize)]
 pub struct CurrencyExchange {
-    pub id: i32,
-    pub rouble: serde_json::Value,
-    pub euro: serde_json::Value,
-    pub dollar: serde_json::Value,
-    pub bitcoin: serde_json::Value,
-    pub etherium: serde_json::Value,
-    pub stq: serde_json::Value,
+    pub id: CurrencyExchangeId,
+    pub data: Data,
+    pub created_at: SystemTime,
+}
+
+#[derive(Queryable, Insertable, Debug)]
+#[table_name = "currency_exchange"]
+pub struct DbCurrencyExchange {
+    pub id: CurrencyExchangeId,
+    pub data: serde_json::Value,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
 }
 
-#[derive(Serialize, Deserialize, Insertable, Clone, Debug, Validate)]
-#[table_name = "currency_exchange"]
-pub struct NewCurrencyExchange {
-    #[validate(custom = "validate_currencies")]
-    pub rouble: serde_json::Value,
-    #[validate(custom = "validate_currencies")]
-    pub euro: serde_json::Value,
-    #[validate(custom = "validate_currencies")]
-    pub dollar: serde_json::Value,
-    #[validate(custom = "validate_currencies")]
-    pub bitcoin: serde_json::Value,
-    #[validate(custom = "validate_currencies")]
-    pub etherium: serde_json::Value,
-    #[validate(custom = "validate_currencies")]
-    pub stq: serde_json::Value,
+impl From<DbCurrencyExchange> for CurrencyExchange {
+    fn from(v: DbCurrencyExchange) -> Self {
+        Self {
+            id: v.id,
+            data: serde_json::from_value(v.data).unwrap(),
+            created_at: v.created_at,
+        }
+    }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct CurrencyExchangeValue {
-    pub rouble: f64,
-    pub euro: f64,
-    pub dollar: f64,
-    pub bitcoin: f64,
-    pub etherium: f64,
-    pub stq: f64,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NewCurrencyExchange {
+    pub data: Data,
+}
+
+#[derive(Insertable, Clone, Debug)]
+#[table_name = "currency_exchange"]
+pub struct DbNewCurrencyExchange {
+    pub data: serde_json::Value,
+}
+
+impl From<NewCurrencyExchange> for DbNewCurrencyExchange {
+    fn from(v: NewCurrencyExchange) -> Self {
+        Self {
+            data: serde_json::to_value(v.data).unwrap(),
+        }
+    }
 }

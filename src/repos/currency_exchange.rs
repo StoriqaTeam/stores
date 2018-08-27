@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 
 use diesel;
 use diesel::connection::AnsiTransactionManager;
@@ -10,12 +9,12 @@ use diesel::Connection;
 use failure::Error as FailureError;
 
 use stq_static_resources::Currency;
-use stq_types::{CurrencyId, UserId};
+use stq_types::{ExchangeRate, UserId};
 
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::{CurrencyExchange, NewCurrencyExchange};
+use models::{CurrencyExchange, DbCurrencyExchange, DbNewCurrencyExchange, NewCurrencyExchange};
 use repos::legacy_acl::*;
 use schema::currency_exchange::dsl::*;
 
@@ -29,8 +28,8 @@ pub trait CurrencyExchangeRepo {
     /// Get latest currency exchanges
     fn get_latest(&self) -> RepoResult<Option<CurrencyExchange>>;
 
-    /// Get latest currency exchanges for currency_id
-    fn get_exchange_for_currency(&self, currency_id: CurrencyId) -> RepoResult<Option<HashMap<CurrencyId, f64>>>;
+    /// Get latest currency exchanges for currency
+    fn get_exchange_for_currency(&self, currency: Currency) -> RepoResult<Option<HashMap<Currency, ExchangeRate>>>;
 
     /// Adds latest currency to table
     fn update(&self, payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange>;
@@ -53,6 +52,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .first(self.db_conn)
             .optional()
+            .map(|v: Option<DbCurrencyExchange>| v.map(CurrencyExchange::from))
             .map_err(From::from)
             .and_then(|currency_exchange_arg: Option<CurrencyExchange>| {
                 if let Some(ref currency_exchange_arg) = currency_exchange_arg {
@@ -69,40 +69,20 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(|e: FailureError| e.context("Find latest currency error occured").into())
     }
 
-    /// Get latest currency exchanges for currency_id
-    fn get_exchange_for_currency(&self, currency_id: CurrencyId) -> RepoResult<Option<HashMap<CurrencyId, f64>>> {
-        self.get_latest().map(|currencies| {
-            currencies.and_then(|currencies| {
-                match currency_id.0 {
-                    x if x == (Currency::Rouble as i32) => currencies.rouble,
-                    x if x == (Currency::Euro as i32) => currencies.euro,
-                    x if x == (Currency::Dollar as i32) => currencies.dollar,
-                    x if x == (Currency::Bitcoin as i32) => currencies.bitcoin,
-                    x if x == (Currency::Etherium as i32) => currencies.etherium,
-                    x if x == (Currency::Stq as i32) => currencies.stq,
-                    _ => return None,
-                }.as_object()
-                    .map(|m| {
-                        let mut map = HashMap::<CurrencyId, f64>::new();
-                        for (key, val) in m {
-                            if let Ok(key) = Currency::from_str(key) {
-                                if let Some(val) = val.as_f64() {
-                                    map.insert(CurrencyId(key as i32), val);
-                                }
-                            }
-                        }
-                        map
-                    })
-            })
-        })
+    /// Get latest rates for currency
+    fn get_exchange_for_currency(&self, currency: Currency) -> RepoResult<Option<HashMap<Currency, ExchangeRate>>> {
+        self.get_latest()
+            .map(|v| v.and_then(|mut all_rates| all_rates.data.remove(&currency)))
     }
 
     /// Adds latest currency to table
     fn update(&self, payload: NewCurrencyExchange) -> RepoResult<CurrencyExchange> {
         debug!("Add latest currency {:?}.", payload);
+        let payload = DbNewCurrencyExchange::from(payload);
         let query = diesel::insert_into(currency_exchange).values(&payload);
         query
-            .get_result::<CurrencyExchange>(self.db_conn)
+            .get_result::<DbCurrencyExchange>(self.db_conn)
+            .map(CurrencyExchange::from)
             .map_err(From::from)
             .and_then(|currency_exchange_arg| {
                 acl::check(

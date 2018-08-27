@@ -12,7 +12,8 @@ use r2d2::{ManageConnection, Pool};
 
 use errors::Error;
 use stq_http::client::ClientHandle;
-use stq_types::{BaseProductId, CurrencyId, ProductId, ProductSellerPrice, StoreId, UserId};
+use stq_static_resources::Currency;
+use stq_types::{BaseProductId, ProductId, ProductSellerPrice, StoreId, UserId};
 
 use super::types::ServiceFuture;
 use models::*;
@@ -48,7 +49,7 @@ pub struct ProductsServiceImpl<
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub user_id: Option<UserId>,
-    pub currency_id: Option<CurrencyId>,
+    pub currency: Currency,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
@@ -67,7 +68,7 @@ impl<
         client_handle: ClientHandle,
         elastic_address: String,
         repo_factory: F,
-        currency_id: Option<CurrencyId>,
+        currency: Currency,
     ) -> Self {
         Self {
             db_pool,
@@ -76,7 +77,7 @@ impl<
             client_handle,
             elastic_address,
             repo_factory,
-            currency_id,
+            currency,
         }
     }
 }
@@ -92,7 +93,7 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
-        let currency_id = self.currency_id;
+        let currency = self.currency;
 
         Box::new(
             self.cpu_pool
@@ -105,18 +106,13 @@ impl<
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             products_repo.find(product_id).and_then(move |product| {
                                 if let Some(mut product) = product {
-                                    if let Some(currency_id) = currency_id {
-                                        currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                            if let Some(currency_map) = currencies_map {
-                                                if let Some(currency_id) = product.currency_id {
-                                                    product.price.0 *= currency_map[&currency_id];
-                                                };
-                                            };
-                                            Some(product)
-                                        })
-                                    } else {
-                                        Ok(Some(product))
-                                    }
+                                    currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                        if let Some(currency_map) = currencies_map {
+                                            product.price.0 *= currency_map[&product.currency].0;
+                                            product.currency = currency;
+                                        }
+                                        Some(product)
+                                    })
                                 } else {
                                     Ok(None)
                                 }
@@ -148,7 +144,7 @@ impl<
                                         if let Some(base_product) = base_product {
                                             Some(ProductSellerPrice {
                                                 price: product.price,
-                                                currency_id: base_product.currency_id,
+                                                currency: base_product.currency,
                                             })
                                         } else {
                                             None
@@ -228,7 +224,7 @@ impl<
     fn list(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id;
+        let currency = self.currency;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -244,18 +240,13 @@ impl<
                                 products
                                     .into_iter()
                                     .map(|mut product| {
-                                        if let Some(currency_id) = currency_id {
-                                            currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                                if let Some(currency_map) = currencies_map {
-                                                    if let Some(currency_id) = product.currency_id {
-                                                        product.price.0 *= currency_map[&currency_id];
-                                                    };
-                                                };
-                                                product
-                                            })
-                                        } else {
-                                            Ok(product)
-                                        }
+                                        currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                            if let Some(currency_map) = currencies_map {
+                                                product.price.0 *= currency_map[&product.currency].0;
+                                                product.currency = currency;
+                                            }
+                                            product
+                                        })
                                     })
                                     .collect()
                             })
@@ -292,7 +283,9 @@ impl<
                                 base_products_repo
                                     .find(product.base_product_id)
                                     .map(move |base_product| {
-                                        product.currency_id = base_product.map(|base_product| base_product.currency_id);
+                                        if let Some(base_product) = base_product {
+                                            product.currency = base_product.currency;
+                                        }
                                         product
                                     })
                                     .and_then(|product| products_repo.create(product))
@@ -474,7 +467,7 @@ impl<
     fn find_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<Product>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id;
+        let currency = self.currency;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -490,18 +483,13 @@ impl<
                                 products
                                     .into_iter()
                                     .map(|mut product| {
-                                        if let Some(currency_id) = currency_id {
-                                            currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                                if let Some(currency_map) = currencies_map {
-                                                    if let Some(currency_id) = product.currency_id {
-                                                        product.price.0 *= currency_map[&currency_id];
-                                                    };
-                                                };
-                                                product
-                                            })
-                                        } else {
-                                            Ok(product)
-                                        }
+                                        currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                            if let Some(currency_map) = currencies_map {
+                                                product.price.0 *= currency_map[&product.currency].0;
+                                                product.currency = currency;
+                                            }
+                                            product
+                                        })
                                     })
                                     .collect()
                             })
@@ -546,7 +534,7 @@ pub mod tests {
     use tokio_core::reactor::Handle;
 
     use stq_http;
-    use stq_http::client::Config as HttpConfig;
+    use stq_static_resources::Currency;
     use stq_types::*;
 
     use tokio_core::reactor::Core;
@@ -576,7 +564,7 @@ pub mod tests {
             client_handle: client_handle,
             elastic_address: "".to_string(),
             repo_factory: MOCK_REPO_FACTORY,
-            currency_id: None,
+            currency: Currency::STQ,
         }
     }
 
@@ -591,7 +579,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: ProductPrice(0f64),
-            currency_id: None,
+            currency: Currency::STQ,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
         }
@@ -617,7 +605,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: ProductPrice(0f64),
-            currency_id: None,
+            currency: Currency::STQ,
         }
     }
 
@@ -629,7 +617,7 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: None,
-            currency_id: None,
+            currency: None,
         }
     }
 

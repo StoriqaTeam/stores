@@ -4,8 +4,8 @@ use std::time::SystemTime;
 use serde_json;
 use validator::Validate;
 
-use stq_static_resources::ModerationStatus;
-use stq_types::{BaseProductId, CurrencyId, ProductId, ProductPrice, StoreId};
+use stq_static_resources::{Currency, ModerationStatus};
+use stq_types::{BaseProductId, ProductId, ProductPrice, StoreId};
 
 use models::validation_rules::*;
 use models::Product;
@@ -25,7 +25,7 @@ pub struct BaseProduct {
     pub long_description: Option<serde_json::Value>,
     pub seo_title: Option<serde_json::Value>,
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: CurrencyId,
+    pub currency: Currency,
     pub category_id: i32,
     pub views: i32,
     pub created_at: SystemTime,
@@ -50,7 +50,7 @@ pub struct NewBaseProduct {
     pub seo_title: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: CurrencyId,
+    pub currency: Currency,
     pub category_id: i32,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
@@ -70,7 +70,7 @@ pub struct UpdateBaseProduct {
     pub seo_title: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: Option<CurrencyId>,
+    pub currency: Option<Currency>,
     pub category_id: Option<i32>,
     pub rating: Option<f64>,
     #[validate(custom = "validate_slug")]
@@ -116,7 +116,7 @@ pub struct BaseProductWithVariants {
     pub long_description: Option<serde_json::Value>,
     pub seo_title: Option<serde_json::Value>,
     pub seo_description: Option<serde_json::Value>,
-    pub currency_id: CurrencyId,
+    pub currency: Currency,
     pub category_id: i32,
     pub views: i32,
     pub created_at: SystemTime,
@@ -138,7 +138,7 @@ impl BaseProductWithVariants {
             long_description: base_product.long_description,
             seo_title: base_product.seo_title,
             seo_description: base_product.seo_description,
-            currency_id: base_product.currency_id,
+            currency: base_product.currency,
             category_id: base_product.category_id,
             views: base_product.views,
             created_at: base_product.created_at,

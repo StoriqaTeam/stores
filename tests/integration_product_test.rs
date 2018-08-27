@@ -8,6 +8,7 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use stq_static_resources::Currency;
 use stq_types::*;
 
 use stores_lib::models::*;
@@ -20,7 +21,7 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         long_description: None,
         seo_title: None,
         seo_description: None,
-        currency_id: CurrencyId(1),
+        currency: Currency::STQ,
         category_id: 12,
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
     }
@@ -36,7 +37,7 @@ pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product 
         cashback: None,
         additional_photos: None,
         price: ProductPrice(1f64),
-        currency_id: None,
+        currency: Currency::STQ,
         created_at: SystemTime::now(),
         updated_at: SystemTime::now(),
     }
@@ -58,7 +59,7 @@ pub fn create_new_product(base_product_id: BaseProductId) -> NewProduct {
         cashback: None,
         additional_photos: None,
         price: ProductPrice(1f64),
-        currency_id: None,
+        currency: Currency::STQ,
     }
 }
 
@@ -70,7 +71,7 @@ pub fn create_update_product() -> UpdateProduct {
         cashback: None,
         additional_photos: None,
         price: Some(ProductPrice(2f64)),
-        currency_id: None,
+        currency: Some(Currency::STQ),
     }
 }
 

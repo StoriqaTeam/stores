@@ -5,9 +5,8 @@ use isolang::Language;
 use regex::Regex;
 use serde_json;
 use stq_static_resources::Translation;
+use stq_types::ProductPrice;
 use validator::ValidationError;
-
-use super::CurrencyExchangeValue;
 
 pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {
@@ -64,6 +63,10 @@ pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError
     }
 }
 
+pub fn validate_non_negative_price(price: &ProductPrice) -> Result<(), ValidationError> {
+    validate_non_negative(price.0)
+}
+
 pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
     let translations = serde_json::from_value::<Vec<Translation>>(text.clone()).map_err(|_| ValidationError {
         code: Cow::from("text"),
@@ -88,16 +91,6 @@ pub fn validate_urls(text: &serde_json::Value) -> Result<(), ValidationError> {
     serde_json::from_value::<Vec<String>>(text.clone()).map_err(|_| ValidationError {
         code: Cow::from("urls"),
         message: Some(Cow::from("Invalid format of urls. Must be json array of strings.")),
-        params: HashMap::new(),
-    })?;
-
-    Ok(())
-}
-
-pub fn validate_currencies(text: &serde_json::Value) -> Result<(), ValidationError> {
-    serde_json::from_value::<CurrencyExchangeValue>(text.clone()).map_err(|_| ValidationError {
-        code: Cow::from("currencies"),
-        message: Some(Cow::from("Invalid format of currencies. Must be a map 'currency: value'.")),
         params: HashMap::new(),
     })?;
 

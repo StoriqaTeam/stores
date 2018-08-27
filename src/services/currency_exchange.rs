@@ -104,9 +104,9 @@ impl<
 pub mod tests {
     use futures_cpupool::CpuPool;
     use r2d2;
-    use serde_json;
     use tokio_core::reactor::Core;
 
+    use stq_static_resources::Currency;
     use stq_types::UserId;
 
     use models::*;
@@ -128,12 +128,7 @@ pub mod tests {
 
     pub fn create_new_currency_exchange() -> NewCurrencyExchange {
         NewCurrencyExchange {
-            rouble: serde_json::from_str("{}").unwrap(),
-            euro: serde_json::from_str("{}").unwrap(),
-            dollar: serde_json::from_str("{}").unwrap(),
-            bitcoin: serde_json::from_str("{}").unwrap(),
-            etherium: serde_json::from_str("{}").unwrap(),
-            stq: serde_json::from_str("{}").unwrap(),
+            data: Currency::enum_iter().map(|cur| (cur, Default::default())).collect(),
         }
     }
 

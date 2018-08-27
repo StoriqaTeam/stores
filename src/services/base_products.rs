@@ -13,7 +13,8 @@ use r2d2::{ManageConnection, Pool};
 use serde_json;
 
 use stq_http::client::ClientHandle;
-use stq_types::{BaseProductId, CurrencyId, ProductId, StoreId, UserId};
+use stq_static_resources::Currency;
+use stq_types::{BaseProductId, ProductId, StoreId, UserId};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -79,7 +80,7 @@ pub struct BaseProductsServiceImpl<
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
     pub user_id: Option<UserId>,
-    pub currency_id: Option<CurrencyId>,
+    pub currency: Currency,
     pub client_handle: ClientHandle,
     pub elastic_address: String,
     pub repo_factory: F,
@@ -98,7 +99,7 @@ impl<
         client_handle: ClientHandle,
         elastic_address: String,
         repo_factory: F,
-        currency_id: Option<CurrencyId>,
+        currency: Currency,
     ) -> Self {
         Self {
             db_pool,
@@ -107,7 +108,7 @@ impl<
             client_handle,
             elastic_address,
             repo_factory,
-            currency_id,
+            currency,
         }
     }
 
@@ -192,29 +193,26 @@ impl<
 
     fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
         if let Some(mut options) = options {
-            if let Some(currency_id) = self.currency_id {
-                let cpu_pool = self.cpu_pool.clone();
-                Box::new(cpu_pool.spawn_fn({
-                    let repo_factory = self.repo_factory.clone();
-                    let user_id = self.user_id;
-                    let db_pool = self.db_pool.clone();
-                    let repo_factory = repo_factory.clone();
-                    move || {
-                        db_pool
-                            .get()
-                            .map_err(|e| e.context(Error::Connection).into())
-                            .and_then(move |conn| {
-                                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                                currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                    options.currency_map = currencies_map;
-                                    Some(options)
-                                })
+            let cpu_pool = self.cpu_pool.clone();
+            Box::new(cpu_pool.spawn_fn({
+                let currency = self.currency;
+                let repo_factory = self.repo_factory.clone();
+                let user_id = self.user_id;
+                let db_pool = self.db_pool.clone();
+                let repo_factory = repo_factory.clone();
+                move || {
+                    db_pool
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                options.currency_map = currencies_map;
+                                Some(options)
                             })
-                    }
-                }))
-            } else {
-                Box::new(future::ok(Some(options)))
-            }
+                        })
+                }
+            }))
         } else {
             Box::new(future::ok(None))
         }
@@ -238,6 +236,7 @@ impl<
         let repo_factory = self.repo_factory.clone();
         let user_id = self.user_id;
         let client_handle = self.client_handle.clone();
+        let currency = self.currency;
         let address = self.elastic_address.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
@@ -265,9 +264,8 @@ impl<
                                                 .into_iter()
                                                 .map(|mut b| {
                                                     for mut variant in &mut b.variants {
-                                                        if let Some(currency_id) = variant.currency_id {
-                                                            variant.price.0 *= currency_map[&currency_id];
-                                                        }
+                                                        variant.price.0 *= currency_map[&variant.currency].0;
+                                                        variant.currency = currency;
                                                     }
                                                     b
                                                 })
@@ -295,7 +293,7 @@ impl<
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id;
+        let currency = self.currency;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -310,27 +308,22 @@ impl<
                             base_products_repo
                                 .most_viewed(search_product, count, offset)
                                 .and_then(|base_products| {
-                                    if let Some(currency_id) = currency_id {
-                                        currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                            if let Some(currency_map) = currencies_map {
-                                                base_products
-                                                    .into_iter()
-                                                    .map(|mut b| {
-                                                        for mut variant in &mut b.variants {
-                                                            if let Some(currency_id) = variant.currency_id {
-                                                                variant.price.0 *= currency_map[&currency_id];
-                                                            }
-                                                        }
-                                                        b
-                                                    })
-                                                    .collect()
-                                            } else {
-                                                base_products
-                                            }
-                                        })
-                                    } else {
-                                        Ok(base_products)
-                                    }
+                                    currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                        if let Some(currency_map) = currencies_map {
+                                            base_products
+                                                .into_iter()
+                                                .map(|mut b| {
+                                                    for mut variant in &mut b.variants {
+                                                        variant.price.0 *= currency_map[&variant.currency].0;
+                                                        variant.currency = currency;
+                                                    }
+                                                    b
+                                                })
+                                                .collect()
+                                        } else {
+                                            base_products
+                                        }
+                                    })
                                 })
                         })
                 })
@@ -351,7 +344,7 @@ impl<
         let cpu_pool = self.cpu_pool.clone();
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id;
+        let currency = self.currency;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -368,27 +361,22 @@ impl<
                                         let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                         let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                                         base_products_repo.convert_from_elastic(el_products).and_then(|base_products| {
-                                            if let Some(currency_id) = currency_id {
-                                                currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                                    if let Some(currency_map) = currencies_map {
-                                                        base_products
-                                                            .into_iter()
-                                                            .map(|mut b| {
-                                                                for mut variant in &mut b.variants {
-                                                                    if let Some(currency_id) = variant.currency_id {
-                                                                        variant.price.0 *= currency_map[&currency_id];
-                                                                    }
-                                                                }
-                                                                b
-                                                            })
-                                                            .collect()
-                                                    } else {
-                                                        base_products
-                                                    }
-                                                })
-                                            } else {
-                                                Ok(base_products)
-                                            }
+                                            currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                                if let Some(currency_map) = currencies_map {
+                                                    base_products
+                                                        .into_iter()
+                                                        .map(|mut b| {
+                                                            for mut variant in &mut b.variants {
+                                                                variant.price.0 *= currency_map[&variant.currency].0;
+                                                                variant.currency = currency;
+                                                            }
+                                                            b
+                                                        })
+                                                        .collect()
+                                                } else {
+                                                    base_products
+                                                }
+                                            })
                                         })
                                     })
                             })
@@ -640,7 +628,7 @@ impl<
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
         let repo_factory = self.repo_factory.clone();
-        let currency_id = self.currency_id;
+        let currency = self.currency;
 
         Box::new(
             self.cpu_pool
@@ -654,18 +642,13 @@ impl<
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             products_repo.find(product_id).and_then(move |product| {
                                 if let Some(mut product) = product {
-                                    let prod = if let Some(currency_id) = currency_id {
-                                        currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                            if let Some(currency_map) = currencies_map {
-                                                if let Some(currency_id) = product.currency_id {
-                                                    product.price.0 *= currency_map[&currency_id];
-                                                };
-                                            };
-                                            product
-                                        })
-                                    } else {
-                                        Ok(product)
-                                    };
+                                    let prod = currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                        if let Some(currency_map) = currencies_map {
+                                            product.price.0 *= currency_map[&product.currency].0;
+                                            product.currency = currency;
+                                        };
+                                        product
+                                    });
                                     prod.and_then(|product| {
                                         base_products_repo.find(product.base_product_id).map(|base_product| {
                                             base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![product]))
@@ -967,9 +950,9 @@ impl<
                                                     }
                                                 })
                                                 .and_then(|_| Ok(updated_prod))
-                                        } else if let Some(currency_id) = payload.currency_id {
-                                            // updating currency_id of base_products variants
-                                            products_repo.update_currency_id(currency_id, updated_prod.id).map(|_| updated_prod)
+                                        } else if let Some(currency) = payload.currency {
+                                            // updating currency of base_products variants
+                                            products_repo.update_currency(currency, updated_prod.id).map(|_| updated_prod)
                                         } else {
                                             Ok(updated_prod)
                                         }
@@ -985,7 +968,7 @@ impl<
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
         let db_pool = self.db_pool.clone();
         let user_id = self.user_id;
-        let currency_id = self.currency_id;
+        let currency = self.currency;
         let repo_factory = self.repo_factory.clone();
 
         Box::new(
@@ -1039,27 +1022,22 @@ impl<
                                         .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
                                 })
                                 .and_then(|base_products| {
-                                    if let Some(currency_id) = currency_id {
-                                        currency_exchange.get_exchange_for_currency(currency_id).map(|currencies_map| {
-                                            if let Some(currency_map) = currencies_map {
-                                                base_products
-                                                    .into_iter()
-                                                    .map(|mut b| {
-                                                        for mut variant in &mut b.variants {
-                                                            if let Some(currency_id) = variant.currency_id {
-                                                                variant.price.0 *= currency_map[&currency_id];
-                                                            }
-                                                        }
-                                                        b
-                                                    })
-                                                    .collect()
-                                            } else {
-                                                base_products
-                                            }
-                                        })
-                                    } else {
-                                        Ok(base_products)
-                                    }
+                                    currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
+                                        if let Some(currency_map) = currencies_map {
+                                            base_products
+                                                .into_iter()
+                                                .map(|mut b| {
+                                                    for mut variant in &mut b.variants {
+                                                        variant.price.0 *= currency_map[&variant.currency].0;
+                                                        variant.currency = currency;
+                                                    }
+                                                    b
+                                                })
+                                                .collect()
+                                        } else {
+                                            base_products
+                                        }
+                                    })
                                 })
                                 .and_then(|base_products| {
                                     let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
@@ -1103,7 +1081,7 @@ pub mod tests {
     use tokio_core::reactor::Handle;
 
     use stq_http;
-    use stq_http::client::Config as HttpConfig;
+    use stq_static_resources::Currency;
     use stq_types::*;
 
     use config::Config;
@@ -1132,7 +1110,7 @@ pub mod tests {
             client_handle: client_handle,
             elastic_address: "".to_string(),
             repo_factory: MOCK_REPO_FACTORY,
-            currency_id: None,
+            currency: Currency::STQ,
         }
     }
 
@@ -1144,7 +1122,7 @@ pub mod tests {
             long_description: None,
             seo_title: None,
             seo_description: None,
-            currency_id: CurrencyId(1),
+            currency: Currency::STQ,
             category_id: 3,
             slug: Some("slug".to_string()),
         }
@@ -1157,7 +1135,7 @@ pub mod tests {
             long_description: None,
             seo_title: None,
             seo_description: None,
-            currency_id: Some(CurrencyId(1)),
+            currency: Some(Currency::STQ),
             category_id: None,
             rating: None,
             slug: None,

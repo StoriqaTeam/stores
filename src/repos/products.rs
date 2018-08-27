@@ -7,7 +7,8 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_types::{BaseProductId, CurrencyId, ProductId, UserId};
+use stq_static_resources::Currency;
+use stq_types::{BaseProductId, ProductId, UserId};
 
 use models::{BaseProduct, NewProduct, Product, Store, UpdateProduct};
 use repos::legacy_acl::*;
@@ -44,8 +45,8 @@ pub trait ProductsRepo {
     /// Deactivates specific product
     fn deactivate(&self, product_id: ProductId) -> RepoResult<Product>;
 
-    /// Update currency_id on all prodouct with base_product_id
-    fn update_currency_id(&self, currency_id: CurrencyId, base_product_id: BaseProductId) -> RepoResult<usize>;
+    /// Update currency on all prodouct with base_product_id
+    fn update_currency(&self, currency: Currency, base_product_id: BaseProductId) -> RepoResult<usize>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepoImpl<'a, T> {
@@ -166,11 +167,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
-    /// Update currency_id on all product with base_product_id
-    fn update_currency_id(&self, currency_id_arg: CurrencyId, base_product_id_arg: BaseProductId) -> RepoResult<usize> {
+    /// Update currency on all product with base_product_id
+    fn update_currency(&self, currency_arg: Currency, base_product_id_arg: BaseProductId) -> RepoResult<usize> {
         debug!(
-            "Setting currency_id {} on all product with base_product_id {}.",
-            currency_id_arg, base_product_id_arg
+            "Setting currency {} on all product with base_product_id {}.",
+            currency_arg, base_product_id_arg
         );
 
         let query = products.filter(base_product_id.eq(base_product_id_arg)).filter(is_active.eq(true));
@@ -188,14 +189,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 diesel::update(products)
                     .filter(base_product_id.eq(base_product_id_arg))
                     .filter(is_active.eq(true))
-                    .set(currency_id.eq(currency_id_arg))
+                    .set(currency.eq(currency_arg))
                     .execute(self.db_conn)
                     .map_err(From::from)
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
-                    "Setting currency_id {} on all product with base_product_id {} error occured.",
-                    currency_id_arg, base_product_id_arg
+                    "Setting currency {} on all product with base_product_id {} error occured.",
+                    currency_arg, base_product_id_arg
                 )).into()
             })
     }

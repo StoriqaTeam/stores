@@ -160,6 +160,8 @@ services:
     container_name: stores-pg
     volumes:
       - stq-stores-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5420:5432"
     environment:
       - POSTGRES_USER=stores
       - POSTGRES_DB=stores

@@ -6,8 +6,6 @@ elastic = "stores-es:9200"
 thread_count = 20
 
 [client]
-timeout_duration_ms = 5000
 http_client_buffer_size=3
 http_client_retries=3
-dns_worker_thread_count=4
 http_timeout_ms=5000

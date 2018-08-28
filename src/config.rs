@@ -27,10 +27,8 @@ pub struct Server {
 /// Http client settings
 #[derive(Debug, Deserialize, Clone)]
 pub struct Client {
-    pub timeout_duration_ms: u64,
     pub http_client_retries: usize,
     pub http_client_buffer_size: usize,
-    pub dns_worker_thread_count: usize,
     pub http_timeout_ms: u64,
 }
 

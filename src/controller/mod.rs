@@ -27,7 +27,7 @@ use stq_http::client::ClientHandle;
 use stq_http::controller::Controller;
 use stq_http::controller::ControllerFuture;
 use stq_http::request_util::serialize_future;
-use stq_http::request_util::CurrencyId as CurrencyIdHeader;
+use stq_http::request_util::Currency as CurrencyHeader;
 use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
 use stq_static_resources::Currency;
@@ -103,12 +103,15 @@ impl<
         let uuid_header = headers.get::<Cookie>();
         let uuid = uuid_header.and_then(|cookie| cookie.get("UUID"));
 
-        let currency = match headers.get::<CurrencyIdHeader>().and_then(|sid| Currency::from_code(sid)) {
-            Some(v) => v,
-            None => {
-                return Box::new(future::err(
-                    format_err!("Failed to extract currency header").context(Error::Parse).into(),
-                ));
+        let currency = match headers
+            .get::<CurrencyHeader>()
+            .ok_or(format_err!("Missing currency header"))
+            .and_then(|sid| Currency::from_code(sid).ok_or(format_err!("Invalid currency: {}", sid)))
+            .map_err(|e| e.context(Error::Parse).into())
+        {
+            Ok(v) => v,
+            Err(e) => {
+                return Box::new(future::err(e));
             }
         };
 

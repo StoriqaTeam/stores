@@ -50,10 +50,42 @@ pub struct NewProduct {
     pub currency: Currency,
 }
 
+/// Payload for creating products
+#[derive(Serialize, Deserialize, Validate, Clone, Debug)]
+pub struct NewProductWithoutCurrency {
+    pub base_product_id: BaseProductId,
+    #[validate(range(min = "0.0", max = "1.0"))]
+    pub discount: Option<f64>,
+    pub photo_main: Option<String>,
+    #[validate(custom = "validate_urls")]
+    pub additional_photos: Option<serde_json::Value>,
+    #[validate(length(min = "1"))]
+    pub vendor_code: String,
+    #[validate(range(min = "0.0", max = "1.0"))]
+    pub cashback: Option<f64>,
+    #[validate(custom = "validate_non_negative_price")]
+    pub price: ProductPrice,
+}
+
+impl From<(NewProductWithoutCurrency, Currency)> for NewProduct {
+    fn from(other: (NewProductWithoutCurrency, Currency)) -> Self {
+        Self {
+            base_product_id: other.0.base_product_id,
+            discount: other.0.discount,
+            photo_main: other.0.photo_main,
+            additional_photos: other.0.additional_photos,
+            vendor_code: other.0.vendor_code,
+            cashback: other.0.cashback,
+            price: other.0.price,
+            currency: other.1,
+        }
+    }
+}
+
 /// Payload for creating products and attributes
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NewProductWithAttributes {
-    pub product: NewProduct,
+    pub product: NewProductWithoutCurrency,
     pub attributes: Vec<AttrValue>,
 }
 

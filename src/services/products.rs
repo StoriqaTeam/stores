@@ -275,18 +275,21 @@ impl<
                             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
                             let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-                            let mut product = payload.product;
+                            let product = payload.product;
                             let attributes = payload.attributes;
 
                             conn.transaction::<(Product), FailureError, _>(move || {
                                 // fill currency id taken from base_product first
                                 base_products_repo
                                     .find(product.base_product_id)
-                                    .map(move |base_product| {
+                                    .and_then(move |base_product| {
                                         if let Some(base_product) = base_product {
-                                            product.currency = base_product.currency;
+                                            Ok((product, base_product.currency).into())
+                                        } else {
+                                            Err(format_err!("Base product with id {} not found.", product.base_product_id)
+                                                .context(Error::NotFound)
+                                                .into())
                                         }
-                                        product
                                     })
                                     .and_then(|product| products_repo.create(product))
                                     .map(move |product| (product, attributes))

@@ -50,8 +50,8 @@ pub fn create_new_product_with_attributes(base_product_id: BaseProductId) -> New
     }
 }
 
-pub fn create_new_product(base_product_id: BaseProductId) -> NewProduct {
-    NewProduct {
+pub fn create_new_product(base_product_id: BaseProductId) -> NewProductWithoutCurrency {
+    NewProductWithoutCurrency {
         base_product_id: base_product_id,
         discount: None,
         photo_main: None,
@@ -59,7 +59,6 @@ pub fn create_new_product(base_product_id: BaseProductId) -> NewProduct {
         cashback: None,
         additional_photos: None,
         price: ProductPrice(1f64),
-        currency: Currency::STQ,
     }
 }
 

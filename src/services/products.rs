@@ -599,8 +599,8 @@ pub mod tests {
         }
     }
 
-    pub fn create_new_product(base_product_id: BaseProductId) -> NewProduct {
-        NewProduct {
+    pub fn create_new_product(base_product_id: BaseProductId) -> NewProductWithoutCurrency {
+        NewProductWithoutCurrency {
             base_product_id: base_product_id,
             discount: None,
             photo_main: None,
@@ -608,7 +608,6 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: ProductPrice(0f64),
-            currency: Currency::STQ,
         }
     }
 

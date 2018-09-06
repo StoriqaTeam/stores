@@ -361,7 +361,7 @@ impl<
                                         if store.is_some() {
                                             Err(format_err!("Store already exists. User can have only one store.")
                                                 .context(Error::Validate(
-                                                    validation_errors!({"store": ["store" => "Store already exists"]}),
+                                                    validation_errors!({"store": ["store" => "Current user already has a store."]}),
                                                 ))
                                                 .into())
                                         } else {

@@ -73,8 +73,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(product))?;
                 };
                 Ok(product)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find product with id: {} error occured", product_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find product with id: {} error occured", product_id_arg)).into())
     }
 
     /// Creates new product
@@ -105,8 +104,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find in products from {} count {} error occured.", from, count))
                     .into()
             })
@@ -128,8 +126,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
-            })
-            .map_err(|e: FailureError| e.context(format!("Find in products with id {} error occured.", base_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find in products with id {} error occured.", base_id_arg)).into())
     }
 
     /// Updates specific product
@@ -142,8 +139,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<Product>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating product with id {} and payload {:?} error occured.",
                     product_id_arg, payload
@@ -160,8 +156,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate product with id {} error occured.", product_id_arg))
                     .into()
             })
@@ -184,16 +179,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(())
-            })
-            .and_then(|_| {
+            }).and_then(|_| {
                 diesel::update(products)
                     .filter(base_product_id.eq(base_product_id_arg))
                     .filter(is_active.eq(true))
                     .set(currency.eq(currency_arg))
                     .execute(self.db_conn)
                     .map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Setting currency {} on all product with base_product_id {} error occured.",
                     currency_arg, base_product_id_arg
@@ -218,8 +211,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                                 .find(base_prod.store_id)
                                 .get_result::<Store>(self.db_conn)
                                 .and_then(|store: Store| Ok(store.user_id == user_id))
-                        })
-                        .ok()
+                        }).ok()
                         .unwrap_or(false)
                 } else {
                     false

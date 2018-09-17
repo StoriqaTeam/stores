@@ -234,8 +234,7 @@ impl<
                             e.context("Parsing body // POST /stores/cart in Vec<CartProduct> failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |cart_products| base_products_service.find_by_cart(cart_products)),
+                        }).and_then(move |cart_products| base_products_service.find_by_cart(cart_products)),
                 )
             }
 
@@ -249,8 +248,7 @@ impl<
                                 e.context("Parsing body // POST /stores/search in SearchStore failed!")
                                     .context(Error::Parse)
                                     .into()
-                            })
-                            .and_then(move |store_search| stores_service.find_by_name(store_search, count, offset)),
+                            }).and_then(move |store_search| stores_service.find_by_name(store_search, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -270,8 +268,7 @@ impl<
                             e.context("Parsing body // POST /stores/search/filters/count in SearchStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |search_store| stores_service.search_filters_count(search_store)),
+                        }).and_then(move |search_store| stores_service.search_filters_count(search_store)),
                 )
             }
 
@@ -287,8 +284,7 @@ impl<
                             e.context("Parsing body // POST /stores/search/filters/country in SearchStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |search_store| stores_service.search_filters_country(search_store)),
+                        }).and_then(move |search_store| stores_service.search_filters_country(search_store)),
                 )
             }
 
@@ -304,8 +300,7 @@ impl<
                             e.context("Parsing body // POST /stores/search/filters/category in SearchStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |search_store| stores_service.search_filters_category(search_store)),
+                        }).and_then(move |search_store| stores_service.search_filters_category(search_store)),
                 )
             }
 
@@ -319,8 +314,7 @@ impl<
                                 e.context("Parsing body // POST /stores/auto_complete in String failed!")
                                     .context(Error::Parse)
                                     .into()
-                            })
-                            .and_then(move |name| stores_service.auto_complete(name, count, offset)),
+                            }).and_then(move |name| stores_service.auto_complete(name, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -340,8 +334,7 @@ impl<
                             e.context("Parsing body // POST /stores in NewStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_store| {
+                        }).and_then(move |new_store| {
                             new_store
                                 .validate()
                                 .map_err(|e| format_err!("Validation of NewStore failed!").context(Error::Validate(e)).into())
@@ -360,8 +353,7 @@ impl<
                             e.context("Parsing body // PUT /stores/<store_id> in UpdateStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |update_store| {
+                        }).and_then(move |update_store| {
                             update_store
                                 .validate()
                                 .map_err(|e| format_err!("Validation of UpdateStore failed!").context(Error::Validate(e)).into())
@@ -456,8 +448,7 @@ impl<
                             e.context("Parsing body // POST /products in NewProductWithAttributes failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_product| {
+                        }).and_then(move |new_product| {
                             new_product
                                 .product
                                 .validate()
@@ -465,8 +456,7 @@ impl<
                                     format_err!("Validation of NewProductWithAttributes failed!")
                                         .context(Error::Validate(e))
                                         .into()
-                                })
-                                .into_future()
+                                }).into_future()
                                 .and_then(move |_| products_service.create(new_product))
                         }),
                 )
@@ -481,8 +471,7 @@ impl<
                             e.context("Parsing body // PUT /products/<product_id> in UpdateProductWithAttributes failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |update_product| {
+                        }).and_then(move |update_product| {
                             let validation = if let Some(product) = update_product.product.clone() {
                                 product
                                     .validate()
@@ -490,8 +479,7 @@ impl<
                                         format_err!("Validation of UpdateProductWithAttributes failed!")
                                             .context(Error::Validate(e))
                                             .into()
-                                    })
-                                    .into_future()
+                                    }).into_future()
                             } else {
                                 future::ok(())
                             };
@@ -558,16 +546,14 @@ impl<
                             e.context("Parsing body // POST /base_products in NewBaseProduct failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_base_product| {
+                        }).and_then(move |new_base_product| {
                             new_base_product
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of NewBaseProduct failed!")
                                         .context(Error::Validate(e))
                                         .into()
-                                })
-                                .into_future()
+                                }).into_future()
                                 .and_then(move |_| base_products_service.create(new_base_product))
                         }),
                 )
@@ -585,16 +571,14 @@ impl<
                             e.context("Parsing body // PUT /base_products/<base_product_id> in UpdateBaseProduct failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |update_base_product| {
+                        }).and_then(move |update_base_product| {
                             update_base_product
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of UpdateBaseProduct failed!")
                                         .context(Error::Validate(e))
                                         .into()
-                                })
-                                .into_future()
+                                }).into_future()
                                 .and_then(move |_| base_products_service.update(base_product_id, update_base_product))
                         }),
                 )
@@ -619,8 +603,7 @@ impl<
                                 e.context("Parsing body // POST /products/search in SearchProductsByName failed!")
                                     .context(Error::Parse)
                                     .into()
-                            })
-                            .and_then(move |prod| base_products_service.search_by_name(prod, count, offset)),
+                            }).and_then(move |prod| base_products_service.search_by_name(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -641,8 +624,7 @@ impl<
                                 e.context("Parsing body // POST /products/auto_complete in AutoCompleteProductName failed!")
                                     .context(Error::Parse)
                                     .into()
-                            })
-                            .and_then(move |name| base_products_service.auto_complete(name, count, offset)),
+                            }).and_then(move |name| base_products_service.auto_complete(name, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -663,8 +645,7 @@ impl<
                                 e.context("Parsing body // POST /products/most_discount in MostDiscountProducts failed!")
                                     .context(Error::Parse)
                                     .into()
-                            })
-                            .and_then(move |prod| base_products_service.search_most_discount(prod, count, offset)),
+                            }).and_then(move |prod| base_products_service.search_most_discount(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -685,8 +666,7 @@ impl<
                                 e.context("Parsing body // POST /products/most_viewed in MostViewedProducts failed!")
                                     .context(Error::Parse)
                                     .into()
-                            })
-                            .and_then(move |prod| base_products_service.search_most_viewed(prod, count, offset)),
+                            }).and_then(move |prod| base_products_service.search_most_viewed(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -709,8 +689,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |search_prod| base_products_service.search_filters_price(search_prod)),
+                        }).and_then(move |search_prod| base_products_service.search_filters_price(search_prod)),
                 )
             }
             // POST /base_products/search/filters/category
@@ -725,8 +704,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |search_prod| base_products_service.search_filters_category(search_prod)),
+                        }).and_then(move |search_prod| base_products_service.search_filters_category(search_prod)),
                 )
             }
             // POST /base_products/search/filters/attributes
@@ -741,8 +719,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |search_prod| base_products_service.search_filters_attributes(search_prod)),
+                        }).and_then(move |search_prod| base_products_service.search_filters_attributes(search_prod)),
                 )
             }
             // POST /base_products/search/filters/count
@@ -757,8 +734,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/count in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |search_prod| base_products_service.search_filters_count(search_prod)),
+                        }).and_then(move |search_prod| base_products_service.search_filters_count(search_prod)),
                 )
             }
 
@@ -777,8 +753,7 @@ impl<
                             e.context("Parsing body // POST /user_roles in NewUserRole failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_role| user_roles_service.create(new_role)),
+                        }).and_then(move |new_role| user_roles_service.create(new_role)),
                 )
             }
 
@@ -791,8 +766,7 @@ impl<
                             e.context("Parsing body // DELETE /user_roles/<user_role_id> in OldUserRole failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |old_role| user_roles_service.delete(old_role)),
+                        }).and_then(move |old_role| user_roles_service.delete(old_role)),
                 )
             }
 
@@ -835,8 +809,7 @@ impl<
                             e.context("Parsing body // POST /attributes in NewAttribute failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_attribute| {
+                        }).and_then(move |new_attribute| {
                             new_attribute
                                 .validate()
                                 .map_err(|e| format_err!("Validation of NewAttribute failed!").context(Error::Validate(e)).into())
@@ -855,16 +828,14 @@ impl<
                             e.context("Parsing body // PUT /attributes/<attribute_id> in UpdateAttribute failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |update_attribute| {
+                        }).and_then(move |update_attribute| {
                             update_attribute
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of UpdateAttribute failed!")
                                         .context(Error::Validate(e))
                                         .into()
-                                })
-                                .into_future()
+                                }).into_future()
                                 .and_then(move |_| attributes_service.update(attribute_id, update_attribute))
                         }),
                 )
@@ -885,8 +856,7 @@ impl<
                             e.context("Parsing body // POST /categories in NewCategory failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_category| {
+                        }).and_then(move |new_category| {
                             new_category
                                 .validate()
                                 .map_err(|e| format_err!("Validation of NewCategory failed!").context(Error::Validate(e)).into())
@@ -905,16 +875,14 @@ impl<
                             e.context("Parsing body // PUT /categories/<category_id> in UpdateCategory failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |update_category| {
+                        }).and_then(move |update_category| {
                             update_category
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of UpdateCategory failed!")
                                         .context(Error::Validate(e))
                                         .into()
-                                })
-                                .into_future()
+                                }).into_future()
                                 .and_then(move |_| categories_service.update(category_id, update_category))
                         }),
                 )
@@ -944,8 +912,7 @@ impl<
                             e.context("Parsing body // POST /categories/attributes in CategoryAttrs failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_category_attr| categories_service.add_attribute_to_category(new_category_attr)),
+                        }).and_then(move |new_category_attr| categories_service.add_attribute_to_category(new_category_attr)),
                 )
             }
 
@@ -958,8 +925,7 @@ impl<
                             e.context("Parsing body // DELETE /categories/attributes in OldCatAttr failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |old_category_attr| categories_service.delete_attribute_from_category(old_category_attr)),
+                        }).and_then(move |old_category_attr| categories_service.delete_attribute_from_category(old_category_attr)),
                 )
             }
 
@@ -978,8 +944,7 @@ impl<
                             e.context("Parsing body // POST /currency_exchange in NewCurrencyExchange failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_currency_exchange| currency_exchange_service.update(new_currency_exchange)),
+                        }).and_then(move |new_currency_exchange| currency_exchange_service.update(new_currency_exchange)),
                 )
             }
 
@@ -1004,16 +969,14 @@ impl<
                             e.context("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |update_wizard| {
+                        }).and_then(move |update_wizard| {
                             update_wizard
                                 .validate()
                                 .map_err(|e| {
                                     format_err!("Validation of UpdateWizardStore failed!")
                                         .context(Error::Validate(e))
                                         .into()
-                                })
-                                .into_future()
+                                }).into_future()
                                 .and_then(move |_| wizard_store_service.update(update_wizard))
                         }),
                 )
@@ -1043,8 +1006,7 @@ impl<
                             e.context("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments)),
+                        }).and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments)),
                 )
             }
 
@@ -1066,8 +1028,7 @@ impl<
                             e.context("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments)),
+                        }).and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments)),
                 )
             }
 

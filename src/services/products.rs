@@ -118,8 +118,7 @@ impl<
                                 }
                             })
                         })
-                })
-                .map_err(|e| e.context("Service Product, get endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Product, get endpoint error occured.").into()),
         )
     }
 
@@ -155,8 +154,7 @@ impl<
                                 }
                             })
                         })
-                })
-                .map_err(|e| e.context("Service Product, get endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Product, get endpoint error occured.").into()),
         )
     }
 
@@ -189,8 +187,7 @@ impl<
                                 }
                             })
                         })
-                })
-                .map_err(|e| e.context("Service Product, get_store_id endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Product, get_store_id endpoint error occured.").into()),
         )
     }
 
@@ -215,8 +212,7 @@ impl<
                                     .and_then(|p| prod_attr_repo.delete_all_attributes(p.id).map(|_| p))
                             })
                         })
-                })
-                .map_err(|e| e.context("Service Product, deactivate endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Product, deactivate endpoint error occured.").into()),
         )
     }
 
@@ -247,12 +243,10 @@ impl<
                                             }
                                             product
                                         })
-                                    })
-                                    .collect()
+                                    }).collect()
                             })
                         })
-                })
-                .map_err(|e| e.context("Service Product, list endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Product, list endpoint error occured.").into()),
         )
     }
 
@@ -493,12 +487,10 @@ impl<
                                             }
                                             product
                                         })
-                                    })
-                                    .collect()
+                                    }).collect()
                             })
                         })
-                })
-                .map_err(|e| e.context("Service Product, find_with_base_id endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Product, find_with_base_id endpoint error occured.").into()),
         )
     }
 
@@ -521,8 +513,7 @@ impl<
                                 .find_all_attributes(product_id)
                                 .map(|pr_attrs| pr_attrs.into_iter().map(|pr_attr| pr_attr.into()).collect())
                         })
-                })
-                .map_err(|e| e.context("Service Product, find_attributes endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Product, find_attributes endpoint error occured.").into()),
         )
     }
 }

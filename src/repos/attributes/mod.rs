@@ -65,8 +65,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         self.cache.add_attribute(id_arg, attribute.clone());
                     };
                     Ok(attribute)
-                })
-                .map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occured", id_arg)).into())
+                }).map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occured", id_arg)).into())
         }
     }
 
@@ -83,8 +82,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Attributes, Action::Read, self, Some(&attribute))?;
                 }
                 Ok(attributes_vec)
-            })
-            .map_err(|e: FailureError| e.context("List all attributes").into())
+            }).map_err(|e: FailureError| e.context("List all attributes").into())
     }
 
     /// Creates new attribute
@@ -99,8 +97,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     self.cache.add_attribute(attribute.id, attribute.clone());
                     Ok(attribute)
                 })
-            })
-            .map_err(|e: FailureError| e.context(format!("Creates new attribute: {:?} error occured", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Creates new attribute: {:?} error occured", payload)).into())
     }
 
     /// Updates specific attribute
@@ -117,8 +114,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = attributes.filter(id.eq(attribute_id_arg));
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<Attribute>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updates specific attribute: id: {}, payload: {:?},  error occured",
                     attribute_id_arg, payload

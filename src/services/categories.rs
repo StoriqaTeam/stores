@@ -86,8 +86,7 @@ impl<
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.find(category_id)
                         })
-                })
-                .map_err(|e| e.context("Service Categories, get endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Categories, get endpoint error occured.").into()),
         )
     }
 
@@ -107,8 +106,7 @@ impl<
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             conn.transaction::<(Category), FailureError, _>(move || categories_repo.create(new_category))
                         })
-                })
-                .map_err(|e| e.context("Service Categories, create endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Categories, create endpoint error occured.").into()),
         )
     }
 
@@ -129,8 +127,7 @@ impl<
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.update(category_id, payload)
                         })
-                })
-                .map_err(|e| e.context("Service Categories, update endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Categories, update endpoint error occured.").into()),
         )
     }
 
@@ -150,8 +147,7 @@ impl<
                             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                             categories_repo.get_all()
                         })
-                })
-                .map_err(|e| e.context("Service Categories, get_all endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Categories, get_all endpoint error occured.").into()),
         )
     }
 
@@ -187,12 +183,10 @@ impl<
                                                         .into())
                                                 }
                                             })
-                                        })
-                                        .collect::<RepoResult<Vec<Attribute>>>()
+                                        }).collect::<RepoResult<Vec<Attribute>>>()
                                 })
                         })
-                })
-                .map_err(|e| e.context("Service Categories, find_all_attributes endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Categories, find_all_attributes endpoint error occured.").into()),
         )
     }
 
@@ -213,8 +207,7 @@ impl<
                             let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
                             category_attrs_repo.create(payload)
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service Categories, add_attribute_to_category endpoint error occured.")
                         .into()
                 }),
@@ -238,8 +231,7 @@ impl<
                             let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
                             category_attrs_repo.delete(payload)
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service Categories, delete_attribute_from_category endpoint error occured.")
                         .into()
                 }),

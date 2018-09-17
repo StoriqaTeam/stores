@@ -4,6 +4,8 @@ use std::env;
 use stq_http;
 use stq_logging::GrayLogConfig;
 
+use sentry_integration::SentryConfig;
+
 use config_crate::{Config as RawConfig, ConfigError, Environment, File};
 
 /// Basic settings - HTTP binding address and database DSN
@@ -12,6 +14,7 @@ pub struct Config {
     pub server: Server,
     pub client: Client,
     pub graylog: Option<GrayLogConfig>,
+    pub sentry: Option<SentryConfig>,
 }
 
 /// Common server settings

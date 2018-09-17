@@ -257,8 +257,7 @@ impl<
                                     .and_then(move |conn| {
                                         let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                                         base_products_repo.convert_from_elastic(el_products)
-                                    })
-                                    .and_then(move |base_products| {
+                                    }).and_then(move |base_products| {
                                         let bp = if let Some(currency_map) = currency_map.clone() {
                                             base_products
                                                 .into_iter()
@@ -268,8 +267,7 @@ impl<
                                                         variant.currency = currency;
                                                     }
                                                     b
-                                                })
-                                                .collect()
+                                                }).collect()
                                         } else {
                                             base_products
                                         };
@@ -278,8 +276,7 @@ impl<
                             })
                         }
                     })
-                })
-                .map_err(|e| e.context("Service BaseProduct, search_by_name endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, search_by_name endpoint error occured.").into()),
         )
     }
 
@@ -318,16 +315,14 @@ impl<
                                                         variant.currency = currency;
                                                     }
                                                     b
-                                                })
-                                                .collect()
+                                                }).collect()
                                         } else {
                                             base_products
                                         }
                                     })
                                 })
                         })
-                })
-                .map_err(|e| e.context("Service BaseProduct, search_most_viewed endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, search_most_viewed endpoint error occured.").into()),
         )
     }
 
@@ -371,8 +366,7 @@ impl<
                                                                 variant.currency = currency;
                                                             }
                                                             b
-                                                        })
-                                                        .collect()
+                                                        }).collect()
                                                 } else {
                                                     base_products
                                                 }
@@ -382,8 +376,7 @@ impl<
                             })
                         }
                     })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_most_discount endpoint error occured.")
                         .into()
                 }),
@@ -412,8 +405,7 @@ impl<
                 .and_then(move |options| {
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_filters_price endpoint error occured.")
                         .into()
                 }),
@@ -431,8 +423,7 @@ impl<
                 .and_then(move |options| {
                     search_prod.options = options;
                     products_el.count(search_prod)
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_filters_count endpoint error occured.")
                         .into()
                 }),
@@ -485,8 +476,7 @@ impl<
                                     }
                                 })
                             })
-                    })
-                    .map_err(|e| {
+                    }).map_err(|e| {
                         e.context("Service BaseProduct, search_filters_category endpoint with empty name option error occured.")
                             .into()
                     }),
@@ -503,14 +493,12 @@ impl<
                                 .and_then(move |conn| {
                                     let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                     categories_repo.get_all()
-                                })
-                                .and_then(|category| {
+                                }).and_then(|category| {
                                     let new_cat = remove_unused_categories(category, &cats, 2);
                                     Ok(new_cat)
                                 })
                         })
-                    })
-                    .map_err(|e| {
+                    }).map_err(|e| {
                         e.context("Service BaseProduct, search_filters_category endpoint with name aggregation in elastic error occured.")
                             .into()
                     }),
@@ -570,8 +558,7 @@ impl<
                         }
                     }
                     Box::new(future::ok(None))
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_filters_attributes endpoint error occured.")
                         .into()
                 }),
@@ -594,8 +581,7 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.find(base_product_id)
                         })
-                })
-                .map_err(|e| e.context("Service BaseProduct, get endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, get endpoint error occured.").into()),
         )
     }
 
@@ -615,8 +601,7 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.update_views(base_product_id)
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, get_with_views_update endpoint error occured.")
                         .into()
                 }),
@@ -659,8 +644,7 @@ impl<
                                 }
                             })
                         })
-                })
-                .map_err(|e| e.context("Service BaseProduct, get_by_product endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, get_by_product endpoint error occured.").into()),
         )
     }
 
@@ -693,8 +677,7 @@ impl<
                                                     .context(Error::NotFound)
                                                     .into()
                                             })
-                                    })
-                                    .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
+                                    }).and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
                                     .and_then(|(store, cat)| {
                                         if let Some(store) = store {
                                             let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
@@ -728,8 +711,7 @@ impl<
                                     })
                             })
                         })
-                })
-                .map_err(|e| e.context("Service BaseProduct, deactivate endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, deactivate endpoint error occured.").into()),
         )
     }
 
@@ -749,8 +731,7 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.list(from, count)
                         })
-                })
-                .map_err(|e| e.context("Service BaseProduct, list endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, list endpoint error occured.").into()),
         )
     }
 
@@ -776,8 +757,7 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.get_products_of_the_store(store_id, skip_base_product_id, from, count)
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, get_products_of_the_store endpoint error occured.")
                         .into()
                 }),
@@ -831,8 +811,7 @@ impl<
                                                         .context(Error::NotFound)
                                                         .into()
                                                 })
-                                        })
-                                        .and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
+                                        }).and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
                                         .and_then(|(store, cat)| {
                                             if let Some(store) = store {
                                                 let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
@@ -871,8 +850,7 @@ impl<
                                 // })
                             })
                         })
-                })
-                .map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into()),
         )
     }
 
@@ -994,8 +972,7 @@ impl<
                                                 .into())
                                         }
                                     })
-                                })
-                                .collect::<RepoResult<Vec<Product>>>();
+                                }).collect::<RepoResult<Vec<Product>>>();
                             products
                                 .and_then(|products| {
                                     let mut group_by_base_product_id = BTreeMap::<BaseProductId, Vec<Product>>::default();
@@ -1016,12 +993,9 @@ impl<
                                                             .context(Error::NotFound)
                                                             .into())
                                                     }
-                                                })
-                                                .map(|base_product| BaseProductWithVariants::new(base_product, products))
-                                        })
-                                        .collect::<RepoResult<Vec<BaseProductWithVariants>>>()
-                                })
-                                .and_then(|base_products| {
+                                                }).map(|base_product| BaseProductWithVariants::new(base_product, products))
+                                        }).collect::<RepoResult<Vec<BaseProductWithVariants>>>()
+                                }).and_then(|base_products| {
                                     currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
                                         if let Some(currency_map) = currencies_map {
                                             base_products
@@ -1032,14 +1006,12 @@ impl<
                                                         variant.currency = currency;
                                                     }
                                                     b
-                                                })
-                                                .collect()
+                                                }).collect()
                                         } else {
                                             base_products
                                         }
                                     })
-                                })
-                                .and_then(|base_products| {
+                                }).and_then(|base_products| {
                                     let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
                                     for base_product in base_products {
                                         let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
@@ -1058,14 +1030,11 @@ impl<
                                                             .context(Error::NotFound)
                                                             .into())
                                                     }
-                                                })
-                                                .map(|store| StoreWithBaseProducts::new(store, base_products))
-                                        })
-                                        .collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
+                                                }).map(|store| StoreWithBaseProducts::new(store, base_products))
+                                        }).collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
                                 })
                         })
-                })
-                .map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occured.").into()),
         )
     }
 }

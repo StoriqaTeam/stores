@@ -78,8 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store))?;
                 };
                 Ok(store)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find store with id: {} error occured", store_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find store with id: {} error occured", store_id_arg)).into())
     }
 
     /// Creates new store
@@ -106,8 +105,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(&store))?;
                 }
                 Ok(stores_res.clone())
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find in stores from {} count {} error occured.", from, count))
                     .into()
             })
@@ -123,8 +121,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<Store>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating store with id {} and payload {:?} error occured.",
                     store_id_arg, payload
@@ -141,8 +138,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate store with id {} error occured.", store_id_arg))
                     .into()
             })
@@ -166,8 +162,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 } else {
                     Ok(None)
                 }
-            })
-            .map_err(|e: FailureError| e.context(format!("Delete store by user id {}.", user_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Delete store by user id {}.", user_id_arg)).into())
     }
 
     /// Get store by user id
@@ -184,8 +179,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store_res))?;
                 };
                 Ok(store_res)
-            })
-            .map_err(|e: FailureError| e.context(format!("Get store by user id {}.", user_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Get store by user id {}.", user_id_arg)).into())
     }
 
     /// Checks slug exists
@@ -213,8 +207,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 diesel::dsl::sql::<(diesel::sql_types::Bool)>(&query_str)
                     .get_result(self.db_conn)
                     .map_err(From::from)
-            })
-            .collect::<RepoResult<Vec<bool>>>();
+            }).collect::<RepoResult<Vec<bool>>>();
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
             .and_then(|exists| acl::check(&*self.acl, Resource::Stores, Action::Read, self, None).and_then(|_| Ok(exists)))

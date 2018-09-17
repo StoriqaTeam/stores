@@ -141,13 +141,11 @@ impl<
                                                         .into())
                                                 }
                                             })
-                                        })
-                                        .collect()
+                                        }).collect()
                                 })
                         })
                     }
-                })
-                .map_err(|e| e.context("Service Stores, find_by_name endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, find_by_name endpoint error occured.").into()),
         )
     }
 
@@ -196,14 +194,12 @@ impl<
                             .and_then(move |conn| {
                                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                                 categories_repo.get_all()
-                            })
-                            .and_then(|category| {
+                            }).and_then(|category| {
                                 let new_cat = remove_unused_categories(category, &categories_ids, 0);
                                 Ok(new_cat)
                             })
                     })
-                })
-                .map_err(|e| e.context("Service Stores, search_filters_category endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, search_filters_category endpoint error occured.").into()),
         )
     }
 
@@ -224,8 +220,7 @@ impl<
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.find(store_id)
                         })
-                })
-                .map_err(|e| e.context("Service Stores, get endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, get endpoint error occured.").into()),
         )
     }
 
@@ -246,8 +241,7 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             base_products_repo.count_with_store_id(store_id)
                         })
-                })
-                .map_err(|e| e.context("Service Stores, get_products_count endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, get_products_count endpoint error occured.").into()),
         )
     }
 
@@ -268,8 +262,7 @@ impl<
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.deactivate(store_id)
                         })
-                })
-                .map_err(|e| e.context("Service Stores, deactivate endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, deactivate endpoint error occured.").into()),
         )
     }
 
@@ -290,8 +283,7 @@ impl<
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.delete_by_user(user_id_arg)
                         })
-                })
-                .map_err(|e| e.context("Service Stores, delete_by_user endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, delete_by_user endpoint error occured.").into()),
         )
     }
 
@@ -312,8 +304,7 @@ impl<
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.get_by_user(user_id_arg)
                         })
-                })
-                .map_err(|e| e.context("Service Stores, get_by_user endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, get_by_user endpoint error occured.").into()),
         )
     }
 
@@ -334,8 +325,7 @@ impl<
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.list(from, count)
                         })
-                })
-                .map_err(|e| e.context("Service Stores, list endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, list endpoint error occured.").into()),
         )
     }
 
@@ -362,29 +352,24 @@ impl<
                                             Err(format_err!("Store already exists. User can have only one store.")
                                                 .context(Error::Validate(
                                                     validation_errors!({"store": ["store" => "Current user already has a store."]}),
-                                                ))
-                                                .into())
+                                                )).into())
                                         } else {
                                             Ok(())
                                         }
-                                    })
-                                    .and_then(|_| stores_repo.slug_exists(payload.slug.to_string()))
+                                    }).and_then(|_| stores_repo.slug_exists(payload.slug.to_string()))
                                     .and_then(|exists| {
                                         if exists {
                                             Err(format_err!("Store with slug '{}' already exists.", payload.slug)
                                                 .context(Error::Validate(
                                                     validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                                ))
-                                                .into())
+                                                )).into())
                                         } else {
                                             Ok(())
                                         }
-                                    })
-                                    .and_then(move |_| stores_repo.create(payload))
+                                    }).and_then(move |_| stores_repo.create(payload))
                             })
                         })
-                })
-                .map_err(|e| e.context("Service Stores, create endpoint error occured.").into())
+                }).map_err(|e| e.context("Service Stores, create endpoint error occured.").into())
         })
     }
 
@@ -413,8 +398,7 @@ impl<
                                             .context(Error::NotFound)
                                             .into())
                                     }
-                                })
-                                .and_then(|s| {
+                                }).and_then(|s| {
                                     if let Some(slug) = payload.slug.clone() {
                                         if s.slug != slug {
                                             stores_repo.slug_exists(slug.clone()).and_then(|exists| {
@@ -422,8 +406,7 @@ impl<
                                                     Err(format_err!("Store with slug '{}' already exists.", slug)
                                                         .context(Error::Validate(
                                                             validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                                        ))
-                                                        .into())
+                                                        )).into())
                                                 } else {
                                                     Ok(())
                                                 }
@@ -431,11 +414,9 @@ impl<
                                         };
                                     };
                                     Ok(())
-                                })
-                                .and_then(move |_| stores_repo.update(store_id, payload))
+                                }).and_then(move |_| stores_repo.update(store_id, payload))
                         })
-                })
-                .map_err(|e| e.context("Service Stores, update endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, update endpoint error occured.").into()),
         )
     }
 
@@ -454,8 +435,7 @@ impl<
                             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                             stores_repo.slug_exists(slug)
                         })
-                })
-                .map_err(|e| e.context("Service Stores, slug_exists endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, slug_exists endpoint error occured.").into()),
         )
     }
 }

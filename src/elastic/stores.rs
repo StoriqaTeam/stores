@@ -134,7 +134,7 @@ impl StoresElastic for StoresElasticImpl {
                         "Search store by name error occured. Store: {:?}, count: {:?}, offset: {:?}",
                         search_store, count, offset
                     )).context(Error::ElasticSearch)
-                        .into()
+                    .into()
                 }),
         )
     }
@@ -178,7 +178,7 @@ impl StoresElastic for StoresElasticImpl {
                         "Auto complete store name error occured. Name: {:?}, count: {:?}, offset: {:?}",
                         name, count, _offset
                     )).context(Error::ElasticSearch)
-                        .into()
+                    .into()
                 }),
         )
     }
@@ -288,8 +288,7 @@ impl StoresElastic for StoresElasticImpl {
                         }
                     }
                     countries
-                })
-                .map_err(move |e| {
+                }).map_err(move |e| {
                     e.context(format!("Aggregate countries for store error occured. Store: {:?}", search_store))
                         .context(Error::ElasticSearch)
                         .into()
@@ -374,8 +373,7 @@ impl StoresElastic for StoresElasticImpl {
                         }
                     };
                     categories_ids
-                })
-                .map_err(move |e| {
+                }).map_err(move |e| {
                     e.context(format!("Aggregate categories for stores error occured. Store: {:?}", search_store))
                         .context(Error::ElasticSearch)
                         .into()

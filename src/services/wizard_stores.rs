@@ -172,8 +172,7 @@ impl<
                                                 .context(Error::NotFound)
                                                 .into())
                                         }
-                                    })
-                                    .and_then(|s| {
+                                    }).and_then(|s| {
                                         if s.slug == slug {
                                             // if updated slug equal wizard stores store slug
                                             Ok(false)
@@ -190,8 +189,7 @@ impl<
                                     Err(format_err!("Store with slug '{}' already exists.", slug)
                                         .context(Error::Validate(
                                             validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                        ))
-                                        .into())
+                                        )).into())
                                 } else {
                                     let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                                     wizard_stores_repo.update(user_id, payload)

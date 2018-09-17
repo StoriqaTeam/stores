@@ -69,14 +69,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         .map(|user_role| user_role.role)
                         .collect::<Vec<StoresRole>>();
                     Ok(roles)
-                })
-                .and_then(|roles| {
+                }).and_then(|roles| {
                     if !roles.is_empty() {
                         self.cached_roles.add_roles(user_id_value, &roles);
                     }
                     Ok(roles)
-                })
-                .map_err(|e| e.context(format!("List user roles for id {} error occured.", user_id_value)).into())
+                }).map_err(|e| e.context(format!("List user roles for id {} error occured.", user_id_value)).into())
         }
     }
 

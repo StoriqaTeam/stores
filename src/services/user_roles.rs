@@ -75,8 +75,7 @@ impl<
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.list_for_user(user_id)
                         })
-                })
-                .map_err(|e| e.context("Service UserRoles, get_roles endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service UserRoles, get_roles endpoint error occured.").into()),
         )
     }
 
@@ -95,8 +94,7 @@ impl<
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.delete(payload)
                         })
-                })
-                .map_err(|e| e.context("Service UserRoles, delete endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service UserRoles, delete endpoint error occured.").into()),
         )
     }
 
@@ -115,8 +113,7 @@ impl<
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.create(new_user_role)
                         })
-                })
-                .map_err(|e| e.context("Service UserRoles, create endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service UserRoles, create endpoint error occured.").into()),
         )
     }
 
@@ -135,8 +132,7 @@ impl<
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.delete_by_user_id(user_id_arg)
                         })
-                })
-                .map_err(|e| e.context("Service UserRoles, delete_default endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service UserRoles, delete_default endpoint error occured.").into()),
         )
     }
 
@@ -159,8 +155,7 @@ impl<
                             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
                             user_roles_repo.create(default_role)
                         })
-                })
-                .map_err(|e| e.context("Service UserRoles, create_default endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service UserRoles, create_default endpoint error occured.").into()),
         )
     }
 }

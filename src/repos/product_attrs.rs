@@ -68,8 +68,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find specific product_attributes by product id: {} error occured",
                     product_id_arg
@@ -90,8 +89,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find specific product_attributes by base_product id: {} error occured",
                     base_product_id_arg
@@ -108,8 +106,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|prod_attr| {
                 acl::check(&*self.acl, Resource::ProductAttrs, Action::Create, self, Some(&prod_attr)).and_then(|_| Ok(prod_attr))
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Create new product attribute {:?} error occured", payload))
                     .into()
             })
@@ -132,8 +129,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<ProdAttr>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| e.context(format!("Updating product attribute {:?} error occured", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Updating product attribute {:?} error occured", payload)).into())
     }
 
     /// Delete all attributes values from product
@@ -150,8 +146,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Delete all attributes values from product by id {:?} error occured",
                     product_id_arg
@@ -178,8 +173,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(move |e: FailureError| {
+            }).map_err(move |e: FailureError| {
                 e.context(format!(
                     "Delete all attributes values not in the list {:?} from product by id {:?} error occured",
                     attr_values, product_id_arg
@@ -199,8 +193,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|prod_attr: ProdAttr| {
                 acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 Ok(prod_attr)
-            })
-            .map_err(|e: FailureError| e.context(format!("Delete attribute value with id {}", id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Delete attribute value with id {}", id_arg)).into())
     }
 }
 
@@ -220,8 +213,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                                 .find(base_prod.store_id)
                                 .get_result::<Store>(self.db_conn)
                                 .and_then(|store: Store| Ok(store.user_id == user_id))
-                        })
-                        .ok()
+                        }).ok()
                         .unwrap_or(false)
                 } else {
                     false

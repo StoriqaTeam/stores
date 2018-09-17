@@ -77,8 +77,7 @@ impl<
                             let moderator_product_repo = repo_factory.create_moderator_product_comments_repo(&*conn, user_id);
                             moderator_product_repo.find_by_base_product_id(base_product_id)
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service ModeratorComments, get_latest_for_product endpoint error occured.")
                         .into()
                 }),
@@ -101,8 +100,7 @@ impl<
                             let moderator_product_repo = repo_factory.create_moderator_product_comments_repo(&*conn, user_id);
                             conn.transaction::<ModeratorProductComments, FailureError, _>(move || moderator_product_repo.create(payload))
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service ModeratorComments, create_product_comment endpoint error occured.")
                         .into()
                 }),
@@ -125,8 +123,7 @@ impl<
                             let moderator_store_repo = repo_factory.create_moderator_store_comments_repo(&*conn, user_id);
                             moderator_store_repo.find_by_store_id(store_id)
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service ModeratorComments, get_latest_for_store endpoint error occured.")
                         .into()
                 }),
@@ -149,8 +146,7 @@ impl<
                             let moderator_store_repo = repo_factory.create_moderator_store_comments_repo(&*conn, user_id);
                             conn.transaction::<ModeratorStoreComments, FailureError, _>(move || moderator_store_repo.create(payload))
                         })
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service ModeratorComments, create_store_comment endpoint error occured.")
                         .into()
                 }),

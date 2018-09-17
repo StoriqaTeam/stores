@@ -73,8 +73,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|category| {
                 acl::check(&*self.acl, Resource::Categories, Action::Create, self, Some(&category)).and_then(|_| Ok(category))
-            })
-            .map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occured", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occured", payload)).into())
     }
 
     /// Updates specific category
@@ -90,21 +89,18 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = categories.filter(id.eq(category_id_arg));
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<RawCategory>(self.db_conn).map_err(From::from)
-            })
-            .and_then(|updated_category| {
+            }).and_then(|updated_category| {
                 categories
                     .load::<RawCategory>(self.db_conn)
                     .map_err(From::from)
                     .map(|cats| (updated_category, cats))
-            })
-            .map(|(updated_category, cats)| {
+            }).map(|(updated_category, cats)| {
                 let id_arg = updated_category.id;
                 let mut result: Category = updated_category.into();
                 let children = create_tree(&cats, Some(id_arg));
                 result.children = children;
                 result
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating category with id {} and payload {:?} error occured",
                     category_id_arg, payload
@@ -145,8 +141,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     set_attributes(&mut root, &cat_hash);
                     self.cache.set(root.clone());
                     Ok(root)
-                })
-                .map_err(|e: FailureError| e.context("Get all categories error occured").into())
+                }).map_err(|e: FailureError| e.context("Get all categories error occured").into())
         }
     }
 }

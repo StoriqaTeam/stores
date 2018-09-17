@@ -325,8 +325,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 ProductsSorting::Discount => json!(
                         [{"variants.discount" : "desc"}]
                     ),
-            })
-            .unwrap_or_else(|| serde_json::Value::Array(vec![]));
+            }).unwrap_or_else(|| serde_json::Value::Array(vec![]));
 
         let variants = json!({
             "nested":{  
@@ -385,7 +384,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "Search product by name error occured. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
                     )).context(Error::ElasticSearch)
-                        .into()
+                    .into()
                 }),
         )
     }
@@ -452,7 +451,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "Search most viewed product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
                     )).context(Error::ElasticSearch)
-                        .into()
+                    .into()
                 }),
         )
     }
@@ -549,7 +548,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "Search most discount product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
                     )).context(Error::ElasticSearch)
-                        .into()
+                    .into()
                 }),
         )
     }
@@ -606,7 +605,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "Auto complete product name error occured. Name: {:?}, count: {}, offset: {}",
                         name, count, _offset
                     )).context(Error::ElasticSearch)
-                        .into()
+                    .into()
                 }),
         )
     }
@@ -687,8 +686,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         }
                     }
                     cats
-                })
-                .map_err(move |e| {
+                }).map_err(move |e| {
                     e.context(format!("Aggregate categories for products error occured. Name: {:?}", name))
                         .context(Error::ElasticSearch)
                         .into()
@@ -837,8 +835,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         };
                     }
                     price_filters
-                })
-                .map_err(move |e| {
+                }).map_err(move |e| {
                     e.context(format!("Aggregate price name error occured. Prod: {:?}", prod))
                         .context(Error::ElasticSearch)
                         .into()

@@ -102,8 +102,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(base_product))?;
                 };
                 Ok(base_product)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find base product by id: {} error occured", base_product_id_arg))
                     .into()
             })
@@ -133,8 +132,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_prod| {
                 acl::check(&*self.acl, Resource::BaseProducts, Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
-            })
-            .map_err(|e: FailureError| e.context(format!("Creates new base_product {:?} error occured", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Creates new base_product {:?} error occured", payload)).into())
     }
 
     /// Returns list of base_products, limited by `from` and `count` parameters
@@ -154,8 +152,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
                 }
                 Ok(base_products_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find in base products with ids from {} count {} error occured",
                     from, count
@@ -194,8 +191,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
                 }
                 Ok(base_products_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find in base products with store id {} skip {:?} from {} count {}.",
                     store_id_arg, skip_base_product_id, from, count
@@ -213,8 +209,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<BaseProduct>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating base product with id {} and payload {:?} failed.",
                     base_product_id_arg, payload
@@ -246,8 +241,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate base product with id {} failed", base_product_id_arg))
                     .into()
             })
@@ -290,8 +284,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         let n = hashed_ids[&bp.id];
                         tree_map.insert(n, bp);
                         tree_map
-                    })
-                    .into_iter()
+                    }).into_iter()
                     .map(|(_, base_product)| base_product)
                     .collect::<Vec<BaseProduct>>();
 
@@ -303,8 +296,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         } else {
                             p.variants.iter().map(|variant| variant.prod_id).collect()
                         }
-                    })
-                    .collect::<Vec<ProductId>>();
+                    }).collect::<Vec<ProductId>>();
 
                 let variants = Product::belonging_to(&base_products_list)
                     .get_results(self.db_conn)?
@@ -317,8 +309,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .zip(variants)
                     .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
                     .collect())
-            })
-            .map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
+            }).map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
     }
 
     /// Returns most viewed list of base_products, limited by `from` and `count` parameters
@@ -352,8 +343,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .zip(variants)
                     .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
                     .collect())
-            })
-            .map_err(|e: FailureError| e.context("Querying for most viewed base products failed").into())
+            }).map_err(|e: FailureError| e.context("Querying for most viewed base products failed").into())
     }
 
     /// Returns most discount list of base_products, limited by `from` and `count` parameters
@@ -400,8 +390,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         let n = hashed_ids[&bp.id];
                         tree_map.insert(n, bp);
                         tree_map
-                    })
-                    .into_iter()
+                    }).into_iter()
                     .map(|(_, base_product)| base_product)
                     .collect::<Vec<BaseProduct>>();
 
@@ -410,8 +399,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .zip(variants)
                     .map(|(base, var)| BaseProductWithVariants::new(base, vec![var]))
                     .collect())
-            })
-            .map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
+            }).map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
     }
 }
 

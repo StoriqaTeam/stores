@@ -29,6 +29,7 @@ pub fn create_update_category(name: &str) -> UpdateCategory {
 
 static MOCK_CATEGORY_NAME_JSON: &'static str = r##"[{"lang": "en","text": "Category"}]"##;
 
+#[ignore]
 #[test]
 fn categories_crud() {
     let mut context = setup();

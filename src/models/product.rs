@@ -18,17 +18,20 @@ use schema::products;
 #[table_name = "products"]
 pub struct Product {
     pub id: ProductId,
-    pub base_product_id: BaseProductId,
     pub is_active: bool,
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
-    pub additional_photos: Option<serde_json::Value>,
-    pub vendor_code: String,
     pub cashback: Option<f64>,
-    pub price: ProductPrice,
-    pub currency: Currency,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
+    pub base_product_id: BaseProductId,
+    pub additional_photos: Option<serde_json::Value>,
+    pub price: ProductPrice,
+    pub vendor_code: String,
+    pub currency: Currency,
+    pub kafka_update_no: i32,
+    pub pre_order: bool,
+    pub pre_order_days: i32,
 }
 
 /// Payload for creating products
@@ -48,6 +51,8 @@ pub struct NewProduct {
     #[validate(custom = "validate_non_negative_price")]
     pub price: ProductPrice,
     pub currency: Currency,
+    pub pre_order: bool,
+    pub pre_order_days: i32,
 }
 
 /// Payload for creating products
@@ -65,6 +70,8 @@ pub struct NewProductWithoutCurrency {
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative_price")]
     pub price: ProductPrice,
+    pub pre_order: bool,
+    pub pre_order_days: i32,
 }
 
 impl From<(NewProductWithoutCurrency, Currency)> for NewProduct {
@@ -78,6 +85,8 @@ impl From<(NewProductWithoutCurrency, Currency)> for NewProduct {
             cashback: other.0.cashback,
             price: other.0.price,
             currency: other.1,
+            pre_order: other.0.pre_order,
+            pre_order_days: other.0.pre_order_days,
         }
     }
 }
@@ -104,6 +113,8 @@ pub struct UpdateProduct {
     #[validate(custom = "validate_non_negative_price")]
     pub price: Option<ProductPrice>,
     pub currency: Option<Currency>,
+    pub pre_order: Option<bool>,
+    pub pre_order_days: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

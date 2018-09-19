@@ -1,4 +1,4 @@
-//! Module containg base_product model for query, insert, update
+//! Module containing base_product model for query, insert, update
 use std::time::SystemTime;
 
 use serde_json;
@@ -18,21 +18,22 @@ use schema::base_products;
 #[table_name = "base_products"]
 pub struct BaseProduct {
     pub id: BaseProductId,
-    pub is_active: bool,
     pub store_id: StoreId,
+    pub is_active: bool,
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
-    pub seo_title: Option<serde_json::Value>,
-    pub seo_description: Option<serde_json::Value>,
-    pub currency: Currency,
     pub category_id: i32,
-    pub views: i32,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
+    pub views: i32,
+    pub seo_title: Option<serde_json::Value>,
+    pub seo_description: Option<serde_json::Value>,
     pub rating: f64,
     pub slug: String,
     pub status: ModerationStatus,
+    pub kafka_update_no: i32,
+    pub currency: Currency,
 }
 
 /// Payload for creating base_products

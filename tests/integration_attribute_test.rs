@@ -9,6 +9,7 @@ use hyper::{Method, Request};
 
 use stores_lib::models::*;
 
+use stq_http::request_util::Currency as CurrencyHeader;
 use stq_static_resources::*;
 
 pub fn create_new_attribute(name: &str) -> NewAttribute {
@@ -41,25 +42,32 @@ fn attributes_crud() {
     req.headers_mut().set(ContentType::json());
     req.headers_mut().set(ContentLength(body.len() as u64));
     req.headers_mut().set(Authorization("1".to_string()));
+    req.headers_mut().set(CurrencyHeader("STQ".to_string()));
     req.set_body(body);
 
     let mut code = context
         .core
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
+    //println!("Attribute string: {:?}", code);
     let value = serde_json::from_str::<Attribute>(&code);
+    //println!("Attribute {:?}", value);
     assert!(value.is_ok());
 
     let id = value.unwrap().id;
     //read
     url = Uri::from_str(&format!("{}/attributes/{}", context.base_url, id)).unwrap();
 
-    req = Request::new(Method::Get, url.clone());
+    let mut req = Request::new(Method::Get, url.clone());
+    req.headers_mut().set(CurrencyHeader("STQ".to_string()));
+
     code = context
         .core
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
+    //println!("Attribute string: {:?}", code);
     let value = serde_json::from_str::<Attribute>(&code);
+    //println!("Attribute {:?}", value);
     assert!(value.is_ok());
 
     //update
@@ -72,6 +80,7 @@ fn attributes_crud() {
     req.headers_mut().set(ContentType::json());
     req.headers_mut().set(ContentLength(body.len() as u64));
     req.headers_mut().set(Authorization("1".to_string()));
+    req.headers_mut().set(CurrencyHeader("STQ".to_string()));
     req.set_body(body);
 
     code = context

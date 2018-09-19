@@ -44,6 +44,7 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
 static MOCK_BASE_PRODUCT_NAME_JSON: &'static str = r##"[{"lang": "en","text": "Base Product"}]"##;
 static MOCK_SHORT_DESCRIPTION_JSON: &'static str = r##"[{"lang": "en","text": "Short Description"}]"##;
 
+#[ignore]
 #[test]
 fn base_products_crud() {
     let mut context = setup();

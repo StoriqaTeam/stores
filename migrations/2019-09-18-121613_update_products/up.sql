@@ -1,0 +1,3 @@
+-- Your SQL goes here
+ALTER TABLE products ADD COLUMN pre_order BOOLEAN NOT NULL DEFAULT 'f';
+ALTER TABLE products ADD COLUMN pre_order_days INTEGER NOT NULL DEFAULT 0;

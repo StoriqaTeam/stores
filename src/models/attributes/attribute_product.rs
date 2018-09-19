@@ -9,11 +9,11 @@ use schema::prod_attr_values;
 pub struct ProdAttr {
     pub id: i32,
     pub prod_id: ProductId,
-    pub base_prod_id: BaseProductId,
     pub attr_id: i32,
     pub value: String,
     pub value_type: AttributeType,
     pub meta_field: Option<String>,
+    pub base_prod_id: BaseProductId,
 }
 
 /// Payload for creating product attributes

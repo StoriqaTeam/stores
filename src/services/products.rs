@@ -576,6 +576,9 @@ pub mod tests {
             currency: Currency::STQ,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
+            pre_order: false,
+            pre_order_days: 0,
+            kafka_update_no: 0,
         }
     }
 
@@ -599,6 +602,8 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: ProductPrice(0f64),
+            pre_order: false,
+            pre_order_days: 0,
         }
     }
 
@@ -611,6 +616,8 @@ pub mod tests {
             additional_photos: None,
             price: None,
             currency: None,
+            pre_order: None,
+            pre_order_days: None,
         }
     }
 

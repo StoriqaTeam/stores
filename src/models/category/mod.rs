@@ -17,9 +17,9 @@ use schema::categories;
 pub struct RawCategory {
     pub id: i32,
     pub name: serde_json::Value,
-    pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
     pub level: i32,
+    pub meta_field: Option<serde_json::Value>,
 }
 
 /// Payload for creating categories
@@ -28,10 +28,10 @@ pub struct RawCategory {
 pub struct NewCategory {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
-    pub meta_field: Option<serde_json::Value>,
     pub parent_id: Option<i32>,
     #[validate(range(min = "1", max = "3"))]
     pub level: i32,
+    pub meta_field: Option<serde_json::Value>,
 }
 
 /// Payload for updating categories

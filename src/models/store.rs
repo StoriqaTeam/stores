@@ -17,9 +17,6 @@ pub struct Store {
     pub id: StoreId,
     pub user_id: UserId,
     pub is_active: bool,
-    pub name: serde_json::Value,
-    pub short_description: serde_json::Value,
-    pub long_description: Option<serde_json::Value>,
     pub slug: String,
     pub cover: Option<String>,
     pub logo: Option<String>,
@@ -31,8 +28,11 @@ pub struct Store {
     pub instagram_url: Option<String>,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
-    pub default_language: String,
     pub slogan: Option<String>,
+    pub default_language: String,
+    pub name: serde_json::Value,
+    pub short_description: serde_json::Value,
+    pub long_description: Option<serde_json::Value>,
     pub rating: f64,
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
@@ -45,6 +45,7 @@ pub struct Store {
     pub route: Option<String>,
     pub street_number: Option<String>,
     pub place_id: Option<String>,
+    pub kafka_update_no: i32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -40,6 +40,9 @@ pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product 
         currency: Currency::STQ,
         created_at: SystemTime::now(),
         updated_at: SystemTime::now(),
+        pre_order: false,
+        pre_order_days: 0,
+        kafka_update_no: 0,
     }
 }
 
@@ -59,6 +62,8 @@ pub fn create_new_product(base_product_id: BaseProductId) -> NewProductWithoutCu
         cashback: None,
         additional_photos: None,
         price: ProductPrice(1f64),
+        pre_order: false,
+        pre_order_days: 0,
     }
 }
 
@@ -71,6 +76,8 @@ pub fn create_update_product() -> UpdateProduct {
         additional_photos: None,
         price: Some(ProductPrice(2f64)),
         currency: Some(Currency::STQ),
+        pre_order: Some(false),
+        pre_order_days: Some(0),
     }
 }
 
@@ -84,6 +91,7 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
 static MOCK_BASE_PRODUCT_NAME_JSON: &'static str = r##"[{"lang": "en","text": "Base Product"}]"##;
 static MOCK_SHORT_DESCRIPTION_JSON: &'static str = r##"[{"lang": "en","text": "Short Description"}]"##;
 
+#[ignore]
 #[test]
 fn products_crud() {
     let mut context = setup();

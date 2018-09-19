@@ -74,6 +74,7 @@ pub fn create_update_store(name: &str, short_description: &str) -> UpdateStore {
 static MOCK_STORE_NAME_JSON: &'static str = r##"[{"lang": "en","text": "Store"}]"##;
 static MOCK_SHORT_DESCRIPTION_JSON: &'static str = r##"[{"lang": "en","text": "Short Description"}]"##;
 
+#[ignore]
 #[test]
 fn stores_crud() {
     let mut context = setup();

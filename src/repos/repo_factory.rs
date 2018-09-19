@@ -525,6 +525,7 @@ pub mod tests {
                 rating: 0f64,
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
+                kafka_update_no: 0,
             }))
         }
 
@@ -549,6 +550,7 @@ pub mod tests {
                     updated_at: SystemTime::now(),
                     slug: "slug".to_string(),
                     status: ModerationStatus::Published,
+                    kafka_update_no: 0,
                 };
                 base_products.push(base_product);
             }
@@ -582,6 +584,7 @@ pub mod tests {
                     rating: 0f64,
                     slug: "slug".to_string(),
                     status: ModerationStatus::Published,
+                    kafka_update_no: 0,
                 };
                 base_products.push(base_product);
             }
@@ -616,6 +619,7 @@ pub mod tests {
                 rating: 0f64,
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
+                kafka_update_no: 0,
             })
         }
 
@@ -638,6 +642,7 @@ pub mod tests {
                 rating: 0f64,
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
+                kafka_update_no: 0,
             })
         }
 
@@ -660,6 +665,7 @@ pub mod tests {
                 rating: 0f64,
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
+                kafka_update_no: 0,
             }))
         }
 
@@ -682,6 +688,7 @@ pub mod tests {
                 rating: 0f64,
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
+                kafka_update_no: 0,
             })
         }
 
@@ -791,6 +798,8 @@ pub mod tests {
                 id: 123,
                 user_id: payload.user_id,
                 role: payload.role,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
             })
         }
 
@@ -799,6 +808,8 @@ pub mod tests {
                 id: 123,
                 user_id: payload.user_id,
                 role: payload.role,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
             })
         }
 
@@ -807,6 +818,8 @@ pub mod tests {
                 id: 123,
                 user_id: user_id_arg,
                 role: StoresRole::User,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
             })
         }
     }
@@ -924,6 +937,7 @@ pub mod tests {
             route: None,
             street_number: None,
             place_id: None,
+            kafka_update_no: 0,
         }
     }
 
@@ -1140,6 +1154,9 @@ pub mod tests {
             currency: Currency::STQ,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
+            pre_order: false,
+            pre_order_days: 0,
+            kafka_update_no: 0,
         }
     }
 }

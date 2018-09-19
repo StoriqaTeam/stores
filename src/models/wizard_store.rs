@@ -1,4 +1,4 @@
-//! Module containg wizard_stores model for query, insert, update
+//! Module containing wizard_stores model for query, insert, update
 use validator::Validate;
 
 use stq_types::{StoreId, UserId};

@@ -205,6 +205,7 @@ mod tests {
             route: None,
             street_number: None,
             place_id: None,
+            kafka_update_no: 0,
         }
     }
 
@@ -271,6 +272,8 @@ mod tests {
             id: 1,
             user_id: UserId(1),
             role: StoresRole::User,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
         };
 
         assert_eq!(acl.allows(Resource::UserRoles, Action::All, &s, Some(&resource)).unwrap(), true);
@@ -287,6 +290,8 @@ mod tests {
             id: 1,
             user_id: UserId(1),
             role: StoresRole::User,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
         };
 
         assert_eq!(acl.allows(Resource::UserRoles, Action::All, &s, Some(&resource)).unwrap(), false);

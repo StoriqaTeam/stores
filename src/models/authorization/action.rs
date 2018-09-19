@@ -13,6 +13,7 @@ pub enum Action {
     Create,
     Update,
     Delete,
+    Moderate,
 }
 
 impl fmt::Display for Action {
@@ -23,6 +24,7 @@ impl fmt::Display for Action {
             Action::Create => write!(f, "create"),
             Action::Update => write!(f, "update"),
             Action::Delete => write!(f, "delete"),
+            Action::Moderate => write!(f, "moderate"),
         }
     }
 }

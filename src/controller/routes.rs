@@ -49,6 +49,8 @@ pub enum Route {
     StoreByUser(UserId),
     StoreProducts(StoreId),
     StoreProductsCount(StoreId),
+    StorePublish(StoreId),
+    StoreDraft(StoreId),
     UserRoles,
     UserRole(UserId),
     DefaultRole(UserId),
@@ -319,6 +321,24 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Moderator Store search
     router.add_route(r"^/stores/moderator_search$", || Route::ModeratorStoreSearch);
+
+    // Stores/:id/publish route
+    router.add_route_with_params(r"^/stores/(\d+)/publish$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(StoreId)
+            .map(Route::StorePublish)
+    });
+
+    // Stores/:id/draft route
+    router.add_route_with_params(r"^/stores/(\d+)/draft$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(StoreId)
+            .map(Route::StoreDraft)
+    });
 
     router
 }

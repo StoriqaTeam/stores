@@ -30,7 +30,7 @@ use stq_http::request_util::serialize_future;
 use stq_http::request_util::Currency as CurrencyHeader;
 use stq_http::request_util::{parse_body, read_body};
 use stq_router::RouteParser;
-use stq_static_resources::Currency;
+use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::*;
 
 use self::routes::Route;
@@ -385,6 +385,18 @@ impl<
                     user_id, user_id_arg
                 );
                 serialize_future(stores_service.delete_by_user(user_id_arg))
+            }
+
+            // POST /stores/<store_id>/publish
+            (&Post, Some(Route::StorePublish(store_id))) => {
+                debug!("Received request to publish store {}", store_id);
+                serialize_future(stores_service.set_moderation_status(store_id, ModerationStatus::Published))
+            }
+
+            // POST /stores/<store_id>/draft
+            (&Post, Some(Route::StoreDraft(store_id))) => {
+                debug!("Received request to draft store {}", store_id);
+                serialize_future(stores_service.set_moderation_status(store_id, ModerationStatus::Draft))
             }
 
             // GET /products/<product_id>

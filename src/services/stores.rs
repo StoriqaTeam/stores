@@ -8,12 +8,13 @@ use futures::future::*;
 use futures_cpupool::CpuPool;
 use r2d2::{ManageConnection, Pool};
 
-use errors::Error;
 use stq_http::client::ClientHandle;
+use stq_static_resources::ModerationStatus;
 use stq_types::{StoreId, UserId};
 
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
+use errors::Error;
 use models::{Category, ModeratorStoreSearchTerms, NewStore, SearchStore, Store, UpdateStore};
 use repos::remove_unused_categories;
 use repos::ReposFactory;
@@ -49,6 +50,8 @@ pub trait StoresService {
     fn slug_exists(&self, slug: String) -> ServiceFuture<bool>;
     /// Search stores limited by `from` and `count` parameters
     fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> ServiceFuture<Vec<Store>>;
+    /// Set moderation status for specific store
+    fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store>;
 }
 
 /// Stores services, responsible for Store-related CRUD operations
@@ -460,6 +463,27 @@ impl<
                             stores_repo.moderator_search(from, count, term)
                         })
                 }).map_err(|e: FailureError| e.context("Service stores, moderator_search endpoint error occured.").into()),
+        )
+    }
+
+    /// Set moderation status for specific store
+    fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store> {
+        let db_clone = self.db_pool.clone();
+        let current_uid = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+        debug!("Set moderation status {} for store {}", status, &store_id);
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_clone
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&conn, current_uid);
+                            stores_repo.set_moderation_status(store_id, status)
+                        })
+                }).map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occured.").into()),
         )
     }
 }

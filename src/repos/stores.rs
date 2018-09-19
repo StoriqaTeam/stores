@@ -10,7 +10,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_static_resources::Translation;
+use stq_static_resources::{ModerationStatus, Translation};
 use stq_types::{StoreId, UserId};
 
 use super::acl;
@@ -56,6 +56,9 @@ pub trait StoresRepo {
 
     /// Search stores limited by `from` and `count` parameters
     fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
+
+    /// Set moderation status for specific store
+    fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Store>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
@@ -248,6 +251,25 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     "moderator search for stores, limited by {} and {} error occured",
                     from, count
                 )).into()
+            })
+    }
+
+    /// Set moderation status for specific store
+    fn set_moderation_status(&self, store_id_arg: StoreId, status_arg: ModerationStatus) -> RepoResult<Store> {
+        let query = stores.find(store_id_arg.clone());
+
+        query
+            .get_result(self.db_conn)
+            .map_err(From::from)
+            .and_then(|s: Store| acl::check(&*self.acl, Resource::Stores, Action::Moderate, self, Some(&s)))
+            .and_then(|_| {
+                let filter = stores.filter(id.eq(store_id_arg.clone()));
+                let query = diesel::update(filter).set(status.eq(status_arg));
+
+                query.get_result(self.db_conn).map_err(From::from)
+            }).map_err(|e: FailureError| {
+                e.context(format!("Set moderation status for store {:?} error occured", store_id_arg))
+                    .into()
             })
     }
 }

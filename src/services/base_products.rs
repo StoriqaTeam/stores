@@ -13,7 +13,7 @@ use r2d2::{ManageConnection, Pool};
 use serde_json;
 
 use stq_http::client::ClientHandle;
-use stq_static_resources::Currency;
+use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{BaseProductId, ProductId, StoreId, UserId};
 
 use super::types::ServiceFuture;
@@ -71,6 +71,8 @@ pub trait BaseProductsService {
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
     /// Search base products limited by `from` and `count` parameters
     fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> ServiceFuture<Vec<BaseProduct>>;
+    /// Set moderation status for base_product_ids
+    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> ServiceFuture<Vec<BaseProduct>>;
 }
 
 /// Products services, responsible for Product-related CRUD operations
@@ -1062,6 +1064,30 @@ impl<
                             base_products_repo.moderator_search(from, count, term)
                         })
                 }).map_err(|e: FailureError| e.context("Service base_products, moderator_search endpoint error occured.").into()),
+        )
+    }
+
+    /// Set moderation status for base_product_ids
+    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> ServiceFuture<Vec<BaseProduct>> {
+        let db_clone = self.db_pool.clone();
+        let current_uid = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+        debug!("Set moderation status {} for base_products {:?}", status, &base_product_ids);
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_clone
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&conn, current_uid);
+                            base_products_repo.set_moderation_status(base_product_ids, status)
+                        })
+                }).map_err(|e: FailureError| {
+                    e.context("Service base_products, set_moderation_status endpoint error occured.")
+                        .into()
+                }),
         )
     }
 }

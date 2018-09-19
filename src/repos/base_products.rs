@@ -78,6 +78,9 @@ pub trait BaseProductsRepo {
 
     /// Search base product limited by `from` and `count` parameters
     fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Set moderation status for base_product_ids
+    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepoImpl<'a, T> {
@@ -435,6 +438,31 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!(
                     "moderator search for base_products, limited by {} and {} error occured",
                     from, count
+                )).into()
+            })
+    }
+
+    /// Set moderation status for base_product
+    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+        let query = base_products.filter(id.eq_any(base_product_ids.clone()));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|bs: Vec<BaseProduct>| {
+                for base in &bs {
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Moderate, self, Some(&base))?;
+                }
+                Ok(bs)
+            }).and_then(|_| {
+                let filter = base_products.filter(id.eq_any(base_product_ids.clone()));
+                let query = diesel::update(filter).set(status.eq(status_arg));
+
+                query.get_results(self.db_conn).map_err(From::from)
+            }).map_err(|e: FailureError| {
+                e.context(format!(
+                    "Set moderation status for base_product {:?} error occured",
+                    base_product_ids
                 )).into()
             })
     }

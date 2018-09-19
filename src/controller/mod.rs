@@ -750,6 +750,36 @@ impl<
                 )
             }
 
+            // POST /base_products/publish
+            (&Post, Some(Route::BaseProductPublish)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /base_products/publish", user_id);
+                serialize_future(
+                    parse_body::<Vec<BaseProductId>>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /base_products/publish in Vec<BaseProductId> failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |base_product_ids| {
+                            base_products_service.set_moderation_status(base_product_ids, ModerationStatus::Published)
+                        }),
+                )
+            }
+
+            // POST /base_products/draft
+            (&Post, Some(Route::BaseProductDraft)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /base_products/draft", user_id);
+                serialize_future(
+                    parse_body::<Vec<BaseProductId>>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /base_products/draft in Vec<BaseProductId> failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |base_product_ids| {
+                            base_products_service.set_moderation_status(base_product_ids, ModerationStatus::Draft)
+                        }),
+                )
+            }
+
             // GET /user_role/<user_id>
             (&Get, Some(Route::UserRole(user_id_arg))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /user_role/{}", user_id, user_id_arg);

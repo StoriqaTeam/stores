@@ -878,6 +878,15 @@ pub mod tests {
         fn get_by_user(&self, _user_id_arg: UserId) -> RepoResult<Option<Store>> {
             Ok(None)
         }
+
+        fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+            let mut stores = vec![];
+            for i in from.0..(from.0 + count as i32) {
+                let store = create_store(StoreId(i), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
+                stores.push(store);
+            }
+            Ok(stores)
+        }
     }
 
     #[allow(unused)]

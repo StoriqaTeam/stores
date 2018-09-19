@@ -1041,6 +1041,29 @@ impl<
                 serialize_future(products_service.get_seller_price(product_id))
             }
 
+            // POST /stores/moderator_search
+            (&Post, Some(Route::ModeratorStoreSearch)) => {
+                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => StoreId, "count" => i64) {
+                    debug!("Received request to search {} stores starting from {}", count, offset);
+                    serialize_future(
+                        parse_body::<ModeratorStoreSearchTerms>(req.body())
+                            .map_err(|e| {
+                                e.context("Parsing body // POST /stores/moderator_search in ModeratorStoreSearchTerms failed!")
+                                    .context(Error::Parse)
+                                    .into()
+                            }).inspect(|payload| {
+                                debug!("Received request to search for store whith payload {:?}", payload);
+                            }).and_then(move |payload| stores_service.moderator_search(offset, count, payload)),
+                    )
+                } else {
+                    Box::new(future::err(
+                        format_err!("Parsing query parameters // POST /stores/moderator_search failed!")
+                            .context(Error::Parse)
+                            .into(),
+                    ))
+                }
+            }
+
             // Fallback
             (m, _) => Box::new(future::err(
                 format_err!("Request to non existing endpoint in stores microservice! {:?} {:?}", m, path)

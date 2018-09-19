@@ -14,7 +14,7 @@ use stq_types::{StoreId, UserId};
 
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
-use models::{Category, NewStore, SearchStore, Store, UpdateStore};
+use models::{Category, ModeratorStoreSearchTerms, NewStore, SearchStore, Store, UpdateStore};
 use repos::remove_unused_categories;
 use repos::ReposFactory;
 
@@ -47,6 +47,8 @@ pub trait StoresService {
     fn update(&self, store_id: StoreId, payload: UpdateStore) -> ServiceFuture<Store>;
     /// Checks that slug exists
     fn slug_exists(&self, slug: String) -> ServiceFuture<bool>;
+    /// Search stores limited by `from` and `count` parameters
+    fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> ServiceFuture<Vec<Store>>;
 }
 
 /// Stores services, responsible for Store-related CRUD operations
@@ -436,6 +438,28 @@ impl<
                             stores_repo.slug_exists(slug)
                         })
                 }).map_err(|e| e.context("Service Stores, slug_exists endpoint error occured.").into()),
+        )
+    }
+
+    /// Search stores limited by `from` and `count` parameters
+    fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> ServiceFuture<Vec<Store>> {
+        let db_clone = self.db_pool.clone();
+        let current_uid = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        debug!("Searching for {} stores starting from {} with payload: {:?}", count, from, term);
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_clone
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let stores_repo = repo_factory.create_stores_repo(&conn, current_uid);
+                            stores_repo.moderator_search(from, count, term)
+                        })
+                }).map_err(|e: FailureError| e.context("Service stores, moderator_search endpoint error occured.").into()),
         )
     }
 }

@@ -879,13 +879,17 @@ pub mod tests {
             Ok(None)
         }
 
-        fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+        fn moderator_search(&self, from: StoreId, count: i64, _term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
             let mut stores = vec![];
             for i in from.0..(from.0 + count as i32) {
                 let store = create_store(StoreId(i), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
                 stores.push(store);
             }
             Ok(stores)
+        }
+        fn set_moderation_status(&self, store_id_arg: StoreId, _status_arg: ModerationStatus) -> RepoResult<Store> {
+            let store = create_store(store_id_arg, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
+            Ok(store)
         }
     }
 

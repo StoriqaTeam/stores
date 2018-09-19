@@ -70,11 +70,15 @@ impl ApplicationAcl {
             StoresRole::User,
             vec![
                 permission!(Resource::Stores, Action::Read),
-                permission!(Resource::Stores, Action::All, Scope::Owned),
+                permission!(Resource::Stores, Action::Create, Scope::Owned),
+                permission!(Resource::Stores, Action::Update, Scope::Owned),
+                permission!(Resource::Stores, Action::Delete, Scope::Owned),
                 permission!(Resource::Products, Action::Read),
                 permission!(Resource::Products, Action::All, Scope::Owned),
                 permission!(Resource::BaseProducts, Action::Read),
-                permission!(Resource::BaseProducts, Action::All, Scope::Owned),
+                permission!(Resource::BaseProducts, Action::Create, Scope::Owned),
+                permission!(Resource::BaseProducts, Action::Update, Scope::Owned),
+                permission!(Resource::BaseProducts, Action::Delete, Scope::Owned),
                 permission!(Resource::UserRoles, Action::Read, Scope::Owned),
                 permission!(Resource::ProductAttrs, Action::Read),
                 permission!(Resource::ProductAttrs, Action::All, Scope::Owned),
@@ -84,6 +88,26 @@ impl ApplicationAcl {
                 permission!(Resource::ModeratorProductComments, Action::All, Scope::Owned),
                 permission!(Resource::ModeratorStoreComments, Action::Read),
                 permission!(Resource::ModeratorStoreComments, Action::All, Scope::Owned),
+                permission!(Resource::Attributes, Action::Read),
+                permission!(Resource::Categories, Action::Read),
+                permission!(Resource::CategoryAttrs, Action::Read),
+                permission!(Resource::CurrencyExchange, Action::Read),
+            ],
+        );
+
+        hash.insert(
+            StoresRole::Moderator,
+            vec![
+                permission!(Resource::Stores, Action::Read),
+                permission!(Resource::Stores, Action::Moderate),
+                permission!(Resource::BaseProducts, Action::Read),
+                permission!(Resource::BaseProducts, Action::Moderate),
+                permission!(Resource::Products, Action::Read),
+                permission!(Resource::UserRoles, Action::Read, Scope::Owned),
+                permission!(Resource::ProductAttrs, Action::Read),
+                permission!(Resource::WizardStores, Action::Read),
+                permission!(Resource::ModeratorProductComments, Action::All),
+                permission!(Resource::ModeratorStoreComments, Action::All),
                 permission!(Resource::Attributes, Action::Read),
                 permission!(Resource::Categories, Action::Read),
                 permission!(Resource::CategoryAttrs, Action::Read),
@@ -172,10 +196,10 @@ mod tests {
     use models::*;
     use repos::*;
 
-    fn create_store() -> Store {
+    fn create_store(user_id: UserId) -> Store {
         Store {
             id: StoreId(1),
-            user_id: UserId(1),
+            user_id,
             name: serde_json::from_str("{}").unwrap(),
             is_active: true,
             short_description: serde_json::from_str("{}").unwrap(),
@@ -246,21 +270,115 @@ mod tests {
     fn test_super_user_for_stores() {
         let acl = ApplicationAcl::new(vec![StoresRole::Superuser], UserId(1232));
         let s = ScopeChecker::default();
-        let resource = create_store();
-        assert_eq!(acl.allows(Resource::Stores, Action::All, &s, Some(&resource)).unwrap(), true);
-        assert_eq!(acl.allows(Resource::Stores, Action::Read, &s, Some(&resource)).unwrap(), true);
-        assert_eq!(acl.allows(Resource::Stores, Action::Create, &s, Some(&resource)).unwrap(), true);
+        let resource = create_store(UserId(1));
+
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::All, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow all actions on store for superuser."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Read, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow read action on store for superuser."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Create, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow  create actions on store for superuser."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Update, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow update actions on store for superuser."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Delete, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow  delete actions on store for superuser."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Moderate, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow moderate actions on store for superuser."
+        );
     }
 
     #[test]
-    fn test_ordinary_user_for_store() {
-        let acl = ApplicationAcl::new(vec![StoresRole::User], UserId(2));
+    fn test_ordinary_user_for_stores() {
+        let user_id = UserId(2);
+        let acl = ApplicationAcl::new(vec![StoresRole::User], user_id);
         let s = ScopeChecker::default();
-        let resource = create_store();
+        let resource = create_store(user_id);
 
-        assert_eq!(acl.allows(Resource::Stores, Action::All, &s, Some(&resource)).unwrap(), false);
-        assert_eq!(acl.allows(Resource::Stores, Action::Read, &s, Some(&resource)).unwrap(), true);
-        assert_eq!(acl.allows(Resource::Stores, Action::Create, &s, Some(&resource)).unwrap(), false);
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::All, &s, Some(&resource)).unwrap(),
+            false,
+            "ACL allows all actions on store for ordinary_user."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Read, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow read action on store for ordinary_user."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Create, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow create actions on store for ordinary_user."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Update, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow update actions on store for ordinary_user."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Delete, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow delete actions on store for ordinary_user."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Moderate, &s, Some(&resource)).unwrap(),
+            false,
+            "ACL allows moderate actions on store for ordinary_user."
+        );
+    }
+
+    #[test]
+    fn test_moderator_for_stores() {
+        let acl = ApplicationAcl::new(vec![StoresRole::Moderator], UserId(32));
+        let s = ScopeChecker::default();
+        let resource = create_store(UserId(1));
+
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::All, &s, Some(&resource)).unwrap(),
+            false,
+            "ACL allows all actions on store for moderator."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Read, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow read action on store for moderator."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Create, &s, Some(&resource)).unwrap(),
+            false,
+            "ACL allows create actions on store for moderator."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Update, &s, Some(&resource)).unwrap(),
+            false,
+            "ACL allows update actions on store for moderator."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Delete, &s, Some(&resource)).unwrap(),
+            false,
+            "ACL allows delete actions on store for moderator."
+        );
+        assert_eq!(
+            acl.allows(Resource::Stores, Action::Moderate, &s, Some(&resource)).unwrap(),
+            true,
+            "ACL does not allow moderate actions on store for moderator."
+        );
     }
 
     #[test]

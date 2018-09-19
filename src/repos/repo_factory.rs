@@ -703,6 +703,15 @@ pub mod tests {
         fn convert_from_elastic(&self, _el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>> {
             Ok(vec![])
         }
+
+        fn moderator_search(
+            &self,
+            _from: BaseProductId,
+            _count: i64,
+            _term: ModeratorBaseProductSearchTerms,
+        ) -> RepoResult<Vec<BaseProduct>> {
+            Ok(vec![])
+        }
     }
 
     #[derive(Clone, Default)]

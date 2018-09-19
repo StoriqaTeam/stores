@@ -69,6 +69,8 @@ pub trait BaseProductsService {
     fn update(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Cart
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
+    /// Search base products limited by `from` and `count` parameters
+    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> ServiceFuture<Vec<BaseProduct>>;
 }
 
 /// Products services, responsible for Product-related CRUD operations
@@ -1035,6 +1037,31 @@ impl<
                                 })
                         })
                 }).map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occured.").into()),
+        )
+    }
+
+    /// Search base products limited by `from` and `count` parameters
+    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> ServiceFuture<Vec<BaseProduct>> {
+        let db_clone = self.db_pool.clone();
+        let current_uid = self.user_id;
+        let repo_factory = self.repo_factory.clone();
+
+        debug!(
+            "Searching for {} base_products starting from {} with payload: {:?}",
+            count, from, term
+        );
+
+        Box::new(
+            self.cpu_pool
+                .spawn_fn(move || {
+                    db_clone
+                        .get()
+                        .map_err(|e| e.context(Error::Connection).into())
+                        .and_then(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&conn, current_uid);
+                            base_products_repo.moderator_search(from, count, term)
+                        })
+                }).map_err(|e: FailureError| e.context("Service base_products, moderator_search endpoint error occured.").into()),
         )
     }
 }

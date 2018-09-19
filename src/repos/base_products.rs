@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use diesel;
 use diesel::connection::AnsiTransactionManager;
 use diesel::dsl::exists;
+use diesel::dsl::sql;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
@@ -18,8 +19,8 @@ use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::{
-    BaseProduct, BaseProductWithVariants, ElasticProduct, MostDiscountProducts, MostViewedProducts, NewBaseProduct, Product, Store,
-    UpdateBaseProduct,
+    BaseProduct, BaseProductWithVariants, ElasticProduct, ModeratorBaseProductSearchTerms, MostDiscountProducts, MostViewedProducts,
+    NewBaseProduct, Product, Store, UpdateBaseProduct,
 };
 use repos::legacy_acl::*;
 use schema::base_products::dsl::*;
@@ -74,6 +75,9 @@ pub trait BaseProductsRepo {
 
     /// Convert data from elastic to PG models
     fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>>;
+
+    /// Search base product limited by `from` and `count` parameters
+    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> RepoResult<Vec<BaseProduct>>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepoImpl<'a, T> {
@@ -400,6 +404,39 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|(base, var)| BaseProductWithVariants::new(base, vec![var]))
                     .collect())
             }).map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
+    }
+
+    /// Search base product limited by `from` and `count` parameters
+    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> RepoResult<Vec<BaseProduct>> {
+        let mut query = base_products.filter(id.ge(from)).into_boxed();
+
+        if let Some(term_name) = term.name {
+            query = query.filter(sql(format!("name::json->>'text' like '{}%'", term_name).as_ref()));
+        }
+        if let Some(term_store_id) = term.store_id {
+            query = query.filter(store_id.eq(term_store_id));
+        }
+        if let Some(term_state) = term.state {
+            query = query.filter(status.eq(term_state));
+        }
+
+        query = query.order(id).limit(count);
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|base_products_res: Vec<BaseProduct>| {
+                for base_product in &base_products_res {
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
+                }
+
+                Ok(base_products_res)
+            }).map_err(|e: FailureError| {
+                e.context(format!(
+                    "moderator search for base_products, limited by {} and {} error occured",
+                    from, count
+                )).into()
+            })
     }
 }
 

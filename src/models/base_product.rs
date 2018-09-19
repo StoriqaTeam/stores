@@ -151,3 +151,10 @@ impl BaseProductWithVariants {
         }
     }
 }
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct ModeratorBaseProductSearchTerms {
+    pub name: Option<String>,
+    pub store_id: Option<i32>,
+    pub state: Option<ModerationStatus>,
+}

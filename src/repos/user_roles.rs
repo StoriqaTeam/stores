@@ -9,12 +9,12 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
-use failure::Fail;
 
 use stq_types::{StoresRole, UserId};
 
 use repos::legacy_acl::*;
 
+use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::{NewUserRole, OldUserRole, UserRole};
@@ -63,7 +63,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             let query = user_roles.filter(user_id.eq(user_id_value));
             query
                 .get_results::<UserRole>(self.db_conn)
+                .map_err(From::from)
                 .and_then(|user_roles_arg| {
+                    for user_role_arg in &user_roles_arg {
+                        acl::check(&*self.acl, Resource::UserRoles, Action::Read, self, Some(&user_role_arg))?;
+                    }
                     let roles = user_roles_arg
                         .into_iter()
                         .map(|user_role| user_role.role)
@@ -74,7 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         self.cached_roles.add_roles(user_id_value, &roles);
                     }
                     Ok(roles)
-                }).map_err(|e| e.context(format!("List user roles for id {} error occured.", user_id_value)).into())
+                }).map_err(|e: FailureError| e.context(format!("List user roles for id {} error occured.", user_id_value)).into())
         }
     }
 
@@ -84,7 +88,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::insert_into(user_roles).values(&payload);
         query
             .get_result(self.db_conn)
-            .map_err(|e| e.context(format!("create new user role {:?}.", payload)).into())
+            .map_err(From::from)
+            .and_then(|user_role_arg: UserRole| {
+                acl::check(&*self.acl, Resource::UserRoles, Action::Create, self, Some(&user_role_arg))?;
+                Ok(user_role_arg)
+            }).map_err(|e: FailureError| e.context(format!("create new user role {:?}.", payload)).into())
     }
 
     fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
@@ -94,7 +102,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::delete(filtered);
         query
             .get_result(self.db_conn)
-            .map_err(move |e| e.context(format!("delete user role {:?}.", payload)).into())
+            .map_err(From::from)
+            .and_then(|user_role_arg: UserRole| {
+                acl::check(&*self.acl, Resource::UserRoles, Action::Delete, self, Some(&user_role_arg))?;
+                Ok(user_role_arg)
+            }).map_err(|e: FailureError| e.context(format!("delete user role {:?}.", payload)).into())
     }
 
     fn delete_by_user_id(&self, user_id_arg: UserId) -> RepoResult<UserRole> {
@@ -104,7 +116,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::delete(filtered);
         query
             .get_result(self.db_conn)
-            .map_err(|e| e.context(format!("delete user role by id {}.", user_id_arg)).into())
+            .map_err(From::from)
+            .and_then(|user_role_arg: UserRole| {
+                acl::check(&*self.acl, Resource::UserRoles, Action::Delete, self, Some(&user_role_arg))?;
+                Ok(user_role_arg)
+            }).map_err(|e: FailureError| e.context(format!("delete user role by id {}.", user_id_arg)).into())
     }
 }
 

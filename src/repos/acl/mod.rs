@@ -98,20 +98,19 @@ impl ApplicationAcl {
         hash.insert(
             StoresRole::Moderator,
             vec![
-                permission!(Resource::Stores, Action::Read),
                 permission!(Resource::Stores, Action::Moderate),
-                permission!(Resource::BaseProducts, Action::Read),
                 permission!(Resource::BaseProducts, Action::Moderate),
-                permission!(Resource::Products, Action::Read),
-                permission!(Resource::UserRoles, Action::Read, Scope::Owned),
-                permission!(Resource::ProductAttrs, Action::Read),
-                permission!(Resource::WizardStores, Action::Read),
-                permission!(Resource::ModeratorProductComments, Action::All),
-                permission!(Resource::ModeratorStoreComments, Action::All),
-                permission!(Resource::Attributes, Action::Read),
-                permission!(Resource::Categories, Action::Read),
-                permission!(Resource::CategoryAttrs, Action::Read),
-                permission!(Resource::CurrencyExchange, Action::Read),
+                permission!(Resource::ModeratorProductComments),
+                permission!(Resource::ModeratorStoreComments),
+            ],
+        );
+
+        hash.insert(
+            StoresRole::PlatformAdmin,
+            vec![
+                permission!(Resource::Attributes),
+                permission!(Resource::Categories),
+                permission!(Resource::CategoryAttrs),
             ],
         );
 

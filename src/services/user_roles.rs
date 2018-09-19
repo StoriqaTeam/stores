@@ -36,6 +36,7 @@ pub struct UserRolesServiceImpl<
 > {
     pub db_pool: Pool<M>,
     pub cpu_pool: CpuPool,
+    user_id: Option<UserId>,
     pub repo_factory: F,
 }
 
@@ -45,10 +46,11 @@ impl<
         F: ReposFactory<T>,
     > UserRolesServiceImpl<T, M, F>
 {
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, repo_factory: F) -> Self {
+    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<UserId>, repo_factory: F) -> Self {
         Self {
             db_pool,
             cpu_pool,
+            user_id,
             repo_factory,
         }
     }
@@ -64,6 +66,7 @@ impl<
     fn get_roles(&self, user_id: UserId) -> ServiceFuture<Vec<StoresRole>> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
+        let current_uid = self.user_id;
 
         Box::new(
             self.cpu_pool
@@ -72,7 +75,7 @@ impl<
                         .get()
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
-                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
+                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
                             user_roles_repo.list_for_user(user_id)
                         })
                 }).map_err(|e| e.context("Service UserRoles, get_roles endpoint error occured.").into()),
@@ -83,6 +86,7 @@ impl<
     fn delete(&self, payload: OldUserRole) -> ServiceFuture<UserRole> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
+        let current_uid = self.user_id;
 
         Box::new(
             self.cpu_pool
@@ -91,7 +95,7 @@ impl<
                         .get()
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
-                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
+                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
                             user_roles_repo.delete(payload)
                         })
                 }).map_err(|e| e.context("Service UserRoles, delete endpoint error occured.").into()),
@@ -102,6 +106,7 @@ impl<
     fn create(&self, new_user_role: NewUserRole) -> ServiceFuture<UserRole> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
+        let current_uid = self.user_id;
 
         Box::new(
             self.cpu_pool
@@ -110,7 +115,7 @@ impl<
                         .get()
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
-                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
+                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
                             user_roles_repo.create(new_user_role)
                         })
                 }).map_err(|e| e.context("Service UserRoles, create endpoint error occured.").into()),
@@ -121,6 +126,7 @@ impl<
     fn delete_default(&self, user_id_arg: UserId) -> ServiceFuture<UserRole> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
+        let current_uid = self.user_id;
 
         Box::new(
             self.cpu_pool
@@ -129,7 +135,7 @@ impl<
                         .get()
                         .map_err(|e| e.context(Error::Connection).into())
                         .and_then(move |conn| {
-                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
+                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
                             user_roles_repo.delete_by_user_id(user_id_arg)
                         })
                 }).map_err(|e| e.context("Service UserRoles, delete_default endpoint error occured.").into()),
@@ -140,6 +146,7 @@ impl<
     fn create_default(&self, user_id_arg: UserId) -> ServiceFuture<UserRole> {
         let db_pool = self.db_pool.clone();
         let repo_factory = self.repo_factory.clone();
+        let current_uid = self.user_id;
 
         Box::new(
             self.cpu_pool
@@ -152,7 +159,7 @@ impl<
                                 user_id: user_id_arg,
                                 role: StoresRole::User,
                             };
-                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn);
+                            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
                             user_roles_repo.create(default_role)
                         })
                 }).map_err(|e| e.context("Service UserRoles, create_default endpoint error occured.").into()),
@@ -172,12 +179,13 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    fn create_user_roles_service() -> UserRolesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
+    fn create_user_roles_service(user_id: Option<UserId>) -> UserRolesServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
         let manager = MockConnectionManager::default();
         let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
         let cpu_pool = CpuPool::new(1);
 
         UserRolesServiceImpl {
+            user_id,
             db_pool: db_pool,
             cpu_pool: cpu_pool,
             repo_factory: MOCK_REPO_FACTORY,
@@ -201,8 +209,9 @@ pub mod tests {
     #[test]
     fn test_get_user_roles() {
         let mut core = Core::new().unwrap();
-        let service = create_user_roles_service();
-        let work = service.get_roles(UserId(1));
+        let user_id = UserId(1);
+        let service = create_user_roles_service(Some(user_id));
+        let work = service.get_roles(user_id);
         let result = core.run(work).unwrap();
         assert_eq!(result[0], StoresRole::Superuser);
     }
@@ -210,11 +219,12 @@ pub mod tests {
     #[test]
     fn test_create_user_roles() {
         let mut core = Core::new().unwrap();
-        let service = create_user_roles_service();
+        let user_id = UserId(1);
+        let service = create_user_roles_service(Some(user_id));
         let new_user_roles = create_new_user_roles(MOCK_USER_ID);
         let work = service.create(new_user_roles);
         let result = core.run(work).unwrap();
-        assert_eq!(result.user_id, UserId(1));
+        assert_eq!(result.user_id, user_id);
     }
 
 }

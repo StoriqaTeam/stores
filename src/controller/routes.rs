@@ -28,6 +28,7 @@ pub enum Route {
     CurrencyExchange,
     ModeratorProductComments,
     ModeratorBaseProductComment(BaseProductId),
+    ModeratorBaseProductSearch,
     ModeratorStoreComments,
     ModeratorStoreComment(StoreId),
     ModeratorStoreSearch,
@@ -321,6 +322,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Moderator Store search
     router.add_route(r"^/stores/moderator_search$", || Route::ModeratorStoreSearch);
+
+    // Moderator Base Product search
+    router.add_route(r"^/base_products/moderator_search$", || Route::ModeratorBaseProductSearch);
 
     // Stores/:id/publish route
     router.add_route_with_params(r"^/stores/(\d+)/publish$", |params| {

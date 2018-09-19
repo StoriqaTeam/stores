@@ -602,8 +602,8 @@ pub mod tests {
             cashback: None,
             additional_photos: None,
             price: ProductPrice(0f64),
-            pre_order: false,
-            pre_order_days: 0,
+            pre_order: Some(false),
+            pre_order_days: Some(0),
         }
     }
 

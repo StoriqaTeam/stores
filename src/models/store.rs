@@ -265,3 +265,10 @@ impl StoreWithBaseProducts {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ModeratorStoreSearchTerms {
+    pub name: Option<String>,
+    pub store_manager_id: Option<UserId>,
+    pub state: Option<ModerationStatus>,
+}

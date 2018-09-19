@@ -30,6 +30,7 @@ pub enum Route {
     ModeratorBaseProductComment(BaseProductId),
     ModeratorStoreComments,
     ModeratorStoreComment(StoreId),
+    ModeratorStoreSearch,
     Products,
     ProductStoreId,
     Product(ProductId),
@@ -220,17 +221,17 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/base_products/search/filters/price$", || Route::BaseProductsSearchFiltersPrice);
 
     // BaseProducts search filters category route
-    router.add_route(r"^/base_products/search/filters/category", || {
+    router.add_route(r"^/base_products/search/filters/category$", || {
         Route::BaseProductsSearchFiltersCategory
     });
 
     // BaseProducts search filters attribute route
-    router.add_route(r"^/base_products/search/filters/attributes", || {
+    router.add_route(r"^/base_products/search/filters/attributes$", || {
         Route::BaseProductsSearchFiltersAttributes
     });
 
     // BaseProducts search filters count route
-    router.add_route(r"^/base_products/search/filters/count", || Route::BaseProductsSearchFiltersCount);
+    router.add_route(r"^/base_products/search/filters/count$", || Route::BaseProductsSearchFiltersCount);
 
     // User_roles Routes
     router.add_route(r"^/user_roles$", || Route::UserRoles);
@@ -315,6 +316,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(StoreId)
             .map(Route::ModeratorStoreComment)
     });
+
+    // Moderator Store search
+    router.add_route(r"^/stores/moderator_search$", || Route::ModeratorStoreSearch);
 
     router
 }

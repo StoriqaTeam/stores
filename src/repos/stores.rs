@@ -2,6 +2,7 @@
 use diesel;
 use diesel::connection::AnsiTransactionManager;
 use diesel::dsl::exists;
+use diesel::dsl::sql;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
@@ -15,7 +16,7 @@ use stq_types::{StoreId, UserId};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::{NewStore, Store, UpdateStore};
+use models::{ModeratorStoreSearchTerms, NewStore, Store, UpdateStore};
 use repos::legacy_acl::*;
 use schema::stores::dsl::*;
 
@@ -52,6 +53,9 @@ pub trait StoresRepo {
 
     /// Checks name exists
     fn name_exists(&self, name: Vec<Translation>) -> RepoResult<bool>;
+
+    /// Search stores limited by `from` and `count` parameters
+    fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
@@ -212,6 +216,39 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
             .and_then(|exists| acl::check(&*self.acl, Resource::Stores, Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occured.", name_arg)).into())
+    }
+
+    /// Search stores limited by `from` and `count` parameters
+    fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+        let mut query = stores.filter(id.ge(from)).into_boxed();
+
+        if let Some(term_name) = term.name {
+            query = query.filter(sql(format!("name::json->>'text' like '{}%'", term_name).as_ref()));
+        }
+        if let Some(term_store_manager_id) = term.store_manager_id {
+            query = query.filter(user_id.eq(term_store_manager_id));
+        }
+        if let Some(term_state) = term.state {
+            query = query.filter(status.eq(term_state));
+        }
+
+        query = query.order(id).limit(count);
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|stores_res: Vec<Store>| {
+                for store in &stores_res {
+                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(&store))?;
+                }
+
+                Ok(stores_res)
+            }).map_err(|e: FailureError| {
+                e.context(format!(
+                    "moderator search for stores, limited by {} and {} error occured",
+                    from, count
+                )).into()
+            })
     }
 }
 

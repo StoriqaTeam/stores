@@ -62,8 +62,8 @@ pub fn create_new_product(base_product_id: BaseProductId) -> NewProductWithoutCu
         cashback: None,
         additional_photos: None,
         price: ProductPrice(1f64),
-        pre_order: false,
-        pre_order_days: 0,
+        pre_order: Some(false),
+        pre_order_days: Some(0),
     }
 }
 

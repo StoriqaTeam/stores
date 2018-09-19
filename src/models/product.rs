@@ -51,8 +51,8 @@ pub struct NewProduct {
     #[validate(custom = "validate_non_negative_price")]
     pub price: ProductPrice,
     pub currency: Currency,
-    pub pre_order: bool,
-    pub pre_order_days: i32,
+    pub pre_order: Option<bool>,
+    pub pre_order_days: Option<i32>,
 }
 
 /// Payload for creating products
@@ -70,8 +70,8 @@ pub struct NewProductWithoutCurrency {
     pub cashback: Option<f64>,
     #[validate(custom = "validate_non_negative_price")]
     pub price: ProductPrice,
-    pub pre_order: bool,
-    pub pre_order_days: i32,
+    pub pre_order: Option<bool>,
+    pub pre_order_days: Option<i32>,
 }
 
 impl From<(NewProductWithoutCurrency, Currency)> for NewProduct {

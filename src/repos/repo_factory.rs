@@ -712,6 +712,14 @@ pub mod tests {
         ) -> RepoResult<Vec<BaseProduct>> {
             Ok(vec![])
         }
+
+        fn set_moderation_status(
+            &self,
+            _base_product_ids: Vec<BaseProductId>,
+            _status_arg: ModerationStatus,
+        ) -> RepoResult<Vec<BaseProduct>> {
+            Ok(vec![])
+        }
     }
 
     #[derive(Clone, Default)]

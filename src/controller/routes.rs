@@ -21,6 +21,8 @@ pub enum Route {
     BaseProductWithViewsUpdate(BaseProductId),
     BaseProductByProduct(ProductId),
     BaseProductWithVariant(BaseProductId),
+    BaseProductPublish,
+    BaseProductDraft,
     Categories,
     Category(i32),
     CategoryAttrs,
@@ -323,9 +325,6 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Moderator Store search
     router.add_route(r"^/stores/moderator_search$", || Route::ModeratorStoreSearch);
 
-    // Moderator Base Product search
-    router.add_route(r"^/base_products/moderator_search$", || Route::ModeratorBaseProductSearch);
-
     // Stores/:id/publish route
     router.add_route_with_params(r"^/stores/(\d+)/publish$", |params| {
         params
@@ -343,6 +342,15 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(StoreId)
             .map(Route::StoreDraft)
     });
+
+    // Moderator Base Product search
+    router.add_route(r"^/base_products/moderator_search$", || Route::ModeratorBaseProductSearch);
+
+    // BaseProducts/publish route
+    router.add_route(r"^/base_products/publish$", || Route::BaseProductPublish);
+
+    // BaseProducts/draft route
+    router.add_route(r"^/base_products/draft$", || Route::BaseProductDraft);
 
     router
 }

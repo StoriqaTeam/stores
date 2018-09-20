@@ -1015,11 +1015,13 @@ impl<
                                             base_products
                                         }
                                     })
-                                }).and_then(|base_products| {
+                                }).and_then(|base_products_with_varants| {
                                     let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
-                                    for base_product in base_products {
-                                        let bp = group_by_store_id.entry(base_product.store_id).or_insert_with(Vec::new);
-                                        bp.push(base_product);
+                                    for base_product_with_variants in base_products_with_varants {
+                                        let bp = group_by_store_id
+                                            .entry(base_product_with_variants.base_product.store_id)
+                                            .or_insert_with(Vec::new);
+                                        bp.push(base_product_with_variants);
                                     }
                                     group_by_store_id
                                         .into_iter()

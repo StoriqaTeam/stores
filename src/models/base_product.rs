@@ -109,46 +109,14 @@ pub struct ElasticAttrValue {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseProductWithVariants {
-    pub id: BaseProductId,
-    pub is_active: bool,
-    pub store_id: StoreId,
-    pub name: serde_json::Value,
-    pub short_description: serde_json::Value,
-    pub long_description: Option<serde_json::Value>,
-    pub seo_title: Option<serde_json::Value>,
-    pub seo_description: Option<serde_json::Value>,
-    pub currency: Currency,
-    pub category_id: i32,
-    pub views: i32,
-    pub created_at: SystemTime,
-    pub updated_at: SystemTime,
-    pub rating: f64,
-    pub slug: String,
-    pub status: ModerationStatus,
+    #[serde(flatten)]
+    pub base_product: BaseProduct,
     pub variants: Vec<Product>,
 }
 
 impl BaseProductWithVariants {
     pub fn new(base_product: BaseProduct, variants: Vec<Product>) -> Self {
-        Self {
-            id: base_product.id,
-            is_active: base_product.is_active,
-            store_id: base_product.store_id,
-            name: base_product.name,
-            short_description: base_product.short_description,
-            long_description: base_product.long_description,
-            seo_title: base_product.seo_title,
-            seo_description: base_product.seo_description,
-            currency: base_product.currency,
-            category_id: base_product.category_id,
-            views: base_product.views,
-            created_at: base_product.created_at,
-            updated_at: base_product.updated_at,
-            rating: base_product.rating,
-            slug: base_product.slug,
-            status: base_product.status,
-            variants,
-        }
+        Self { base_product, variants }
     }
 }
 

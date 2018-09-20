@@ -823,29 +823,32 @@ pub mod tests {
 
         fn create(&self, payload: NewUserRole) -> RepoResult<UserRole> {
             Ok(UserRole {
-                id: 123,
+                id: RoleId::new(),
                 user_id: payload.user_id,
-                role: payload.role,
+                name: payload.name,
+                data: None,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
             })
         }
 
-        fn delete(&self, payload: OldUserRole) -> RepoResult<UserRole> {
-            Ok(UserRole {
-                id: 123,
-                user_id: payload.user_id,
-                role: payload.role,
-                created_at: SystemTime::now(),
-                updated_at: SystemTime::now(),
-            })
-        }
-
-        fn delete_by_user_id(&self, user_id_arg: UserId) -> RepoResult<UserRole> {
-            Ok(UserRole {
-                id: 123,
+        fn delete_by_user_id(&self, user_id_arg: UserId) -> RepoResult<Vec<UserRole>> {
+            Ok(vec![UserRole {
+                id: RoleId::new(),
                 user_id: user_id_arg,
-                role: StoresRole::User,
+                name: StoresRole::User,
+                data: None,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            }])
+        }
+
+        fn delete_by_id(&self, id: RoleId) -> RepoResult<UserRole> {
+            Ok(UserRole {
+                id: id,
+                user_id: UserId(1),
+                name: StoresRole::User,
+                data: None,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
             })

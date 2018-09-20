@@ -386,9 +386,10 @@ mod tests {
         let s = ScopeChecker::default();
 
         let resource = UserRole {
-            id: 1,
+            id: RoleId::new(),
             user_id: UserId(1),
-            role: StoresRole::User,
+            name: StoresRole::User,
+            data: None,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
         };
@@ -404,9 +405,10 @@ mod tests {
         let s = ScopeChecker::default();
 
         let resource = UserRole {
-            id: 1,
+            id: RoleId::new(),
             user_id: UserId(1),
-            role: StoresRole::User,
+            name: StoresRole::User,
+            data: None,
             created_at: SystemTime::now(),
             updated_at: SystemTime::now(),
         };

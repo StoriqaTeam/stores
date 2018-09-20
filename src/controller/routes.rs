@@ -54,9 +54,9 @@ pub enum Route {
     StoreProductsCount(StoreId),
     StorePublish(StoreId),
     StoreDraft(StoreId),
-    UserRoles,
-    UserRole(UserId),
-    DefaultRole(UserId),
+    Roles,
+    RoleById { id: RoleId },
+    RolesByUserId { user_id: UserId },
     WizardStores,
 }
 
@@ -238,18 +238,6 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // BaseProducts search filters count route
     router.add_route(r"^/base_products/search/filters/count$", || Route::BaseProductsSearchFiltersCount);
 
-    // User_roles Routes
-    router.add_route(r"^/user_roles$", || Route::UserRoles);
-
-    // User_roles/:id route
-    router.add_route_with_params(r"^/user_roles/(\d+)$", |params| {
-        params
-            .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(UserId)
-            .map(Route::UserRole)
-    });
-
     // Attributes Routes
     router.add_route(r"^/attributes$", || Route::Attributes);
 
@@ -270,15 +258,6 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(Route::Category)
-    });
-
-    // roles/default/:id route
-    router.add_route_with_params(r"^/roles/default/(\d+)$", |params| {
-        params
-            .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(UserId)
-            .map(Route::DefaultRole)
     });
 
     // Categories Attributes Routes
@@ -351,6 +330,20 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // BaseProducts/draft route
     router.add_route(r"^/base_products/draft$", || Route::BaseProductDraft);
+
+    router.add_route(r"^/roles$", || Route::Roles);
+    router.add_route_with_params(r"^/roles/by-user-id/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse().ok())
+            .map(|user_id| Route::RolesByUserId { user_id })
+    });
+    router.add_route_with_params(r"^/roles/by-id/([a-zA-Z0-9-]+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse().ok())
+            .map(|id| Route::RoleById { id })
+    });
 
     router
 }

@@ -1,31 +1,27 @@
 //! Models for managing Roles
+use std::time::SystemTime;
 
-use std::time;
+use serde_json;
 
-use stq_types::{StoresRole, UserId};
+use stq_types::{RoleId, StoresRole, UserId};
 
 use schema::user_roles;
 
-#[derive(Serialize, Queryable, Insertable, Debug)]
-#[table_name = "user_roles"]
+#[derive(Serialize, Queryable, Debug)]
 pub struct UserRole {
-    pub id: i32,
     pub user_id: UserId,
-    pub role: StoresRole,
-    pub created_at: time::SystemTime,
-    pub updated_at: time::SystemTime,
+    pub created_at: SystemTime,
+    pub updated_at: SystemTime,
+    pub name: StoresRole,
+    pub data: Option<serde_json::Value>,
+    pub id: RoleId,
 }
 
-#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, Insertable)]
 #[table_name = "user_roles"]
 pub struct NewUserRole {
+    pub id: RoleId,
     pub user_id: UserId,
-    pub role: StoresRole,
-}
-
-#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
-#[table_name = "user_roles"]
-pub struct OldUserRole {
-    pub user_id: UserId,
-    pub role: StoresRole,
+    pub name: StoresRole,
+    pub data: Option<serde_json::Value>,
 }

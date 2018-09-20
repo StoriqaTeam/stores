@@ -201,68 +201,14 @@ impl ProductCategories {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StoreWithBaseProducts {
-    pub id: StoreId,
-    pub name: serde_json::Value,
-    pub is_active: bool,
-    pub short_description: serde_json::Value,
-    pub long_description: Option<serde_json::Value>,
-    pub slug: String,
-    pub cover: Option<String>,
-    pub logo: Option<String>,
-    pub phone: Option<String>,
-    pub email: Option<String>,
-    pub address: Option<String>,
-    pub facebook_url: Option<String>,
-    pub twitter_url: Option<String>,
-    pub instagram_url: Option<String>,
-    pub default_language: String,
-    pub slogan: Option<String>,
-    pub rating: f64,
-    pub country: Option<String>,
-    pub status: ModerationStatus,
-    pub administrative_area_level_1: Option<String>,
-    pub administrative_area_level_2: Option<String>,
-    pub locality: Option<String>,
-    pub political: Option<String>,
-    pub postal_code: Option<String>,
-    pub route: Option<String>,
-    pub street_number: Option<String>,
-    pub place_id: Option<String>,
+    #[serde(flatten)]
+    pub store: Store,
     pub base_products: Vec<BaseProductWithVariants>,
 }
 
 impl StoreWithBaseProducts {
     pub fn new(store: Store, base_products: Vec<BaseProductWithVariants>) -> Self {
-        Self {
-            id: store.id,
-            name: store.name,
-            is_active: store.is_active,
-            short_description: store.short_description,
-            long_description: store.long_description,
-            slug: store.slug,
-            cover: store.cover,
-            logo: store.logo,
-            phone: store.phone,
-            email: store.email,
-            address: store.address,
-            facebook_url: store.facebook_url,
-            twitter_url: store.twitter_url,
-            instagram_url: store.instagram_url,
-            default_language: store.default_language,
-            slogan: store.slogan,
-            rating: store.rating,
-            country: store.country,
-            status: store.status,
-            administrative_area_level_1: store.administrative_area_level_1,
-            administrative_area_level_2: store.administrative_area_level_2,
-            locality: store.locality,
-            political: store.political,
-            postal_code: store.postal_code,
-            route: store.route,
-            street_number: store.street_number,
-            place_id: store.place_id,
-            base_products,
-        }
+        Self { store, base_products }
     }
 }
 

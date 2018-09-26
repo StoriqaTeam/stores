@@ -5,16 +5,12 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
 use failure::Error as FailureError;
-use failure::Fail;
 use futures::future;
 use futures::future::*;
-use futures_cpupool::CpuPool;
-use r2d2::{ManageConnection, Pool};
-use serde_json;
+use r2d2::ManageConnection;
 
-use stq_http::client::ClientHandle;
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, ProductId, StoreId, UserId};
+use stq_types::{BaseProductId, ExchangeRate, ProductId, StoreId};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -25,40 +21,56 @@ use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
 use repos::{RepoResult, ReposFactory};
+use services::Service;
 
 const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
     /// Find product by name limited by `count` and `offset` parameters
-    fn search_by_name(self, prod: SearchProductsByName, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_base_products_by_name(
+        self,
+        prod: SearchProductsByName,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(&self, prod: MostViewedProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_base_products_most_viewed(
+        &self,
+        prod: MostViewedProducts,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    fn search_base_products_most_discount(
+        self,
+        prod: MostDiscountProducts,
+        count: i32,
+        offset: i32,
+    ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// auto complete limited by `count` and `offset` parameters
-    fn auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
+    fn base_products_auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// search filters
-    fn search_filters_price(self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
+    fn search_base_products_filters_price(self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
     /// search filters
-    fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
+    fn search_base_products_filters_category(self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
     /// search filters
-    fn search_filters_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>>;
+    fn search_base_products_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>>;
     /// search filters
-    fn search_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
+    fn search_base_products_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
     /// Returns product by ID
-    fn get(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
+    fn get_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base product by ID with update views
-    fn get_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
+    fn get_base_product_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base_product by product ID
-    fn get_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>>;
+    fn get_base_product_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>>;
     /// Deactivates specific product
-    fn deactivate(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
+    fn deactivate_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
     /// Creates base product
-    fn create(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
+    fn create_base_product(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Lists base products limited by `from` and `count` parameters
-    fn list(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
+    fn list_base_products(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
-    fn get_products_of_the_store(
+    fn get_base_products_of_the_store(
         &self,
         store_id: StoreId,
         skip_base_product_id: Option<BaseProductId>,
@@ -66,1077 +78,700 @@ pub trait BaseProductsService {
         count: i32,
     ) -> ServiceFuture<Vec<BaseProduct>>;
     /// Updates base product
-    fn update(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
+    fn update_base_product(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Cart
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
     /// Search base products limited by `from` and `count` parameters
-    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> ServiceFuture<Vec<BaseProduct>>;
-    /// Set moderation status for base_product_ids
-    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> ServiceFuture<Vec<BaseProduct>>;
-}
-
-/// Products services, responsible for Product-related CRUD operations
-pub struct BaseProductsServiceImpl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> {
-    pub db_pool: Pool<M>,
-    pub cpu_pool: CpuPool,
-    pub user_id: Option<UserId>,
-    pub currency: Currency,
-    pub client_handle: ClientHandle,
-    pub elastic_address: String,
-    pub repo_factory: F,
-}
-
-impl<
-        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-        M: ManageConnection<Connection = T>,
-        F: ReposFactory<T>,
-    > BaseProductsServiceImpl<T, M, F>
-{
-    pub fn new(
-        db_pool: Pool<M>,
-        cpu_pool: CpuPool,
-        user_id: Option<UserId>,
-        client_handle: ClientHandle,
-        elastic_address: String,
-        repo_factory: F,
-        currency: Currency,
-    ) -> Self {
-        Self {
-            db_pool,
-            cpu_pool,
-            user_id,
-            client_handle,
-            elastic_address,
-            repo_factory,
-            currency,
-        }
-    }
-
-    fn linearize_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
-        let cpu_pool = self.cpu_pool.clone();
-        let db_pool = self.db_pool.clone();
-        let repo_factory = self.repo_factory.clone();
-        let user_id = self.user_id;
-
-        let category_id = options.clone().and_then(|options| options.category_id);
-
-        Box::new(cpu_pool.spawn_fn({
-            let db_pool = db_pool.clone();
-            let repo_factory = repo_factory.clone();
-            move || {
-                db_pool
-                    .get()
-                    .map_err(|e| e.context(Error::Connection).into())
-                    .and_then(move |conn| {
-                        if let Some(category_id) = category_id {
-                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                            categories_repo.find(category_id).and_then(|cat| {
-                                if let Some(cat) = cat {
-                                    let cats_ids = if cat.children.is_empty() {
-                                        vec![category_id]
-                                    } else {
-                                        get_all_children_till_the_end(cat).into_iter().map(|c| c.id).collect()
-                                    };
-                                    let options = options.map(|mut options| {
-                                        options.categories_ids = Some(cats_ids);
-                                        options
-                                    });
-                                    Ok(options)
-                                } else {
-                                    Ok(options)
-                                }
-                            })
-                        } else {
-                            Ok(options)
-                        }
-                    })
-            }
-        }))
-    }
-
-    fn accept_only_categories_without_children(
+    fn moderator_search_base_product(
         &self,
-        options: Option<ProductsSearchOptions>,
-    ) -> ServiceFuture<Option<ProductsSearchOptions>> {
-        let cpu_pool = self.cpu_pool.clone();
-        let db_pool = self.db_pool.clone();
-        let repo_factory = self.repo_factory.clone();
-        let user_id = self.user_id;
-
-        let category_id = options.clone().and_then(|options| options.category_id);
-
-        Box::new(cpu_pool.spawn_fn({
-            let db_pool = db_pool.clone();
-            let repo_factory = repo_factory.clone();
-            move || {
-                db_pool
-                    .get()
-                    .map_err(|e| e.context(Error::Connection).into())
-                    .and_then(move |conn| {
-                        if let Some(category_id) = category_id {
-                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                            categories_repo.find(category_id).and_then(|cat| {
-                                let cats_ids = cat.and_then(|cat| if cat.children.is_empty() { Some(vec![category_id]) } else { None });
-                                let options = options.map(|mut options| {
-                                    options.categories_ids = cats_ids;
-                                    options
-                                });
-                                Ok(options)
-                            })
-                        } else {
-                            Ok(options)
-                        }
-                    })
-            }
-        }))
-    }
-
-    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
-        if let Some(mut options) = options {
-            let cpu_pool = self.cpu_pool.clone();
-            Box::new(cpu_pool.spawn_fn({
-                let currency = self.currency;
-                let repo_factory = self.repo_factory.clone();
-                let user_id = self.user_id;
-                let db_pool = self.db_pool.clone();
-                let repo_factory = repo_factory.clone();
-                move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
-                                options.currency_map = currencies_map;
-                                Some(options)
-                            })
-                        })
-                }
-            }))
-        } else {
-            Box::new(future::ok(None))
-        }
-    }
+        from: BaseProductId,
+        count: i64,
+        term: ModeratorBaseProductSearchTerms,
+    ) -> ServiceFuture<Vec<BaseProduct>>;
+    /// Set moderation status for base_product_ids
+    fn set_moderation_status_base_product(
+        &self,
+        base_product_ids: Vec<BaseProductId>,
+        status: ModerationStatus,
+    ) -> ServiceFuture<Vec<BaseProduct>>;
+    /// Flattens categories
+    fn flatten_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
+    /// Remove categories not 3rd level
+    fn remove_non_third_level_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
+    /// Create currency map
+    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
 }
-
 impl<
         T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
         M: ManageConnection<Connection = T>,
         F: ReposFactory<T>,
-    > BaseProductsService for BaseProductsServiceImpl<T, M, F>
+    > BaseProductsService for Service<T, M, F>
 {
-    fn search_by_name(
+    fn search_base_products_by_name(
         self,
         mut search_product: SearchProductsByName,
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
-        let cpu_pool = self.cpu_pool.clone();
-        let db_pool = self.db_pool.clone();
-        let repo_factory = self.repo_factory.clone();
-        let user_id = self.user_id;
-        let client_handle = self.client_handle.clone();
-        let currency = self.currency;
-        let address = self.elastic_address.clone();
+        let repo_factory = self.static_context.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+        let client_handle = self.static_context.client_handle.clone();
+        let currency = self.dynamic_context.currency;
+        let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
-
+        let service = self.clone();
         Box::new(
-            self.linearize_categories(search_product.options.clone())
+            self.flatten_categories(search_product.options.clone())
                 .and_then(move |options| self.create_currency_map(options))
                 .and_then(move |options| {
                     let currency_map = options.clone().and_then(|o| o.currency_map);
                     search_product.options = options;
-                    products_el.search_by_name(search_product, count, offset).and_then({
-                        let db_pool = db_pool.clone();
-                        let repo_factory = repo_factory.clone();
-                        move |el_products| {
-                            cpu_pool.spawn_fn(move || {
-                                db_pool
-                                    .get()
-                                    .map_err(|e| e.context(Error::Connection).into())
-                                    .and_then(move |conn| {
-                                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                        base_products_repo.convert_from_elastic(el_products)
-                                    }).and_then(move |base_products| {
-                                        let bp = if let Some(currency_map) = currency_map.clone() {
-                                            base_products
-                                                .into_iter()
-                                                .map(|mut b| {
-                                                    for mut variant in &mut b.variants {
-                                                        variant.price.0 *= currency_map[&variant.currency].0;
-                                                        variant.currency = currency;
-                                                    }
-                                                    b
-                                                }).collect()
-                                        } else {
-                                            base_products
-                                        };
-                                        Ok(bp)
-                                    })
-                            })
-                        }
-                    })
-                }).map_err(|e| e.context("Service BaseProduct, search_by_name endpoint error occured.").into()),
+                    products_el
+                        .search_by_name(search_product, count, offset)
+                        .map(|el_products| (el_products, currency_map))
+                }).and_then({
+                    move |(el_products, currency_map)| {
+                        service.spawn_on_pool(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
+                            recalc_currencies(&mut base_products, currency_map, currency);
+                            Ok(base_products)
+                        })
+                    }
+                }).map_err(|e| {
+                    e.context("Service BaseProduct, search_base_products_by_name endpoint error occured.")
+                        .into()
+                }),
         )
     }
 
     /// Find product by views limited by `count` and `offset` parameters
-    fn search_most_viewed(
+    fn search_base_products_most_viewed(
         &self,
         search_product: MostViewedProducts,
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
-        let cpu_pool = self.cpu_pool.clone();
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let currency = self.currency;
-        let repo_factory = self.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+        let currency = self.dynamic_context.currency;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            base_products_repo
-                                .most_viewed(search_product, count, offset)
-                                .and_then(|base_products| {
-                                    currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
-                                        if let Some(currency_map) = currencies_map {
-                                            base_products
-                                                .into_iter()
-                                                .map(|mut b| {
-                                                    for mut variant in &mut b.variants {
-                                                        variant.price.0 *= currency_map[&variant.currency].0;
-                                                        variant.currency = currency;
-                                                    }
-                                                    b
-                                                }).collect()
-                                        } else {
-                                            base_products
-                                        }
-                                    })
-                                })
-                        })
-                }).map_err(|e| e.context("Service BaseProduct, search_most_viewed endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            {
+                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                let mut base_products = base_products_repo.most_viewed(search_product, count, offset)?;
+                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                recalc_currencies(&mut base_products, currencies_map, currency);
+                Ok(base_products)
+            }.map_err(|e: FailureError| {
+                e.context("Service BaseProduct, search_base_products_most_viewed endpoint error occured.")
+                    .into()
+            })
+        })
     }
 
     /// Find product by dicount pattern limited by `count` and `offset` parameters
-    fn search_most_discount(
-        &self,
+    fn search_base_products_most_discount(
+        self,
         mut search_product: MostDiscountProducts,
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
+        let client_handle = self.static_context.client_handle.clone();
+        let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
-        let cpu_pool = self.cpu_pool.clone();
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let currency = self.currency;
-        let repo_factory = self.repo_factory.clone();
 
+        let user_id = self.dynamic_context.user_id;
+        let currency = self.dynamic_context.currency;
+        let repo_factory = self.static_context.repo_factory.clone();
         Box::new(
-            self.linearize_categories(search_product.options.clone())
+            self.flatten_categories(search_product.options.clone())
                 .and_then(move |options| {
                     search_product.options = options;
-                    products_el.search_most_discount(search_product, count, offset).and_then({
-                        move |el_products| {
-                            cpu_pool.spawn_fn(move || {
-                                db_pool
-                                    .get()
-                                    .map_err(|e| e.context(Error::Connection).into())
-                                    .and_then(move |conn| {
-                                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                                        let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                                        base_products_repo.convert_from_elastic(el_products).and_then(|base_products| {
-                                            currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
-                                                if let Some(currency_map) = currencies_map {
-                                                    base_products
-                                                        .into_iter()
-                                                        .map(|mut b| {
-                                                            for mut variant in &mut b.variants {
-                                                                variant.price.0 *= currency_map[&variant.currency].0;
-                                                                variant.currency = currency;
-                                                            }
-                                                            b
-                                                        }).collect()
-                                                } else {
-                                                    base_products
-                                                }
-                                            })
-                                        })
-                                    })
-                            })
-                        }
-                    })
+                    products_el.search_most_discount(search_product, count, offset)
+                }).and_then({
+                    move |el_products| {
+                        self.spawn_on_pool(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
+                            let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                            recalc_currencies(&mut base_products, currencies_map, currency);
+                            Ok(base_products)
+                        })
+                    }
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_most_discount endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_most_discount endpoint error occured.")
                         .into()
                 }),
         )
     }
 
-    fn auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
+    fn base_products_auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
+        let client_handle = self.static_context.client_handle.clone();
+        let address = self.static_context.config.server.elastic.clone();
         let products_names = {
             let products_el = ProductsElasticImpl::new(client_handle, address);
             products_el.auto_complete(name, count, offset)
         };
 
-        Box::new(products_names.map_err(|e| e.context("Service BaseProduct, auto_complete endpoint error occured.").into()))
+        Box::new(products_names.map_err(|e| {
+            e.context("Service BaseProduct, base_products_auto_complete endpoint error occured.")
+                .into()
+        }))
     }
 
-    fn search_filters_price(self, mut search_product: SearchProductsByName) -> ServiceFuture<RangeFilter> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
+    fn search_base_products_filters_price(self, mut search_product: SearchProductsByName) -> ServiceFuture<RangeFilter> {
+        let client_handle = self.static_context.client_handle.clone();
+        let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
-
         Box::new(
-            self.linearize_categories(search_product.options.clone())
+            self.flatten_categories(search_product.options.clone())
                 .and_then(move |options| self.create_currency_map(options))
                 .and_then(move |options| {
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_filters_price endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_filters_price endpoint error occured.")
                         .into()
                 }),
         )
     }
 
     /// search filters
-    fn search_filters_count(&self, mut search_prod: SearchProductsByName) -> ServiceFuture<i32> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
+    fn search_base_products_filters_count(&self, mut search_prod: SearchProductsByName) -> ServiceFuture<i32> {
+        let client_handle = self.static_context.client_handle.clone();
+        let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
-
         Box::new(
-            self.linearize_categories(search_prod.options.clone())
+            self.flatten_categories(search_prod.options.clone())
                 .and_then(move |options| {
                     search_prod.options = options;
                     products_el.count(search_prod)
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_filters_count endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_filters_count endpoint error occured.")
                         .into()
                 }),
         )
     }
 
     /// search filters
-    fn search_filters_category(&self, search_prod: SearchProductsByName) -> ServiceFuture<Category> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
-        let cpu_pool = self.cpu_pool.clone();
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+    fn search_base_products_filters_category(self, search_prod: SearchProductsByName) -> ServiceFuture<Category> {
+        let client_handle = self.static_context.client_handle.clone();
+        let address = self.static_context.config.server.elastic.clone();
+
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
 
         if search_prod.name.is_empty() {
             let category_id = search_prod.options.map(|options| options.category_id).and_then(|c| c);
-            Box::new(
-                cpu_pool
-                    .spawn_fn(move || {
-                        db_pool
-                            .get()
-                            .map_err(|e| e.context(Error::Connection).into())
-                            .and_then(move |conn| {
-                                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                                categories_repo.get_all().and_then(|category| {
-                                    if let Some(category_id) = category_id {
-                                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                                        categories_repo.find(category_id).and_then(|cat| {
-                                            if let Some(cat) = cat {
-                                                if cat.children.is_empty() {
-                                                    let new_cat = remove_unused_categories(
-                                                        category,
-                                                        &[cat.parent_id.unwrap_or_default()],
-                                                        cat.level - 2,
-                                                    );
-                                                    Ok(new_cat)
-                                                } else {
-                                                    let new_cat = remove_unused_categories(category, &[cat.id], cat.level - 1);
-                                                    let removed_cat = clear_child_categories(new_cat, cat.level + 1);
-                                                    Ok(removed_cat)
-                                                }
-                                            } else {
-                                                Ok(category)
-                                            }
-                                        })
-                                    } else {
-                                        Ok(category)
-                                    }
-                                })
-                            })
-                    }).map_err(|e| {
-                        e.context("Service BaseProduct, search_filters_category endpoint with empty name option error occured.")
-                            .into()
-                    }),
-            )
+            self.spawn_on_pool(move |conn| {
+                {
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                    let root = categories_repo.get_all_categories()?;
+                    if let Some(category_id) = category_id {
+                        let cat = categories_repo.find(category_id)?;
+                        Ok(get_path_to_searched_category(cat, root))
+                    } else {
+                        Ok(root)
+                    }
+                }.map_err(|e: FailureError| {
+                    e.context("Service BaseProduct, search_base_products_filters_category endpoint with empty name option error occured.")
+                        .into()
+                })
+            })
         } else {
-            Box::new(
-                products_el
-                    .aggregate_categories(search_prod.name.clone())
-                    .and_then(move |cats| {
-                        cpu_pool.spawn_fn(move || {
-                            db_pool
-                                .get()
-                                .map_err(|e| e.context(Error::Connection).into())
-                                .and_then(move |conn| {
-                                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                                    categories_repo.get_all()
-                                }).and_then(|category| {
-                                    let new_cat = remove_unused_categories(category, &cats, 2);
-                                    Ok(new_cat)
-                                })
-                        })
-                    }).map_err(|e| {
-                        e.context("Service BaseProduct, search_filters_category endpoint with name aggregation in elastic error occured.")
+            Box::new(products_el.aggregate_categories(search_prod.name.clone()).and_then(move |cats| {
+                self.spawn_on_pool(move |conn| {
+                    {
+                        let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                        let category = categories_repo.get_all_categories()?;
+                        let new_cat = remove_unused_categories(category, &cats, 2);
+                        Ok(new_cat)
+                    }.map_err(|e: FailureError| {
+                        e.context("Service BaseProduct, search_base_products_filters_category endpoint with name aggregation in elastic error occured.")
                             .into()
-                    }),
-            )
+                    })
+                })
+            }))
         }
     }
 
     /// search filters
-    fn search_filters_attributes(&self, mut search_product: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>> {
-        let client_handle = self.client_handle.clone();
-        let address = self.elastic_address.clone();
+    fn search_base_products_attributes(&self, mut search_product: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>> {
+        let client_handle = self.static_context.client_handle.clone();
+        let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
         Box::new(
-            self.accept_only_categories_without_children(search_product.options.clone())
+            self.remove_non_third_level_categories(search_product.options.clone())
                 .and_then(move |options| -> ServiceFuture<Option<Vec<AttributeFilter>>> {
                     search_product.options = options;
                     if let Some(options) = search_product.options.clone() {
                         if options.categories_ids.is_some() {
-                            return Box::new(products_el.search_by_name(search_product, MAX_PRODUCTS_SEARCH_COUNT, 0).and_then(
-                                |el_products| {
-                                    let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
-                                    let mut range_attrs = HashMap::<i32, RangeFilter>::default();
-
-                                    for product in el_products {
-                                        for variant in product.variants {
-                                            for attr_value in variant.attrs {
-                                                if let Some(value) = attr_value.str_val {
-                                                    let equal =
-                                                        equal_attrs.entry(attr_value.attr_id).or_insert_with(HashSet::<String>::default);
-                                                    equal.insert(value);
-                                                }
-                                                if let Some(value) = attr_value.float_val {
-                                                    let range = range_attrs.entry(attr_value.attr_id).or_insert_with(RangeFilter::default);
-                                                    range.add_value(value);
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                                        id: k,
-                                        equal: Some(EqualFilter {
-                                            values: v.iter().cloned().collect(),
-                                        }),
-                                        range: None,
-                                    });
-
-                                    let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
-                                        id: k,
-                                        equal: None,
-                                        range: Some(v),
-                                    });
-
-                                    future::ok(Some(eq_filters.chain(range_filters).collect()))
-                                },
-                            ));
+                            return Box::new(
+                                products_el
+                                    .search_by_name(search_product, MAX_PRODUCTS_SEARCH_COUNT, 0)
+                                    .map(get_attribute_filters),
+                            );
                         }
                     }
                     Box::new(future::ok(None))
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_filters_attributes endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_attributes endpoint error occured.")
                         .into()
                 }),
         )
     }
 
     /// Returns product by ID
-    fn get(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+    fn get_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            base_products_repo.find(base_product_id)
-                        })
-                }).map_err(|e| e.context("Service BaseProduct, get endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            base_products_repo
+                .find(base_product_id)
+                .map_err(|e| e.context("Service BaseProduct, get_base_product endpoint error occured.").into())
+        })
     }
 
     /// Returns base product by ID with update views
-    fn get_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+    fn get_base_product_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            base_products_repo.update_views(base_product_id)
-                        })
-                }).map_err(|e| {
-                    e.context("Service BaseProduct, get_with_views_update endpoint error occured.")
-                        .into()
-                }),
-        )
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            base_products_repo.update_views(base_product_id).map_err(|e| {
+                e.context("Service BaseProduct, get_base_product_with_views_update endpoint error occured.")
+                    .into()
+            })
+        })
     }
 
     /// Returns base_product by product ID
-    fn get_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
-        let currency = self.currency;
+    fn get_base_product_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let currency = self.dynamic_context.currency;
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            products_repo.find(product_id).and_then(move |product| {
-                                if let Some(mut product) = product {
-                                    let prod = currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
-                                        if let Some(currency_map) = currencies_map {
-                                            product.price.0 *= currency_map[&product.currency].0;
-                                            product.currency = currency;
-                                        };
-                                        product
-                                    });
-                                    prod.and_then(|product| {
-                                        base_products_repo.find(product.base_product_id).map(|base_product| {
-                                            base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![product]))
-                                        })
-                                    })
-                                } else {
-                                    Ok(None)
-                                }
-                            })
-                        })
-                }).map_err(|e| e.context("Service BaseProduct, get_by_product endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            {
+                let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                let product = products_repo.find(product_id)?;
+                if let Some(product) = product {
+                    let base_product = base_products_repo
+                        .find(product.base_product_id)
+                        .map(|base_product| base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![product])))?;
+                    if let Some(base_product) = base_product {
+                        let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                        let mut base_products = vec![base_product];
+                        recalc_currencies(&mut base_products, currencies_map, currency);
+                        return Ok(base_products.pop());
+                    };
+                }
+                Ok(None)
+            }.map_err(|e: FailureError| {
+                e.context("Service BaseProduct, get_base_product_by_product endpoint error occured.")
+                    .into()
+            })
+        })
     }
 
     /// Deactivates specific base product
-    fn deactivate(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+    fn deactivate_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                            base_products_repo.deactivate(base_product_id).and_then(|prod| {
-                                categories_repo
-                                    .get_all()
-                                    .and_then(|category_root| {
-                                        category_root
-                                            .children
-                                            .into_iter()
-                                            .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
-                                            .ok_or_else(|| {
-                                                format_err!("There is no such 3rd level category in db - {}", prod.category_id)
-                                                    .context(Error::NotFound)
-                                                    .into()
-                                            })
-                                    }).and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
-                                    .and_then(|(store, cat)| {
-                                        if let Some(store) = store {
-                                            let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
-                                                let mut product_categories =
-                                                    serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
-                                                let mut new_prod_cats = vec![];
-                                                for pc in &mut product_categories {
-                                                    if pc.category_id == cat.id {
-                                                        pc.count -= 1;
-                                                        if pc.count > 0 {
-                                                            new_prod_cats.push(pc.clone());
-                                                        }
-                                                    } else {
-                                                        new_prod_cats.push(pc.clone());
-                                                    }
-                                                }
-                                                new_prod_cats
-                                            } else {
-                                                vec![]
-                                            };
-
-                                            let product_categories = serde_json::to_value(prod_cats).ok();
-
-                                            let update_store = UpdateStore {
-                                                product_categories,
-                                                ..UpdateStore::default()
-                                            };
-                                            stores_repo.update(store.id, update_store)?;
-                                        };
-                                        Ok(prod)
-                                    })
-                            })
-                        })
-                }).map_err(|e| e.context("Service BaseProduct, deactivate endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            {
+                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                let prod = base_products_repo.deactivate(base_product_id)?;
+                // update product categories of the store
+                let store = stores_repo.find(prod.store_id)?;
+                if let Some(store) = store {
+                    let category_root = categories_repo.get_all_categories()?;
+                    let cat = get_first_level_category(prod.category_id, category_root)?;
+                    let update_store = UpdateStore::delete_category_from_product_categories(store.product_categories.clone(), cat.id);
+                    stores_repo.update(store.id, update_store)?;
+                };
+                Ok(prod)
+            }.map_err(|e: FailureError| {
+                e.context("Service BaseProduct, deactivate_base_product endpoint error occured.")
+                    .into()
+            })
+        })
     }
 
     /// Lists base products limited by `from` and `count` parameters
-    fn list(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+    fn list_base_products(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            base_products_repo.list(from, count)
-                        })
-                }).map_err(|e| e.context("Service BaseProduct, list endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            base_products_repo
+                .list(from, count)
+                .map_err(|e| e.context("Service BaseProduct, list endpoint error occured.").into())
+        })
     }
 
     /// Returns list of base_products by store id and exclude skip_base_product_id, limited by from and count
-    fn get_products_of_the_store(
+    fn get_base_products_of_the_store(
         &self,
         store_id: StoreId,
         skip_base_product_id: Option<BaseProductId>,
         from: BaseProductId,
         count: i32,
     ) -> ServiceFuture<Vec<BaseProduct>> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            base_products_repo.get_products_of_the_store(store_id, skip_base_product_id, from, count)
-                        })
-                }).map_err(|e| {
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            base_products_repo
+                .get_products_of_the_store(store_id, skip_base_product_id, from, count)
+                .map_err(|e| {
                     e.context("Service BaseProduct, get_products_of_the_store endpoint error occured.")
                         .into()
-                }),
-        )
+                })
+        })
     }
 
     /// Creates new base product
-    fn create(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let cpu_pool = self.cpu_pool.clone();
-        let repo_factory = self.repo_factory.clone();
-        Box::new(
-            cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                            conn.transaction::<(BaseProduct), FailureError, _>(move || {
-                                // stores_repo
-                                //     .slug_exists(payload.slug.to_string())
-                                //     .map(move |exists| (payload, exists))
-                                //
-                                //     .and_then(|(payload, exists)| {
-                                //         if exists {
-                                //             Err(ServiceError::Validate(
-                                //                 validation_errors!({"slug": ["slug" => "Base product with this slug already exists"]}),
-                                //             ))
-                                //         } else {
-                                //             Ok(payload)
-                                //         }
-                                //     })
-                                //     .and_then(|payload| {
+    fn create_base_product(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct> {
+        let user_id = self.dynamic_context.user_id;
 
-                                // create base_product
-                                base_products_repo.create(payload).and_then(|prod| {
-                                    // update product categories of the store
-                                    categories_repo
-                                        .get_all()
-                                        .and_then(|category_root| {
-                                            category_root
-                                                .children
-                                                .into_iter()
-                                                .find(|cat_child| get_parent_category(&cat_child, prod.category_id, 2).is_some())
-                                                .ok_or_else(|| {
-                                                    format_err!("There is no such 3rd level category in db - {}", prod.category_id)
-                                                        .context(Error::NotFound)
-                                                        .into()
-                                                })
-                                        }).and_then(|cat| stores_repo.find(prod.store_id).map(|store| (store, cat)))
-                                        .and_then(|(store, cat)| {
-                                            if let Some(store) = store {
-                                                let prod_cats = if let Some(prod_cats) = store.product_categories.clone() {
-                                                    let mut product_categories =
-                                                        serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
-                                                    let mut new_prod_cats = vec![];
-                                                    let mut cat_exists = false;
-                                                    for pc in &mut product_categories {
-                                                        if pc.category_id == cat.id {
-                                                            pc.count += 1;
-                                                            cat_exists = true;
-                                                        }
-                                                        new_prod_cats.push(pc.clone());
-                                                    }
-                                                    if !cat_exists {
-                                                        new_prod_cats.push(ProductCategories::new(cat.id));
-                                                    }
-                                                    new_prod_cats
-                                                } else {
-                                                    let pc = ProductCategories::new(cat.id);
-                                                    vec![pc]
-                                                };
-
-                                                let product_categories = serde_json::to_value(prod_cats).ok();
-
-                                                let update_store = UpdateStore {
-                                                    product_categories,
-                                                    ..UpdateStore::default()
-                                                };
-                                                stores_repo.update(store.id, update_store)?;
-                                            };
-                                            Ok(prod)
-                                        })
-                                })
-
-                                // })
-                            })
-                        })
-                }).map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into()),
-        )
+        let repo_factory = self.static_context.repo_factory.clone();
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+                // create base_product
+                let prod = base_products_repo.create(payload)?;
+                // update product categories of the store
+                let store = stores_repo.find(prod.store_id)?;
+                if let Some(store) = store {
+                    let category_root = categories_repo.get_all_categories()?;
+                    let cat = get_first_level_category(prod.category_id, category_root)?;
+                    let update_store = UpdateStore::add_category_to_product_categories(store.product_categories.clone(), cat.id);
+                    stores_repo.update(store.id, update_store)?;
+                }
+                Ok(prod)
+            }).map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into())
+        })
     }
 
     /// Updates specific product
-    fn update(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let cpu_pool = self.cpu_pool.clone();
-        let repo_factory = self.repo_factory.clone();
+    fn update_base_product(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            conn.transaction::<(BaseProduct), FailureError, _>(move || {
-                                base_products_repo
-                                    .find(base_product_id)
-                                    .and_then(|old_prod| {
-                                        if let Some(old_prod) = old_prod {
-                                            Ok(old_prod)
-                                        } else {
-                                            Err(Error::NotFound.into())
-                                        }
-                                    })
-                                    .and_then(|old_prod| {
-                                        base_products_repo
-                                            .update(base_product_id, payload.clone())
-                                            .map(|updated_prod| (old_prod, updated_prod))
-                                    })
-                                    .and_then(|(old_prod, updated_prod)| {
-                                        if let Some(new_cat_id) = payload.category_id {
-                                            // updating product categories of the store
-                                            let old_cat_id = old_prod.category_id;
-                                            let old_prod_store_id = old_prod.store_id;
-                                            categories_repo
-                                                .get_all()
-                                                .and_then(|category_root| {
-                                                    let old_cat_id = category_root
-                                                        .children
-                                                        .clone()
-                                                        .into_iter()
-                                                        .find(|cat_child| get_parent_category(&cat_child, old_cat_id, 2).is_some())
-                                                        .map(|c| c.id);
-                                                    let new_cat_id = category_root
-                                                        .children
-                                                        .into_iter()
-                                                        .find(|cat_child| get_parent_category(&cat_child, new_cat_id, 2).is_some())
-                                                        .map(|c| c.id);
-                                                    if let (Some(old_cat_id), Some(new_cat_id)) = (old_cat_id, new_cat_id) {
-                                                        if new_cat_id != old_cat_id {
-                                                            stores_repo.find(old_prod_store_id).and_then(|store| {
-                                                                if let Some(store) = store {
-                                                                    let update_store = UpdateStore::update_product_categories(
-                                                                        store.product_categories.clone(),
-                                                                        old_cat_id,
-                                                                        new_cat_id,
-                                                                    );
-                                                                    stores_repo.update(store.id, update_store).map(|_| ())
-                                                                } else {
-                                                                    Ok(())
-                                                                }
-                                                            })
-                                                        } else {
-                                                            Ok(())
-                                                        }
-                                                    } else {
-                                                        Err(format_err!("Could not update store product categories because there is no such 3rd level category in db.").context(Error::NotFound).into())
-                                                    }
-                                                })
-                                                .and_then(|_| Ok(updated_prod))
-                                        } else if let Some(currency) = payload.currency {
-                                            // updating currency of base_products variants
-                                            products_repo.update_currency(currency, updated_prod.id).map(|_| updated_prod)
-                                        } else {
-                                            Ok(updated_prod)
-                                        }
-                                    })
-                            })
-                        })
-                })
-                .map_err(|e| e.context("Service BaseProduct, update endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+                let old_prod = base_products_repo.find(base_product_id)?;
+                if let Some(old_prod) = old_prod {
+                    let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
+                    if let Some(new_cat_id) = payload.category_id {
+                        // updating product categories of the store
+                        let old_cat_id = old_prod.category_id;
+                        let old_prod_store_id = old_prod.store_id;
+                        let store = stores_repo.find(old_prod_store_id)?;
+                        if let Some(store) = store {
+                            let update_store =
+                                UpdateStore::update_product_categories(store.product_categories.clone(), old_cat_id, new_cat_id);
+                            stores_repo.update(store.id, update_store)?;
+                        }
+                    } else if let Some(currency) = payload.currency {
+                        // updating currency of base_products variants
+                        products_repo.update_currency(currency, updated_prod.id)?;
+                    }
+                    Ok(updated_prod)
+                } else {
+                    Err(Error::NotFound.into())
+                }
+            }).map_err(|e| e.context("Service BaseProduct, update endpoint error occured.").into())
+        })
     }
 
     /// Find by cart
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
-        let db_pool = self.db_pool.clone();
-        let user_id = self.user_id;
-        let currency = self.currency;
-        let repo_factory = self.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+        let currency = self.dynamic_context.currency;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            let products = cart
-                                .into_iter()
-                                .map(|cart_product| {
-                                    products_repo.find(cart_product.product_id).and_then(|product| {
-                                        if let Some(product) = product {
-                                            Ok(product)
-                                        } else {
-                                            Err(format_err!("Not found such product id : {}", cart_product.product_id)
-                                                .context(Error::NotFound)
-                                                .into())
-                                        }
-                                    })
-                                }).collect::<RepoResult<Vec<Product>>>();
-                            products
-                                .and_then(|products| {
-                                    let mut group_by_base_product_id = BTreeMap::<BaseProductId, Vec<Product>>::default();
-                                    for product in products {
-                                        let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
-                                        p.push(product);
-                                    }
-                                    group_by_base_product_id
-                                        .into_iter()
-                                        .map(|(base_product_id, products)| {
-                                            base_products_repo
-                                                .find(base_product_id)
-                                                .and_then(|product| {
-                                                    if let Some(product) = product {
-                                                        Ok(product)
-                                                    } else {
-                                                        Err(format_err!("Not found such base product id : {}", base_product_id)
-                                                            .context(Error::NotFound)
-                                                            .into())
-                                                    }
-                                                }).map(|base_product| BaseProductWithVariants::new(base_product, products))
-                                        }).collect::<RepoResult<Vec<BaseProductWithVariants>>>()
-                                }).and_then(|base_products| {
-                                    currency_exchange.get_exchange_for_currency(currency).map(|currencies_map| {
-                                        if let Some(currency_map) = currencies_map {
-                                            base_products
-                                                .into_iter()
-                                                .map(|mut b| {
-                                                    for mut variant in &mut b.variants {
-                                                        variant.price.0 *= currency_map[&variant.currency].0;
-                                                        variant.currency = currency;
-                                                    }
-                                                    b
-                                                }).collect()
-                                        } else {
-                                            base_products
-                                        }
-                                    })
-                                }).and_then(|base_products_with_varants| {
-                                    let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
-                                    for base_product_with_variants in base_products_with_varants {
-                                        let bp = group_by_store_id
-                                            .entry(base_product_with_variants.base_product.store_id)
-                                            .or_insert_with(Vec::new);
-                                        bp.push(base_product_with_variants);
-                                    }
-                                    group_by_store_id
-                                        .into_iter()
-                                        .map(|(store_id, base_products)| {
-                                            stores_repo
-                                                .find(store_id)
-                                                .and_then(|store| {
-                                                    if let Some(store) = store {
-                                                        Ok(store)
-                                                    } else {
-                                                        Err(format_err!("Not found such store id : {}", store_id)
-                                                            .context(Error::NotFound)
-                                                            .into())
-                                                    }
-                                                }).map(|store| StoreWithBaseProducts::new(store, base_products))
-                                        }).collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
-                                })
-                        })
-                }).map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            {
+                let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                let products_ids = cart.into_iter().map(|cart_product| cart_product.product_id).collect();
+                //find products
+                let products = products_repo.find_many(products_ids)?;
+                let mut group_by_base_product_id = BTreeMap::<BaseProductId, Vec<Product>>::default();
+                for product in products {
+                    let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
+                    p.push(product);
+                }
+                //find base_products with products
+                let mut base_products = group_by_base_product_id
+                    .into_iter()
+                    .map(|(base_product_id, products)| {
+                        let base_product = base_products_repo.find(base_product_id)?;
+                        if let Some(base_product) = base_product {
+                            Ok(BaseProductWithVariants::new(base_product, products))
+                        } else {
+                            Err(format_err!("Not found such base product id : {}", base_product_id)
+                                .context(Error::NotFound)
+                                .into())
+                        }
+                    }).collect::<RepoResult<Vec<BaseProductWithVariants>>>()?;
+                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                recalc_currencies(&mut base_products, currencies_map, currency);
+                let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
+                for base_product_with_variants in base_products {
+                    let bp = group_by_store_id
+                        .entry(base_product_with_variants.base_product.store_id)
+                        .or_insert_with(Vec::new);
+                    bp.push(base_product_with_variants);
+                }
+                //find stores with base_products with products
+                group_by_store_id
+                    .into_iter()
+                    .map(|(store_id, base_products)| {
+                        let store = stores_repo.find(store_id)?;
+                        if let Some(store) = store {
+                            Ok(StoreWithBaseProducts::new(store, base_products))
+                        } else {
+                            Err(format_err!("Not found such store id : {}", store_id)
+                                .context(Error::NotFound)
+                                .into())
+                        }
+                    }).collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
+            }.map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occured.").into())
+        })
     }
 
     /// Search base products limited by `from` and `count` parameters
-    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> ServiceFuture<Vec<BaseProduct>> {
-        let db_clone = self.db_pool.clone();
-        let current_uid = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+    fn moderator_search_base_product(
+        &self,
+        from: BaseProductId,
+        count: i64,
+        term: ModeratorBaseProductSearchTerms,
+    ) -> ServiceFuture<Vec<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
         debug!(
             "Searching for {} base_products starting from {} with payload: {:?}",
             count, from, term
         );
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_clone
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&conn, current_uid);
-                            base_products_repo.moderator_search(from, count, term)
-                        })
-                }).map_err(|e: FailureError| e.context("Service base_products, moderator_search endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+            base_products_repo
+                .moderator_search(from, count, term)
+                .map_err(|e: FailureError| e.context("Service base_products, moderator_search endpoint error occured.").into())
+        })
     }
 
     /// Set moderation status for base_product_ids
-    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> ServiceFuture<Vec<BaseProduct>> {
-        let db_clone = self.db_pool.clone();
-        let current_uid = self.user_id;
-        let repo_factory = self.repo_factory.clone();
+    fn set_moderation_status_base_product(
+        &self,
+        base_product_ids: Vec<BaseProductId>,
+        status: ModerationStatus,
+    ) -> ServiceFuture<Vec<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
         debug!("Set moderation status {} for base_products {:?}", status, &base_product_ids);
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_clone
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let base_products_repo = repo_factory.create_base_product_repo(&conn, current_uid);
-                            base_products_repo.set_moderation_status(base_product_ids, status)
-                        })
-                }).map_err(|e: FailureError| {
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+            base_products_repo
+                .set_moderation_status(base_product_ids, status)
+                .map_err(|e: FailureError| {
                     e.context("Service base_products, set_moderation_status endpoint error occured.")
                         .into()
-                }),
-        )
+                })
+        })
     }
+
+    fn flatten_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
+        let repo_factory = self.static_context.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+
+        if let Some(mut options) = options {
+            let category_id = options.category_id;
+            if let Some(category_id) = category_id {
+                self.spawn_on_pool(move |conn| {
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                    let cat = categories_repo.find(category_id)?;
+                    if let Some(cat) = cat {
+                        let cats_ids = if cat.children.is_empty() {
+                            vec![category_id]
+                        } else {
+                            get_all_children_till_the_end(cat).into_iter().map(|c| c.id).collect()
+                        };
+                        options.categories_ids = Some(cats_ids);
+                    }
+                    Ok(Some(options))
+                })
+            } else {
+                Box::new(future::ok(Some(options)))
+            }
+        } else {
+            Box::new(future::ok(None))
+        }
+    }
+
+    fn remove_non_third_level_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
+        let repo_factory = self.static_context.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+
+        if let Some(mut options) = options {
+            let category_id = options.category_id;
+            if let Some(category_id) = category_id {
+                self.spawn_on_pool(move |conn| {
+                    let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                    let cat = categories_repo.find(category_id)?;
+                    if let Some(cat) = cat {
+                        let cats_ids = if cat.children.is_empty() { Some(vec![category_id]) } else { None };
+                        options.categories_ids = cats_ids;
+                    }
+                    Ok(Some(options))
+                })
+            } else {
+                Box::new(future::ok(Some(options)))
+            }
+        } else {
+            Box::new(future::ok(None))
+        }
+    }
+
+    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
+        let currency = self.dynamic_context.currency;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+
+        if let Some(mut options) = options {
+            self.spawn_on_pool(move |conn| {
+                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                options.currency_map = currencies_map;
+                Ok(Some(options))
+            })
+        } else {
+            Box::new(future::ok(None))
+        }
+    }
+}
+
+fn recalc_currencies(
+    base_products: &mut [BaseProductWithVariants],
+    currencies_map: Option<HashMap<Currency, ExchangeRate>>,
+    currency: Currency,
+) {
+    if let Some(currency_map) = currencies_map {
+        for base_product in base_products {
+            for mut variant in &mut base_product.variants {
+                variant.price.0 *= currency_map[&variant.currency].0;
+                variant.currency = currency;
+            }
+        }
+    }
+}
+
+fn get_path_to_searched_category(searched_category: Option<Category>, root: Category) -> Category {
+    if let Some(searched_category) = searched_category {
+        if searched_category.children.is_empty() {
+            let new_cat = remove_unused_categories(
+                root,
+                &[searched_category.parent_id.unwrap_or_default()],
+                searched_category.level - 2,
+            );
+            new_cat
+        } else {
+            let new_cat = remove_unused_categories(root, &[searched_category.id], searched_category.level - 1);
+            let removed_cat = clear_child_categories(new_cat, searched_category.level + 1);
+            removed_cat
+        }
+    } else {
+        root
+    }
+}
+
+fn get_attribute_filters(el_products: Vec<ElasticProduct>) -> Option<Vec<AttributeFilter>> {
+    let mut equal_attrs = HashMap::<i32, HashSet<String>>::default();
+    let mut range_attrs = HashMap::<i32, RangeFilter>::default();
+
+    for product in el_products {
+        for variant in product.variants {
+            for attr_value in variant.attrs {
+                if let Some(value) = attr_value.str_val {
+                    let equal = equal_attrs.entry(attr_value.attr_id).or_insert_with(HashSet::<String>::default);
+                    equal.insert(value);
+                }
+                if let Some(value) = attr_value.float_val {
+                    let range = range_attrs.entry(attr_value.attr_id).or_insert_with(RangeFilter::default);
+                    range.add_value(value);
+                }
+            }
+        }
+    }
+
+    let eq_filters = equal_attrs.into_iter().map(|(k, v)| AttributeFilter {
+        id: k,
+        equal: Some(EqualFilter {
+            values: v.iter().cloned().collect(),
+        }),
+        range: None,
+    });
+
+    let range_filters = range_attrs.into_iter().map(|(k, v)| AttributeFilter {
+        id: k,
+        equal: None,
+        range: Some(v),
+    });
+
+    Some(eq_filters.chain(range_filters).collect())
+}
+
+fn get_first_level_category(third_level_category_id: i32, root: Category) -> RepoResult<Category> {
+    root.children
+        .into_iter()
+        .find(|cat_child| get_parent_category(&cat_child, third_level_category_id, 2).is_some())
+        .ok_or_else(|| {
+            format_err!("There is no such 3rd level category in db - {}", third_level_category_id)
+                .context(Error::NotFound)
+                .into()
+        })
 }
 
 #[cfg(test)]
 pub mod tests {
     use std::sync::Arc;
 
-    use futures_cpupool::CpuPool;
-    use r2d2;
     use serde_json;
     use tokio_core::reactor::Core;
-    use tokio_core::reactor::Handle;
 
-    use stq_http;
     use stq_static_resources::Currency;
     use stq_types::*;
 
-    use config::Config;
     use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-
-    #[allow(unused)]
-    fn create_base_product_service(
-        user_id: Option<UserId>,
-        handle: Arc<Handle>,
-    ) -> BaseProductsServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
-        let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
-        let cpu_pool = CpuPool::new(1);
-
-        let config = Config::new().unwrap();
-        let http_config = config.to_http_config();
-        let client = stq_http::client::Client::new(&http_config, &handle);
-        let client_handle = client.handle();
-
-        BaseProductsServiceImpl {
-            db_pool: db_pool,
-            cpu_pool: cpu_pool,
-            user_id: user_id,
-            client_handle: client_handle,
-            elastic_address: "".to_string(),
-            repo_factory: MOCK_REPO_FACTORY,
-            currency: Currency::STQ,
-        }
-    }
 
     pub fn create_new_base_product(name: &str) -> NewBaseProduct {
         NewBaseProduct {
@@ -1171,8 +806,8 @@ pub mod tests {
     fn test_get_base_product() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
-        let service = create_base_product_service(Some(MOCK_USER_ID), handle);
-        let work = service.get(BaseProductId(1));
+        let service = create_service(Some(MOCK_USER_ID), handle);
+        let work = service.get_base_product(BaseProductId(1));
         let result = core.run(work).unwrap();
         assert_eq!(result.unwrap().id, BaseProductId(1));
     }
@@ -1181,8 +816,8 @@ pub mod tests {
     fn test_list() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
-        let service = create_base_product_service(Some(MOCK_USER_ID), handle);
-        let work = service.list(BaseProductId(1), 5);
+        let service = create_service(Some(MOCK_USER_ID), handle);
+        let work = service.list_base_products(BaseProductId(1), 5);
         let result = core.run(work).unwrap();
         assert_eq!(result.len(), 5);
     }
@@ -1191,9 +826,9 @@ pub mod tests {
     fn test_create_base_product() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
-        let service = create_base_product_service(Some(MOCK_USER_ID), handle);
+        let service = create_service(Some(MOCK_USER_ID), handle);
         let new_base_product = create_new_base_product(MOCK_BASE_PRODUCT_NAME_JSON);
-        let work = service.create(new_base_product);
+        let work = service.create_base_product(new_base_product);
         let result = core.run(work).unwrap();
         assert_eq!(result.id, MOCK_BASE_PRODUCT_ID);
     }
@@ -1202,9 +837,9 @@ pub mod tests {
     fn test_update() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
-        let service = create_base_product_service(Some(MOCK_USER_ID), handle);
+        let service = create_service(Some(MOCK_USER_ID), handle);
         let new_base_product = create_update_base_product(MOCK_BASE_PRODUCT_NAME_JSON);
-        let work = service.update(BaseProductId(1), new_base_product);
+        let work = service.update_base_product(BaseProductId(1), new_base_product);
         let result = core.run(work).unwrap();
         assert_eq!(result.id, BaseProductId(1));
         assert_eq!(result.id, MOCK_BASE_PRODUCT_ID);
@@ -1214,8 +849,8 @@ pub mod tests {
     fn test_deactivate() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
-        let service = create_base_product_service(Some(MOCK_USER_ID), handle);
-        let work = service.deactivate(BaseProductId(1));
+        let service = create_service(Some(MOCK_USER_ID), handle);
+        let work = service.deactivate_base_product(BaseProductId(1));
         let result = core.run(work).unwrap();
         assert_eq!(result.id, BaseProductId(1));
         assert_eq!(result.is_active, false);

@@ -68,6 +68,7 @@ use tokio_core::reactor::Core;
 use stq_http::controller::Application;
 
 use config::Config;
+use controller::context::StaticContext;
 use errors::Error;
 use repos::acl::RolesCacheImpl;
 use repos::attributes::AttributeCacheImpl;
@@ -89,7 +90,7 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     // Prepare database pool
     let database_url: String = config.server.database.parse().expect("Database URL must be set in configuration");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
-    let r2d2_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
+    let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
 
     let thread_count = config.server.thread_count;
 
@@ -114,17 +115,12 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     // Repo factory
     let repo_factory = ReposFactoryImpl::new(roles_cache, category_cache, attributes_cache);
 
+    let context = StaticContext::new(db_pool, cpu_pool, client_handle, Arc::new(config), repo_factory);
+
     let serve = Http::new()
         .serve_addr_handle(&address, &handle, move || {
-            let controller = controller::ControllerImpl::new(
-                r2d2_pool.clone(),
-                cpu_pool.clone(),
-                client_handle.clone(),
-                config.clone(),
-                repo_factory.clone(),
-            );
-
             // Prepare application
+            let controller = controller::ControllerImpl::new(context.clone());
             let app = Application::<Error>::new(controller);
 
             Ok(app)

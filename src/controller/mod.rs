@@ -3,11 +3,11 @@
 //! Basically it provides inputs to `Service` layer and converts outputs
 //! of `Service` layer to http responses
 
+pub mod context;
 pub mod routes;
 pub mod utils;
 
 use std::str::FromStr;
-use std::sync::Arc;
 
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -16,53 +16,44 @@ use failure::Fail;
 use futures::future;
 use futures::Future;
 use futures::IntoFuture;
-use futures_cpupool::CpuPool;
 use hyper::header::{Authorization, Cookie};
 use hyper::server::Request;
 use hyper::{Delete, Get, Post, Put};
-use r2d2::{ManageConnection, Pool};
+use r2d2::ManageConnection;
 use validator::Validate;
 
-use stq_http::client::ClientHandle;
 use stq_http::controller::Controller;
 use stq_http::controller::ControllerFuture;
 use stq_http::request_util::serialize_future;
 use stq_http::request_util::Currency as CurrencyHeader;
 use stq_http::request_util::{parse_body, read_body};
-use stq_router::RouteParser;
 use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::*;
 
 use self::routes::Route;
-use config::Config;
+use controller::context::{DynamicContext, StaticContext};
 use errors::Error;
 use models::*;
 use repos::repo_factory::*;
-use services::attributes::{AttributesService, AttributesServiceImpl};
-use services::base_products::{BaseProductsService, BaseProductsServiceImpl};
-use services::categories::{CategoriesService, CategoriesServiceImpl};
-use services::currency_exchange::{CurrencyExchangeService, CurrencyExchangeServiceImpl};
-use services::moderator_comments::{ModeratorCommentsService, ModeratorCommentsServiceImpl};
-use services::products::{ProductsService, ProductsServiceImpl};
-use services::stores::{StoresService, StoresServiceImpl};
-use services::system::{SystemService, SystemServiceImpl};
-use services::user_roles::{UserRolesService, UserRolesServiceImpl};
-use services::wizard_stores::{WizardStoresService, WizardStoresServiceImpl};
+use services::attributes::AttributesService;
+use services::base_products::BaseProductsService;
+use services::categories::CategoriesService;
+use services::currency_exchange::CurrencyExchangeService;
+use services::moderator_comments::ModeratorCommentsService;
+use services::products::ProductsService;
+use services::stores::StoresService;
+use services::user_roles::UserRolesService;
+use services::wizard_stores::WizardStoresService;
+use services::Service;
 
 /// Controller handles route parsing and calling `Service` layer
-#[derive(Clone)]
 pub struct ControllerImpl<T, M, F>
 where
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
     M: ManageConnection<Connection = T>,
     F: ReposFactory<T>,
 {
-    pub db_pool: Pool<M>,
-    pub cpu_pool: CpuPool,
-    pub route_parser: Arc<RouteParser<Route>>,
-    pub config: Config,
-    pub repo_factory: F,
-    pub client_handle: ClientHandle,
+    pub static_context: StaticContext<T, M, F>,
 }
 
 impl<
@@ -72,16 +63,8 @@ impl<
     > ControllerImpl<T, M, F>
 {
     /// Create a new controller based on services
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, client_handle: ClientHandle, config: Config, repo_factory: F) -> Self {
-        let route_parser = Arc::new(routes::create_route_parser());
-        Self {
-            route_parser,
-            db_pool,
-            cpu_pool,
-            client_handle,
-            config,
-            repo_factory,
-        }
+    pub fn new(static_context: StaticContext<T, M, F>) -> Self {
+        Self { static_context }
     }
 }
 
@@ -102,6 +85,7 @@ impl<
 
         let uuid_header = headers.get::<Cookie>();
         let uuid = uuid_header.and_then(|cookie| cookie.get("UUID"));
+        debug!("User with id = '{:?}' and uuid = {:?} is requesting {}", user_id, uuid, req.path());
 
         let currency = match headers
             .get::<CurrencyHeader>()
@@ -115,73 +99,24 @@ impl<
             }
         };
 
-        debug!("User with id = '{:?}' and uuid = {:?} is requesting {}", user_id, uuid, req.path());
+        let dynamic_context = DynamicContext::new(user_id, currency);
 
-        let system_service = SystemServiceImpl::default();
-        let stores_service = StoresServiceImpl::new(
-            self.db_pool.clone(),
-            self.cpu_pool.clone(),
-            user_id,
-            self.client_handle.clone(),
-            self.config.server.elastic.clone(),
-            self.repo_factory.clone(),
-        );
-        let products_service = ProductsServiceImpl::new(
-            self.db_pool.clone(),
-            self.cpu_pool.clone(),
-            user_id,
-            self.client_handle.clone(),
-            self.config.server.elastic.clone(),
-            self.repo_factory.clone(),
-            currency,
-        );
-
-        let base_products_service = BaseProductsServiceImpl::new(
-            self.db_pool.clone(),
-            self.cpu_pool.clone(),
-            user_id,
-            self.client_handle.clone(),
-            self.config.server.elastic.clone(),
-            self.repo_factory.clone(),
-            currency,
-        );
-
-        let user_roles_service = UserRolesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-        let attributes_service =
-            AttributesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-
-        let categories_service =
-            CategoriesServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-
-        let currency_exchange_service =
-            CurrencyExchangeServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-
-        let wizard_store_service =
-            WizardStoresServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
-
-        let moderator_comments_service =
-            ModeratorCommentsServiceImpl::new(self.db_pool.clone(), self.cpu_pool.clone(), user_id, self.repo_factory.clone());
+        let service = Service::new(self.static_context.clone(), dynamic_context);
 
         let path = req.path().to_string();
 
-        match (&req.method().clone(), self.route_parser.test(req.path())) {
-            // GET /healthcheck
-            (&Get, Some(Route::Healthcheck)) => {
-                trace!("User with id = '{:?}' is requesting  // GET /healthcheck", user_id);
-                serialize_future(system_service.healthcheck())
-            }
-
+        match (&req.method().clone(), self.static_context.route_parser.test(req.path())) {
             // GET /stores/<store_id>
             (&Get, Some(Route::Store(store_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /stores/{}", user_id, store_id);
-                serialize_future(stores_service.get(store_id))
+                serialize_future(service.get_store(store_id))
             }
 
             // GET /stores
             (&Get, Some(Route::Stores)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /stores", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => StoreId, "count" => i32) {
-                    serialize_future(stores_service.list(offset, count))
+                    serialize_future(service.list_stores(offset, count))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /stores failed!")
@@ -196,7 +131,7 @@ impl<
                 debug!("User with id = '{:?}' is requesting  // GET /stores/:id/products route", user_id);
                 if let (skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "skip_base_product_id" => BaseProductId, "offset" => BaseProductId, "count" => i32)
                 {
-                    serialize_future(base_products_service.get_products_of_the_store(store_id, skip_base_product_id, offset, count))
+                    serialize_future(service.get_base_products_of_the_store(store_id, skip_base_product_id, offset, count))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /stores/:id/product failed!")
@@ -209,13 +144,13 @@ impl<
             // GET /stores/:id/products/count route
             (&Get, Some(Route::StoreProductsCount(store_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /stores/{}", user_id, store_id);
-                serialize_future(stores_service.get_products_count(store_id))
+                serialize_future(service.get_store_products_count(store_id))
             }
 
             // GET /stores/slug_exists route
             (&Get, Some(Route::StoresSlugExists)) => {
                 if let Some(slug) = parse_query!(req.query().unwrap_or_default(), "slug" => String) {
-                    serialize_future(stores_service.slug_exists(slug))
+                    serialize_future(service.store_slug_exists(slug))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /stores/slug_exists failed!")
@@ -234,7 +169,7 @@ impl<
                             e.context("Parsing body // POST /stores/cart in Vec<CartProduct> failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |cart_products| base_products_service.find_by_cart(cart_products)),
+                        }).and_then(move |cart_products| service.find_by_cart(cart_products)),
                 )
             }
 
@@ -248,7 +183,7 @@ impl<
                                 e.context("Parsing body // POST /stores/search in SearchStore failed!")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |store_search| stores_service.find_by_name(store_search, count, offset)),
+                            }).and_then(move |store_search| service.find_store_by_name(store_search, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -268,7 +203,7 @@ impl<
                             e.context("Parsing body // POST /stores/search/filters/count in SearchStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |search_store| stores_service.search_filters_count(search_store)),
+                        }).and_then(move |search_store| service.search_store_filters_count(search_store)),
                 )
             }
 
@@ -284,7 +219,7 @@ impl<
                             e.context("Parsing body // POST /stores/search/filters/country in SearchStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |search_store| stores_service.search_filters_country(search_store)),
+                        }).and_then(move |search_store| service.search_store_filters_country(search_store)),
                 )
             }
 
@@ -300,7 +235,7 @@ impl<
                             e.context("Parsing body // POST /stores/search/filters/category in SearchStore failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |search_store| stores_service.search_filters_category(search_store)),
+                        }).and_then(move |search_store| service.search_store_filters_category(search_store)),
                 )
             }
 
@@ -314,7 +249,7 @@ impl<
                                 e.context("Parsing body // POST /stores/auto_complete in String failed!")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |name| stores_service.auto_complete(name, count, offset)),
+                            }).and_then(move |name| service.store_auto_complete(name, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -339,7 +274,7 @@ impl<
                                 .validate()
                                 .map_err(|e| format_err!("Validation of NewStore failed!").context(Error::Validate(e)).into())
                                 .into_future()
-                                .and_then(move |_| stores_service.create(new_store))
+                                .and_then(move |_| service.create_store(new_store))
                         }),
                 )
             }
@@ -358,7 +293,7 @@ impl<
                                 .validate()
                                 .map_err(|e| format_err!("Validation of UpdateStore failed!").context(Error::Validate(e)).into())
                                 .into_future()
-                                .and_then(move |_| stores_service.update(store_id, update_store))
+                                .and_then(move |_| service.update_store(store_id, update_store))
                         }),
                 )
             }
@@ -366,7 +301,7 @@ impl<
             // DELETE /stores/<store_id>
             (&Delete, Some(Route::Store(store_id))) => {
                 debug!("User with id = '{:?}' is requesting  // DELETE /stores/{}", user_id, store_id);
-                serialize_future(stores_service.deactivate(store_id))
+                serialize_future(service.deactivate_store(store_id))
             }
 
             // Get /stores/by_user_id/<user_id>
@@ -375,7 +310,7 @@ impl<
                     "User with id = '{:?}' is requesting  // Get /stores/by_user_id/{}",
                     user_id, user_id_arg
                 );
-                serialize_future(stores_service.get_by_user(user_id_arg))
+                serialize_future(service.get_store_by_user(user_id_arg))
             }
 
             // DELETE /stores/by_user_id/<user_id>
@@ -384,25 +319,25 @@ impl<
                     "User with id = '{:?}' is requesting  // DELETE /stores/by_user_id/{}",
                     user_id, user_id_arg
                 );
-                serialize_future(stores_service.delete_by_user(user_id_arg))
+                serialize_future(service.delete_store_by_user(user_id_arg))
             }
 
             // POST /stores/<store_id>/publish
             (&Post, Some(Route::StorePublish(store_id))) => {
                 debug!("Received request to publish store {}", store_id);
-                serialize_future(stores_service.set_moderation_status(store_id, ModerationStatus::Published))
+                serialize_future(service.set_store_moderation_status(store_id, ModerationStatus::Published))
             }
 
             // POST /stores/<store_id>/draft
             (&Post, Some(Route::StoreDraft(store_id))) => {
                 debug!("Received request to draft store {}", store_id);
-                serialize_future(stores_service.set_moderation_status(store_id, ModerationStatus::Draft))
+                serialize_future(service.set_store_moderation_status(store_id, ModerationStatus::Draft))
             }
 
             // GET /products/<product_id>
             (&Get, Some(Route::Product(product_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /products/{}", user_id, product_id);
-                serialize_future(products_service.get(product_id))
+                serialize_future(service.get_product(product_id))
             }
 
             // GET products/by_base_product/<base_product_id> route
@@ -411,7 +346,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET products/by_base_product/{}",
                     user_id, base_product_id
                 );
-                serialize_future(products_service.find_with_base_id(base_product_id))
+                serialize_future(service.find_products_with_base_id(base_product_id))
             }
 
             // GET products/<product_id>/attributes route
@@ -420,14 +355,14 @@ impl<
                     "User with id = '{:?}' is requesting  // GET attributes/{}/attributes",
                     user_id, product_id
                 );
-                serialize_future(products_service.find_attributes(product_id))
+                serialize_future(service.find_products_attributes(product_id))
             }
 
             // GET /products
             (&Get, Some(Route::Products)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /products", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
-                    serialize_future(products_service.list(offset, count))
+                    serialize_future(service.list_products(offset, count))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /products failed!")
@@ -441,7 +376,7 @@ impl<
             (&Get, Some(Route::ProductStoreId)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /products/store_id", user_id);
                 if let Some(product_id) = parse_query!(req.query().unwrap_or_default(), "product_id" => ProductId) {
-                    serialize_future(products_service.get_store_id(product_id))
+                    serialize_future(service.get_product_store_id(product_id))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /products/store_id failed!")
@@ -469,7 +404,7 @@ impl<
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| products_service.create(new_product))
+                                .and_then(move |_| service.create_product(new_product))
                         }),
                 )
             }
@@ -495,7 +430,7 @@ impl<
                             } else {
                                 future::ok(())
                             };
-                            validation.and_then(move |_| products_service.update(product_id, update_product))
+                            validation.and_then(move |_| service.update_product(product_id, update_product))
                         }),
                 )
             }
@@ -503,7 +438,7 @@ impl<
             // DELETE /products/<product_id>
             (&Delete, Some(Route::Product(product_id))) => {
                 debug!("User with id = '{:?}' is requesting  // DELETE /products/{}", user_id, product_id);
-                serialize_future(products_service.deactivate(product_id))
+                serialize_future(service.deactivate_product(product_id))
             }
 
             // GET /base_products/<base_product_id>
@@ -512,7 +447,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products/{}",
                     user_id, base_product_id
                 );
-                serialize_future(base_products_service.get(base_product_id))
+                serialize_future(service.get_base_product(base_product_id))
             }
 
             // GET /base_products/<base_product_id>/update_view
@@ -521,7 +456,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products/{}/update_view",
                     user_id, base_product_id
                 );
-                serialize_future(base_products_service.get_with_views_update(base_product_id))
+                serialize_future(service.get_base_product_with_views_update(base_product_id))
             }
 
             // GET base_products/by_product/<product_id>
@@ -530,7 +465,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET base_products/by_product/{}",
                     user_id, product_id
                 );
-                serialize_future(base_products_service.get_by_product(product_id))
+                serialize_future(service.get_base_product_by_product(product_id))
             }
 
             // GET /base_products
@@ -539,7 +474,7 @@ impl<
                 if let (Some(offset), Some(count)) =
                     parse_query!(req.query().unwrap_or_default(), "offset" => BaseProductId, "count" => i32)
                 {
-                    serialize_future(base_products_service.list(offset, count))
+                    serialize_future(service.list_base_products(offset, count))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /base_products failed!")
@@ -566,7 +501,7 @@ impl<
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| base_products_service.create(new_base_product))
+                                .and_then(move |_| service.create_base_product(new_base_product))
                         }),
                 )
             }
@@ -591,7 +526,7 @@ impl<
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| base_products_service.update(base_product_id, update_base_product))
+                                .and_then(move |_| service.update_base_product(base_product_id, update_base_product))
                         }),
                 )
             }
@@ -602,7 +537,7 @@ impl<
                     "User with id = '{:?}' is requesting  // DELETE /base_products/{}",
                     user_id, base_product_id
                 );
-                serialize_future(base_products_service.deactivate(base_product_id))
+                serialize_future(service.deactivate_base_product(base_product_id))
             }
 
             // POST /base_products/search
@@ -615,7 +550,7 @@ impl<
                                 e.context("Parsing body // POST /products/search in SearchProductsByName failed!")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |prod| base_products_service.search_by_name(prod, count, offset)),
+                            }).and_then(move |prod| service.search_base_products_by_name(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -636,7 +571,7 @@ impl<
                                 e.context("Parsing body // POST /products/auto_complete in AutoCompleteProductName failed!")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |name| base_products_service.auto_complete(name, count, offset)),
+                            }).and_then(move |name| service.base_products_auto_complete(name, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -657,7 +592,7 @@ impl<
                                 e.context("Parsing body // POST /products/most_discount in MostDiscountProducts failed!")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |prod| base_products_service.search_most_discount(prod, count, offset)),
+                            }).and_then(move |prod| service.search_base_products_most_discount(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -678,7 +613,7 @@ impl<
                                 e.context("Parsing body // POST /products/most_viewed in MostViewedProducts failed!")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |prod| base_products_service.search_most_viewed(prod, count, offset)),
+                            }).and_then(move |prod| service.search_base_products_most_viewed(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -701,7 +636,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |search_prod| base_products_service.search_filters_price(search_prod)),
+                        }).and_then(move |search_prod| service.search_base_products_filters_price(search_prod)),
                 )
             }
             // POST /base_products/search/filters/category
@@ -716,7 +651,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |search_prod| base_products_service.search_filters_category(search_prod)),
+                        }).and_then(move |search_prod| service.search_base_products_filters_category(search_prod)),
                 )
             }
             // POST /base_products/search/filters/attributes
@@ -731,7 +666,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |search_prod| base_products_service.search_filters_attributes(search_prod)),
+                        }).and_then(move |search_prod| service.search_base_products_attributes(search_prod)),
                 )
             }
             // POST /base_products/search/filters/count
@@ -746,7 +681,7 @@ impl<
                             e.context("Parsing body // POST /products/search/filters/count in SearchProductsByName failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |search_prod| base_products_service.search_filters_count(search_prod)),
+                        }).and_then(move |search_prod| service.search_base_products_filters_count(search_prod)),
                 )
             }
 
@@ -760,7 +695,7 @@ impl<
                                 .context(Error::Parse)
                                 .into()
                         }).and_then(move |base_product_ids| {
-                            base_products_service.set_moderation_status(base_product_ids, ModerationStatus::Published)
+                            service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Published)
                         }),
                 )
             }
@@ -775,40 +710,40 @@ impl<
                                 .context(Error::Parse)
                                 .into()
                         }).and_then(move |base_product_ids| {
-                            base_products_service.set_moderation_status(base_product_ids, ModerationStatus::Draft)
+                            service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Draft)
                         }),
                 )
             }
 
             (Get, Some(Route::RolesByUserId { user_id })) => {
                 debug!("Received request to get roles by user id {}", user_id);
-                serialize_future({ user_roles_service.get_roles(user_id) })
+                serialize_future({ service.get_roles(user_id) })
             }
             (Post, Some(Route::Roles)) => serialize_future({
                 parse_body::<NewUserRole>(req.body()).and_then(move |data| {
                     debug!("Received request to create role {:?}", data);
-                    user_roles_service.create(data)
+                    service.create_user_role(data)
                 })
             }),
             (Delete, Some(Route::RolesByUserId { user_id })) => {
                 debug!("Received request to delete role by user id {}", user_id);
-                serialize_future({ user_roles_service.delete_by_user_id(user_id) })
+                serialize_future({ service.delete_user_role_by_user_id(user_id) })
             }
             (Delete, Some(Route::RoleById { id })) => {
                 debug!("Received request to delete role by id {}", id);
-                serialize_future({ user_roles_service.delete_by_id(id) })
+                serialize_future({ service.delete_user_role_by_id(id) })
             }
 
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /attributes/{}", user_id, attribute_id);
-                serialize_future(attributes_service.get(attribute_id))
+                serialize_future(service.get_attribute(attribute_id))
             }
 
             // GET /attributes
             (&Get, Some(Route::Attributes)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /attributes", user_id);
-                serialize_future(attributes_service.list())
+                serialize_future(service.list_attributes())
             }
 
             // POST /attributes
@@ -825,7 +760,7 @@ impl<
                                 .validate()
                                 .map_err(|e| format_err!("Validation of NewAttribute failed!").context(Error::Validate(e)).into())
                                 .into_future()
-                                .and_then(move |_| attributes_service.create(new_attribute))
+                                .and_then(move |_| service.create_attribute(new_attribute))
                         }),
                 )
             }
@@ -847,7 +782,7 @@ impl<
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| attributes_service.update(attribute_id, update_attribute))
+                                .and_then(move |_| service.update_attribute(attribute_id, update_attribute))
                         }),
                 )
             }
@@ -855,7 +790,7 @@ impl<
             // GET /categories/<category_id>
             (&Get, Some(Route::Category(category_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /categories/{}", user_id, category_id);
-                serialize_future(categories_service.get(category_id))
+                serialize_future(service.get_category(category_id))
             }
 
             // POST /categories
@@ -872,7 +807,7 @@ impl<
                                 .validate()
                                 .map_err(|e| format_err!("Validation of NewCategory failed!").context(Error::Validate(e)).into())
                                 .into_future()
-                                .and_then(move |_| categories_service.create(new_category))
+                                .and_then(move |_| service.create_category(new_category))
                         }),
                 )
             }
@@ -894,7 +829,7 @@ impl<
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| categories_service.update(category_id, update_category))
+                                .and_then(move |_| service.update_category(category_id, update_category))
                         }),
                 )
             }
@@ -902,7 +837,7 @@ impl<
             // GET /categories
             (&Get, Some(Route::Categories)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /categories", user_id);
-                serialize_future(categories_service.get_all())
+                serialize_future(service.get_all_categories())
             }
 
             // GET /categories/<category_id>/attributes
@@ -911,7 +846,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /categories/{}/attributes",
                     user_id, category_id
                 );
-                serialize_future(categories_service.find_all_attributes(category_id))
+                serialize_future(service.find_all_attributes_for_category(category_id))
             }
 
             // POST /categories/attributes
@@ -923,7 +858,7 @@ impl<
                             e.context("Parsing body // POST /categories/attributes in CategoryAttrs failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |new_category_attr| categories_service.add_attribute_to_category(new_category_attr)),
+                        }).and_then(move |new_category_attr| service.add_attribute_to_category(new_category_attr)),
                 )
             }
 
@@ -936,14 +871,14 @@ impl<
                             e.context("Parsing body // DELETE /categories/attributes in OldCatAttr failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |old_category_attr| categories_service.delete_attribute_from_category(old_category_attr)),
+                        }).and_then(move |old_category_attr| service.delete_attribute_from_category(old_category_attr)),
                 )
             }
 
             // GET /currency_exchange
             (&Get, Some(Route::CurrencyExchange)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /currency_exchange", user_id);
-                serialize_future(currency_exchange_service.get_latest())
+                serialize_future(service.get_latest_currencies())
             }
 
             // POST /currency_exchange
@@ -955,20 +890,20 @@ impl<
                             e.context("Parsing body // POST /currency_exchange in NewCurrencyExchange failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |new_currency_exchange| currency_exchange_service.update(new_currency_exchange)),
+                        }).and_then(move |new_currency_exchange| service.update_currencies(new_currency_exchange)),
                 )
             }
 
             // GET /wizard_stores
             (&Get, Some(Route::WizardStores)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /wizard_stores", user_id);
-                serialize_future(wizard_store_service.get())
+                serialize_future(service.get_wizard_store())
             }
 
             // POST /wizard_stores
             (&Post, Some(Route::WizardStores)) => {
                 debug!("User with id = '{:?}' is requesting  // POST /wizard_stores", user_id);
-                serialize_future(wizard_store_service.create())
+                serialize_future(service.create_wizard_store())
             }
 
             // PUT /wizard_stores
@@ -988,7 +923,7 @@ impl<
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| wizard_store_service.update(update_wizard))
+                                .and_then(move |_| service.update_wizard_store(update_wizard))
                         }),
                 )
             }
@@ -996,7 +931,7 @@ impl<
             // DELETE /wizard_stores
             (&Delete, Some(Route::WizardStores)) => {
                 debug!("User with id = '{:?}' is requesting  // DELETE /wizard_stores", user_id);
-                serialize_future(wizard_store_service.delete())
+                serialize_future(service.delete_wizard_store())
             }
 
             // GET /moderator_product_comments/<base_product_id>
@@ -1005,7 +940,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /moderator_product_comments/{}",
                     user_id, base_product_id
                 );
-                serialize_future(moderator_comments_service.get_latest_for_product(base_product_id))
+                serialize_future(service.get_latest_for_product(base_product_id))
             }
 
             // POST /moderator_product_comments
@@ -1017,7 +952,7 @@ impl<
                             e.context("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |new_comments| moderator_comments_service.create_product_comment(new_comments)),
+                        }).and_then(move |new_comments| service.create_product_comment(new_comments)),
                 )
             }
 
@@ -1027,7 +962,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /moderator_store_comments/{}",
                     user_id, store_id
                 );
-                serialize_future(moderator_comments_service.get_latest_for_store(store_id))
+                serialize_future(service.get_latest_for_store(store_id))
             }
 
             // POST /moderator_store_comments
@@ -1039,7 +974,7 @@ impl<
                             e.context("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |new_comments| moderator_comments_service.create_store_comment(new_comments)),
+                        }).and_then(move |new_comments| service.create_store_comment(new_comments)),
                 )
             }
 
@@ -1049,7 +984,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /products/{}/seller_price",
                     user_id, product_id
                 );
-                serialize_future(products_service.get_seller_price(product_id))
+                serialize_future(service.get_product_seller_price(product_id))
             }
 
             // POST /stores/moderator_search
@@ -1064,7 +999,7 @@ impl<
                                     .into()
                             }).inspect(|payload| {
                                 debug!("Received request to search for store whith payload {:?}", payload);
-                            }).and_then(move |payload| stores_service.moderator_search(offset, count, payload)),
+                            }).and_then(move |payload| service.moderator_search_stores(offset, count, payload)),
                     )
                 } else {
                     Box::new(future::err(
@@ -1089,7 +1024,7 @@ impl<
                                     .into()
                             }).inspect(|payload| {
                                 debug!("Received request to search for base_product whith payload {:?}", payload);
-                            }).and_then(move |payload| base_products_service.moderator_search(offset, count, payload)),
+                            }).and_then(move |payload| service.moderator_search_base_product(offset, count, payload)),
                     )
                 } else {
                     Box::new(future::err(

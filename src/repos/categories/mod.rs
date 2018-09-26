@@ -45,7 +45,7 @@ pub trait CategoriesRepo {
     fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category>;
 
     /// Returns all categories as a tree
-    fn get_all(&self) -> RepoResult<Category>;
+    fn get_all_categories(&self) -> RepoResult<Category>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepoImpl<'a, T> {
@@ -59,7 +59,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn find(&self, id_arg: i32) -> RepoResult<Option<Category>> {
         debug!("Find in categories with id {}.", id_arg);
         acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)?;
-        self.get_all().map(|root| get_category(&root, id_arg))
+        self.get_all_categories().map(|root| get_category(&root, id_arg))
     }
 
     /// Creates new category
@@ -108,7 +108,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
-    fn get_all(&self) -> RepoResult<Category> {
+    fn get_all_categories(&self) -> RepoResult<Category> {
         if let Some(cat) = self.cache.get() {
             debug!("Get all categories from cache request.");
             Ok(cat)

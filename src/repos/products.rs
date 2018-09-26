@@ -30,6 +30,9 @@ pub trait ProductsRepo {
     /// Find specific product by ID
     fn find(&self, product_id: ProductId) -> RepoResult<Option<Product>>;
 
+    /// Find specific product by IDs
+    fn find_many(&self, product_ids: Vec<ProductId>) -> RepoResult<Vec<Product>>;
+
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>>;
 
@@ -74,6 +77,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
                 Ok(product)
             }).map_err(|e: FailureError| e.context(format!("Find product with id: {} error occured", product_id_arg)).into())
+    }
+
+    /// Find specific product by IDs
+    fn find_many(&self, product_ids: Vec<ProductId>) -> RepoResult<Vec<Product>> {
+        debug!("Find in products {:?}.", product_ids);
+        let query = products.filter(id.eq_any(product_ids.clone())).filter(is_active.eq(true));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|products_res: Vec<Product>| {
+                for product in &products_res {
+                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
+                }
+                Ok(products_res.clone())
+            }).map_err(move |e: FailureError| e.context(format!("Find in products {:?} error occured.", product_ids)).into())
     }
 
     /// Creates new product

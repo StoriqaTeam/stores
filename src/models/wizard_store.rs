@@ -1,7 +1,7 @@
 //! Module containing wizard_stores model for query, insert, update
 use validator::Validate;
 
-use stq_types::{StoreId, UserId};
+use stq_types::{Alpha3, StoreId, UserId};
 
 use models::validation_rules::*;
 use schema::wizard_stores;
@@ -28,6 +28,7 @@ pub struct WizardStore {
     pub street_number: Option<String>,
     pub place_id: Option<String>,
     pub completed: bool,
+    pub country_code: Option<Alpha3>,
 }
 
 /// Payload for creating wizard_stores
@@ -57,4 +58,5 @@ pub struct UpdateWizardStore {
     pub route: Option<String>,
     pub street_number: Option<String>,
     pub place_id: Option<String>,
+    pub country_code: Option<Alpha3>,
 }

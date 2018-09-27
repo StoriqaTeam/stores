@@ -1,0 +1,1 @@
+ALTER TABLE stores DROP COLUMN IF EXISTS country_code;

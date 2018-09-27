@@ -5,7 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::ModerationStatus;
-use stq_types::{StoreId, UserId};
+use stq_types::{Alpha3, StoreId, UserId};
 
 use models::validation_rules::*;
 use models::BaseProductWithVariants;
@@ -46,6 +46,7 @@ pub struct Store {
     pub street_number: Option<String>,
     pub place_id: Option<String>,
     pub kafka_update_no: i32,
+    pub country_code: Option<Alpha3>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -100,6 +101,7 @@ pub struct NewStore {
     pub route: Option<String>,
     pub street_number: Option<String>,
     pub place_id: Option<String>,
+    pub country_code: Option<Alpha3>,
 }
 
 /// Payload for updating users
@@ -139,6 +141,7 @@ pub struct UpdateStore {
     pub route: Option<String>,
     pub street_number: Option<String>,
     pub place_id: Option<String>,
+    pub country_code: Option<Alpha3>,
 }
 
 impl UpdateStore {

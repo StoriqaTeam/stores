@@ -142,6 +142,7 @@ table! {
         street_number -> Nullable<Varchar>,
         place_id -> Nullable<Varchar>,
         kafka_update_no -> Int4,
+        country_code -> Nullable<Varchar>,
     }
 }
 
@@ -176,6 +177,7 @@ table! {
         street_number -> Nullable<Varchar>,
         place_id -> Nullable<Varchar>,
         completed -> Bool,
+        country_code -> Nullable<Varchar>,
     }
 }
 

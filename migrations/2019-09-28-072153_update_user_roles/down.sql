@@ -1,0 +1,1 @@
+ALTER TABLE user_roles DROP CONSTRAINT role;

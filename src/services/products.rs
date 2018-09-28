@@ -35,6 +35,14 @@ pub trait ProductsService {
     fn find_products_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<Product>>;
     /// Get by base product id
     fn find_products_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<AttrValue>>;
+    /// Get by product id
+    fn find_products_custom_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<CustomAttributeValue>>;
+    /// Update products custom attributes
+    fn update_products_custom_attributes(
+        &self,
+        product_id: ProductId,
+        payload: Vec<NewCustomAttributeValuePayload>,
+    ) -> ServiceFuture<Vec<CustomAttributeValue>>;
 }
 
 impl<
@@ -281,6 +289,41 @@ impl<
                 .find_all_attributes(product_id)
                 .map(|pr_attrs| pr_attrs.into_iter().map(|pr_attr| pr_attr.into()).collect())
                 .map_err(|e| e.context("Service Product, find_attributes endpoint error occured.").into())
+        })
+    }
+
+    fn find_products_custom_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<CustomAttributeValue>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
+            custom_attributes_values_repo
+                .find_all_attributes(product_id)
+                .map_err(|e| e.context("Service Product, find_custom_attributes endpoint error occured.").into())
+        })
+    }
+
+    fn update_products_custom_attributes(
+        &self,
+        product_id: ProductId,
+        payload: Vec<NewCustomAttributeValuePayload>,
+    ) -> ServiceFuture<Vec<CustomAttributeValue>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
+                conn.transaction::<(Vec<CustomAttributeValue>), FailureError, _>(move || {
+                    custom_attributes_values_repo.delete(product_id)?;
+                    let values = NewCustomAttributeValue::into_vec(product_id, payload);
+                    custom_attributes_values_repo.create(values)
+                })
+            }.map_err(|e| {
+                e.context("Service Product, update custom attributes endpoint error occured.")
+                    .into()
+            })
         })
     }
 }

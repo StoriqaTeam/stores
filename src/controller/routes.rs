@@ -21,6 +21,7 @@ pub enum Route {
     BaseProductWithViewsUpdate(BaseProductId),
     BaseProductByProduct(ProductId),
     BaseProductWithVariant(BaseProductId),
+    BaseProductCustomAttributes(BaseProductId),
     BaseProductPublish,
     BaseProductDraft,
     Categories,
@@ -28,6 +29,8 @@ pub enum Route {
     CategoryAttrs,
     CategoryAttr(i32),
     CurrencyExchange,
+    CustomAttributes,
+    CustomAttribute(i32),
     ModeratorProductComments,
     ModeratorBaseProductComment(BaseProductId),
     ModeratorBaseProductSearch,
@@ -37,6 +40,7 @@ pub enum Route {
     Products,
     ProductStoreId,
     Product(ProductId),
+    ProductCustomAttributeValue(ProductId),
     ProductAttributes(ProductId),
     ProductsByBaseProduct(BaseProductId),
     SellerProductPrice(ProductId),
@@ -141,6 +145,15 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::Product)
     });
 
+    // Products/:id/custom_attributes route
+    router.add_route_with_params(r"^/products/(\d+)/custom_attributes$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(ProductId)
+            .map(Route::ProductCustomAttributeValue)
+    });
+
     // Products/:id route
     router.add_route_with_params(r"^/products/(\d+)/seller_price$", |params| {
         params
@@ -178,6 +191,15 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(BaseProductId)
             .map(Route::BaseProduct)
+    });
+
+    // Base products/:id/custom_attributes route
+    router.add_route_with_params(r"^/base_products/(\d+)/custom_attributes$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(BaseProductId)
+            .map(Route::BaseProductCustomAttributes)
     });
 
     // Base products/:id/update_view route
@@ -240,6 +262,17 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Attributes Routes
     router.add_route(r"^/attributes$", || Route::Attributes);
+
+    // CustomAttributes Routes
+    router.add_route(r"^/custom_attributes$", || Route::CustomAttributes);
+
+    // Attributes/:id route
+    router.add_route_with_params(r"^/custom_attributes/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(Route::CustomAttribute)
+    });
 
     // Attributes/:id route
     router.add_route_with_params(r"^/attributes/(\d+)$", |params| {

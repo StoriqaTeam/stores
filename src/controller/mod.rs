@@ -39,6 +39,7 @@ use services::attributes::AttributesService;
 use services::base_products::BaseProductsService;
 use services::categories::CategoriesService;
 use services::currency_exchange::CurrencyExchangeService;
+use services::custom_attributes::CustomAttributesService;
 use services::moderator_comments::ModeratorCommentsService;
 use services::products::ProductsService;
 use services::stores::StoresService;
@@ -358,6 +359,15 @@ impl<
                 serialize_future(service.find_products_attributes(product_id))
             }
 
+            // GET products/<product_id>/custom_attributes route
+            (&Get, Some(Route::ProductCustomAttributeValue(product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET products/{}/custom_attributes",
+                    user_id, product_id
+                );
+                serialize_future(service.find_products_custom_attributes(product_id))
+            }
+
             // GET /products
             (&Get, Some(Route::Products)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /products", user_id);
@@ -409,6 +419,22 @@ impl<
                 )
             }
 
+            // POST /products/:id/custom_attributes
+            (&Post, Some(Route::ProductCustomAttributeValue(product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /products/{}/custom_attributes",
+                    user_id, product_id
+                );
+                serialize_future(
+                    parse_body::<Vec<NewCustomAttributeValuePayload>>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /products/id/custom_attributes in NewProductWithAttributes failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |new_product| service.update_products_custom_attributes(product_id, new_product)),
+                )
+            }
+
             // PUT /products/<product_id>
             (&Put, Some(Route::Product(product_id))) => {
                 debug!("User with id = '{:?}' is requesting  // PUT /products/{}", user_id, product_id);
@@ -457,6 +483,15 @@ impl<
                     user_id, base_product_id
                 );
                 serialize_future(service.get_base_product_with_views_update(base_product_id))
+            }
+
+            // GET /base_products/<base_product_id>/custom_attributes
+            (&Get, Some(Route::BaseProductCustomAttributes(base_product_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /base_products/{}/custom_attributes",
+                    user_id, base_product_id
+                );
+                serialize_future(service.get_custom_attributes(base_product_id))
             }
 
             // GET base_products/by_product/<product_id>
@@ -713,6 +748,25 @@ impl<
                             service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Draft)
                         }),
                 )
+            }
+
+            // POST /custom_attributes
+            (&Post, Some(Route::CustomAttributes)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /custom_attributes", user_id);
+                serialize_future(
+                    parse_body::<NewCustomAttribute>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /custom_attributes in NewCustomAttribute failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |payload| service.create_custom_attribute(payload)),
+                )
+            }
+
+            // DELETE /custom_attributes/:id
+            (Delete, Some(Route::CustomAttribute(custom_attributes_id))) => {
+                debug!("Received request to delete custom_attributes by user id {:?}", user_id);
+                serialize_future({ service.delete_custom_attribute(custom_attributes_id) })
             }
 
             (Get, Some(Route::RolesByUserId { user_id })) => {

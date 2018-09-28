@@ -223,14 +223,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             Scope::Owned => {
                 if let Some(product) = obj {
                     BaseProducts::base_products
-                        .find(product.base_product_id)
-                        .get_result::<BaseProduct>(self.db_conn)
-                        .and_then(|base_prod: BaseProduct| {
-                            Stores::stores
-                                .find(base_prod.store_id)
-                                .get_result::<Store>(self.db_conn)
-                                .and_then(|store: Store| Ok(store.user_id == user_id))
-                        }).ok()
+                        .filter(BaseProducts::id.eq(product.base_product_id))
+                        .inner_join(Stores::stores)
+                        .get_result::<(BaseProduct, Store)>(self.db_conn)
+                        .map(|(_, s)| s.user_id == user_id)
+                        .ok()
                         .unwrap_or(false)
                 } else {
                     false

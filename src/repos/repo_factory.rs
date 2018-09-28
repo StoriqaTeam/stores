@@ -21,6 +21,8 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
     fn create_moderator_product_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ModeratorProductRepo + 'a>;
     fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ModeratorStoreRepo + 'a>;
     fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CurrencyExchangeRepo + 'a>;
+    fn create_custom_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a>;
+    fn create_custom_attributes_values_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesValuesRepo + 'a>;
     fn create_user_roles_repo_with_sys_acl<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a>;
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<UserRolesRepo + 'a>;
 }
@@ -122,6 +124,14 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<UserRolesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(UserRolesRepoImpl::new(db_conn, acl, self.roles_cache.clone())) as Box<UserRolesRepo>
+    }
+    fn create_custom_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(CustomAttributesRepoImpl::new(db_conn, acl)) as Box<CustomAttributesRepo>
+    }
+    fn create_custom_attributes_values_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesValuesRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(CustomAttributesValuesRepoImpl::new(db_conn, acl)) as Box<CustomAttributesValuesRepo>
     }
 }
 
@@ -232,6 +242,16 @@ pub mod tests {
         fn create_user_roles_repo_with_sys_acl<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
             Box::new(UserRolesRepoMock::default()) as Box<UserRolesRepo>
         }
+        fn create_custom_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a> {
+            Box::new(CustomAttributesRepoMock::default()) as Box<CustomAttributesRepo>
+        }
+        fn create_custom_attributes_values_repo<'a>(
+            &self,
+            db_conn: &'a C,
+            user_id: Option<UserId>,
+        ) -> Box<CustomAttributesValuesRepo + 'a> {
+            Box::new(CustomAttributesValuesRepoMock::default()) as Box<CustomAttributesValuesRepo>
+        }
     }
 
     #[derive(Clone, Default)]
@@ -271,6 +291,63 @@ pub mod tests {
                 value_type: AttributeType::Str,
                 meta_field: None,
             })
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct CustomAttributesRepoMock;
+
+    impl CustomAttributesRepo for CustomAttributesRepoMock {
+        /// Find custom attributes by base_product_id
+        fn find_all_attributes(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<CustomAttribute>> {
+            Ok(vec![])
+        }
+
+        /// Creates new custom_attribute
+        fn create(&self, payload: NewCustomAttribute) -> RepoResult<CustomAttribute> {
+            Ok(CustomAttribute {
+                id: 1,
+                base_product_id: payload.base_product_id,
+                attribute_id: payload.attribute_id,
+            })
+        }
+
+        /// Delete custom attribute
+        fn delete(&self, custom_attribute_id_arg: i32) -> RepoResult<CustomAttribute> {
+            Ok(CustomAttribute {
+                id: custom_attribute_id_arg,
+                base_product_id: BaseProductId(1),
+                attribute_id: 1,
+            })
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct CustomAttributesValuesRepoMock;
+
+    impl CustomAttributesValuesRepo for CustomAttributesValuesRepoMock {
+        /// Find custom attributes by base_product_id
+        fn find_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
+            Ok(vec![])
+        }
+
+        /// Creates new custom_attribute
+        fn create(&self, payload: Vec<NewCustomAttributeValue>) -> RepoResult<Vec<CustomAttributeValue>> {
+            let mut res = vec![];
+            for (i, v) in payload.into_iter().enumerate() {
+                res.push(CustomAttributeValue {
+                    id: i as i32,
+                    product_id: v.product_id,
+                    custom_attribute_id: v.custom_attribute_id,
+                    value: v.value,
+                })
+            }
+            Ok(res)
+        }
+
+        /// Delete custom attribute
+        fn delete(&self, product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
+            Ok(vec![])
         }
     }
 

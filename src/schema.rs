@@ -57,6 +57,23 @@ table! {
 }
 
 table! {
+    custom_attributes (id) {
+        id -> Int4,
+        base_product_id -> Int4,
+        attribute_id -> Int4,
+    }
+}
+
+table! {
+    custom_attributes_values (id) {
+        id -> Int4,
+        product_id -> Int4,
+        custom_attribute_id -> Int4,
+        value -> Varchar,
+    }
+}
+
+table! {
     moderator_product_comments (id) {
         id -> Int4,
         moderator_id -> Int4,
@@ -185,6 +202,10 @@ joinable!(base_products -> categories (category_id));
 joinable!(base_products -> stores (store_id));
 joinable!(cat_attr_values -> attributes (attr_id));
 joinable!(cat_attr_values -> categories (cat_id));
+joinable!(custom_attributes -> attributes (attribute_id));
+joinable!(custom_attributes -> base_products (base_product_id));
+joinable!(custom_attributes_values -> custom_attributes (custom_attribute_id));
+joinable!(custom_attributes_values -> products (product_id));
 joinable!(moderator_product_comments -> base_products (base_product_id));
 joinable!(moderator_store_comments -> stores (store_id));
 joinable!(prod_attr_values -> attributes (attr_id));
@@ -198,6 +219,8 @@ allow_tables_to_appear_in_same_query!(
     cat_attr_values,
     categories,
     currency_exchange,
+    custom_attributes,
+    custom_attributes_values,
     moderator_product_comments,
     moderator_store_comments,
     prod_attr_values,

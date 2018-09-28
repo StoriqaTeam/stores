@@ -343,6 +343,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let variants = Product::belonging_to(&base_products_list)
                     .get_results(self.db_conn)?
                     .into_iter()
+                    .filter(|product: &Product| product.is_active)
                     .grouped_by(&base_products_list);
 
                 Ok(base_products_list

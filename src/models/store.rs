@@ -176,6 +176,62 @@ impl UpdateStore {
             ..UpdateStore::default()
         }
     }
+
+    pub fn delete_category_from_product_categories(old: Option<serde_json::Value>, category_id: i32) -> Self {
+        let prod_cats = if let Some(prod_cats) = old {
+            let mut product_categories = serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+            let mut new_prod_cats = vec![];
+            for pc in &mut product_categories {
+                if pc.category_id == category_id {
+                    pc.count -= 1;
+                    if pc.count > 0 {
+                        new_prod_cats.push(pc.clone());
+                    }
+                } else {
+                    new_prod_cats.push(pc.clone());
+                }
+            }
+            new_prod_cats
+        } else {
+            vec![]
+        };
+
+        let product_categories = serde_json::to_value(prod_cats).ok();
+
+        Self {
+            product_categories,
+            ..UpdateStore::default()
+        }
+    }
+
+    pub fn add_category_to_product_categories(old: Option<serde_json::Value>, category_id: i32) -> Self {
+        let prod_cats = if let Some(prod_cats) = old {
+            let mut product_categories = serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
+            let mut new_prod_cats = vec![];
+            let mut cat_exists = false;
+            for pc in &mut product_categories {
+                if pc.category_id == category_id {
+                    pc.count += 1;
+                    cat_exists = true;
+                }
+                new_prod_cats.push(pc.clone());
+            }
+            if !cat_exists {
+                new_prod_cats.push(ProductCategories::new(category_id));
+            }
+            new_prod_cats
+        } else {
+            let pc = ProductCategories::new(category_id);
+            vec![pc]
+        };
+
+        let product_categories = serde_json::to_value(prod_cats).ok();
+
+        Self {
+            product_categories,
+            ..UpdateStore::default()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

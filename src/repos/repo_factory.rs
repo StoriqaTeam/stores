@@ -157,6 +157,7 @@ pub mod tests {
     use stq_types::*;
 
     use config::Config;
+    use controller::context::*;
     use models::*;
     use repos::*;
     use services::*;
@@ -170,6 +171,23 @@ pub mod tests {
     pub static MOCK_STORE_NAME: &'static str = "store";
     pub static MOCK_STORE_SLUG: &'static str = "{}";
     pub static MOCK_BASE_PRODUCT_NAME_JSON: &'static str = r##"[{"lang": "en","text": "base product"}]"##;
+
+    pub fn create_service(
+        user_id: Option<UserId>,
+        handle: Arc<Handle>,
+    ) -> Service<MockConnection, MockConnectionManager, ReposFactoryMock> {
+        let manager = MockConnectionManager::default();
+        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
+        let cpu_pool = CpuPool::new(1);
+
+        let config = Config::new().unwrap();
+        let client = stq_http::client::Client::new(&config.to_http_config(), &handle);
+        let client_handle = client.handle();
+        let static_context = StaticContext::new(db_pool, cpu_pool, client_handle, Arc::new(config), MOCK_REPO_FACTORY);
+        let dynamic_context = DynamicContext::new(user_id, Currency::STQ);
+
+        Service::new(static_context, dynamic_context)
+    }
 
     #[derive(Default, Copy, Clone)]
     pub struct ReposFactoryMock;
@@ -300,7 +318,7 @@ pub mod tests {
         }
 
         /// Returns all categories as a tree
-        fn get_all(&self) -> RepoResult<Category> {
+        fn get_all_categories(&self) -> RepoResult<Category> {
             Ok(create_mock_categories())
         }
     }
@@ -925,30 +943,6 @@ pub mod tests {
         }
     }
 
-    #[allow(unused)]
-    fn create_store_service(
-        user_id: Option<UserId>,
-        handle: Arc<Handle>,
-    ) -> StoresServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
-        let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
-        let cpu_pool = CpuPool::new(1);
-
-        let config = Config::new().unwrap();
-        let http_config = config.to_http_config();
-        let client = stq_http::client::Client::new(&http_config, &handle);
-        let client_handle = client.handle();
-
-        StoresServiceImpl {
-            db_pool: db_pool,
-            cpu_pool: cpu_pool,
-            user_id: user_id,
-            elastic_address: "127.0.0.1:9200".to_string(),
-            client_handle: client_handle,
-            repo_factory: MOCK_REPO_FACTORY,
-        }
-    }
-
     fn create_store(id: StoreId, name: serde_json::Value) -> Store {
         Store {
             id: id,
@@ -1093,6 +1087,15 @@ pub mod tests {
 
         fn update_currency(&self, _currency_arg: Currency, _base_product_id_arg: BaseProductId) -> RepoResult<usize> {
             Ok(1)
+        }
+
+        fn find_many(&self, product_ids: Vec<ProductId>) -> RepoResult<Vec<Product>> {
+            let mut products = vec![];
+            for id in product_ids {
+                let product = create_product(id, MOCK_BASE_PRODUCT_ID);
+                products.push(product);
+            }
+            Ok(products)
         }
     }
 

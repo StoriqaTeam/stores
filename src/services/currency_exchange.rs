@@ -1,128 +1,66 @@
 //! CurrencyExchange Services, presents CRUD operations with user_roles
 
-use futures_cpupool::CpuPool;
-
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
-use failure::Fail;
-use futures::future::*;
-use r2d2::{ManageConnection, Pool};
-
-use stq_types::UserId;
-
-use errors::Error;
+use r2d2::ManageConnection;
 
 use super::types::ServiceFuture;
 use models::{CurrencyExchange, NewCurrencyExchange};
 use repos::ReposFactory;
+use services::Service;
 
 pub trait CurrencyExchangeService {
     /// Returns latest currencies exchange
-    fn get_latest(&self) -> ServiceFuture<Option<CurrencyExchange>>;
+    fn get_latest_currencies(&self) -> ServiceFuture<Option<CurrencyExchange>>;
     /// Updates currencies exchange
-    fn update(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange>;
-}
-
-/// CurrencyExchange services, responsible for UserRole-related CRUD operations
-pub struct CurrencyExchangeServiceImpl<
-    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection = T>,
-    F: ReposFactory<T>,
-> {
-    pub db_pool: Pool<M>,
-    pub cpu_pool: CpuPool,
-    pub repo_factory: F,
-    pub user_id: Option<UserId>,
+    fn update_currencies(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange>;
 }
 
 impl<
         T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
         M: ManageConnection<Connection = T>,
         F: ReposFactory<T>,
-    > CurrencyExchangeServiceImpl<T, M, F>
-{
-    pub fn new(db_pool: Pool<M>, cpu_pool: CpuPool, user_id: Option<UserId>, repo_factory: F) -> Self {
-        Self {
-            db_pool,
-            cpu_pool,
-            repo_factory,
-            user_id,
-        }
-    }
-}
-
-impl<
-        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
-        M: ManageConnection<Connection = T>,
-        F: ReposFactory<T>,
-    > CurrencyExchangeService for CurrencyExchangeServiceImpl<T, M, F>
+    > CurrencyExchangeService for Service<T, M, F>
 {
     /// Returns latest currencies exchange
-    fn get_latest(&self) -> ServiceFuture<Option<CurrencyExchange>> {
-        let db_pool = self.db_pool.clone();
-        let repo_factory = self.repo_factory.clone();
-        let user_id = self.user_id;
+    fn get_latest_currencies(&self) -> ServiceFuture<Option<CurrencyExchange>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            currency_exchange_repo.get_latest()
-                        })
-                }).map_err(|e| e.context("Service CurrencyExchange, get_latest endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+            currency_exchange_repo.get_latest().map_err(|e| {
+                e.context("Service CurrencyExchange, get_latest_currencies endpoint error occured.")
+                    .into()
+            })
+        })
     }
     /// Updates currencies exchange
-    fn update(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange> {
-        let db_pool = self.db_pool.clone();
-        let repo_factory = self.repo_factory.clone();
-        let user_id = self.user_id;
+    fn update_currencies(&self, payload: NewCurrencyExchange) -> ServiceFuture<CurrencyExchange> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
 
-        Box::new(
-            self.cpu_pool
-                .spawn_fn(move || {
-                    db_pool
-                        .get()
-                        .map_err(|e| e.context(Error::Connection).into())
-                        .and_then(move |conn| {
-                            let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                            currency_exchange_repo.update(payload)
-                        })
-                }).map_err(|e| e.context("Service CurrencyExchange, update endpoint error occured.").into()),
-        )
+        self.spawn_on_pool(move |conn| {
+            let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+            currency_exchange_repo
+                .update(payload)
+                .map_err(|e| e.context("Service CurrencyExchange, update endpoint error occured.").into())
+        })
     }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use futures_cpupool::CpuPool;
-    use r2d2;
+    use std::sync::Arc;
+
     use tokio_core::reactor::Core;
 
     use stq_static_resources::Currency;
-    use stq_types::UserId;
 
     use models::*;
     use repos::repo_factory::tests::*;
     use services::*;
-
-    fn create_currency_exchange_service() -> CurrencyExchangeServiceImpl<MockConnection, MockConnectionManager, ReposFactoryMock> {
-        let manager = MockConnectionManager::default();
-        let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
-        let cpu_pool = CpuPool::new(1);
-
-        CurrencyExchangeServiceImpl {
-            db_pool: db_pool,
-            cpu_pool: cpu_pool,
-            repo_factory: MOCK_REPO_FACTORY,
-            user_id: Some(UserId(1)),
-        }
-    }
 
     pub fn create_new_currency_exchange() -> NewCurrencyExchange {
         NewCurrencyExchange {
@@ -133,8 +71,9 @@ pub mod tests {
     #[test]
     fn test_get_latest() {
         let mut core = Core::new().unwrap();
-        let service = create_currency_exchange_service();
-        let work = service.get_latest();
+        let handle = Arc::new(core.handle());
+        let service = create_service(Some(MOCK_USER_ID), handle);
+        let work = service.get_latest_currencies();
         let result = core.run(work);
         assert_eq!(result.is_ok(), true);
     }
@@ -142,9 +81,10 @@ pub mod tests {
     #[test]
     fn test_update_currency() {
         let mut core = Core::new().unwrap();
-        let service = create_currency_exchange_service();
+        let handle = Arc::new(core.handle());
+        let service = create_service(Some(MOCK_USER_ID), handle);
         let new_currency_exchange = create_new_currency_exchange();
-        let work = service.update(new_currency_exchange);
+        let work = service.update_currencies(new_currency_exchange);
         let result = core.run(work);
         assert_eq!(result.is_ok(), true);
     }

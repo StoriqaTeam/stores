@@ -273,6 +273,7 @@ impl<
                         }
                     }
                 }
+                let payload = payload.reset_moderation_status();
                 stores_repo.update(store_id, payload)
             }.map_err(|e| e.context("Service Stores, update endpoint error occured.").into())
         })

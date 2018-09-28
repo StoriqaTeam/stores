@@ -482,6 +482,7 @@ impl<
             conn.transaction::<(BaseProduct), FailureError, _>(move || {
                 let old_prod = base_products_repo.find(base_product_id)?;
                 if let Some(old_prod) = old_prod {
+                    let payload = payload.reset_moderation_status();
                     let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
                     if let Some(new_cat_id) = payload.category_id {
                         // updating product categories of the store

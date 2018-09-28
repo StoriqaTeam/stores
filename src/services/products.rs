@@ -7,7 +7,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
-use stq_static_resources::Currency;
+use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductSellerPrice, StoreId};
 
 use super::types::ServiceFuture;
@@ -197,12 +197,20 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
             let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             conn.transaction::<(Product), FailureError, _>(move || {
                 let product = if let Some(product) = payload.product {
-                    products_repo.update(product_id, product)?
+                    let reset_moderation = product.reset_moderation_status_needed();
+                    let updated_product = products_repo.update(product_id, product)?;
+                    // reset moderation if needed
+                    if reset_moderation {
+                        let update_base_product = UpdateBaseProduct::update_status(ModerationStatus::Draft);
+                        base_products_repo.update(updated_product.base_product_id, update_base_product)?;
+                    }
+                    updated_product
                 } else {
                     let product = products_repo.find(product_id)?;
                     product.ok_or(format_err!("Not found such product id : {}", product_id).context(Error::NotFound))?

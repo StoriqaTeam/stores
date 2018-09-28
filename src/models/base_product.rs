@@ -58,7 +58,7 @@ pub struct NewBaseProduct {
 }
 
 /// Payload for updating base_products
-#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone, Debug)]
+#[derive(Serialize, Deserialize, Insertable, Validate, AsChangeset, Clone, Debug, Default)]
 #[table_name = "base_products"]
 pub struct UpdateBaseProduct {
     #[validate(custom = "validate_translation")]
@@ -77,6 +77,32 @@ pub struct UpdateBaseProduct {
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
     pub status: Option<ModerationStatus>,
+}
+
+impl UpdateBaseProduct {
+    pub fn reset_moderation_status(self) -> Self {
+        if self.name.is_some()
+            | self.long_description.is_some()
+            | self.short_description.is_some()
+            | self.slug.is_some()
+            | self.seo_title.is_some()
+            | self.seo_description.is_some()
+        {
+            Self {
+                status: Some(ModerationStatus::Draft),
+                ..self
+            }
+        } else {
+            self
+        }
+    }
+
+    pub fn update_status(status: ModerationStatus) -> Self {
+        Self {
+            status: Some(status),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

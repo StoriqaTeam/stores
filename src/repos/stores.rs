@@ -229,7 +229,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             query = query.filter(sql(format!("name::json->>'text' like '{}%'", term_name).as_ref()));
         }
 
-        query = query.filter(user_id.eq_any(&term.store_manager_ids));
+        if let Some(ref store_manager_ids) = term.store_manager_ids {
+            query = query.filter(user_id.eq_any(store_manager_ids));
+        }
+
         if let Some(term_state) = term.state {
             query = query.filter(status.eq(term_state));
         }

@@ -178,10 +178,17 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
-            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-            stores_repo
-                .deactivate(store_id)
-                .map_err(|e| e.context("Service Stores, deactivate endpoint error occured.").into())
+            {
+                let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                conn.transaction::<Store, FailureError, _>(move || {
+                    let deactive_store = stores_repo.deactivate(store_id)?;
+
+                    let base_products = base_products_repo.deactivate_by_store(store_id)?;
+
+                    Ok(deactive_store)
+                })
+            }.map_err(|e: FailureError| e.context("Service Stores, deactivate endpoint error occured.").into())
         })
     }
 

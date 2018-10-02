@@ -70,6 +70,9 @@ pub trait BaseProductsRepo {
     /// Deactivates specific base_product
     fn deactivate(&self, base_product_id: BaseProductId) -> RepoResult<BaseProduct>;
 
+    /// Deactivates base_products by store_id
+    fn deactivate_by_store(&self, store_id: StoreId) -> RepoResult<Vec<BaseProduct>>;
+
     /// Checks that slug already exists
     fn slug_exists(&self, slug_arg: String) -> RepoResult<bool>;
 
@@ -250,6 +253,31 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 self.execute_query(query)
             }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate base product with id {} failed", base_product_id_arg))
+                    .into()
+            })
+    }
+
+    /// Deactivates base_products by store_id
+    fn deactivate_by_store(&self, store_id_arg: StoreId) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Deactivate base products by store id {}.", store_id_arg);
+
+        let query = base_products.filter(store_id.eq(store_id_arg));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|results: Vec<BaseProduct>| {
+                for base_product in &results {
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Delete, self, Some(base_product))?;
+                }
+
+                Ok(results)
+            }).and_then(|_| {
+                let filtered = base_products.filter(store_id.eq(store_id_arg)).filter(is_active.eq(true));
+                let query_update = diesel::update(filtered).set(is_active.eq(false));
+                query_update.get_results(self.db_conn).map_err(From::from)
+            }).map_err(|e: FailureError| {
+                e.context(format!("Deactivate base products by store_id {} failed", store_id_arg))
                     .into()
             })
     }

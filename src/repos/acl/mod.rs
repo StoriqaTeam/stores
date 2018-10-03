@@ -108,6 +108,7 @@ impl ApplicationAcl {
                 permission!(Resource::ModeratorProductComments),
                 permission!(Resource::ModeratorStoreComments),
                 permission!(Resource::Stores, Action::Moderate),
+                permission!(Resource::Stores, Action::Read),
             ],
         );
 

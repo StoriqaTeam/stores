@@ -799,6 +799,28 @@ pub mod tests {
             })
         }
 
+        fn deactivate_by_store(&self, store_id: StoreId) -> RepoResult<Vec<BaseProduct>> {
+            Ok(vec![BaseProduct {
+                id: BaseProductId(1),
+                is_active: false,
+                store_id: store_id,
+                name: serde_json::from_str("{}").unwrap(),
+                short_description: serde_json::from_str("{}").unwrap(),
+                long_description: None,
+                seo_title: None,
+                seo_description: None,
+                currency: Currency::STQ,
+                category_id: 3,
+                views: 1,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+                rating: 0f64,
+                slug: "slug".to_string(),
+                status: ModerationStatus::Published,
+                kafka_update_no: 0,
+            }])
+        }
+
         fn most_viewed(&self, _prod: MostViewedProducts, _count: i32, _offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
             Ok(vec![])
         }
@@ -943,6 +965,17 @@ pub mod tests {
             Ok(UserRole {
                 id: id,
                 user_id: UserId(1),
+                name: StoresRole::User,
+                data: None,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            })
+        }
+
+        fn delete_user_role(&self, user_id_arg: UserId, name_arg: UsersRole) -> RepoResult<UserRole> {
+            Ok(UserRole {
+                id: RoleId::new(),
+                user_id: user_id_arg,
                 name: StoresRole::User,
                 data: None,
                 created_at: SystemTime::now(),

@@ -763,6 +763,12 @@ impl<
                 )
             }
 
+            // GET /custom_attributes
+            (&Get, Some(Route::CustomAttributes)) => {
+                debug!("User with id = '{:?}' is requesting  // GET /custom_attributes", user_id);
+                serialize_future(service.list_custom_attributes())
+            }
+
             // DELETE /custom_attributes/:id
             (Delete, Some(Route::CustomAttribute(custom_attributes_id))) => {
                 debug!("Received request to delete custom_attributes by user id {:?}", user_id);

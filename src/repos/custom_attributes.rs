@@ -30,6 +30,9 @@ pub trait CustomAttributesRepo {
     /// Creates new custom_attribute
     fn create(&self, payload: NewCustomAttribute) -> RepoResult<CustomAttribute>;
 
+    /// List all custom attributes
+    fn list(&self) -> RepoResult<Vec<CustomAttribute>>;
+
     /// Delete custom attribute
     fn delete(&self, custom_attribute_id_arg: i32) -> RepoResult<CustomAttribute>;
 }
@@ -83,6 +86,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Creates new custom attribute: {:?} error occured", payload))
                     .into()
             })
+    }
+
+    // List all custom attributes
+    fn list(&self) -> RepoResult<Vec<CustomAttribute>> {
+        debug!("Find all attributes.");
+        let query = custom_attributes.order(id);
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|attributes_vec: Vec<CustomAttribute>| {
+                for attribute in &attributes_vec {
+                    acl::check(&*self.acl, Resource::CustomAttributes, Action::Read, self, Some(&attribute))?;
+                }
+                Ok(attributes_vec)
+            }).map_err(|e: FailureError| e.context("List all custom attributes").into())
     }
 
     /// Delete custom attribute

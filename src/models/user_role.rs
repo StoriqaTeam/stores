@@ -20,7 +20,7 @@ pub struct UserRole {
 #[derive(Clone, Debug, Serialize, Deserialize, Insertable)]
 #[table_name = "user_roles"]
 pub struct NewUserRole {
-    pub id: RoleId,
+    pub id: Option<RoleId>,
     pub user_id: UserId,
     pub name: StoresRole,
     pub data: Option<serde_json::Value>,

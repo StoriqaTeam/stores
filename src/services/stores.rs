@@ -184,7 +184,7 @@ impl<
                 conn.transaction::<Store, FailureError, _>(move || {
                     let deactive_store = stores_repo.deactivate(store_id)?;
 
-                    let base_products = base_products_repo.deactivate_by_store(store_id)?;
+                    let _base_products = base_products_repo.deactivate_by_store(store_id)?;
 
                     Ok(deactive_store)
                 })

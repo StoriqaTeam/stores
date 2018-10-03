@@ -136,7 +136,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                     let cats = categories.load::<RawCategory>(self.db_conn)?;
                     let mut root = Category::default();
-                    let children = create_tree(&cats, None);
+                    let children = create_tree(&cats, Some(root.id));
                     root.children = children;
                     set_attributes(&mut root, &cat_hash);
                     self.cache.set(root.clone());

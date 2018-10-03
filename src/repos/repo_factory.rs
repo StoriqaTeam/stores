@@ -312,6 +312,11 @@ pub mod tests {
             })
         }
 
+        /// List all custom attributes
+        fn list(&self) -> RepoResult<Vec<CustomAttribute>> {
+            Ok(vec![])
+        }
+
         /// Delete custom attribute
         fn delete(&self, custom_attribute_id_arg: i32) -> RepoResult<CustomAttribute> {
             Ok(CustomAttribute {

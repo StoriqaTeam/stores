@@ -85,6 +85,7 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
     UpdateProductWithAttributes {
         product: Some(create_update_product()),
         attributes: Some(vec![]),
+        custom_attributes: Some(vec![]),
     }
 }
 

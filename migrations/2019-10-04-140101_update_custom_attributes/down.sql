@@ -1,0 +1,1 @@
+ALTER TABLE custom_attributes DROP CONSTRAINT unique_custom_attributes_key;

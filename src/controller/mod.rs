@@ -419,22 +419,6 @@ impl<
                 )
             }
 
-            // POST /products/:id/custom_attributes
-            (&Post, Some(Route::ProductCustomAttributeValue(product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/{}/custom_attributes",
-                    user_id, product_id
-                );
-                serialize_future(
-                    parse_body::<Vec<NewCustomAttributeValuePayload>>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /products/id/custom_attributes in NewProductWithAttributes failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_product| service.update_products_custom_attributes(product_id, new_product)),
-                )
-            }
-
             // PUT /products/<product_id>
             (&Put, Some(Route::Product(product_id))) => {
                 debug!("User with id = '{:?}' is requesting  // PUT /products/{}", user_id, product_id);

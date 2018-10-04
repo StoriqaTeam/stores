@@ -9,7 +9,7 @@ use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
-use models::{AttrValue, AttributeFilter, BaseProduct, RangeFilter};
+use models::{AttrValue, AttributeFilter, BaseProduct, NewCustomAttributeValuePayload, RangeFilter};
 use schema::products;
 
 /// Payload for querying products
@@ -127,6 +127,7 @@ impl UpdateProduct {
 pub struct UpdateProductWithAttributes {
     pub product: Option<UpdateProduct>,
     pub attributes: Option<Vec<AttrValue>>,
+    pub custom_attributes: Option<Vec<NewCustomAttributeValuePayload>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

@@ -1,0 +1,1 @@
+ALTER TABLE custom_attributes ADD CONSTRAINT unique_custom_attributes_key UNIQUE (base_product_id, attribute_id);

@@ -305,7 +305,7 @@ fn create_custom_attributes(
     product_arg: &Product,
 ) -> Result<(), FailureError> {
     if let Some(custom_attributes) = custom_attributes {
-        values_repo.delete(product_arg.id)?;
+        values_repo.delete_by_product(product_arg.id)?;
 
         let values = NewCustomAttributeValue::into_vec(product_arg.id, custom_attributes);
         values_repo.create(values)?;

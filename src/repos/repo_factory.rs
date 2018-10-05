@@ -356,11 +356,16 @@ pub mod tests {
                     value: v.value,
                 })
             }
+
             Ok(res)
         }
 
+        fn delete(&self, _id_arg: CustomAttributeId) -> RepoResult<Vec<CustomAttributeValue>> {
+            Ok(vec![])
+        }
+
         /// Delete custom attribute
-        fn delete(&self, product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
+        fn delete_by_product(&self, _id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
             Ok(vec![])
         }
     }

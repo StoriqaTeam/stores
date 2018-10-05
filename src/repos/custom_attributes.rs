@@ -6,7 +6,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_types::{BaseProductId, UserId};
+use stq_types::{BaseProductId, CustomAttributeId, UserId};
 
 use models::authorization::*;
 use models::{BaseProduct, CustomAttribute, NewCustomAttribute, Store};
@@ -33,8 +33,11 @@ pub trait CustomAttributesRepo {
     /// List all custom attributes
     fn list(&self) -> RepoResult<Vec<CustomAttribute>>;
 
+    /// get custom attribute
+    fn get_custom_attribute(&self, id_arg: CustomAttributeId) -> RepoResult<Option<CustomAttribute>>;
+
     /// Delete custom attribute
-    fn delete(&self, custom_attribute_id_arg: i32) -> RepoResult<CustomAttribute>;
+    fn delete(&self, id_arg: CustomAttributeId) -> RepoResult<CustomAttribute>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CustomAttributesRepoImpl<'a, T> {
@@ -104,10 +107,26 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             }).map_err(|e: FailureError| e.context("List all custom attributes").into())
     }
 
+    /// get custom attribute
+    fn get_custom_attribute(&self, id_arg: CustomAttributeId) -> RepoResult<Option<CustomAttribute>> {
+        debug!("Find in custom attribute with id {}.", id_arg);
+        let query = custom_attributes.filter(id.eq(id_arg));
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .and_then(|attribute: Option<CustomAttribute>| {
+                if let Some(attribute) = attribute.clone() {
+                    acl::check(&*self.acl, Resource::CustomAttributes, Action::Read, self, Some(&attribute))?;
+                };
+                Ok(attribute)
+            }).map_err(|e: FailureError| e.context(format!("Find custom attribute by id: {} error occured", id_arg)).into())
+    }
+
     /// Delete custom attribute
-    fn delete(&self, custom_attribute_id_arg: i32) -> RepoResult<CustomAttribute> {
-        debug!("Delete custom attribute with id {:?}.", custom_attribute_id_arg);
-        let filtered = custom_attributes.filter(id.eq(custom_attribute_id_arg));
+    fn delete(&self, id_arg: CustomAttributeId) -> RepoResult<CustomAttribute> {
+        debug!("Delete custom attribute with id {:?}.", id_arg);
+        let filtered = custom_attributes.filter(id.eq(id_arg));
         let query = diesel::delete(filtered);
         query
             .get_result::<CustomAttribute>(self.db_conn)
@@ -121,10 +140,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Some(&custom_attribute),
                 )?;
                 Ok(custom_attribute)
-            }).map_err(|e: FailureError| {
-                e.context(format!("Delete custom attribute: {:?} error occured", custom_attribute_id_arg))
-                    .into()
-            })
+            }).map_err(|e: FailureError| e.context(format!("Delete custom attribute: {:?} error occured", id_arg)).into())
     }
 }
 

@@ -475,7 +475,7 @@ impl<
                     "User with id = '{:?}' is requesting  // GET /base_products/{}/custom_attributes",
                     user_id, base_product_id
                 );
-                serialize_future(service.get_custom_attributes(base_product_id))
+                serialize_future(service.get_custom_attributes_by_base_product(base_product_id))
             }
 
             // GET base_products/by_product/<product_id>
@@ -751,6 +751,15 @@ impl<
             (&Get, Some(Route::CustomAttributes)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /custom_attributes", user_id);
                 serialize_future(service.list_custom_attributes())
+            }
+
+            // GET /custom_attributes/:id
+            (&Get, Some(Route::CustomAttribute(custom_attributes_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /custom_attributes/{}",
+                    user_id, custom_attributes_id
+                );
+                serialize_future(service.get_custom_attribute(custom_attributes_id))
             }
 
             // DELETE /custom_attributes/:id

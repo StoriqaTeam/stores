@@ -30,7 +30,7 @@ pub enum Route {
     CategoryAttr(i32),
     CurrencyExchange,
     CustomAttributes,
-    CustomAttribute(i32),
+    CustomAttribute(CustomAttributeId),
     ModeratorProductComments,
     ModeratorBaseProductComment(BaseProductId),
     ModeratorBaseProductSearch,
@@ -271,6 +271,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(CustomAttributeId)
             .map(Route::CustomAttribute)
     });
 

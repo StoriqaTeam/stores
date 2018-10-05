@@ -306,7 +306,7 @@ pub mod tests {
         /// Creates new custom_attribute
         fn create(&self, payload: NewCustomAttribute) -> RepoResult<CustomAttribute> {
             Ok(CustomAttribute {
-                id: 1,
+                id: CustomAttributeId(1),
                 base_product_id: payload.base_product_id,
                 attribute_id: payload.attribute_id,
             })
@@ -317,10 +317,19 @@ pub mod tests {
             Ok(vec![])
         }
 
+        /// get custom attribute
+        fn get_custom_attribute(&self, id_arg: CustomAttributeId) -> RepoResult<Option<CustomAttribute>> {
+            Ok(Some(CustomAttribute {
+                id: id_arg,
+                base_product_id: BaseProductId(1),
+                attribute_id: 1,
+            }))
+        }
+
         /// Delete custom attribute
-        fn delete(&self, custom_attribute_id_arg: i32) -> RepoResult<CustomAttribute> {
+        fn delete(&self, id_arg: CustomAttributeId) -> RepoResult<CustomAttribute> {
             Ok(CustomAttribute {
-                id: custom_attribute_id_arg,
+                id: id_arg,
                 base_product_id: BaseProductId(1),
                 attribute_id: 1,
             })

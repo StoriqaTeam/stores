@@ -239,8 +239,8 @@ pub fn get_child_category_level(parent_cat_id: Option<i32>, root_category: &Cate
             let parent_cat =
                 get_category(&root_category, parent_id_).ok_or(format_err!("Parent category with id {} not found", parent_id_))?;
 
-            if parent_cat.id < Category::MAX_LEVEL_NESTING {
-                Ok(parent_cat.id + 1)
+            if parent_cat.level < Category::MAX_LEVEL_NESTING {
+                Ok(parent_cat.level + 1)
             } else {
                 Err(format_err!("Parent category with id {} is a leaf category", parent_id_))
             }
@@ -290,7 +290,7 @@ mod tests {
 
     fn create_mock_categories() -> Category {
         let cat_3 = Category {
-            id: 3,
+            id: 400,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
@@ -299,7 +299,7 @@ mod tests {
             attributes: vec![],
         };
         let cat_2 = Category {
-            id: 2,
+            id: 300,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_3],
@@ -308,7 +308,7 @@ mod tests {
             attributes: vec![],
         };
         let cat_1 = Category {
-            id: 1,
+            id: 200,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_2],
@@ -317,7 +317,7 @@ mod tests {
             attributes: vec![],
         };
         Category {
-            id: 0,
+            id: 100,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_1],
@@ -383,19 +383,19 @@ mod tests {
     #[test]
     fn test_parent_categories() {
         let cat = create_mock_categories();
-        let child_id = 3;
+        let child_id = 400;
         let new_cat = cat
             .children
             .into_iter()
             .find(|cat_child| get_parent_category(&cat_child, child_id, 2).is_some())
             .unwrap();
-        assert_eq!(new_cat.id, 1);
+        assert_eq!(new_cat.id, 200);
     }
 
     #[test]
     fn test_get_category() {
         let cat = create_mock_categories();
-        let child_id = 3;
+        let child_id = 300;
         let new_cat = get_category(&cat, child_id).unwrap();
         assert_eq!(new_cat.id, child_id);
     }

@@ -86,14 +86,20 @@ impl<
     }
 
     /// Deletes custom_attribute
-    fn delete_custom_attribute(&self, custom_attribute_id_arg: CustomAttributeId) -> ServiceFuture<CustomAttribute> {
+    fn delete_custom_attribute(&self, id_arg: CustomAttributeId) -> ServiceFuture<CustomAttribute> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
-            conn.transaction::<(CustomAttribute), FailureError, _>(move || custom_attributes_repo.delete(custom_attribute_id_arg))
-                .map_err(|e| e.context("Service CustomAttributes, create endpoint error occured.").into())
+            let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
+
+            conn.transaction::<CustomAttribute, FailureError, _>(move || {
+                let _ = custom_attributes_values_repo.delete(id_arg)?;
+                let custom_attribute = custom_attributes_repo.delete(id_arg)?;
+
+                Ok(custom_attribute)
+            }).map_err(|e| e.context("Service CustomAttributes, delete endpoint error occured.").into())
         })
     }
 }

@@ -6,7 +6,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_types::{ProductId, UserId};
+use stq_types::{CustomAttributeId, ProductId, UserId};
 
 use models::authorization::*;
 use models::{BaseProduct, CustomAttributeValue, NewCustomAttributeValue, Product, Store};
@@ -32,7 +32,10 @@ pub trait CustomAttributesValuesRepo {
     fn create(&self, payload: Vec<NewCustomAttributeValue>) -> RepoResult<Vec<CustomAttributeValue>>;
 
     /// Delete custom attribute values
-    fn delete(&self, product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>>;
+    fn delete(&self, id_arg: CustomAttributeId) -> RepoResult<Vec<CustomAttributeValue>>;
+
+    /// Delete custom attribute values by product id
+    fn delete_by_product(&self, id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CustomAttributesValuesRepoImpl<'a, T> {
@@ -94,8 +97,33 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
-    /// Delete all custom attributes values for product
-    fn delete(&self, product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
+    /// Delete custom attribute values
+    fn delete(&self, id_arg: CustomAttributeId) -> RepoResult<Vec<CustomAttributeValue>> {
+        debug!("Delete custom attribute values for custom attribute id {:?}.", id_arg);
+        let filtered = custom_attributes_values.filter(id.eq(id_arg));
+        let query = diesel::delete(filtered);
+        query
+            .get_results::<CustomAttributeValue>(self.db_conn)
+            .map_err(From::from)
+            .and_then(|custom_attribute_values: Vec<CustomAttributeValue>| {
+                for custom_attribute_value in &custom_attribute_values {
+                    acl::check(
+                        &*self.acl,
+                        Resource::CustomAttributesValues,
+                        Action::Delete,
+                        self,
+                        Some(&custom_attribute_value),
+                    )?;
+                }
+                Ok(custom_attribute_values)
+            }).map_err(|e: FailureError| {
+                e.context(format!("Delete custom attribute values: {:?} error occured", id_arg))
+                    .into()
+            })
+    }
+
+    /// Delete custom attribute values by product id
+    fn delete_by_product(&self, product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
         debug!("Delete custom attribute values with for product id {:?}.", product_id_arg);
         let filtered = custom_attributes_values.filter(product_id.eq(product_id_arg));
         let query = diesel::delete(filtered);

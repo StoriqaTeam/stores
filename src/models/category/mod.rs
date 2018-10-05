@@ -22,15 +22,22 @@ pub struct RawCategory {
     pub meta_field: Option<serde_json::Value>,
 }
 
-/// Payload for creating categories
-#[derive(Serialize, Deserialize, Insertable, Clone, Validate, Debug)]
+/// Used to insert a category into the table
+#[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[table_name = "categories"]
+pub struct InsertCategory {
+    pub name: serde_json::Value,
+    pub parent_id: Option<i32>,
+    pub level: i32,
+    pub meta_field: Option<serde_json::Value>,
+}
+
+/// Payload for creating categories
+#[derive(Serialize, Deserialize, Clone, Validate, Debug)]
 pub struct NewCategory {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub parent_id: Option<i32>,
-    #[validate(range(min = "1", max = "3"))]
-    pub level: i32,
     pub meta_field: Option<serde_json::Value>,
 }
 
@@ -55,6 +62,10 @@ pub struct Category {
     pub parent_id: Option<i32>,
     pub children: Vec<Category>,
     pub attributes: Vec<Attribute>,
+}
+
+impl Category {
+    pub const MAX_LEVEL_NESTING: i32 = 3;
 }
 
 impl Default for Category {

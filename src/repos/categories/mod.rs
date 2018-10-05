@@ -13,7 +13,7 @@ use failure::Error as FailureError;
 use stq_types::UserId;
 
 use models::authorization::*;
-use models::{Attribute, CatAttr, Category, NewCategory, RawCategory, UpdateCategory};
+use models::{Attribute, CatAttr, Category, InsertCategory, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
 use repos::legacy_acl::{Acl, CheckScope};
 use repos::types::RepoResult;
@@ -66,14 +66,31 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn create(&self, payload: NewCategory) -> RepoResult<Category> {
         debug!("Create new category {:?}.", payload);
         self.cache.clear();
-        let query_categorie = diesel::insert_into(categories).values(&payload);
-        query_categorie
-            .get_result::<RawCategory>(self.db_conn)
-            .map(|created_category| created_category.into())
-            .map_err(From::from)
-            .and_then(|category| {
+
+        let root_category = self.get_all_categories();
+
+        let new_category_level = root_category.and_then(|cat| get_child_category_level(payload.parent_id, &cat));
+
+        let payload_clone = payload.clone();
+        let new_category = new_category_level.map(|level_| InsertCategory {
+            name: payload_clone.name,
+            parent_id: payload_clone.parent_id,
+            level: level_,
+            meta_field: payload_clone.meta_field,
+        });
+
+        let created_category = new_category
+            .and_then(|new_cat| {
+                diesel::insert_into(categories)
+                    .values(&new_cat)
+                    .get_result::<RawCategory>(self.db_conn)
+                    .map(|created_category| created_category.into())
+                    .map_err(From::from)
+            }).and_then(|category| {
                 acl::check(&*self.acl, Resource::Categories, Action::Create, self, Some(&category)).and_then(|_| Ok(category))
-            }).map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occured", payload)).into())
+            });
+
+        created_category.map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occured", payload)).into())
     }
 
     /// Updates specific category
@@ -212,6 +229,24 @@ pub fn get_category(cat: &Category, cat_id: i32) -> Option<Category> {
     }
 }
 
+pub fn get_child_category_level(parent_cat_id: Option<i32>, root_category: &Category) -> RepoResult<i32> {
+    if root_category.level != 0 {
+        return Err(format_err!("Root category has invalid level ({})", root_category.level));
+    }
+
+    parent_cat_id
+        .map(|parent_id_| {
+            let parent_cat =
+                get_category(&root_category, parent_id_).ok_or(format_err!("Parent category with id {} not found", parent_id_))?;
+
+            if parent_cat.id < Category::MAX_LEVEL_NESTING {
+                Ok(parent_cat.id + 1)
+            } else {
+                Err(format_err!("Parent category with id {} is a leaf category", parent_id_))
+            }
+        }).unwrap_or(Ok(1))
+}
+
 pub fn get_all_children_till_the_end(cat: Category) -> Vec<Category> {
     if cat.children.is_empty() {
         vec![cat]
@@ -290,6 +325,36 @@ mod tests {
             parent_id: None,
             attributes: vec![],
         }
+    }
+
+    #[test]
+    fn test_get_root_category_child_level() {
+        let root_category = create_mock_categories();
+        let level_ = get_child_category_level(None, &root_category);
+        assert_eq!(Some(1), level_.ok());
+    }
+
+    #[test]
+    fn test_get_intermediate_category_child_level() {
+        let root_category = create_mock_categories();
+        let lvl1_category = &root_category.children[0];
+        let level_ = get_child_category_level(Some(lvl1_category.id), &root_category);
+        assert_eq!(Some(2), level_.ok());
+    }
+
+    #[test]
+    fn test_get_leaf_category_child_level() {
+        let root_category = create_mock_categories();
+        let lvl3_category = &root_category.children[0].children[0].children[0];
+        let level_ = get_child_category_level(Some(lvl3_category.id), &root_category);
+        assert!(level_.is_err());
+    }
+
+    #[test]
+    fn test_get_child_level_nonexistent_parent_id() {
+        let root_category = create_mock_categories();
+        let level_ = get_child_category_level(Some(1234), &root_category);
+        assert!(level_.is_err());
     }
 
     #[test]

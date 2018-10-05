@@ -14,7 +14,6 @@ pub fn create_new_category(name: &str) -> NewCategory {
         name: serde_json::from_str(name).unwrap(),
         meta_field: None,
         parent_id: Some(1),
-        level: 3,
     }
 }
 

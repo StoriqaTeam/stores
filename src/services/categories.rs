@@ -161,7 +161,6 @@ pub mod tests {
             name: serde_json::from_str(name).unwrap(),
             meta_field: None,
             parent_id: Some(1),
-            level: 0,
         }
     }
 

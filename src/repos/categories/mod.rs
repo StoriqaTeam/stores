@@ -67,9 +67,15 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         debug!("Create new category {:?}.", payload);
         self.cache.clear();
 
-        let root_category = self.get_all_categories();
-
-        let new_category_level = root_category.and_then(|cat| get_child_category_level(payload.parent_id, &cat));
+        let new_category_level = if payload.parent_id == 0 {
+            Ok(1)
+        } else {
+            categories
+                .find(payload.parent_id)
+                .get_result::<RawCategory>(self.db_conn)
+                .map_err(From::from)
+                .and_then(|cat| get_child_category_level(cat.into()))
+        };
 
         let payload_clone = payload.clone();
         let new_category = new_category_level.map(|level_| InsertCategory {
@@ -229,22 +235,16 @@ pub fn get_category(cat: &Category, cat_id: i32) -> Option<Category> {
     }
 }
 
-pub fn get_child_category_level(parent_cat_id: Option<i32>, root_category: &Category) -> RepoResult<i32> {
-    if root_category.level != 0 {
-        return Err(format_err!("Root category has invalid level ({})", root_category.level));
+pub fn get_child_category_level(parent_cat: Category) -> RepoResult<i32> {
+    if parent_cat.level < Category::MAX_LEVEL_NESTING {
+        Ok(parent_cat.level + 1)
+    } else {
+        Err(format_err!(
+            "Parent category with id {} is a leaf category (level: {})",
+            parent_cat.id,
+            Category::MAX_LEVEL_NESTING
+        ))
     }
-
-    parent_cat_id
-        .map(|parent_id_| {
-            let parent_cat =
-                get_category(&root_category, parent_id_).ok_or(format_err!("Parent category with id {} not found", parent_id_))?;
-
-            if parent_cat.level < Category::MAX_LEVEL_NESTING {
-                Ok(parent_cat.level + 1)
-            } else {
-                Err(format_err!("Parent category with id {} is a leaf category", parent_id_))
-            }
-        }).unwrap_or(Ok(1))
 }
 
 pub fn get_all_children_till_the_end(cat: Category) -> Vec<Category> {
@@ -328,32 +328,33 @@ mod tests {
     }
 
     #[test]
-    fn test_get_root_category_child_level() {
-        let root_category = create_mock_categories();
-        let level_ = get_child_category_level(None, &root_category);
-        assert_eq!(Some(1), level_.ok());
-    }
-
-    #[test]
     fn test_get_intermediate_category_child_level() {
         let root_category = create_mock_categories();
-        let lvl1_category = &root_category.children[0];
-        let level_ = get_child_category_level(Some(lvl1_category.id), &root_category);
+        let lvl1_category = Category {
+            id: 1000,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![],
+            level: 1,
+            parent_id: None,
+            attributes: vec![],
+        };
+        let level_ = get_child_category_level(lvl1_category);
         assert_eq!(Some(2), level_.ok());
     }
 
     #[test]
     fn test_get_leaf_category_child_level() {
-        let root_category = create_mock_categories();
-        let lvl3_category = &root_category.children[0].children[0].children[0];
-        let level_ = get_child_category_level(Some(lvl3_category.id), &root_category);
-        assert!(level_.is_err());
-    }
-
-    #[test]
-    fn test_get_child_level_nonexistent_parent_id() {
-        let root_category = create_mock_categories();
-        let level_ = get_child_category_level(Some(1234), &root_category);
+        let lvl3_category = Category {
+            id: 1000,
+            name: serde_json::from_str("{}").unwrap(),
+            meta_field: None,
+            children: vec![],
+            level: 3,
+            parent_id: None,
+            attributes: vec![],
+        };
+        let level_ = get_child_category_level(lvl3_category);
         assert!(level_.is_err());
     }
 

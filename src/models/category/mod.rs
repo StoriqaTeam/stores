@@ -27,7 +27,7 @@ pub struct RawCategory {
 #[table_name = "categories"]
 pub struct InsertCategory {
     pub name: serde_json::Value,
-    pub parent_id: Option<i32>,
+    pub parent_id: i32,
     pub level: i32,
     pub meta_field: Option<serde_json::Value>,
 }
@@ -37,7 +37,7 @@ pub struct InsertCategory {
 pub struct NewCategory {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
-    pub parent_id: Option<i32>,
+    pub parent_id: i32,
     pub meta_field: Option<serde_json::Value>,
 }
 

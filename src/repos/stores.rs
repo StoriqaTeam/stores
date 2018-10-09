@@ -226,7 +226,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let mut query = stores.filter(id.ge(from)).into_boxed();
 
         if let Some(term_name) = term.name {
-            query = query.filter(sql(format!("name::json->>'text' like '{}%'", term_name).as_ref()));
+            query = query.filter(sql(format!("name::text like '%{}%'", term_name).as_ref()));
         }
 
         if let Some(ref store_manager_ids) = term.store_manager_ids {

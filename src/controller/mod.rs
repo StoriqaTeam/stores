@@ -24,6 +24,7 @@ use validator::Validate;
 
 use stq_http::controller::Controller;
 use stq_http::controller::ControllerFuture;
+use stq_http::errors::ErrorMessageWrapper;
 use stq_http::request_util::serialize_future;
 use stq_http::request_util::Currency as CurrencyHeader;
 use stq_http::request_util::{parse_body, read_body};
@@ -35,6 +36,7 @@ use controller::context::{DynamicContext, StaticContext};
 use errors::Error;
 use models::*;
 use repos::repo_factory::*;
+use sentry_integration::log_and_capture_error;
 use services::attributes::AttributesService;
 use services::base_products::BaseProductsService;
 use services::categories::CategoriesService;
@@ -106,7 +108,7 @@ impl<
 
         let path = req.path().to_string();
 
-        match (&req.method().clone(), self.static_context.route_parser.test(req.path())) {
+        let fut = match (&req.method().clone(), self.static_context.route_parser.test(req.path())) {
             // GET /stores/<store_id>
             (&Get, Some(Route::Store(store_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /stores/{}", user_id, store_id);
@@ -1100,6 +1102,14 @@ impl<
                     .context(Error::NotFound)
                     .into(),
             )),
-        }
+        }.map_err(|err| {
+            let wrapper = ErrorMessageWrapper::<Error>::from(&err);
+            if wrapper.inner.code == 500 {
+                log_and_capture_error(&err);
+            }
+            err
+        });
+
+        Box::new(fut)
     }
 }

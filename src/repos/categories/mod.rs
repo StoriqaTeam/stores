@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn test_get_intermediate_category_child_level() {
-        let root_category = create_mock_categories();
+        let _root_category = create_mock_categories();
         let lvl1_category = Category {
             id: 1000,
             name: serde_json::from_str("{}").unwrap(),

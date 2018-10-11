@@ -6,6 +6,7 @@
 //! Each layer can throw Error with context or cover occured error with
 //! Error in the context. When error is not covered with Error it will
 //! be translated to code 500 in the http answer "Internal server error" of microservice.
+#![allow(proc_macro_derive_resolution_fallback)]
 #![recursion_limit = "128"]
 extern crate chrono;
 extern crate config as config_crate;

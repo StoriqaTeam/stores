@@ -132,6 +132,7 @@ pub mod tests {
         assert!(result.is_ok());
     }
 
+    #[test]
     fn test_get_custom_attribute() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());

@@ -11,21 +11,23 @@ pub struct AttributeCacheImpl {
 
 impl AttributeCacheImpl {
     pub fn get(&self, id: i32) -> Option<Attribute> {
-        self.inner.lock().unwrap().get(&id).cloned()
+        //self.inner.lock().unwrap().get(&id).cloned()
+        None
     }
 
     pub fn contains(&self, id: i32) -> bool {
-        let hash_map = self.inner.lock().unwrap();
-        hash_map.contains_key(&id)
+        //let hash_map = self.inner.lock().unwrap();
+        //hash_map.contains_key(&id)
+        false
     }
 
     pub fn add_attribute(&self, id: i32, attribute: Attribute) {
-        let mut hash_map = self.inner.lock().unwrap();
-        hash_map.insert(id, attribute);
+        //let mut hash_map = self.inner.lock().unwrap();
+        //hash_map.insert(id, attribute);
     }
 
     pub fn remove(&self, id: i32) {
-        let mut hash_map = self.inner.lock().unwrap();
-        hash_map.remove(&id);
+        //let mut hash_map = self.inner.lock().unwrap();
+        //hash_map.remove(&id);
     }
 }

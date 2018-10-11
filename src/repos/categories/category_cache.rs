@@ -10,22 +10,24 @@ pub struct CategoryCacheImpl {
 
 impl CategoryCacheImpl {
     pub fn get(&self) -> Option<Category> {
-        let category = self.inner.lock().unwrap();
-        category.clone()
+        //let category = self.inner.lock().unwrap();
+        //category.clone()
+        None
     }
 
     pub fn clear(&self) {
-        let mut category = self.inner.lock().unwrap();
-        *category = None;
+        //let mut category = self.inner.lock().unwrap();
+        //*category = None;
     }
 
     pub fn is_some(&self) -> bool {
-        let category = self.inner.lock().unwrap();
-        category.is_some()
+        //let category = self.inner.lock().unwrap();
+        //category.is_some()
+        false
     }
 
     pub fn set(&self, cat: Category) {
-        let mut category = self.inner.lock().unwrap();
-        *category = Some(cat);
+        //let mut category = self.inner.lock().unwrap();
+        //*category = Some(cat);
     }
 }

@@ -181,10 +181,13 @@ impl<
             {
                 let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                 let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, user_id);
                 conn.transaction::<Store, FailureError, _>(move || {
                     let deactive_store = stores_repo.deactivate(store_id)?;
 
                     let _base_products = base_products_repo.deactivate_by_store(store_id)?;
+
+                    let _wizard_store = wizard_stores_repo.delete(deactive_store.user_id);
 
                     Ok(deactive_store)
                 })

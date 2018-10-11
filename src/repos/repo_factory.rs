@@ -242,13 +242,13 @@ pub mod tests {
         fn create_user_roles_repo_with_sys_acl<'a>(&self, _db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
             Box::new(UserRolesRepoMock::default()) as Box<UserRolesRepo>
         }
-        fn create_custom_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a> {
+        fn create_custom_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a> {
             Box::new(CustomAttributesRepoMock::default()) as Box<CustomAttributesRepo>
         }
         fn create_custom_attributes_values_repo<'a>(
             &self,
-            db_conn: &'a C,
-            user_id: Option<UserId>,
+            _db_conn: &'a C,
+            _user_id: Option<UserId>,
         ) -> Box<CustomAttributesValuesRepo + 'a> {
             Box::new(CustomAttributesValuesRepoMock::default()) as Box<CustomAttributesValuesRepo>
         }
@@ -299,7 +299,7 @@ pub mod tests {
 
     impl CustomAttributesRepo for CustomAttributesRepoMock {
         /// Find custom attributes by base_product_id
-        fn find_all_attributes(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<CustomAttribute>> {
+        fn find_all_attributes(&self, _base_product_id_arg: BaseProductId) -> RepoResult<Vec<CustomAttribute>> {
             Ok(vec![])
         }
 
@@ -341,7 +341,7 @@ pub mod tests {
 
     impl CustomAttributesValuesRepo for CustomAttributesValuesRepoMock {
         /// Find custom attributes by base_product_id
-        fn find_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
+        fn find_all_attributes(&self, _product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
             Ok(vec![])
         }
 
@@ -991,7 +991,7 @@ pub mod tests {
             })
         }
 
-        fn delete_user_role(&self, user_id_arg: UserId, name_arg: UsersRole) -> RepoResult<UserRole> {
+        fn delete_user_role(&self, user_id_arg: UserId, _name_arg: UsersRole) -> RepoResult<UserRole> {
             Ok(UserRole {
                 id: RoleId::new(),
                 user_id: user_id_arg,

@@ -19,11 +19,13 @@ use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::{
-    BaseProduct, BaseProductWithVariants, ElasticProduct, ModeratorBaseProductSearchTerms, MostDiscountProducts, MostViewedProducts,
-    NewBaseProduct, Product, Store, UpdateBaseProduct,
+    Attribute, BaseProduct, BaseProductWithVariants, CatalogWithAttributes, ElasticProduct, ModeratorBaseProductSearchTerms,
+    MostDiscountProducts, MostViewedProducts, NewBaseProduct, ProdAttr, Product, ProductWithAttributes, Store, UpdateBaseProduct,
 };
 use repos::legacy_acl::*;
+use schema::attributes::dsl as DslAttributes;
 use schema::base_products::dsl::*;
+use schema::prod_attr_values::dsl as DslProdAttr;
 use schema::products::dsl as Products;
 use schema::stores::dsl as Stores;
 
@@ -84,6 +86,9 @@ pub trait BaseProductsRepo {
 
     /// Set moderation status for base_product_ids
     fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Getting all base products with variants
+    fn get_all_catalog(&self) -> RepoResult<Vec<CatalogWithAttributes>>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepoImpl<'a, T> {
@@ -494,6 +499,59 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     base_product_ids
                 )).into()
             })
+    }
+
+    /// Getting all base products with variants
+    fn get_all_catalog(&self) -> RepoResult<Vec<CatalogWithAttributes>> {
+        debug!("Getting all base products with variants.");
+
+        let all_base_products = base_products
+            .filter(is_active.eq(true))
+            .filter(status.eq(ModerationStatus::Published))
+            .order(id)
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .map_err(|e: FailureError| e.context("Getting all base products with variants."))?;
+
+        let all_products = Product::belonging_to(&all_base_products)
+            .filter(Products::is_active.eq(true))
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .map_err(|e: FailureError| e.context("Getting all variants."))?
+            .grouped_by(&all_base_products);
+
+        let catalog_with_attributes = all_base_products
+            .into_iter()
+            .zip(all_products)
+            .map(|(base, variants): (BaseProduct, Vec<Product>)| {
+                let prod_ids = variants.iter().map(|v| v.id).collect::<Vec<ProductId>>();
+
+                let query = DslProdAttr::prod_attr_values
+                    .filter(DslProdAttr::prod_id.eq_any(prod_ids))
+                    .inner_join(DslAttributes::attributes);
+
+                query
+                    .get_results::<(ProdAttr, Attribute)>(self.db_conn)
+                    .map_err(From::from)
+                    .and_then(|attributes| {
+                        let mut variants_attributes = vec![];
+                        for variant in variants {
+                            let search_attributes = attributes.clone();
+                            let prod_attributes =
+                                search_attributes
+                                    .into_iter()
+                                    .filter(|v| v.0.prod_id == variant.id)
+                                    .collect::<Vec<(ProdAttr, Attribute)>>();
+                            let product = ProductWithAttributes::new(variant, prod_attributes);
+
+                            variants_attributes.push(product);
+                        }
+
+                        Ok(CatalogWithAttributes::new(base, variants_attributes))
+                    })
+            }).collect::<RepoResult<Vec<_>>>();
+
+        catalog_with_attributes
     }
 }
 

@@ -6,6 +6,14 @@ version = "0.1.0"
 name = "stores_lib"
 path = "src/lib.rs"
 
+[[bin]]
+name = "rocket_retail"
+path = "src/bin/rocket_retail.rs"
+
+[[bin]]
+name = "stores"
+path = "src/main.rs"
+
 [dependencies]
 chrono = "0.4"
 config = { version = "0.9", default-features = false, features = ["toml"] }
@@ -31,6 +39,12 @@ stq_router = { path = "vendor/libstqbackend/router" }
 stq_static_resources = { path = "vendor/libstqbackend/static_resources" }
 stq_types = { path = "vendor/libstqbackend/types" }
 tokio-core = "0.1"
+tokio = "0.1.11"
 validator = "0.7.1"
 validator_derive = "0.7.2"
 sentry = "0.12"
+
+# rocket rocket retail
+treexml = "0.7.0"
+rusoto_core = "0.34"
+rusoto_s3 = "0.34"

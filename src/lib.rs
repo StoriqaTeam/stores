@@ -6,6 +6,7 @@
 //! Each layer can throw Error with context or cover occured error with
 //! Error in the context. When error is not covered with Error it will
 //! be translated to code 500 in the http answer "Internal server error" of microservice.
+
 #![allow(proc_macro_derive_resolution_fallback)]
 #![recursion_limit = "128"]
 extern crate chrono;
@@ -42,6 +43,10 @@ extern crate validator;
 extern crate validator_derive;
 #[macro_use]
 extern crate sentry;
+extern crate rusoto_core;
+extern crate rusoto_s3;
+extern crate tokio;
+extern crate treexml;
 
 #[macro_use]
 pub mod macros;
@@ -49,6 +54,7 @@ pub mod config;
 pub mod controller;
 pub mod elastic;
 pub mod errors;
+pub mod loaders;
 pub mod models;
 pub mod repos;
 pub mod schema;
@@ -145,4 +151,25 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
         future::ok(())
     });
     core.run(future::empty::<(), ()>()).unwrap();
+}
+
+pub fn start_rocket_retail_loader(config: Config) {
+    let mut core = Core::new().expect("Unexpected error creating event loop core");
+    let handle = Arc::new(core.handle());
+
+    let env = loaders::RocketRetailEnvironment::new(config);
+    handle.spawn(create_rocket_retail_loader(env));
+
+    core.run(future::empty::<(), ()>()).unwrap();
+}
+
+fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Future<Item = (), Error = ()> {
+    let loader = loaders::RocketRetailLoader::new(env);
+
+    let stream = loader.start();
+    stream
+        .or_else(|e| {
+            error!("Error in rocket retail loader: {}.", e);
+            futures::future::ok(())
+        }).for_each(|_| futures::future::ok(()))
 }

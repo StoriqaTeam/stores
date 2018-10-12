@@ -868,6 +868,10 @@ pub mod tests {
         ) -> RepoResult<Vec<BaseProduct>> {
             Ok(vec![])
         }
+
+        fn get_all_catalog(&self) -> RepoResult<Vec<CatalogWithAttributes>> {
+            Ok(vec![])
+        }
     }
 
     #[derive(Clone, Default)]

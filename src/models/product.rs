@@ -9,7 +9,7 @@ use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
-use models::{AttrValue, AttributeFilter, BaseProduct, NewCustomAttributeValuePayload, RangeFilter};
+use models::{AttrValue, Attribute, AttributeFilter, BaseProduct, NewCustomAttributeValuePayload, ProdAttr, RangeFilter};
 use schema::products;
 
 /// Payload for querying products
@@ -177,4 +177,16 @@ pub struct MostDiscountProducts {
 pub struct CartProduct {
     pub product_id: ProductId,
     pub quantity: Quantity,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProductWithAttributes {
+    pub product: Product,
+    pub attributes: Vec<(ProdAttr, Attribute)>,
+}
+
+impl ProductWithAttributes {
+    pub fn new(product: Product, attributes: Vec<(ProdAttr, Attribute)>) -> Self {
+        Self { product, attributes }
+    }
 }

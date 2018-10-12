@@ -8,8 +8,7 @@ use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{BaseProductId, ProductId, ProductPrice, StoreId};
 
 use models::validation_rules::*;
-use models::Product;
-use models::Store;
+use models::{Product, ProductWithAttributes, Store};
 use schema::base_products;
 
 /// Payload for querying base_products
@@ -142,6 +141,18 @@ pub struct BaseProductWithVariants {
 
 impl BaseProductWithVariants {
     pub fn new(base_product: BaseProduct, variants: Vec<Product>) -> Self {
+        Self { base_product, variants }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CatalogWithAttributes {
+    pub base_product: BaseProduct,
+    pub variants: Vec<ProductWithAttributes>,
+}
+
+impl CatalogWithAttributes {
+    pub fn new(base_product: BaseProduct, variants: Vec<ProductWithAttributes>) -> Self {
         Self { base_product, variants }
     }
 }

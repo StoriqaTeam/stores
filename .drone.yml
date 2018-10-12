@@ -48,7 +48,7 @@ pipeline:
     - wget -q https://s3.eu-central-1.amazonaws.com/dumpster.stq/diesel -O /usr/local/cargo/bin/diesel
     - chmod +x /usr/local/cargo/bin/diesel
     - diesel migration run
-    - cargo test
+    - cargo test --all
     when:
       event: pull_request
 
@@ -62,16 +62,24 @@ pipeline:
     - CARGO_HOME=deps
     commands:
     - apt-get update && apt-get install -y clang
-    - cargo build --release --locked
+    - cargo build --all --release --locked
     when:
-      event:
-      - push
-      - tag
-  package:
+      event: tag
+  build:
+    image: rust:1.29.1-stretch
+    environment:
+    - CARGO_HOME=deps
+    commands:
+    - apt-get update && apt-get install -y clang
+    - cargo build --all
+    when:
+      event: push
+  # Regular branches
+  package_stores:
     group: package
     image: plugins/docker
     repo: storiqateam/stq-stores
-    dockerfile: docker/Dockerfile.run
+    dockerfile: Dockerfile.stores
     tags:
     - ${DRONE_BRANCH//\//_}
     - ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
@@ -80,10 +88,26 @@ pipeline:
     - docker_password
     when:
       event: push
-  package:
+  package_rocket:
+    group: package
+    image: plugins/docker
+    repo: storiqateam/stq-stores_rocket
+    dockerfile: Dockerfile.rocket_retail
+    tags:
+    - ${DRONE_BRANCH//\//_}
+    - ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
+    secrets:
+    - docker_username
+    - docker_password
+    when:
+      event: push
+  # Releases
+  package_stores:
     image: plugins/docker
     repo: storiqateam/stq-stores
-    dockerfile: docker/Dockerfile.run
+    dockerfile: Dockerfile.stores
+    build_args:
+    - env=release
     tags:
     - '${DRONE_TAG}'
     - latest
@@ -92,7 +116,23 @@ pipeline:
     - docker_password
     when:
       event: tag
-  deploy2nightly:
+  package_rocket:
+    group: package
+    image: plugins/docker
+    repo: storiqateam/stq-stores_rocket
+    dockerfile: Dockerfile.rocket_retail
+    build_args:
+    - env=release
+    tags:
+    - ${DRONE_BRANCH//\//_}
+    - ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
+    secrets:
+    - docker_username
+    - docker_password
+    when:
+      event: tag
+  # Deployments
+  deploy2nightly_stores:
     image: jackthestripper/drone_setimage
     namespace: default
     object: stores
@@ -112,7 +152,27 @@ pipeline:
     when:
       branch: master
       event: push
-  deploy2stage:
+  deploy2nightly_rocket:
+    image: jackthestripper/drone_setimage
+    namespace: default
+    object: rocket
+    kind: deployment
+    img_names: storiqateam/stq-stores_rocket
+    img_cnts: rocket
+    img_tags: ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
+    secrets:
+    - source: k8s_nightly_ca
+      target: k8s_ca
+    - source: k8s_nightly_user
+      target: k8s_user
+    - source: k8s_nightly_token
+      target: k8s_token
+    - source: k8s_nightly_addr
+      target: k8s_addr
+    when:
+      branch: master
+      event: push
+  deploy2stage_stores:
     image: jackthestripper/drone_setimage
     namespace: default
     object: stores
@@ -131,12 +191,31 @@ pipeline:
       target: k8s_addr
     when:
       event: tag
+  deploy2stage_rocket:
+    image: jackthestripper/drone_setimage
+    namespace: default
+    object: rocket
+    kind: deployment
+    img_names: storiqateam/stq-stores_rocket
+    img_cnts: rocket
+    img_tags: '${DRONE_TAG}'
+    secrets:
+    - source: k8s_stage_ca
+      target: k8s_ca
+    - source: k8s_stage_user
+      target: k8s_user
+    - source: k8s_stage_token
+      target: k8s_token
+    - source: k8s_stage_addr
+      target: k8s_addr
+    when:
+      event: tag
 
 ###
 # Deploy to stable / production
 ###
 
-  deploy2stable:
+  deploy2stable_stores:
     image: jackthestripper/drone_setimage
     namespace: default
     object: stores
@@ -157,13 +236,54 @@ pipeline:
       branch: master
       event: deployment
       environment: stable
-  deploy2production:
+  deploy2stable_rocket:
+    image: jackthestripper/drone_setimage
+    namespace: default
+    object: rocket
+    kind: deployment
+    img_names: storiqateam/stq-stores_rocket
+    img_cnts: rocket
+    img_tags: ${DRONE_BRANCH//\//_}${DRONE_PARENT_BUILD_NUMBER}
+    secrets:
+    - source: k8s_stable_ca
+      target: k8s_ca
+    - source: k8s_stable_user
+      target: k8s_user
+    - source: k8s_stable_token
+      target: k8s_token
+    - source: k8s_stable_addr
+      target: k8s_addr
+    when:
+      branch: master
+      event: deployment
+      environment: stable
+  deploy2production_stores:
     image: jackthestripper/drone_setimage
     namespace: default
     kind: deployment
     object: stores
     img_names: storiqateam/stq-stores
     img_cnts: stores
+    img_tags: '${DRONE_TAG}'
+    secrets:
+    - source: k8s_prod_ca
+      target: k8s_ca
+    - source: k8s_prod_user
+      target: k8s_user
+    - source: k8s_prod_token
+      target: k8s_token
+    - source: k8s_prod_addr
+      target: k8s_addr
+    when:
+      event: deployment
+      environment: production
+  deploy2production_rocket:
+    image: jackthestripper/drone_setimage
+    namespace: default
+    kind: deployment
+    object: rocket
+    img_names: storiqateam/stq-stores_rocket
+    img_cnts: rocket
     img_tags: '${DRONE_TAG}'
     secrets:
     - source: k8s_prod_ca

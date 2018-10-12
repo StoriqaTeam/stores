@@ -6,7 +6,7 @@ use stq_types::*;
 pub enum Route {
     Healthcheck,
     Attributes,
-    Attribute(i32),
+    Attribute(AttributeId),
     BaseProducts,
     BaseProductWithVariants,
     BaseProductsSearch,
@@ -40,7 +40,6 @@ pub enum Route {
     Products,
     ProductStoreId,
     Product(ProductId),
-    ProductCustomAttributeValue(ProductId),
     ProductAttributes(ProductId),
     ProductsByBaseProduct(BaseProductId),
     SellerProductPrice(ProductId),
@@ -143,15 +142,6 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(ProductId)
             .map(Route::Product)
-    });
-
-    // Products/:id/custom_attributes route
-    router.add_route_with_params(r"^/products/(\d+)/custom_attributes$", |params| {
-        params
-            .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(ProductId)
-            .map(Route::ProductCustomAttributeValue)
     });
 
     // Products/:id route
@@ -280,6 +270,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(AttributeId)
             .map(Route::Attribute)
     });
 

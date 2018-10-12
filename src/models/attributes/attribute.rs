@@ -3,6 +3,7 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::AttributeType;
+use stq_types::{AttributeId, AttributeValue};
 
 use models::validation_rules::*;
 use models::*;
@@ -11,7 +12,7 @@ use schema::attributes;
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "attributes"]
 pub struct Attribute {
-    pub id: i32,
+    pub id: AttributeId,
     pub name: serde_json::Value,
     pub value_type: AttributeType,
     pub meta_field: Option<serde_json::Value>,
@@ -38,8 +39,8 @@ pub struct UpdateAttribute {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AttrValue {
-    pub attr_id: i32,
-    pub value: String,
+    pub attr_id: AttributeId,
+    pub value: AttributeValue,
     pub meta_field: Option<String>,
 }
 

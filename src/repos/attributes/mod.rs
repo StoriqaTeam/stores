@@ -7,7 +7,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_types::UserId;
+use stq_types::{AttributeId, UserId};
 
 use models::authorization::*;
 use models::{Attribute, NewAttribute, UpdateAttribute};
@@ -29,7 +29,7 @@ pub struct AttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager
 
 pub trait AttributesRepo {
     /// Find specific attribute by id
-    fn find(&self, id_arg: i32) -> RepoResult<Option<Attribute>>;
+    fn find(&self, id_arg: AttributeId) -> RepoResult<Option<Attribute>>;
 
     /// List all attributes
     fn list(&self) -> RepoResult<Vec<Attribute>>;
@@ -38,7 +38,7 @@ pub trait AttributesRepo {
     fn create(&self, payload: NewAttribute) -> RepoResult<Attribute>;
 
     /// Updates specific attribute
-    fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute>;
+    fn update(&self, attribute_id_arg: AttributeId, payload: UpdateAttribute) -> RepoResult<Attribute>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepoImpl<'a, T> {
@@ -49,7 +49,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> AttributesRepo for AttributesRepoImpl<'a, T> {
     /// Find specific attribute by id
-    fn find(&self, id_arg: i32) -> RepoResult<Option<Attribute>> {
+    fn find(&self, id_arg: AttributeId) -> RepoResult<Option<Attribute>> {
         debug!("Find in attributes with id {}.", id_arg);
         if self.cache.contains(id_arg) {
             Ok(self.cache.get(id_arg))
@@ -101,7 +101,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Updates specific attribute
-    fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
+    fn update(&self, attribute_id_arg: AttributeId, payload: UpdateAttribute) -> RepoResult<Attribute> {
         debug!("Updating attribute with id {} and payload {:?}.", attribute_id_arg, payload);
         let query = attributes.find(attribute_id_arg);
 

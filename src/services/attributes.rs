@@ -9,16 +9,17 @@ use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::ReposFactory;
 use services::types::ServiceFuture;
 use services::Service;
+use stq_types::AttributeId;
 
 pub trait AttributesService {
     /// Returns attribute by ID
-    fn get_attribute(&self, attribute_id: i32) -> ServiceFuture<Option<Attribute>>;
+    fn get_attribute(&self, attribute_id: AttributeId) -> ServiceFuture<Option<Attribute>>;
     /// Returns all attributes
     fn list_attributes(&self) -> ServiceFuture<Vec<Attribute>>;
     /// Creates new attribute
     fn create_attribute(&self, payload: NewAttribute) -> ServiceFuture<Attribute>;
     /// Updates specific attribute
-    fn update_attribute(&self, attribute_id: i32, payload: UpdateAttribute) -> ServiceFuture<Attribute>;
+    fn update_attribute(&self, attribute_id: AttributeId, payload: UpdateAttribute) -> ServiceFuture<Attribute>;
 }
 
 impl<
@@ -28,7 +29,7 @@ impl<
     > AttributesService for Service<T, M, F>
 {
     /// Returns attribute by ID
-    fn get_attribute(&self, attribute_id: i32) -> ServiceFuture<Option<Attribute>> {
+    fn get_attribute(&self, attribute_id: AttributeId) -> ServiceFuture<Option<Attribute>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
@@ -66,7 +67,7 @@ impl<
     }
 
     /// Updates specific attribute
-    fn update_attribute(&self, attribute_id: i32, payload: UpdateAttribute) -> ServiceFuture<Attribute> {
+    fn update_attribute(&self, attribute_id: AttributeId, payload: UpdateAttribute) -> ServiceFuture<Attribute> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
@@ -87,6 +88,7 @@ pub mod tests {
     use tokio_core::reactor::Core;
 
     use stq_static_resources::*;
+    use stq_types::*;
 
     use models::*;
     use repos::repo_factory::tests::*;
@@ -112,9 +114,9 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
-        let work = service.get_attribute(1);
+        let work = service.get_attribute(AttributeId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.unwrap().id, 1);
+        assert_eq!(result.unwrap().id, AttributeId(1));
     }
 
     #[test]
@@ -125,7 +127,7 @@ pub mod tests {
         let new_attribute = create_new_attribute(MOCK_BASE_PRODUCT_NAME_JSON);
         let work = service.create_attribute(new_attribute);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, AttributeId(1));
     }
 
     #[test]
@@ -134,9 +136,9 @@ pub mod tests {
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
         let new_attribute = create_update_attribute(MOCK_BASE_PRODUCT_NAME_JSON);
-        let work = service.update_attribute(1, new_attribute);
+        let work = service.update_attribute(AttributeId(1), new_attribute);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, AttributeId(1));
     }
 
 }

@@ -1,5 +1,5 @@
 /// diesel table for custom attributes
-use stq_types::{BaseProductId, CustomAttributeId};
+use stq_types::{AttributeId, BaseProductId, CustomAttributeId};
 
 use models::{Attribute, BaseProduct};
 use schema::custom_attributes;
@@ -12,7 +12,7 @@ use schema::custom_attributes;
 pub struct CustomAttribute {
     pub id: CustomAttributeId,
     pub base_product_id: BaseProductId,
-    pub attribute_id: i32,
+    pub attribute_id: AttributeId,
 }
 
 /// Payload for creating custom attributes
@@ -20,5 +20,14 @@ pub struct CustomAttribute {
 #[table_name = "custom_attributes"]
 pub struct NewCustomAttribute {
     pub base_product_id: BaseProductId,
-    pub attribute_id: i32,
+    pub attribute_id: AttributeId,
+}
+
+impl NewCustomAttribute {
+    pub fn new(attribute_id: AttributeId, base_product_id: BaseProductId) -> Self {
+        Self {
+            attribute_id,
+            base_product_id,
+        }
+    }
 }

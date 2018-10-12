@@ -5,10 +5,11 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, ProductId, ProductPrice, StoreId};
+use stq_types::{AttributeId, BaseProductId, ProductId, ProductPrice, StoreId};
 
 use models::validation_rules::*;
-use models::{Product, ProductWithAttributes, Store};
+use models::{NewProductWithAttributes, Product, ProductWithAttributes, Store};
+
 use schema::base_products;
 
 /// Payload for querying base_products
@@ -54,6 +55,15 @@ pub struct NewBaseProduct {
     pub category_id: i32,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
+}
+
+/// Payload for creating base product with variants
+#[derive(Serialize, Deserialize, Validate, Clone, Debug)]
+pub struct NewBaseProductWithVariant {
+    #[serde(flatten)]
+    pub new_base_product: NewBaseProduct,
+    pub variant: NewProductWithAttributes,
+    pub selected_attributes: Vec<AttributeId>,
 }
 
 /// Payload for updating base_products

@@ -26,7 +26,7 @@ impl CategoryCacheImpl {
         false
     }
 
-    pub fn set(&self, cat: Category) {
+    pub fn set(&self, _cat: Category) {
         //let mut category = self.inner.lock().unwrap();
         //*category = Some(cat);
     }

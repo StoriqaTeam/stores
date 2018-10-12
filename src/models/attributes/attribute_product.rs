@@ -1,5 +1,5 @@
 use stq_static_resources::AttributeType;
-use stq_types::{BaseProductId, ProductId};
+use stq_types::{AttributeId, AttributeValue, BaseProductId, ProductId};
 
 use schema::prod_attr_values;
 
@@ -9,8 +9,8 @@ use schema::prod_attr_values;
 pub struct ProdAttr {
     pub id: i32,
     pub prod_id: ProductId,
-    pub attr_id: i32,
-    pub value: String,
+    pub attr_id: AttributeId,
+    pub value: AttributeValue,
     pub value_type: AttributeType,
     pub meta_field: Option<String>,
     pub base_prod_id: BaseProductId,
@@ -22,8 +22,8 @@ pub struct ProdAttr {
 pub struct NewProdAttr {
     pub prod_id: ProductId,
     pub base_prod_id: BaseProductId,
-    pub attr_id: i32,
-    pub value: String,
+    pub attr_id: AttributeId,
+    pub value: AttributeValue,
     pub value_type: AttributeType,
     pub meta_field: Option<String>,
 }
@@ -32,8 +32,8 @@ impl NewProdAttr {
     pub fn new(
         prod_id: ProductId,
         base_prod_id: BaseProductId,
-        attr_id: i32,
-        value: String,
+        attr_id: AttributeId,
+        value: AttributeValue,
         value_type: AttributeType,
         meta_field: Option<String>,
     ) -> Self {
@@ -54,13 +54,19 @@ impl NewProdAttr {
 pub struct UpdateProdAttr {
     pub prod_id: ProductId,
     pub base_prod_id: BaseProductId,
-    pub attr_id: i32,
-    pub value: String,
+    pub attr_id: AttributeId,
+    pub value: AttributeValue,
     pub meta_field: Option<String>,
 }
 
 impl UpdateProdAttr {
-    pub fn new(prod_id: ProductId, base_prod_id: BaseProductId, attr_id: i32, value: String, meta_field: Option<String>) -> Self {
+    pub fn new(
+        prod_id: ProductId,
+        base_prod_id: BaseProductId,
+        attr_id: AttributeId,
+        value: AttributeValue,
+        meta_field: Option<String>,
+    ) -> Self {
         Self {
             prod_id,
             base_prod_id,

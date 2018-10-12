@@ -21,6 +21,7 @@ use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
 use repos::{RepoResult, ReposFactory};
+use services::create_product_attributes_values;
 use services::Service;
 
 const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
@@ -67,6 +68,8 @@ pub trait BaseProductsService {
     fn deactivate_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
     /// Creates base product
     fn create_base_product(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
+    /// Creates base product with variants
+    fn create_base_product_with_variant(&self, payload: NewBaseProductWithVariant) -> ServiceFuture<BaseProduct>;
     /// Lists base products limited by `from` and `count` parameters
     fn list_base_products(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
@@ -467,6 +470,67 @@ impl<
                 }
                 Ok(prod)
             }).map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into())
+        })
+    }
+
+    /// Creates base product with variants
+    fn create_base_product_with_variant(&self, payload: NewBaseProductWithVariant) -> ServiceFuture<BaseProduct> {
+        let user_id = self.dynamic_context.user_id;
+
+        let repo_factory = self.static_context.repo_factory.clone();
+        let NewBaseProductWithVariant {
+            new_base_product,
+            variant,
+            selected_attributes,
+        } = payload;
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+            let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+            let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
+
+            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+                // create base_product
+                let base_prod = base_products_repo.create(new_base_product)?;
+
+                // update product categories of the store
+                let store = stores_repo.find(base_prod.store_id)?;
+                if let Some(store) = store {
+                    let category_root = categories_repo.get_all_categories()?;
+                    let cat = get_first_level_category(base_prod.category_id, category_root)?;
+                    let update_store = UpdateStore::add_category_to_product_categories(store.product_categories.clone(), cat.id);
+                    stores_repo.update(store.id, update_store)?;
+                }
+
+                // Create variant
+                let product = products_repo.create((variant.product, base_prod.currency).into())?;
+                // Create attributes values for variant
+                create_product_attributes_values(
+                    &*prod_attr_repo,
+                    &*attr_repo,
+                    &*custom_attributes_repo,
+                    &product,
+                    base_prod.id,
+                    variant.attributes,
+                )?;
+
+                // Save selected_attributes
+                let _ = selected_attributes
+                    .into_iter()
+                    .map(|attribute_id| {
+                        let new_custom_attribute = NewCustomAttribute::new(attribute_id, base_prod.id);
+                        custom_attributes_repo.create(new_custom_attribute)
+                    }).collect::<RepoResult<Vec<_>>>()?;
+
+                Ok(base_prod)
+            }).map_err(|e| {
+                e.context("Service BaseProduct, create with variant and attributes endpoint error occured.")
+                    .into()
+            })
         })
     }
 

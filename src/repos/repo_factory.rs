@@ -22,7 +22,6 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
     fn create_moderator_store_comments_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<ModeratorStoreRepo + 'a>;
     fn create_currency_exchange_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CurrencyExchangeRepo + 'a>;
     fn create_custom_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a>;
-    fn create_custom_attributes_values_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesValuesRepo + 'a>;
     fn create_user_roles_repo_with_sys_acl<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a>;
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<UserRolesRepo + 'a>;
 }
@@ -129,15 +128,12 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CustomAttributesRepoImpl::new(db_conn, acl)) as Box<CustomAttributesRepo>
     }
-    fn create_custom_attributes_values_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesValuesRepo + 'a> {
-        let acl = self.get_acl(db_conn, user_id);
-        Box::new(CustomAttributesValuesRepoImpl::new(db_conn, acl)) as Box<CustomAttributesValuesRepo>
-    }
 }
 
 #[cfg(test)]
 pub mod tests {
 
+    use errors::Error as MyError;
     use std::collections::HashMap;
     use std::error::Error;
     use std::fmt;
@@ -245,13 +241,6 @@ pub mod tests {
         fn create_custom_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a> {
             Box::new(CustomAttributesRepoMock::default()) as Box<CustomAttributesRepo>
         }
-        fn create_custom_attributes_values_repo<'a>(
-            &self,
-            _db_conn: &'a C,
-            _user_id: Option<UserId>,
-        ) -> Box<CustomAttributesValuesRepo + 'a> {
-            Box::new(CustomAttributesValuesRepoMock::default()) as Box<CustomAttributesValuesRepo>
-        }
     }
 
     #[derive(Clone, Default)]
@@ -259,7 +248,7 @@ pub mod tests {
 
     impl AttributesRepo for AttributesRepoMock {
         /// Find specific attribute by id
-        fn find(&self, id_arg: i32) -> RepoResult<Option<Attribute>> {
+        fn find(&self, id_arg: AttributeId) -> RepoResult<Option<Attribute>> {
             Ok(Some(Attribute {
                 id: id_arg,
                 name: serde_json::from_str("{}").unwrap(),
@@ -276,7 +265,7 @@ pub mod tests {
         /// Creates new attribute
         fn create(&self, payload: NewAttribute) -> RepoResult<Attribute> {
             Ok(Attribute {
-                id: 1,
+                id: AttributeId(1),
                 name: payload.name,
                 value_type: AttributeType::Str,
                 meta_field: None,
@@ -284,7 +273,7 @@ pub mod tests {
         }
 
         /// Updates specific attribute
-        fn update(&self, attribute_id_arg: i32, payload: UpdateAttribute) -> RepoResult<Attribute> {
+        fn update(&self, attribute_id_arg: AttributeId, payload: UpdateAttribute) -> RepoResult<Attribute> {
             Ok(Attribute {
                 id: attribute_id_arg,
                 name: payload.name.unwrap(),
@@ -322,7 +311,7 @@ pub mod tests {
             Ok(Some(CustomAttribute {
                 id: id_arg,
                 base_product_id: BaseProductId(1),
-                attribute_id: 1,
+                attribute_id: AttributeId(1),
             }))
         }
 
@@ -331,42 +320,8 @@ pub mod tests {
             Ok(CustomAttribute {
                 id: id_arg,
                 base_product_id: BaseProductId(1),
-                attribute_id: 1,
+                attribute_id: AttributeId(1),
             })
-        }
-    }
-
-    #[derive(Clone, Default)]
-    pub struct CustomAttributesValuesRepoMock;
-
-    impl CustomAttributesValuesRepo for CustomAttributesValuesRepoMock {
-        /// Find custom attributes by base_product_id
-        fn find_all_attributes(&self, _product_id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
-            Ok(vec![])
-        }
-
-        /// Creates new custom_attribute
-        fn create(&self, payload: Vec<NewCustomAttributeValue>) -> RepoResult<Vec<CustomAttributeValue>> {
-            let mut res = vec![];
-            for (i, v) in payload.into_iter().enumerate() {
-                res.push(CustomAttributeValue {
-                    id: i as i32,
-                    product_id: v.product_id,
-                    custom_attribute_id: v.custom_attribute_id,
-                    value: v.value,
-                })
-            }
-
-            Ok(res)
-        }
-
-        fn delete(&self, _id_arg: CustomAttributeId) -> RepoResult<Vec<CustomAttributeValue>> {
-            Ok(vec![])
-        }
-
-        /// Delete custom attribute
-        fn delete_by_product(&self, _id_arg: ProductId) -> RepoResult<Vec<CustomAttributeValue>> {
-            Ok(vec![])
         }
     }
 
@@ -467,7 +422,7 @@ pub mod tests {
             Ok(vec![CatAttr {
                 id: 1,
                 cat_id: category_id_arg,
-                attr_id: 1,
+                attr_id: AttributeId(1),
             }])
         }
 
@@ -884,8 +839,8 @@ pub mod tests {
                 id: 1,
                 prod_id: product_id_arg,
                 base_prod_id: BaseProductId(1),
-                attr_id: 1,
-                value: "value".to_string(),
+                attr_id: AttributeId(1),
+                value: AttributeValue("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
             }])
@@ -897,8 +852,8 @@ pub mod tests {
                 id: 1,
                 prod_id: ProductId(1),
                 base_prod_id: base_product_id_arg,
-                attr_id: 1,
-                value: "value".to_string(),
+                attr_id: AttributeId(1),
+                value: AttributeValue("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
             }])
@@ -935,8 +890,8 @@ pub mod tests {
                 id: id,
                 prod_id: ProductId(1),
                 base_prod_id: BaseProductId(1),
-                attr_id: 1,
-                value: "value".to_string(),
+                attr_id: AttributeId(1),
+                value: AttributeValue("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
             })
@@ -1206,8 +1161,11 @@ pub mod tests {
         }
 
         fn create(&self, payload: NewProduct) -> RepoResult<Product> {
-            let product = create_product(MOCK_PRODUCT_ID, payload.base_product_id);
-            Ok(product)
+            if let Some(base_product_id) = payload.base_product_id {
+                return Ok(create_product(MOCK_PRODUCT_ID, base_product_id));
+            } else {
+                return Err(format_err!("Base product id not set.").context(MyError::NotFound).into());
+            }
         }
 
         fn update(&self, product_id: ProductId, _payload: UpdateProduct) -> RepoResult<Product> {

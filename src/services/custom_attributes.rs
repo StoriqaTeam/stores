@@ -92,14 +92,10 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
-            let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
 
-            conn.transaction::<CustomAttribute, FailureError, _>(move || {
-                let _ = custom_attributes_values_repo.delete(id_arg)?;
-                let custom_attribute = custom_attributes_repo.delete(id_arg)?;
-
-                Ok(custom_attribute)
-            }).map_err(|e| e.context("Service CustomAttributes, delete endpoint error occured.").into())
+            custom_attributes_repo
+                .delete(id_arg)
+                .map_err(|e| e.context("Service CustomAttributes, delete endpoint error occured.").into())
         })
     }
 }
@@ -109,7 +105,7 @@ pub mod tests {
     use std::sync::Arc;
     use tokio_core::reactor::Core;
 
-    use stq_types::{BaseProductId, CustomAttributeId};
+    use stq_types::{AttributeId, BaseProductId, CustomAttributeId};
 
     use models::*;
     use repos::repo_factory::tests::*;
@@ -118,7 +114,7 @@ pub mod tests {
     pub fn create_new_custom_attributes(base_product_id: BaseProductId) -> NewCustomAttribute {
         NewCustomAttribute {
             base_product_id: base_product_id,
-            attribute_id: 1,
+            attribute_id: AttributeId(1),
         }
     }
 

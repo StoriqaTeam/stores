@@ -64,7 +64,7 @@ impl Param {
         Self {
             name,
             unit: None,
-            value: attribute_value.value,
+            value: attribute_value.value.into(),
         }
     }
 }

@@ -8,12 +8,12 @@ use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductSellerPrice, StoreId};
+use stq_types::{AttributeId, AttributeValue, BaseProductId, ExchangeRate, ProductId, ProductSellerPrice, StoreId};
 
 use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
-use repos::{AttributesRepo, CustomAttributesValuesRepo, ProductAttrsRepo, ReposFactory, StoresRepo};
+use repos::{AttributesRepo, CustomAttributesRepo, ProductAttrsRepo, ReposFactory, StoresRepo};
 use services::Service;
 
 pub trait ProductsService {
@@ -35,8 +35,6 @@ pub trait ProductsService {
     fn find_products_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<Product>>;
     /// Get by base product id
     fn find_products_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<AttrValue>>;
-    /// Get by product id
-    fn find_products_custom_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<CustomAttributeValue>>;
 }
 
 impl<
@@ -154,23 +152,39 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
-            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-            conn.transaction::<(Product), FailureError, _>(move || {
-                let NewProductWithAttributes { product, attributes } = payload;
 
+            let NewProductWithAttributes { mut product, attributes } = payload;
+
+            conn.transaction::<(Product), FailureError, _>(move || {
                 // fill currency id taken from base_product first
-                let base_product = base_products_repo.find(product.base_product_id)?;
-                let base_product = base_product
-                    .ok_or(format_err!("Base product with id {} not found.", product.base_product_id).context(Error::NotFound))?;
+                let base_product_id = product
+                    .base_product_id
+                    .ok_or(format_err!("Base product id not set.").context(Error::NotFound))?;
+
+                let base_product = base_products_repo.find(base_product_id)?;
+                let base_product =
+                    base_product.ok_or(format_err!("Base product with id {} not found.", base_product_id).context(Error::NotFound))?;
+
+                product.base_product_id = Some(base_product_id);
 
                 check_vendor_code(&*stores_repo, base_product.store_id, &product.vendor_code)?;
 
                 let product = products_repo.create((product, base_product.currency).into())?;
-                create_attributes(&*prod_attr_repo, &*attr_repo, &product, base_product.id, Some(attributes))?;
+
+                create_product_attributes_values(
+                    &*prod_attr_repo,
+                    &*attr_repo,
+                    &*custom_attributes_repo,
+                    &product,
+                    base_product.id,
+                    attributes,
+                )?;
 
                 Ok(product)
             }).map_err(|e| e.context("Service Product, create endpoint error occured.").into())
@@ -183,11 +197,11 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
-            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-            let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
 
             conn.transaction::<(Product), FailureError, _>(move || {
@@ -216,14 +230,16 @@ impl<
                     original_product
                 };
 
-                let UpdateProductWithAttributes {
-                    attributes,
-                    custom_attributes,
-                    ..
-                } = payload;
-
-                create_attributes(&*prod_attr_repo, &*attr_repo, &product, product.base_product_id, attributes)?;
-                create_custom_attributes(&*custom_attributes_values_repo, custom_attributes, &product)?;
+                if let Some(attributes) = payload.attributes {
+                    create_product_attributes_values(
+                        &*prod_attr_repo,
+                        &*attr_repo,
+                        &*custom_attributes_repo,
+                        &product,
+                        product.base_product_id,
+                        attributes,
+                    )?;
+                }
 
                 Ok(product)
             }).map_err(|e| e.context("Service Product, update endpoint error occured.").into())
@@ -263,18 +279,6 @@ impl<
                 .map_err(|e| e.context("Service Product, find_attributes endpoint error occured.").into())
         })
     }
-
-    fn find_products_custom_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<CustomAttributeValue>> {
-        let user_id = self.dynamic_context.user_id;
-        let repo_factory = self.static_context.repo_factory.clone();
-
-        self.spawn_on_pool(move |conn| {
-            let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
-            custom_attributes_values_repo
-                .find_all_attributes(product_id)
-                .map_err(|e| e.context("Service Product, find_custom_attributes endpoint error occured.").into())
-        })
-    }
 }
 
 fn recalc_currencies(product: &mut Product, currencies_map: &Option<HashMap<Currency, ExchangeRate>>, currency: Currency) {
@@ -284,57 +288,52 @@ fn recalc_currencies(product: &mut Product, currencies_map: &Option<HashMap<Curr
     }
 }
 
-fn create_attributes(
+pub fn create_product_attributes_values(
     prod_attr_repo: &ProductAttrsRepo,
     attr_repo: &AttributesRepo,
+    custom_attributes_repo: &CustomAttributesRepo,
     product_arg: &Product,
     base_product_arg: BaseProductId,
-    attributes: Option<Vec<AttrValue>>,
+    attributes_values: Vec<AttrValue>,
 ) -> Result<(), FailureError> {
-    if let Some(attributes) = attributes {
-        // deleting old attributes for this product
-        prod_attr_repo.delete_all_attributes(product_arg.id)?;
-        // searching for existed product with such attribute values
-        let base_attrs = prod_attr_repo.find_all_attributes_by_base(base_product_arg)?;
-        check_attributes_values_exist(base_attrs, attributes.clone())?;
+    // deleting old attributes for this product
+    prod_attr_repo.delete_all_attributes(product_arg.id)?;
+    // searching for existed product with such attribute values
+    let base_attrs = prod_attr_repo.find_all_attributes_by_base(base_product_arg)?;
+    // get available attributes
+    let available_attributes = custom_attributes_repo
+        .find_all_attributes(base_product_arg)?
+        .into_iter()
+        .map(|v| (v.attribute_id, String::default().into()))
+        .collect::<HashMap<AttributeId, AttributeValue>>();
 
-        for attr_value in attributes {
-            let attr = attr_repo.find(attr_value.attr_id)?;
-            let attr = attr.ok_or(format_err!("Not found such attribute id : {}", attr_value.attr_id).context(Error::NotFound))?;
-            let new_prod_attr = NewProdAttr::new(
-                product_arg.id,
-                base_product_arg,
-                attr_value.attr_id,
-                attr_value.value,
-                attr.value_type,
-                attr_value.meta_field,
-            );
-            prod_attr_repo.create(new_prod_attr)?;
-        }
+    check_attributes_values_exist(base_attrs, attributes_values.clone(), available_attributes)?;
+
+    for attr_value in attributes_values {
+        let attr = attr_repo.find(attr_value.attr_id)?;
+        let attr = attr.ok_or(format_err!("Not found such attribute id : {}", attr_value.attr_id).context(Error::NotFound))?;
+        let new_prod_attr = NewProdAttr::new(
+            product_arg.id,
+            base_product_arg,
+            attr_value.attr_id,
+            attr_value.value,
+            attr.value_type,
+            attr_value.meta_field,
+        );
+        prod_attr_repo.create(new_prod_attr)?;
     }
 
     Ok(())
 }
 
-fn create_custom_attributes(
-    values_repo: &CustomAttributesValuesRepo,
-    custom_attributes: Option<Vec<NewCustomAttributeValuePayload>>,
-    product_arg: &Product,
+fn check_attributes_values_exist(
+    base_attrs: Vec<ProdAttr>,
+    attributes: Vec<AttrValue>,
+    available_attributes: HashMap<AttributeId, AttributeValue>,
 ) -> Result<(), FailureError> {
-    if let Some(custom_attributes) = custom_attributes {
-        values_repo.delete_by_product(product_arg.id)?;
-
-        let values = NewCustomAttributeValue::into_vec(product_arg.id, custom_attributes);
-        values_repo.create(values)?;
-    }
-
-    Ok(())
-}
-
-fn check_attributes_values_exist(base_attrs: Vec<ProdAttr>, attributes: Vec<AttrValue>) -> Result<(), FailureError> {
-    let mut hash = HashMap::<ProductId, HashMap<i32, String>>::default();
+    let mut hash = HashMap::<ProductId, HashMap<AttributeId, AttributeValue>>::default();
     for attr in base_attrs {
-        let mut prod_attrs = hash.entry(attr.prod_id).or_insert_with(HashMap::<i32, String>::default);
+        let mut prod_attrs = hash.entry(attr.prod_id).or_insert_with(|| available_attributes.clone());
         prod_attrs.insert(attr.attr_id, attr.value);
     }
 
@@ -413,8 +412,8 @@ pub mod tests {
         NewProductWithAttributes {
             product: create_new_product(base_product_id),
             attributes: vec![AttrValue {
-                attr_id: 1,
-                value: "String".to_string(),
+                attr_id: AttributeId(1),
+                value: AttributeValue("String".to_string()),
                 meta_field: None,
             }],
         }
@@ -422,7 +421,7 @@ pub mod tests {
 
     pub fn create_new_product(base_product_id: BaseProductId) -> NewProductWithoutCurrency {
         NewProductWithoutCurrency {
-            base_product_id: base_product_id,
+            base_product_id: Some(base_product_id),
             discount: None,
             photo_main: None,
             vendor_code: "vendor_code".to_string(),
@@ -452,7 +451,6 @@ pub mod tests {
         UpdateProductWithAttributes {
             product: Some(create_update_product()),
             attributes: None,
-            custom_attributes: None,
         }
     }
 

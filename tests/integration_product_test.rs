@@ -55,7 +55,7 @@ pub fn create_new_product_with_attributes(base_product_id: BaseProductId) -> New
 
 pub fn create_new_product(base_product_id: BaseProductId) -> NewProductWithoutCurrency {
     NewProductWithoutCurrency {
-        base_product_id: base_product_id,
+        base_product_id: Some(base_product_id),
         discount: None,
         photo_main: None,
         vendor_code: "vendor code".to_string(),
@@ -85,7 +85,6 @@ pub fn create_update_product_with_attributes() -> UpdateProductWithAttributes {
     UpdateProductWithAttributes {
         product: Some(create_update_product()),
         attributes: Some(vec![]),
-        custom_attributes: Some(vec![]),
     }
 }
 

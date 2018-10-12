@@ -9,7 +9,7 @@ use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
-use models::{AttrValue, Attribute, AttributeFilter, BaseProduct, NewCustomAttributeValuePayload, ProdAttr, RangeFilter};
+use models::{AttrValue, Attribute, AttributeFilter, BaseProduct, ProdAttr, RangeFilter};
 use schema::products;
 
 /// Payload for querying products
@@ -38,7 +38,7 @@ pub struct Product {
 #[derive(Serialize, Deserialize, Insertable, Validate, Clone, Debug)]
 #[table_name = "products"]
 pub struct NewProduct {
-    pub base_product_id: BaseProductId,
+    pub base_product_id: Option<BaseProductId>,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
@@ -58,7 +58,7 @@ pub struct NewProduct {
 /// Payload for creating products
 #[derive(Serialize, Deserialize, Validate, Clone, Debug)]
 pub struct NewProductWithoutCurrency {
-    pub base_product_id: BaseProductId,
+    pub base_product_id: Option<BaseProductId>,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub discount: Option<f64>,
     pub photo_main: Option<String>,
@@ -127,7 +127,6 @@ impl UpdateProduct {
 pub struct UpdateProductWithAttributes {
     pub product: Option<UpdateProduct>,
     pub attributes: Option<Vec<AttrValue>>,
-    pub custom_attributes: Option<Vec<NewCustomAttributeValuePayload>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

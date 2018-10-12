@@ -361,15 +361,6 @@ impl<
                 serialize_future(service.find_products_attributes(product_id))
             }
 
-            // GET products/<product_id>/custom_attributes route
-            (&Get, Some(Route::ProductCustomAttributeValue(product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET products/{}/custom_attributes",
-                    user_id, product_id
-                );
-                serialize_future(service.find_products_custom_attributes(product_id))
-            }
-
             // GET /products
             (&Get, Some(Route::Products)) => {
                 debug!("User with id = '{:?}' is requesting  // GET /products", user_id);
@@ -523,6 +514,28 @@ impl<
                                         .into()
                                 }).into_future()
                                 .and_then(move |_| service.create_base_product(new_base_product))
+                        }),
+                )
+            }
+
+            // POST /base_products/with_variants
+            (&Post, Some(Route::BaseProductWithVariants)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /base_products/with_variants", user_id);
+                serialize_future(
+                    parse_body::<NewBaseProductWithVariant>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /base_products/with_variants in NewBaseProductWithVariant failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |new_base_product| {
+                            new_base_product
+                                .validate()
+                                .map_err(|e| {
+                                    format_err!("Validation of NewBaseProductWithVariant failed!")
+                                        .context(Error::Validate(e))
+                                        .into()
+                                }).into_future()
+                                .and_then(move |_| service.create_base_product_with_variant(new_base_product))
                         }),
                 )
             }

@@ -291,7 +291,7 @@ impl<
                     {
                         let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                         let category = categories_repo.get_all_categories()?;
-                        let new_cat = remove_unused_categories(category, &cats, 2);
+                        let new_cat = remove_unused_categories(category, &cats);
                         Ok(new_cat)
                     }.map_err(|e: FailureError| {
                         e.context("Service BaseProduct, search_base_products_filters_category endpoint with name aggregation in elastic error occured.")
@@ -761,14 +761,10 @@ fn recalc_currencies(
 fn get_path_to_searched_category(searched_category: Option<Category>, root: Category) -> Category {
     if let Some(searched_category) = searched_category {
         if searched_category.children.is_empty() {
-            let new_cat = remove_unused_categories(
-                root,
-                &[searched_category.parent_id.unwrap_or_default()],
-                searched_category.level - 2,
-            );
+            let new_cat = remove_unused_categories(root, &[searched_category.parent_id.unwrap_or_default()]);
             new_cat
         } else {
-            let new_cat = remove_unused_categories(root, &[searched_category.id], searched_category.level - 1);
+            let new_cat = remove_unused_categories(root, &[searched_category.id]);
             let removed_cat = clear_child_categories(new_cat, searched_category.level + 1);
             removed_cat
         }

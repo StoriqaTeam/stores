@@ -139,7 +139,7 @@ impl<
                     self.spawn_on_pool(move |conn| {
                         let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
                         let root = categories_repo.get_all_categories()?;
-                        let new_cat = remove_unused_categories(root, &categories_ids, 0);
+                        let new_cat = remove_unused_categories(root, &categories_ids);
                         Ok(new_cat)
                     })
                 }).map_err(|e| e.context("Service Stores, search_filters_category endpoint error occured.").into()),

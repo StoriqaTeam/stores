@@ -18,6 +18,8 @@ use super::types::RepoResult;
 use models::authorization::*;
 use models::{ModeratorStoreSearchTerms, NewStore, Store, UpdateStore};
 use repos::legacy_acl::*;
+use schema::base_products::dsl as BaseProducts;
+use schema::products::dsl as Products;
 use schema::stores::dsl::*;
 
 /// Stores repository, responsible for handling stores
@@ -53,6 +55,9 @@ pub trait StoresRepo {
 
     /// Checks name exists
     fn name_exists(&self, name: Vec<Translation>) -> RepoResult<bool>;
+
+    /// Checks if vendor code exists across the store
+    fn vendor_code_exists(&self, store_id: StoreId, vendor_code: &str) -> RepoResult<Option<bool>>;
 
     /// Search stores limited by `from` and `count` parameters
     fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
@@ -219,6 +224,31 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
             .and_then(|exists| acl::check(&*self.acl, Resource::Stores, Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occured.", name_arg)).into())
+    }
+
+    /// Checks if vendor code exists across the store
+    fn vendor_code_exists(&self, store_id: StoreId, vendor_code: &str) -> RepoResult<Option<bool>> {
+        debug!("Check if vendor code '{}' exists for store '{}'", vendor_code, store_id);
+
+        {
+            if self.find(store_id)?.is_none() {
+                return Ok(None);
+            }
+
+            let vendor_code_exists_query = diesel::select(exists(
+                BaseProducts::base_products
+                    .inner_join(Products::products)
+                    .filter(BaseProducts::store_id.eq(store_id).and(Products::vendor_code.eq(vendor_code))),
+            ));
+
+            vendor_code_exists_query
+                .get_result::<bool>(self.db_conn)
+                .map(Some)
+                .map_err(From::from)
+        }.map_err(move |e: FailureError| {
+            let msg = format!("Vendor code '{}' exists in store '{}' error occurred.", vendor_code, store_id);
+            e.context(msg).into()
+        })
     }
 
     /// Search stores limited by `from` and `count` parameters

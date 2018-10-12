@@ -1024,6 +1024,10 @@ pub mod tests {
             Ok(slug == MOCK_STORE_SLUG.to_string())
         }
 
+        fn vendor_code_exists(&self, _store_id: StoreId, _vendor_code: &str) -> RepoResult<Option<bool>> {
+            Ok(Some(false))
+        }
+
         fn list(&self, from: StoreId, count: i32) -> RepoResult<Vec<Store>> {
             let mut stores = vec![];
             for i in from.0..(from.0 + count) {

@@ -13,7 +13,7 @@ use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductSellerPrice, Stor
 use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
-use repos::{AttributesRepo, CustomAttributesValuesRepo, ProductAttrsRepo, ReposFactory};
+use repos::{AttributesRepo, CustomAttributesValuesRepo, ProductAttrsRepo, ReposFactory, StoresRepo};
 use services::Service;
 
 pub trait ProductsService {
@@ -154,18 +154,23 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
+            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
-            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             conn.transaction::<(Product), FailureError, _>(move || {
-                // fill currency id taken from base_product first
-                let base_product = base_products_repo.find(payload.product.base_product_id)?;
-                let base_product = base_product
-                    .ok_or(format_err!("Base product with id {} not found.", payload.product.base_product_id).context(Error::NotFound))?;
-                let product = products_repo.create((payload.product, base_product.currency).into())?;
+                let NewProductWithAttributes { product, attributes } = payload;
 
-                create_attributes(&*prod_attr_repo, &*attr_repo, &product, base_product.id, Some(payload.attributes))?;
+                // fill currency id taken from base_product first
+                let base_product = base_products_repo.find(product.base_product_id)?;
+                let base_product = base_product
+                    .ok_or(format_err!("Base product with id {} not found.", product.base_product_id).context(Error::NotFound))?;
+
+                check_vendor_code(&*stores_repo, base_product.store_id, &product.vendor_code)?;
+
+                let product = products_repo.create((product, base_product.currency).into())?;
+                create_attributes(&*prod_attr_repo, &*attr_repo, &product, base_product.id, Some(attributes))?;
 
                 Ok(product)
             }).map_err(|e| e.context("Service Product, create endpoint error occured.").into())
@@ -178,14 +183,27 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
+            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
-            let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-            let custom_attributes_values_repo = repo_factory.create_custom_attributes_values_repo(&*conn, user_id);
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
 
             conn.transaction::<(Product), FailureError, _>(move || {
+                let original_product = products_repo
+                    .find(product_id)?
+                    .ok_or(format_err!("Not found such product id: {}", product_id).context(Error::NotFound))?;
+
                 let product = if let Some(product) = payload.product {
+                    if let Some(vendor_code) = &product.vendor_code {
+                        let BaseProduct { store_id, .. } = base_products_repo.find(original_product.base_product_id)?.ok_or(
+                            format_err!("Base product with id {} not found.", original_product.base_product_id).context(Error::NotFound),
+                        )?;
+
+                        check_vendor_code(&*stores_repo, store_id, &vendor_code)?;
+                    };
+
                     let reset_moderation = product.reset_moderation_status_needed();
                     let updated_product = products_repo.update(product_id, product)?;
                     // reset moderation if needed
@@ -195,8 +213,7 @@ impl<
                     }
                     updated_product
                 } else {
-                    let product = products_repo.find(product_id)?;
-                    product.ok_or(format_err!("Not found such product id : {}", product_id).context(Error::NotFound))?
+                    original_product
                 };
 
                 let UpdateProductWithAttributes {
@@ -336,6 +353,23 @@ fn check_attributes_values_exist(base_attrs: Vec<ProdAttr>, attributes: Vec<Attr
             .context(Error::Validate(
                 validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
             )).into())
+    } else {
+        Ok(())
+    }
+}
+
+fn check_vendor_code(stores_repo: &StoresRepo, store_id: StoreId, vendor_code: &str) -> Result<(), FailureError> {
+    let vendor_code_exists = stores_repo
+        .vendor_code_exists(store_id, vendor_code)?
+        .ok_or(format_err!("Store with id {} not found.", store_id).context(Error::NotFound))?;
+
+    if vendor_code_exists {
+        Err(
+            format_err!("Vendor code '{}' already exists for store with id {}.", vendor_code, store_id)
+                .context(Error::Validate(
+                    validation_errors!({"vendor_code": ["vendor_code" => "Vendor code already exists."]}),
+                )).into(),
+        )
     } else {
         Ok(())
     }

@@ -103,6 +103,7 @@ pipeline:
       event: push
   # Releases
   package_stores:
+    group: package
     image: plugins/docker
     repo: storiqateam/stq-stores
     dockerfile: Dockerfile.stores
@@ -133,6 +134,7 @@ pipeline:
       event: tag
   # Deployments
   deploy2nightly_stores:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     object: stores
@@ -153,6 +155,7 @@ pipeline:
       branch: master
       event: push
   deploy2nightly_rocket:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     object: rocket
@@ -173,6 +176,7 @@ pipeline:
       branch: master
       event: push
   deploy2stage_stores:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     object: stores
@@ -192,6 +196,7 @@ pipeline:
     when:
       event: tag
   deploy2stage_rocket:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     object: rocket
@@ -216,6 +221,7 @@ pipeline:
 ###
 
   deploy2stable_stores:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     object: stores
@@ -237,6 +243,7 @@ pipeline:
       event: deployment
       environment: stable
   deploy2stable_rocket:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     object: rocket
@@ -258,6 +265,7 @@ pipeline:
       event: deployment
       environment: stable
   deploy2production_stores:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     kind: deployment
@@ -278,6 +286,7 @@ pipeline:
       event: deployment
       environment: production
   deploy2production_rocket:
+    group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
     kind: deployment

@@ -182,15 +182,13 @@ fn create_tree(cats: &[RawCategory], parent_id_arg: Option<i32>) -> Vec<Category
     branch
 }
 
-pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32], stack_level: i32) -> Category {
+pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[i32]) -> Category {
     let mut children = vec![];
     for cat_child in cat.children {
-        if stack_level == 0 {
-            if used_categories_ids.iter().any(|used_id| cat_child.id == *used_id) {
-                children.push(cat_child);
-            }
+        if used_categories_ids.iter().any(|used_id| cat_child.id == *used_id) {
+            children.push(cat_child);
         } else {
-            let new_cat = remove_unused_categories(cat_child, used_categories_ids, stack_level - 1);
+            let new_cat = remove_unused_categories(cat_child, used_categories_ids);
             if !new_cat.children.is_empty() {
                 children.push(new_cat);
             }
@@ -288,36 +286,55 @@ mod tests {
     use models::*;
     use serde_json;
 
-    fn create_mock_categories() -> Category {
-        let cat_3 = Category {
-            id: 400,
+    fn create_mock_category(id_: i32, parent_id_: i32, level_: i32) -> Category {
+        Category {
+            id: id_,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
-            level: 3,
-            parent_id: Some(2),
+            level: level_,
+            parent_id: Some(parent_id_),
             attributes: vec![],
-        };
-        let cat_2 = Category {
-            id: 300,
-            name: serde_json::from_str("{}").unwrap(),
-            meta_field: None,
-            children: vec![cat_3],
-            level: 2,
-            parent_id: Some(1),
-            attributes: vec![],
-        };
-        let cat_1 = Category {
-            id: 200,
-            name: serde_json::from_str("{}").unwrap(),
-            meta_field: None,
-            children: vec![cat_2],
-            level: 1,
-            parent_id: Some(0),
-            attributes: vec![],
-        };
+        }
+    }
+
+    fn create_mock_category_level1(id_: i32, parent_id_: i32) -> Category {
+        create_mock_category(id_, parent_id_, 1)
+    }
+
+    fn create_mock_category_level2(id_: i32, parent_id_: i32) -> Category {
+        create_mock_category(id_, parent_id_, 2)
+    }
+
+    fn create_mock_category_level3(id_: i32, parent_id_: i32) -> Category {
+        create_mock_category(id_, parent_id_, 3)
+    }
+
+    static CATEGORY_ID_LEVEL1_WITH_2CHILDREN: i32 = 200;
+    static CATEGORY_ID_LEVEL2_WITH_2CHILDREN: i32 = 301;
+    static CATEGORY_ID_LEVEL3_FOR_TEST: i32 = 402;
+
+    fn create_mock_categories() -> Category {
+        let root_id = 100;
+
+        let mut cat_1 = create_mock_category_level1(CATEGORY_ID_LEVEL1_WITH_2CHILDREN, root_id.clone());
+
+        let mut cat_2 = create_mock_category_level2(300, cat_1.id);
+        let mut cat_2_1 = create_mock_category_level2(CATEGORY_ID_LEVEL2_WITH_2CHILDREN, cat_1.id);
+
+        let cat_3 = create_mock_category_level3(400, cat_2.id);
+        let cat_3_1 = create_mock_category_level3(401, cat_2_1.id);
+        let cat_3_2 = create_mock_category_level3(CATEGORY_ID_LEVEL3_FOR_TEST, cat_2_1.id);
+
+        cat_2.children = vec![cat_3];
+
+        cat_2_1.children = vec![cat_3_1, cat_3_2];
+
+        cat_1.children = vec![cat_2, cat_2_1];
+
         Category {
-            id: 100,
+            // root category
+            id: root_id,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_1],
@@ -358,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unused() {
+    fn test_unused_categories() {
         let mut cat = Category::default();
         cat.id = 1;
         for i in 2..4 {
@@ -375,9 +392,65 @@ mod tests {
         }
 
         let used = vec![5, 6];
-        let new_cat = remove_unused_categories(cat, &used, 1);
+        let new_cat = remove_unused_categories(cat, &used);
         assert_eq!(new_cat.children[0].children[0].id, 5);
         assert_eq!(new_cat.children[0].children[1].id, 6);
+    }
+
+    #[test]
+    fn test_used_only_one_category_from_parent_category_level2() {
+        let mut category = create_mock_categories();
+        let parent_category_code = CATEGORY_ID_LEVEL2_WITH_2CHILDREN;
+        let category_code = CATEGORY_ID_LEVEL3_FOR_TEST;
+        let used_codes = vec![category_code];
+
+        {
+            let parent_category = get_category(&category, parent_category_code)
+                .expect(&format!("Not found parent with code {:?} before run test", parent_category_code));
+
+            assert_eq!(
+                parent_category.children.len(),
+                2,
+                "Mock categories not contains 2 children categories"
+            );
+        }
+
+        category = remove_unused_categories(category, &used_codes);
+        let parent_category = get_category(&category, parent_category_code).expect(&format!(
+            "Not found parent_category with code {:?} after test",
+            parent_category_code
+        ));
+
+        assert_eq!(parent_category.children.len(), 1);
+        assert_eq!(parent_category.children[0].id, category_code);
+    }
+
+    #[test]
+    fn test_used_only_one_category_level2() {
+        let mut category = create_mock_categories();
+        let select_category_code = CATEGORY_ID_LEVEL2_WITH_2CHILDREN;
+        let used_codes = vec![select_category_code];
+
+        let parent_category = get_category(&category, CATEGORY_ID_LEVEL1_WITH_2CHILDREN).expect(&format!(
+            "Not found parent with code {:?} before run test",
+            CATEGORY_ID_LEVEL1_WITH_2CHILDREN
+        ));
+
+        assert_eq!(
+            parent_category.children.len(),
+            2,
+            "Mock categories not contains 2 categories level 2"
+        );
+
+        category = remove_unused_categories(category, &used_codes);
+
+        let parent_category = get_category(&category, CATEGORY_ID_LEVEL1_WITH_2CHILDREN).expect(&format!(
+            "Not found parent_category with code {:?} after test",
+            select_category_code
+        ));
+
+        assert_eq!(parent_category.children.len(), 1);
+        assert_eq!(parent_category.children[0].id, select_category_code);
     }
 
     #[test]
@@ -398,5 +471,13 @@ mod tests {
         let child_id = 300;
         let new_cat = get_category(&cat, child_id).unwrap();
         assert_eq!(new_cat.id, child_id);
+    }
+
+    #[test]
+    fn test_get_category_not_found() {
+        let cat = create_mock_categories();
+        let child_id = 0;
+        let new_cat = get_category(&cat, child_id);
+        assert!(new_cat.is_none());
     }
 }

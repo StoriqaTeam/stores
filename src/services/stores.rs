@@ -346,7 +346,7 @@ pub mod tests {
 
     pub fn create_new_store(name: serde_json::Value) -> NewStore {
         NewStore {
-            name: name,
+            name,
             user_id: MOCK_USER_ID,
             short_description: serde_json::from_str("{}").unwrap(),
             long_description: None,

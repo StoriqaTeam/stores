@@ -761,12 +761,10 @@ fn recalc_currencies(
 fn get_path_to_searched_category(searched_category: Option<Category>, root: Category) -> Category {
     if let Some(searched_category) = searched_category {
         if searched_category.children.is_empty() {
-            let new_cat = remove_unused_categories(root, &[searched_category.parent_id.unwrap_or_default()]);
-            new_cat
+            remove_unused_categories(root, &[searched_category.parent_id.unwrap_or_default()])
         } else {
             let new_cat = remove_unused_categories(root, &[searched_category.id]);
-            let removed_cat = clear_child_categories(new_cat, searched_category.level + 1);
-            removed_cat
+            clear_child_categories(new_cat, searched_category.level + 1)
         }
     } else {
         root

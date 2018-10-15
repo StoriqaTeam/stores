@@ -390,8 +390,8 @@ pub mod tests {
 
     pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
         Product {
-            id: id,
-            base_product_id: base_product_id,
+            id,
+            base_product_id,
             is_active: true,
             discount: None,
             photo_main: None,

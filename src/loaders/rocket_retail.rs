@@ -49,7 +49,7 @@ impl RocketRetailLoader {
             busy: Arc::new(Mutex::new(false)),
             duration,
             db_pool: env.db_pool.clone(),
-            thread_pool: thread_pool,
+            thread_pool,
             config: env.config.rocket_retail.clone(),
             s3,
         }
@@ -57,17 +57,16 @@ impl RocketRetailLoader {
 
     pub fn start(self) -> impl Stream<Item = (), Error = FailureError> {
         info!("Rocket retail loader started.");
-        let interval = Interval::new_interval(self.duration.clone()).map_err(|e| e.context("timer creation error").into());
+        let interval = Interval::new_interval(self.duration).map_err(|e| e.context("timer creation error").into());
 
         interval.and_then(move |_| {
-            if let Some(_) = self.config.as_ref() {
+            if self.config.as_ref().is_some() {
                 let busy = *self.busy.lock().expect("Rocket retail loader: poisoned mutex at fetch step");
-                match busy {
-                    true => {
-                        warn!("Rocket retail loader: tried to ping rocket retail loader, but it was busy");
-                        Either::A(future::ok(()))
-                    }
-                    false => Either::B(self.clone().make_step()),
+                if busy {
+                    warn!("Rocket retail loader: tried to ping rocket retail loader, but it was busy");
+                    Either::A(future::ok(()))
+                } else {
+                    Either::B(self.clone().make_step())
                 }
             } else {
                 info!("Rocket retail loader: disabled. Config section [rocket_retail] not set.");
@@ -103,7 +102,7 @@ impl RocketRetailLoader {
                                     base_product.clone(),
                                     variant,
                                     Some(RocketRetailEnvironment::DEFAULT_LANG),
-                                    cluster.clone(),
+                                    &cluster,
                                 )
                             }).collect::<Vec<RocketRetailProduct>>()
                     }).collect();
@@ -195,7 +194,7 @@ impl RocketRetailEnvironment {
 
         Self {
             config: Arc::new(config),
-            db_pool: db_pool,
+            db_pool,
         }
     }
 }

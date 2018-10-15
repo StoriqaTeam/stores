@@ -115,7 +115,7 @@ pub struct RocketRetailProduct {
 }
 
 impl RocketRetailProduct {
-    pub fn new(base: BaseProduct, product_arg: ProductWithAttributes, lang_arg: Option<Language>, cluster: String) -> Self {
+    pub fn new(base: BaseProduct, product_arg: ProductWithAttributes, lang_arg: Option<Language>, cluster: &str) -> Self {
         let lang = lang_arg.unwrap_or(RocketRetailEnvironment::DEFAULT_LANG);
 
         let translation_names = get_translations(base.name.clone()).unwrap_or_default();
@@ -127,7 +127,7 @@ impl RocketRetailProduct {
         Self {
             id: product.id.to_string(),
             name,
-            url: create_product_url(&cluster, base.store_id, product.id),
+            url: create_product_url(cluster, base.store_id, product.id),
             price: product.price.into(),
             currency_id: product.currency.code().to_string(),
             picture: product.photo_main.unwrap_or("".to_string()),
@@ -151,12 +151,10 @@ impl ToXMLDocument for Vec<RocketRetailProduct> {
             root.children.push(offer);
         }
 
-        let doc = Document {
+        Document {
             root: Some(root),
             ..Document::default()
-        };
-
-        doc
+        }
     }
 }
 

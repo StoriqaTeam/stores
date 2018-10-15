@@ -520,7 +520,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(|e: FailureError| e.context("Getting all variants."))?
             .grouped_by(&all_base_products);
 
-        let catalog_with_attributes = all_base_products
+        all_base_products
             .into_iter()
             .zip(all_products)
             .map(|(base, variants): (BaseProduct, Vec<Product>)| {
@@ -549,9 +549,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                         Ok(CatalogWithAttributes::new(base, variants_attributes))
                     })
-            }).collect::<RepoResult<Vec<_>>>();
-
-        catalog_with_attributes
+            }).collect::<RepoResult<Vec<_>>>()
     }
 }
 

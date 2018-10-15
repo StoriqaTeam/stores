@@ -113,7 +113,7 @@ pub mod tests {
 
     pub fn create_new_custom_attributes(base_product_id: BaseProductId) -> NewCustomAttribute {
         NewCustomAttribute {
-            base_product_id: base_product_id,
+            base_product_id,
             attribute_id: AttributeId(1),
         }
     }

@@ -288,14 +288,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Set moderation status for specific store
     fn set_moderation_status(&self, store_id_arg: StoreId, status_arg: ModerationStatus) -> RepoResult<Store> {
-        let query = stores.find(store_id_arg.clone());
+        let query = stores.find(store_id_arg);
 
         query
             .get_result(self.db_conn)
             .map_err(From::from)
             .and_then(|s: Store| acl::check(&*self.acl, Resource::Stores, Action::Moderate, self, Some(&s)))
             .and_then(|_| {
-                let filter = stores.filter(id.eq(store_id_arg.clone()));
+                let filter = stores.filter(id.eq(store_id_arg));
                 let query = diesel::update(filter).set(status.eq(status_arg));
 
                 query.get_result(self.db_conn).map_err(From::from)

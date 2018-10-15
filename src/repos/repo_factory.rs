@@ -445,7 +445,7 @@ pub mod tests {
             Ok(Some(ModeratorProductComments {
                 id: 1,
                 moderator_id: UserId(1),
-                base_product_id: base_product_id,
+                base_product_id,
                 comments: "comments".to_string(),
                 created_at: SystemTime::now(),
             }))
@@ -471,7 +471,7 @@ pub mod tests {
             Ok(Some(ModeratorStoreComments {
                 id: 1,
                 moderator_id: UserId(1),
-                store_id: store_id,
+                store_id,
                 comments: "comments".to_string(),
                 created_at: SystemTime::now(),
             }))
@@ -651,7 +651,7 @@ pub mod tests {
                 let base_product = BaseProduct {
                     id: BaseProductId(i),
                     is_active: true,
-                    store_id: store_id,
+                    store_id,
                     name: serde_json::from_str("{}").unwrap(),
                     short_description: serde_json::from_str("{}").unwrap(),
                     long_description: None,
@@ -887,7 +887,7 @@ pub mod tests {
 
         fn delete(&self, id: i32) -> RepoResult<ProdAttr> {
             Ok(ProdAttr {
-                id: id,
+                id,
                 prod_id: ProductId(1),
                 base_prod_id: BaseProductId(1),
                 attr_id: AttributeId(1),
@@ -941,7 +941,7 @@ pub mod tests {
 
         fn delete_by_id(&self, id: RoleId) -> RepoResult<UserRole> {
             Ok(UserRole {
-                id: id,
+                id,
                 user_id: UserId(1),
                 name: StoresRole::User,
                 data: None,
@@ -1037,9 +1037,9 @@ pub mod tests {
 
     fn create_store(id: StoreId, name: serde_json::Value) -> Store {
         Store {
-            id: id,
+            id,
             user_id: UserId(1),
-            name: name,
+            name,
             is_active: true,
             short_description: serde_json::from_str("{}").unwrap(),
             long_description: None,
@@ -1075,7 +1075,7 @@ pub mod tests {
 
     pub fn create_new_store(name: serde_json::Value) -> NewStore {
         NewStore {
-            name: name,
+            name,
             user_id: MOCK_USER_ID,
             short_description: serde_json::from_str("{}").unwrap(),
             long_description: None,
@@ -1288,8 +1288,8 @@ pub mod tests {
 
     pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
         Product {
-            id: id,
-            base_product_id: base_product_id,
+            id,
+            base_product_id,
             is_active: true,
             discount: None,
             photo_main: None,

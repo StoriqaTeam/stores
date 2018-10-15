@@ -236,9 +236,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             }
 
             let vendor_code_exists_query = diesel::select(exists(
-                BaseProducts::base_products
-                    .inner_join(Products::products)
-                    .filter(BaseProducts::store_id.eq(store_id).and(Products::vendor_code.eq(vendor_code))),
+                BaseProducts::base_products.inner_join(Products::products).filter(
+                    BaseProducts::is_active
+                        .eq(true)
+                        .and(BaseProducts::store_id.eq(store_id))
+                        .and(Products::is_active.eq(true))
+                        .and(Products::vendor_code.eq(vendor_code)),
+                ),
             ));
 
             vendor_code_exists_query

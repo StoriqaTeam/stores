@@ -215,7 +215,9 @@ impl<
                             format_err!("Base product with id {} not found.", original_product.base_product_id).context(Error::NotFound),
                         )?;
 
-                        check_vendor_code(&*stores_repo, store_id, &vendor_code)?;
+                        if *original_product.vendor_code.as_str() != *vendor_code {
+                            check_vendor_code(&*stores_repo, store_id, &vendor_code)?;
+                        }
                     };
 
                     let reset_moderation = product.reset_moderation_status_needed();

@@ -330,14 +330,14 @@ pub mod tests {
 
     impl CategoriesRepo for CategoriesRepoMock {
         /// Find specific category by id
-        fn find(&self, id_arg: i32) -> RepoResult<Option<Category>> {
+        fn find(&self, id_arg: CategoryId) -> RepoResult<Option<Category>> {
             Ok(Some(Category {
                 id: id_arg,
                 name: serde_json::from_str("{}").unwrap(),
                 meta_field: None,
                 children: vec![],
-                level: id_arg,
-                parent_id: Some(id_arg - 1),
+                level: 0,
+                parent_id: Some(CategoryId(id_arg.0 - 1)),
                 attributes: vec![],
             }))
         }
@@ -345,25 +345,25 @@ pub mod tests {
         /// Creates new category
         fn create(&self, payload: NewCategory) -> RepoResult<Category> {
             Ok(Category {
-                id: 1,
+                id: CategoryId(1),
                 name: payload.name,
                 meta_field: None,
                 children: vec![],
                 level: 0,
-                parent_id: Some(0),
+                parent_id: Some(CategoryId(0)),
                 attributes: vec![],
             })
         }
 
         /// Updates specific category
-        fn update(&self, category_id_arg: i32, payload: UpdateCategory) -> RepoResult<Category> {
+        fn update(&self, category_id_arg: CategoryId, payload: UpdateCategory) -> RepoResult<Category> {
             Ok(Category {
                 id: category_id_arg,
                 name: payload.name.unwrap(),
                 meta_field: None,
                 children: vec![],
                 level: 0,
-                parent_id: Some(0),
+                parent_id: Some(CategoryId(0)),
                 attributes: vec![],
             })
         }
@@ -376,34 +376,34 @@ pub mod tests {
 
     fn create_mock_categories() -> Category {
         let cat_3 = Category {
-            id: 3,
+            id: CategoryId(3),
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
             level: 3,
-            parent_id: Some(2),
+            parent_id: Some(CategoryId(2)),
             attributes: vec![],
         };
         let cat_2 = Category {
-            id: 2,
+            id: CategoryId(2),
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_3],
             level: 2,
-            parent_id: Some(1),
+            parent_id: Some(CategoryId(1)),
             attributes: vec![],
         };
         let cat_1 = Category {
-            id: 1,
+            id: CategoryId(1),
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_2],
             level: 1,
-            parent_id: Some(0),
+            parent_id: Some(CategoryId(0)),
             attributes: vec![],
         };
         Category {
-            id: 0,
+            id: CategoryId(0),
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_1],
@@ -418,7 +418,7 @@ pub mod tests {
 
     impl CategoryAttrsRepo for CategoryAttrsRepoMock {
         /// Find category attributes by category ID
-        fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
+        fn find_all_attributes(&self, category_id_arg: CategoryId) -> RepoResult<Vec<CatAttr>> {
             Ok(vec![CatAttr {
                 id: 1,
                 cat_id: category_id_arg,
@@ -599,7 +599,7 @@ pub mod tests {
                 seo_title: None,
                 seo_description: None,
                 currency: Currency::STQ,
-                category_id: 1,
+                category_id: CategoryId(1),
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
@@ -624,7 +624,7 @@ pub mod tests {
                     seo_title: None,
                     seo_description: None,
                     currency: Currency::STQ,
-                    category_id: 1,
+                    category_id: CategoryId(1),
                     views: 1,
                     rating: 0f64,
                     created_at: SystemTime::now(),
@@ -658,7 +658,7 @@ pub mod tests {
                     seo_title: None,
                     seo_description: None,
                     currency: Currency::STQ,
-                    category_id: 1,
+                    category_id: CategoryId(1),
                     views: 1,
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
@@ -716,7 +716,7 @@ pub mod tests {
                 seo_title: payload.seo_title,
                 seo_description: payload.seo_description,
                 currency: Currency::STQ,
-                category_id: 3,
+                category_id: CategoryId(3),
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
@@ -739,7 +739,7 @@ pub mod tests {
                 seo_title: None,
                 seo_description: None,
                 currency: Currency::STQ,
-                category_id: 3,
+                category_id: CategoryId(3),
                 views: 100,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
@@ -762,7 +762,7 @@ pub mod tests {
                 seo_title: None,
                 seo_description: None,
                 currency: Currency::STQ,
-                category_id: 3,
+                category_id: CategoryId(3),
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
@@ -784,7 +784,7 @@ pub mod tests {
                 seo_title: None,
                 seo_description: None,
                 currency: Currency::STQ,
-                category_id: 3,
+                category_id: CategoryId(3),
                 views: 1,
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),

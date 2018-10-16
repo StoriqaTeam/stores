@@ -10,7 +10,7 @@ use futures::future::*;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, ExchangeRate, ProductId, StoreId};
+use stq_types::{BaseProductId, CategoryId, ExchangeRate, ProductId, StoreId};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -799,7 +799,7 @@ fn get_attribute_filters(el_products: Vec<ElasticProduct>) -> Option<Vec<Attribu
     Some(eq_filters.chain(range_filters).collect())
 }
 
-fn get_first_level_category(third_level_category_id: i32, root: Category) -> RepoResult<Category> {
+fn get_first_level_category(third_level_category_id: CategoryId, root: Category) -> RepoResult<Category> {
     root.children
         .into_iter()
         .find(|cat_child| get_parent_category(&cat_child, third_level_category_id, 2).is_some())
@@ -815,7 +815,7 @@ fn update_product_categories(
     stores_repo: &StoresRepo,
     categories_repo: &CategoriesRepo,
     store_id_arg: StoreId,
-    category_id_arg: i32,
+    category_id_arg: CategoryId,
 ) -> RepoResult<()> {
     let store = stores_repo.find(store_id_arg)?;
     if let Some(store) = store {
@@ -851,7 +851,7 @@ pub mod tests {
             seo_title: None,
             seo_description: None,
             currency: Currency::STQ,
-            category_id: 3,
+            category_id: CategoryId(3),
             slug: Some("slug".to_string()),
         }
     }

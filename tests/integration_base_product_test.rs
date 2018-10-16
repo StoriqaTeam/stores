@@ -21,7 +21,7 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         seo_title: None,
         seo_description: None,
         currency: Currency::STQ,
-        category_id: 12,
+        category_id: CategoryId(12),
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
     }
 }
@@ -34,7 +34,7 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         seo_title: None,
         seo_description: None,
         currency: Some(Currency::STQ),
-        category_id: Some(12),
+        category_id: Some(CategoryId(12)),
         rating: None,
         slug: None,
         status: None,

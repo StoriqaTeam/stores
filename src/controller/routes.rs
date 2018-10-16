@@ -25,9 +25,9 @@ pub enum Route {
     BaseProductPublish,
     BaseProductDraft,
     Categories,
-    Category(i32),
+    Category(CategoryId),
     CategoryAttrs,
-    CategoryAttr(i32),
+    CategoryAttr(CategoryId),
     CurrencyExchange,
     CustomAttributes,
     CustomAttribute(CustomAttributeId),
@@ -281,7 +281,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route_with_params(r"^/categories/(\d+)$", |params| {
         params
             .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .and_then(|string_id| string_id.parse::<CategoryId>().ok())
             .map(Route::Category)
     });
 
@@ -292,7 +292,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route_with_params(r"^/categories/(\d+)/attributes$", |params| {
         params
             .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .and_then(|string_id| string_id.parse::<CategoryId>().ok())
             .map(Route::CategoryAttr)
     });
 

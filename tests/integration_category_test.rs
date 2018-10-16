@@ -7,13 +7,15 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use stq_types::CategoryId;
+
 use stores_lib::models::*;
 
 pub fn create_new_category(name: &str) -> NewCategory {
     NewCategory {
         name: serde_json::from_str(name).unwrap(),
         meta_field: None,
-        parent_id: 1,
+        parent_id: CategoryId(1),
     }
 }
 
@@ -21,7 +23,7 @@ pub fn create_update_category(name: &str) -> UpdateCategory {
     UpdateCategory {
         name: Some(serde_json::from_str(name).unwrap()),
         meta_field: None,
-        parent_id: Some(1),
+        parent_id: Some(CategoryId(1)),
         level: Some(3),
     }
 }

@@ -6,7 +6,7 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
+use stq_types::{BaseProductId, CategoryId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
 use models::{AttrValue, Attribute, AttributeFilter, BaseProduct, ProdAttr, RangeFilter};
@@ -134,9 +134,9 @@ pub struct ProductsSearchOptions {
     pub attr_filters: Option<Vec<AttributeFilter>>,
     pub currency_map: Option<HashMap<Currency, ExchangeRate>>,
     pub price_filter: Option<RangeFilter>,
-    pub category_id: Option<i32>,
+    pub category_id: Option<CategoryId>,
     pub store_id: Option<StoreId>,
-    pub categories_ids: Option<Vec<i32>>,
+    pub categories_ids: Option<Vec<CategoryId>>,
     pub sort_by: Option<ProductsSorting>,
     pub status: Option<ModerationStatus>,
 }

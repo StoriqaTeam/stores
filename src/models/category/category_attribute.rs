@@ -1,7 +1,7 @@
 use models::{Attribute, RawCategory};
 use schema::cat_attr_values;
 /// diesel table for category attributes
-use stq_types::AttributeId;
+use stq_types::{AttributeId, CategoryId};
 
 /// Payload for querying category attributes
 #[derive(Debug, Deserialize, Associations, Queryable, Clone, Identifiable)]
@@ -10,7 +10,7 @@ use stq_types::AttributeId;
 #[table_name = "cat_attr_values"]
 pub struct CatAttr {
     pub id: i32,
-    pub cat_id: i32,
+    pub cat_id: CategoryId,
     pub attr_id: AttributeId,
 }
 
@@ -18,7 +18,7 @@ pub struct CatAttr {
 #[derive(Serialize, Deserialize, Insertable, Clone, Debug)]
 #[table_name = "cat_attr_values"]
 pub struct NewCatAttr {
-    pub cat_id: i32,
+    pub cat_id: CategoryId,
     pub attr_id: AttributeId,
 }
 
@@ -26,6 +26,6 @@ pub struct NewCatAttr {
 #[derive(Serialize, Deserialize, Insertable, AsChangeset, Debug)]
 #[table_name = "cat_attr_values"]
 pub struct OldCatAttr {
-    pub cat_id: i32,
+    pub cat_id: CategoryId,
     pub attr_id: AttributeId,
 }

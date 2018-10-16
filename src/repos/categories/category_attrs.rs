@@ -7,7 +7,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
-use stq_types::UserId;
+use stq_types::{CategoryId, UserId};
 
 use models::authorization::*;
 use models::{CatAttr, NewCatAttr, OldCatAttr};
@@ -26,7 +26,7 @@ pub struct CategoryAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionMana
 
 pub trait CategoryAttrsRepo {
     /// Find category attributes by category ID
-    fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>>;
+    fn find_all_attributes(&self, category_id_arg: CategoryId) -> RepoResult<Vec<CatAttr>>;
 
     /// Creates new category_attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<()>;
@@ -45,7 +45,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for CategoryAttrsRepoImpl<'a, T>
 {
     /// Find specific category_attributes by category ID
-    fn find_all_attributes(&self, category_id_arg: i32) -> RepoResult<Vec<CatAttr>> {
+    fn find_all_attributes(&self, category_id_arg: CategoryId) -> RepoResult<Vec<CatAttr>> {
         debug!("Find all attributes for category with id {}.", category_id_arg);
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
         query

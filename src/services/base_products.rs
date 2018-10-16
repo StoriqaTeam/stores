@@ -10,7 +10,7 @@ use futures::future::*;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, ExchangeRate, ProductId, StoreId};
+use stq_types::{BaseProductId, CategoryId, ExchangeRate, ProductId, StoreId};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -20,7 +20,7 @@ use repos::clear_child_categories;
 use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
-use repos::{RepoResult, ReposFactory};
+use repos::{CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
 use services::create_product_attributes_values;
 use services::Service;
 
@@ -69,7 +69,7 @@ pub trait BaseProductsService {
     /// Creates base product
     fn create_base_product(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Creates base product with variants
-    fn create_base_product_with_variant(&self, payload: NewBaseProductWithVariant) -> ServiceFuture<BaseProduct>;
+    fn create_base_product_with_variants(&self, payload: NewBaseProductWithVariants) -> ServiceFuture<BaseProduct>;
     /// Lists base products limited by `from` and `count` parameters
     fn list_base_products(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
@@ -459,28 +459,24 @@ impl<
             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
             conn.transaction::<(BaseProduct), FailureError, _>(move || {
                 // create base_product
-                let prod = base_products_repo.create(payload)?;
+                let base_prod = base_products_repo.create(payload)?;
+
                 // update product categories of the store
-                let store = stores_repo.find(prod.store_id)?;
-                if let Some(store) = store {
-                    let category_root = categories_repo.get_all_categories()?;
-                    let cat = get_first_level_category(prod.category_id, category_root)?;
-                    let update_store = UpdateStore::add_category_to_product_categories(store.product_categories.clone(), cat.id);
-                    stores_repo.update(store.id, update_store)?;
-                }
-                Ok(prod)
+                update_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
+
+                Ok(base_prod)
             }).map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into())
         })
     }
 
     /// Creates base product with variants
-    fn create_base_product_with_variant(&self, payload: NewBaseProductWithVariant) -> ServiceFuture<BaseProduct> {
+    fn create_base_product_with_variants(&self, payload: NewBaseProductWithVariants) -> ServiceFuture<BaseProduct> {
         let user_id = self.dynamic_context.user_id;
 
         let repo_factory = self.static_context.repo_factory.clone();
-        let NewBaseProductWithVariant {
+        let NewBaseProductWithVariants {
             new_base_product,
-            variant,
+            variants,
             selected_attributes,
         } = payload;
 
@@ -493,33 +489,29 @@ impl<
             let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
 
-            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+            conn.transaction::<BaseProduct, FailureError, _>(move || {
                 // create base_product
                 let base_prod = base_products_repo.create(new_base_product)?;
 
                 // update product categories of the store
-                let store = stores_repo.find(base_prod.store_id)?;
-                if let Some(store) = store {
-                    let category_root = categories_repo.get_all_categories()?;
-                    let cat = get_first_level_category(base_prod.category_id, category_root)?;
-                    let update_store = UpdateStore::add_category_to_product_categories(store.product_categories.clone(), cat.id);
-                    stores_repo.update(store.id, update_store)?;
+                update_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
+
+                for variant in variants {
+                    // create variant
+                    let product = products_repo.create((variant.product, base_prod.currency).into())?;
+                    // create attributes values for variant
+                    create_product_attributes_values(
+                        &*prod_attr_repo,
+                        &*attr_repo,
+                        &*custom_attributes_repo,
+                        &product,
+                        base_prod.id,
+                        variant.attributes,
+                    )?;
                 }
 
-                // Create variant
-                let product = products_repo.create((variant.product, base_prod.currency).into())?;
-                // Create attributes values for variant
-                create_product_attributes_values(
-                    &*prod_attr_repo,
-                    &*attr_repo,
-                    &*custom_attributes_repo,
-                    &product,
-                    base_prod.id,
-                    variant.attributes,
-                )?;
-
                 // Save selected_attributes
-                let _ = selected_attributes
+                selected_attributes
                     .into_iter()
                     .map(|attribute_id| {
                         let new_custom_attribute = NewCustomAttribute::new(attribute_id, base_prod.id);
@@ -528,7 +520,7 @@ impl<
 
                 Ok(base_prod)
             }).map_err(|e| {
-                e.context("Service BaseProduct, create with variant and attributes endpoint error occured.")
+                e.context("Service BaseProduct, create with variants and attributes endpoint error occured.")
                     .into()
             })
         })
@@ -807,7 +799,7 @@ fn get_attribute_filters(el_products: Vec<ElasticProduct>) -> Option<Vec<Attribu
     Some(eq_filters.chain(range_filters).collect())
 }
 
-fn get_first_level_category(third_level_category_id: i32, root: Category) -> RepoResult<Category> {
+fn get_first_level_category(third_level_category_id: CategoryId, root: Category) -> RepoResult<Category> {
     root.children
         .into_iter()
         .find(|cat_child| get_parent_category(&cat_child, third_level_category_id, 2).is_some())
@@ -816,6 +808,24 @@ fn get_first_level_category(third_level_category_id: i32, root: Category) -> Rep
                 .context(Error::NotFound)
                 .into()
         })
+}
+
+/// Update product categories of the store
+fn update_product_categories(
+    stores_repo: &StoresRepo,
+    categories_repo: &CategoriesRepo,
+    store_id_arg: StoreId,
+    category_id_arg: CategoryId,
+) -> RepoResult<()> {
+    let store = stores_repo.find(store_id_arg)?;
+    if let Some(store) = store {
+        let category_root = categories_repo.get_all_categories()?;
+        let cat = get_first_level_category(category_id_arg, category_root)?;
+        let update_store = UpdateStore::add_category_to_product_categories(store.product_categories.clone(), cat.id);
+        stores_repo.update(store.id, update_store)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -841,7 +851,7 @@ pub mod tests {
             seo_title: None,
             seo_description: None,
             currency: Currency::STQ,
-            category_id: 3,
+            category_id: CategoryId(3),
             slug: Some("slug".to_string()),
         }
     }

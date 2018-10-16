@@ -22,7 +22,7 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         seo_title: None,
         seo_description: None,
         currency: Currency::STQ,
-        category_id: 12,
+        category_id: CategoryId(12),
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
     }
 }

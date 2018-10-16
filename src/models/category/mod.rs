@@ -6,6 +6,8 @@ pub mod category_attribute;
 use serde_json;
 use validator::Validate;
 
+use stq_types::CategoryId;
+
 pub use self::category_attribute::*;
 use models::validation_rules::*;
 use models::Attribute;
@@ -15,9 +17,9 @@ use schema::categories;
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "categories"]
 pub struct RawCategory {
-    pub id: i32,
+    pub id: CategoryId,
     pub name: serde_json::Value,
-    pub parent_id: Option<i32>,
+    pub parent_id: Option<CategoryId>,
     pub level: i32,
     pub meta_field: Option<serde_json::Value>,
 }
@@ -27,7 +29,7 @@ pub struct RawCategory {
 #[table_name = "categories"]
 pub struct InsertCategory {
     pub name: serde_json::Value,
-    pub parent_id: i32,
+    pub parent_id: CategoryId,
     pub level: i32,
     pub meta_field: Option<serde_json::Value>,
 }
@@ -37,7 +39,7 @@ pub struct InsertCategory {
 pub struct NewCategory {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
-    pub parent_id: i32,
+    pub parent_id: CategoryId,
     pub meta_field: Option<serde_json::Value>,
 }
 
@@ -48,18 +50,18 @@ pub struct UpdateCategory {
     #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
     pub meta_field: Option<serde_json::Value>,
-    pub parent_id: Option<i32>,
+    pub parent_id: Option<CategoryId>,
     #[validate(range(min = "1", max = "3"))]
     pub level: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Category {
-    pub id: i32,
+    pub id: CategoryId,
     pub name: serde_json::Value,
     pub meta_field: Option<serde_json::Value>,
     pub level: i32,
-    pub parent_id: Option<i32>,
+    pub parent_id: Option<CategoryId>,
     pub children: Vec<Category>,
     pub attributes: Vec<Attribute>,
 }
@@ -71,7 +73,7 @@ impl Category {
 impl Default for Category {
     fn default() -> Self {
         Self {
-            id: 0,
+            id: CategoryId(0),
             name: serde_json::from_str("[{\"lang\" : \"en\", \"text\" : \"root\"}]").unwrap(),
             meta_field: None,
             children: vec![],

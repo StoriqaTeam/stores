@@ -6,6 +6,8 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
+use stq_types::CategoryId;
+
 use super::types::ServiceFuture;
 use errors::Error;
 use models::{Attribute, NewCatAttr, OldCatAttr};
@@ -16,15 +18,15 @@ use services::Service;
 
 pub trait CategoriesService {
     /// Returns category by ID
-    fn get_category(&self, category_id: i32) -> ServiceFuture<Option<Category>>;
+    fn get_category(&self, category_id: CategoryId) -> ServiceFuture<Option<Category>>;
     /// Creates new category
     fn create_category(&self, payload: NewCategory) -> ServiceFuture<Category>;
     /// Updates specific category
-    fn update_category(&self, category_id: i32, payload: UpdateCategory) -> ServiceFuture<Category>;
+    fn update_category(&self, category_id: CategoryId, payload: UpdateCategory) -> ServiceFuture<Category>;
     /// Returns all categories as a tree
     fn get_all_categories(&self) -> ServiceFuture<Category>;
     /// Returns all category attributes belonging to category
-    fn find_all_attributes_for_category(&self, category_id_arg: i32) -> ServiceFuture<Vec<Attribute>>;
+    fn find_all_attributes_for_category(&self, category_id_arg: CategoryId) -> ServiceFuture<Vec<Attribute>>;
     /// Creates new category attribute
     fn add_attribute_to_category(&self, payload: NewCatAttr) -> ServiceFuture<()>;
     /// Deletes category attribute
@@ -38,7 +40,7 @@ impl<
     > CategoriesService for Service<T, M, F>
 {
     /// Returns category by ID
-    fn get_category(&self, category_id: i32) -> ServiceFuture<Option<Category>> {
+    fn get_category(&self, category_id: CategoryId) -> ServiceFuture<Option<Category>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
@@ -63,7 +65,7 @@ impl<
     }
 
     /// Updates specific category
-    fn update_category(&self, category_id: i32, payload: UpdateCategory) -> ServiceFuture<Category> {
+    fn update_category(&self, category_id: CategoryId, payload: UpdateCategory) -> ServiceFuture<Category> {
         let user_id = self.dynamic_context.user_id;
 
         let repo_factory = self.static_context.repo_factory.clone();
@@ -90,7 +92,7 @@ impl<
     }
 
     /// Returns all category attributes belonging to category
-    fn find_all_attributes_for_category(&self, category_id_arg: i32) -> ServiceFuture<Vec<Attribute>> {
+    fn find_all_attributes_for_category(&self, category_id_arg: CategoryId) -> ServiceFuture<Vec<Attribute>> {
         let user_id = self.dynamic_context.user_id;
 
         let repo_factory = self.static_context.repo_factory.clone();
@@ -156,11 +158,13 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
+    use stq_types::CategoryId;
+
     pub fn create_new_categories(name: &str) -> NewCategory {
         NewCategory {
             name: serde_json::from_str(name).unwrap(),
             meta_field: None,
-            parent_id: 1,
+            parent_id: CategoryId(1),
         }
     }
 
@@ -168,7 +172,7 @@ pub mod tests {
         UpdateCategory {
             name: Some(serde_json::from_str(name).unwrap()),
             meta_field: None,
-            parent_id: Some(1),
+            parent_id: Some(CategoryId(1)),
             level: Some(0),
         }
     }
@@ -178,9 +182,9 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
-        let work = service.get_category(1);
+        let work = service.get_category(CategoryId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.unwrap().id, 1);
+        assert_eq!(result.unwrap().id, CategoryId(1));
     }
 
     #[test]
@@ -191,7 +195,7 @@ pub mod tests {
         let new_categories = create_new_categories(MOCK_BASE_PRODUCT_NAME_JSON);
         let work = service.create_category(new_categories);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, CategoryId(1));
     }
 
     #[test]
@@ -200,9 +204,9 @@ pub mod tests {
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
         let new_categories = create_update_categories(MOCK_BASE_PRODUCT_NAME_JSON);
-        let work = service.update_category(1, new_categories);
+        let work = service.update_category(CategoryId(1), new_categories);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, 1);
+        assert_eq!(result.id, CategoryId(1));
     }
 
 }

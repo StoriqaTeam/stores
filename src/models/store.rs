@@ -5,7 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::ModerationStatus;
-use stq_types::{Alpha3, StoreId, UserId};
+use stq_types::{Alpha3, CategoryId, StoreId, UserId};
 
 use models::validation_rules::*;
 use models::BaseProductWithVariants;
@@ -145,7 +145,11 @@ pub struct UpdateStore {
 }
 
 impl UpdateStore {
-    pub fn update_product_categories(product_categories: Option<serde_json::Value>, old_cat_id: i32, new_cat_id: i32) -> Self {
+    pub fn update_product_categories(
+        product_categories: Option<serde_json::Value>,
+        old_cat_id: CategoryId,
+        new_cat_id: CategoryId,
+    ) -> Self {
         let prod_cats = if let Some(prod_cats) = product_categories {
             let mut product_categories = serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
             let mut new_prod_cats = vec![];
@@ -177,7 +181,7 @@ impl UpdateStore {
         }
     }
 
-    pub fn delete_category_from_product_categories(old: Option<serde_json::Value>, category_id: i32) -> Self {
+    pub fn delete_category_from_product_categories(old: Option<serde_json::Value>, category_id: CategoryId) -> Self {
         let prod_cats = if let Some(prod_cats) = old {
             let mut product_categories = serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
             let mut new_prod_cats = vec![];
@@ -204,7 +208,7 @@ impl UpdateStore {
         }
     }
 
-    pub fn add_category_to_product_categories(old: Option<serde_json::Value>, category_id: i32) -> Self {
+    pub fn add_category_to_product_categories(old: Option<serde_json::Value>, category_id: CategoryId) -> Self {
         let prod_cats = if let Some(prod_cats) = old {
             let mut product_categories = serde_json::from_value::<Vec<ProductCategories>>(prod_cats).unwrap_or_default();
             let mut new_prod_cats = vec![];
@@ -259,18 +263,18 @@ pub struct SearchStore {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct StoresSearchOptions {
-    pub category_id: Option<i32>,
+    pub category_id: Option<CategoryId>,
     pub country: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProductCategories {
-    pub category_id: i32,
+    pub category_id: CategoryId,
     pub count: i32,
 }
 
 impl ProductCategories {
-    pub fn new(category_id: i32) -> Self {
+    pub fn new(category_id: CategoryId) -> Self {
         Self { category_id, count: 1 }
     }
 }

@@ -8,7 +8,7 @@ use serde_json;
 
 use stq_http::client::ClientHandle;
 use stq_static_resources::ModerationStatus;
-use stq_types::ProductId;
+use stq_types::{CategoryId, ProductId};
 
 use super::{log_elastic_req, log_elastic_resp};
 use models::*;
@@ -34,7 +34,7 @@ pub trait ProductsElastic {
     fn search_most_discount(&self, prod: MostDiscountProducts, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>>;
 
     /// Find all categories ids where prod exist
-    fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<i32>>;
+    fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<CategoryId>>;
 
     /// Find price range
     fn aggregate_price(&self, prod: SearchProductsByName) -> RepoFuture<RangeFilter>;
@@ -611,7 +611,7 @@ impl ProductsElastic for ProductsElasticImpl {
     }
 
     /// Find all categories ids where prod exist
-    fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<i32>> {
+    fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<CategoryId>> {
         log_elastic_req(&name);
         let name_query = json!({
             "bool" : {
@@ -681,7 +681,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     for ag in res.aggs() {
                         if let Some(my_agg) = ag.get("my_agg") {
                             if let Some(cat) = my_agg.as_i64() {
-                                cats.push(cat as i32);
+                                cats.push(CategoryId(cat as i32));
                             }
                         }
                     }

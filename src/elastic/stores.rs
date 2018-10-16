@@ -7,6 +7,8 @@ use hyper::Method;
 use serde_json;
 use stq_http::client::ClientHandle;
 
+use stq_types::CategoryId;
+
 use super::{log_elastic_req, log_elastic_resp};
 use models::{CountResponse, ElasticIndex, ElasticStore, SearchResponse, SearchStore, StoresSearchOptions};
 use repos::types::RepoFuture;
@@ -25,7 +27,7 @@ pub trait StoresElastic {
     /// Aggregate countries
     fn aggregate_countries(&self, search_store: SearchStore) -> RepoFuture<Vec<String>>;
     /// Aggregate categories
-    fn aggregate_categories(&self, search_store: SearchStore) -> RepoFuture<Vec<i32>>;
+    fn aggregate_categories(&self, search_store: SearchStore) -> RepoFuture<Vec<CategoryId>>;
     /// Auto complete
     fn auto_complete(&self, name: String, count: i32, offset: i32) -> RepoFuture<Vec<String>>;
 }
@@ -297,7 +299,7 @@ impl StoresElastic for StoresElasticImpl {
     }
 
     /// Aggregate categories
-    fn aggregate_categories(&self, search_store: SearchStore) -> RepoFuture<Vec<i32>> {
+    fn aggregate_categories(&self, search_store: SearchStore) -> RepoFuture<Vec<CategoryId>> {
         log_elastic_req(&search_store);
         let name_query = json!({
             "nested" : {
@@ -367,7 +369,7 @@ impl StoresElastic for StoresElasticImpl {
                         if let Some(buckets) = aggs_raw["product_categories"]["category"]["buckets"].as_array() {
                             for bucket in buckets {
                                 if let Some(key) = bucket["key"].as_i64() {
-                                    categories_ids.push(key as i32);
+                                    categories_ids.push(CategoryId(key as i32));
                                 }
                             }
                         }

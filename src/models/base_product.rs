@@ -5,7 +5,7 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{AttributeId, BaseProductId, ProductId, ProductPrice, StoreId};
+use stq_types::{AttributeId, BaseProductId, CategoryId, ProductId, ProductPrice, StoreId};
 
 use models::validation_rules::*;
 use models::{NewProductWithAttributes, Product, ProductWithAttributes, Store};
@@ -23,7 +23,7 @@ pub struct BaseProduct {
     pub name: serde_json::Value,
     pub short_description: serde_json::Value,
     pub long_description: Option<serde_json::Value>,
-    pub category_id: i32,
+    pub category_id: CategoryId,
     pub created_at: SystemTime,
     pub updated_at: SystemTime,
     pub views: i32,
@@ -52,17 +52,17 @@ pub struct NewBaseProduct {
     #[validate(custom = "validate_translation")]
     pub seo_description: Option<serde_json::Value>,
     pub currency: Currency,
-    pub category_id: i32,
+    pub category_id: CategoryId,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
 }
 
 /// Payload for creating base product with variants
 #[derive(Serialize, Deserialize, Validate, Clone, Debug)]
-pub struct NewBaseProductWithVariant {
+pub struct NewBaseProductWithVariants {
     #[serde(flatten)]
     pub new_base_product: NewBaseProduct,
-    pub variant: NewProductWithAttributes,
+    pub variants: Vec<NewProductWithAttributes>,
     pub selected_attributes: Vec<AttributeId>,
 }
 
@@ -81,7 +81,7 @@ pub struct UpdateBaseProduct {
     #[validate(custom = "validate_translation")]
     pub seo_description: Option<serde_json::Value>,
     pub currency: Option<Currency>,
-    pub category_id: Option<i32>,
+    pub category_id: Option<CategoryId>,
     pub rating: Option<f64>,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,

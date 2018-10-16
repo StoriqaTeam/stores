@@ -59,10 +59,10 @@ pub struct NewBaseProduct {
 
 /// Payload for creating base product with variants
 #[derive(Serialize, Deserialize, Validate, Clone, Debug)]
-pub struct NewBaseProductWithVariant {
+pub struct NewBaseProductWithVariants {
     #[serde(flatten)]
     pub new_base_product: NewBaseProduct,
-    pub variant: NewProductWithAttributes,
+    pub variants: Vec<NewProductWithAttributes>,
     pub selected_attributes: Vec<AttributeId>,
 }
 

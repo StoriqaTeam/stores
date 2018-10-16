@@ -522,20 +522,20 @@ impl<
             (&Post, Some(Route::BaseProductWithVariants)) => {
                 debug!("User with id = '{:?}' is requesting  // POST /base_products/with_variants", user_id);
                 serialize_future(
-                    parse_body::<NewBaseProductWithVariant>(req.body())
+                    parse_body::<NewBaseProductWithVariants>(req.body())
                         .map_err(|e| {
-                            e.context("Parsing body // POST /base_products/with_variants in NewBaseProductWithVariant failed!")
+                            e.context("Parsing body // POST /base_products/with_variants in NewBaseProductWithVariants failed!")
                                 .context(Error::Parse)
                                 .into()
                         }).and_then(move |new_base_product| {
                             new_base_product
                                 .validate()
                                 .map_err(|e| {
-                                    format_err!("Validation of NewBaseProductWithVariant failed!")
+                                    format_err!("Validation of NewBaseProductWithVariants failed!")
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| service.create_base_product_with_variant(new_base_product))
+                                .and_then(move |_| service.create_base_product_with_variants(new_base_product))
                         }),
                 )
             }

@@ -133,7 +133,7 @@ impl StoresElastic for StoresElasticImpl {
                 .map(|res| res.into_documents().collect::<Vec<ElasticStore>>())
                 .map_err(move |e| {
                     e.context(format!(
-                        "Search store by name error occured. Store: {:?}, count: {:?}, offset: {:?}",
+                        "Search store by name error occurred. Store: {:?}, count: {:?}, offset: {:?}",
                         search_store, count, offset
                     )).context(Error::ElasticSearch)
                     .into()
@@ -177,7 +177,7 @@ impl StoresElastic for StoresElasticImpl {
                 .map(|res| res.suggested_texts())
                 .map_err(move |e| {
                     e.context(format!(
-                        "Auto complete store name error occured. Name: {:?}, count: {:?}, offset: {:?}",
+                        "Auto complete store name error occurred. Name: {:?}, count: {:?}, offset: {:?}",
                         name, count, _offset
                     )).context(Error::ElasticSearch)
                     .into()
@@ -226,7 +226,7 @@ impl StoresElastic for StoresElasticImpl {
                 .inspect(|ref res| log_elastic_resp(res))
                 .map(|res| res.get_count() as i32)
                 .map_err(move |e| {
-                    e.context(format!("Search store count error occured. Store: {:?}", search_store))
+                    e.context(format!("Search store count error occurred. Store: {:?}", search_store))
                         .context(Error::ElasticSearch)
                         .into()
                 }),
@@ -291,7 +291,7 @@ impl StoresElastic for StoresElasticImpl {
                     }
                     countries
                 }).map_err(move |e| {
-                    e.context(format!("Aggregate countries for store error occured. Store: {:?}", search_store))
+                    e.context(format!("Aggregate countries for store error occurred. Store: {:?}", search_store))
                         .context(Error::ElasticSearch)
                         .into()
                 }),
@@ -376,7 +376,7 @@ impl StoresElastic for StoresElasticImpl {
                     };
                     categories_ids
                 }).map_err(move |e| {
-                    e.context(format!("Aggregate categories for stores error occured. Store: {:?}", search_store))
+                    e.context(format!("Aggregate categories for stores error occurred. Store: {:?}", search_store))
                         .context(Error::ElasticSearch)
                         .into()
                 }),

@@ -39,7 +39,7 @@ impl<
                 let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                 wizard_stores_repo
                     .find_by_user_id(user_id)
-                    .map_err(|e| e.context("Service wizard store, get_wizard_store endpoint error occured.").into())
+                    .map_err(|e| e.context("Service wizard store, get_wizard_store endpoint error occurred.").into())
             })
         } else {
             Box::new(future::err(
@@ -59,7 +59,7 @@ impl<
             self.spawn_on_pool(move |conn| {
                 let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                 wizard_stores_repo.delete(user_id).map_err(|e| {
-                    e.context("Service wizard store, delete_wizard_store endpoint error occured.")
+                    e.context("Service wizard store, delete_wizard_store endpoint error occurred.")
                         .into()
                 })
             })
@@ -88,7 +88,7 @@ impl<
                         }
                     })
                 }).map_err(|e| {
-                    e.context("Service wizard store, create_wizard_store endpoint error occured.")
+                    e.context("Service wizard store, create_wizard_store endpoint error occurred.")
                         .into()
                 })
             })
@@ -132,7 +132,7 @@ impl<
                 }
                 let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));
                 wizard_stores_repo.update(user_id, payload).map_err(|e| {
-                    e.context("Service wizard store, update_wizard_store endpoint error occured.")
+                    e.context("Service wizard store, update_wizard_store endpoint error occurred.")
                         .into()
                 })
             })

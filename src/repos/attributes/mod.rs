@@ -65,7 +65,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         self.cache.add_attribute(id_arg, attribute.clone());
                     };
                     Ok(attribute)
-                }).map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occured", id_arg)).into())
+                }).map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occurred", id_arg)).into())
         }
     }
 
@@ -97,7 +97,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     self.cache.add_attribute(attribute.id, attribute.clone());
                     Ok(attribute)
                 })
-            }).map_err(|e: FailureError| e.context(format!("Creates new attribute: {:?} error occured", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Creates new attribute: {:?} error occurred", payload)).into())
     }
 
     /// Updates specific attribute
@@ -116,7 +116,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query.get_result::<Attribute>(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "Updates specific attribute: id: {}, payload: {:?},  error occured",
+                    "Updates specific attribute: id: {}, payload: {:?},  error occurred",
                     attribute_id_arg, payload
                 )).into()
             })

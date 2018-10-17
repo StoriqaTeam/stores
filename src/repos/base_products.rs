@@ -118,7 +118,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
                 Ok(base_product)
             }).map_err(|e: FailureError| {
-                e.context(format!("Find base product by id: {} error occured", base_product_id_arg))
+                e.context(format!("Find base product by id: {} error occurred", base_product_id_arg))
                     .into()
             })
     }
@@ -133,7 +133,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .optional()
             .map(|count: Option<i64>| if let Some(count) = count { count as i32 } else { 0 })
             .map_err(|e| {
-                e.context(format!("Counts products by store id: {} error occured", store_id_arg))
+                e.context(format!("Counts products by store id: {} error occurred", store_id_arg))
                     .into()
             })
     }
@@ -147,7 +147,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_prod| {
                 acl::check(&*self.acl, Resource::BaseProducts, Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
-            }).map_err(|e: FailureError| e.context(format!("Creates new base_product {:?} error occured", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Creates new base_product {:?} error occurred", payload)).into())
     }
 
     /// Returns list of base_products, limited by `from` and `count` parameters
@@ -169,7 +169,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "Find in base products with ids from {} count {} error occured",
+                    "Find in base products with ids from {} count {} error occurred",
                     from, count
                 )).into()
             })
@@ -470,7 +470,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "moderator search for base_products, limited by {} and {} error occured",
+                    "moderator search for base_products, limited by {} and {} error occurred",
                     from, count
                 )).into()
             })
@@ -495,7 +495,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query.get_results(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "Set moderation status for base_product {:?} error occured",
+                    "Set moderation status for base_product {:?} error occurred",
                     base_product_ids
                 )).into()
             })

@@ -66,7 +66,7 @@ impl<
             stores_el.auto_complete(name, count, offset)
         };
 
-        Box::new(stores_names.map_err(|e| e.context("Service Stores, auto_complete endpoint error occured.").into()))
+        Box::new(stores_names.map_err(|e| e.context("Service Stores, auto_complete endpoint error occurred.").into()))
     }
 
     /// Find stores by name
@@ -96,7 +96,7 @@ impl<
                                 )
                             }).collect()
                     })
-                }).map_err(|e| e.context("Service Stores, find_by_name endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, find_by_name endpoint error occurred.").into()),
         )
     }
 
@@ -109,7 +109,7 @@ impl<
             stores_el.search_count(search_store)
         };
 
-        Box::new(search_filters.map_err(|e| e.context("Service Stores, search_filters_count endpoint error occured.").into()))
+        Box::new(search_filters.map_err(|e| e.context("Service Stores, search_filters_count endpoint error occurred.").into()))
     }
 
     /// search filters country
@@ -121,7 +121,7 @@ impl<
             stores_el.aggregate_countries(search_store)
         };
 
-        Box::new(search_filters.map_err(|e| e.context("Service Stores, search_filters_country endpoint error occured.").into()))
+        Box::new(search_filters.map_err(|e| e.context("Service Stores, search_filters_country endpoint error occurred.").into()))
     }
 
     /// search filters category
@@ -142,7 +142,7 @@ impl<
                         let new_cat = remove_unused_categories(root, &categories_ids);
                         Ok(new_cat)
                     })
-                }).map_err(|e| e.context("Service Stores, search_filters_category endpoint error occured.").into()),
+                }).map_err(|e| e.context("Service Stores, search_filters_category endpoint error occurred.").into()),
         )
     }
 
@@ -155,7 +155,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
                 .find(store_id)
-                .map_err(|e| e.context("Service Stores, get endpoint error occured.").into())
+                .map_err(|e| e.context("Service Stores, get endpoint error occurred.").into())
         })
     }
 
@@ -168,7 +168,7 @@ impl<
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo
                 .count_with_store_id(store_id)
-                .map_err(|e| e.context("Service Stores, get_products_count endpoint error occured.").into())
+                .map_err(|e| e.context("Service Stores, get_products_count endpoint error occurred.").into())
         })
     }
 
@@ -191,7 +191,7 @@ impl<
 
                     Ok(deactive_store)
                 })
-            }.map_err(|e: FailureError| e.context("Service Stores, deactivate endpoint error occured.").into())
+            }.map_err(|e: FailureError| e.context("Service Stores, deactivate endpoint error occurred.").into())
         })
     }
 
@@ -204,7 +204,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
                 .delete_by_user(user_id_arg)
-                .map_err(|e| e.context("Service Stores, delete_by_user endpoint error occured.").into())
+                .map_err(|e| e.context("Service Stores, delete_by_user endpoint error occurred.").into())
         })
     }
 
@@ -217,7 +217,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
                 .get_by_user(user_id_arg)
-                .map_err(|e| e.context("Service Stores, get_by_user endpoint error occured.").into())
+                .map_err(|e| e.context("Service Stores, get_by_user endpoint error occurred.").into())
         })
     }
 
@@ -230,7 +230,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
                 .list(from, count)
-                .map_err(|e| e.context("Service Stores, list endpoint error occured.").into())
+                .map_err(|e| e.context("Service Stores, list endpoint error occurred.").into())
         })
     }
 
@@ -258,7 +258,7 @@ impl<
                         stores_repo.create(payload)
                     }
                 }
-            }).map_err(|e| e.context("Service Stores, create endpoint error occured.").into())
+            }).map_err(|e| e.context("Service Stores, create endpoint error occurred.").into())
         })
     }
 
@@ -285,7 +285,7 @@ impl<
                 }
                 let payload = payload.reset_moderation_status();
                 stores_repo.update(store_id, payload)
-            }.map_err(|e| e.context("Service Stores, update endpoint error occured.").into())
+            }.map_err(|e| e.context("Service Stores, update endpoint error occurred.").into())
         })
     }
 
@@ -297,7 +297,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
                 .slug_exists(slug)
-                .map_err(|e| e.context("Service Stores, slug_exists endpoint error occured.").into())
+                .map_err(|e| e.context("Service Stores, slug_exists endpoint error occurred.").into())
         })
     }
 
@@ -312,7 +312,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
             stores_repo
                 .moderator_search(from, count, term)
-                .map_err(|e: FailureError| e.context("Service stores, moderator_search endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service stores, moderator_search endpoint error occurred.").into())
         })
     }
 
@@ -326,7 +326,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
             stores_repo
                 .set_moderation_status(store_id, status)
-                .map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into())
         })
     }
 }

@@ -61,7 +61,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }.map_err(|e: FailureError| e.context("Service Product, get endpoint error occured.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get endpoint error occurred.").into())
         })
     }
 
@@ -82,7 +82,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }.map_err(|e: FailureError| e.context("Service Product, get endpoint error occured.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get endpoint error occurred.").into())
         })
     }
 
@@ -106,7 +106,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }.map_err(|e: FailureError| e.context("Service Product, get_store_id endpoint error occured.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get_store_id endpoint error occurred.").into())
         })
     }
 
@@ -122,7 +122,7 @@ impl<
                 let product = products_repo.deactivate(product_id)?;
                 prod_attr_repo.delete_all_attributes(product.id)?;
                 Ok(product)
-            }).map_err(|e| e.context("Service Product, deactivate endpoint error occured.").into())
+            }).map_err(|e| e.context("Service Product, deactivate endpoint error occurred.").into())
         })
     }
 
@@ -142,7 +142,7 @@ impl<
                     .iter_mut()
                     .for_each(|mut product| recalc_currencies(&mut product, &currencies_map, currency));
                 Ok(products)
-            }.map_err(|e: FailureError| e.context("Service Product, list endpoint error occured.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, list endpoint error occurred.").into())
         })
     }
 
@@ -187,7 +187,7 @@ impl<
                 )?;
 
                 Ok(product)
-            }).map_err(|e| e.context("Service Product, create endpoint error occured.").into())
+            }).map_err(|e| e.context("Service Product, create endpoint error occurred.").into())
         })
     }
 
@@ -244,7 +244,7 @@ impl<
                 }
 
                 Ok(product)
-            }).map_err(|e| e.context("Service Product, update endpoint error occured.").into())
+            }).map_err(|e| e.context("Service Product, update endpoint error occurred.").into())
         })
     }
 
@@ -264,7 +264,7 @@ impl<
                     .iter_mut()
                     .for_each(|mut product| recalc_currencies(&mut product, &currencies_map, currency));
                 Ok(products)
-            }.map_err(|e: FailureError| e.context("Service Product, find_with_base_id endpoint error occured.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, find_with_base_id endpoint error occurred.").into())
         })
     }
 
@@ -278,7 +278,7 @@ impl<
             prod_attr_repo
                 .find_all_attributes(product_id)
                 .map(|pr_attrs| pr_attrs.into_iter().map(|pr_attr| pr_attr.into()).collect())
-                .map_err(|e| e.context("Service Product, find_attributes endpoint error occured.").into())
+                .map_err(|e| e.context("Service Product, find_attributes endpoint error occurred.").into())
         })
     }
 }

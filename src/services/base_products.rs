@@ -142,7 +142,7 @@ impl<
                         })
                     }
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_base_products_by_name endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_by_name endpoint error occurred.")
                         .into()
                 }),
         )
@@ -168,7 +168,7 @@ impl<
                 recalc_currencies(&mut base_products, currencies_map, currency);
                 Ok(base_products)
             }.map_err(|e: FailureError| {
-                e.context("Service BaseProduct, search_base_products_most_viewed endpoint error occured.")
+                e.context("Service BaseProduct, search_base_products_most_viewed endpoint error occurred.")
                     .into()
             })
         })
@@ -205,7 +205,7 @@ impl<
                         })
                     }
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_base_products_most_discount endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_most_discount endpoint error occurred.")
                         .into()
                 }),
         )
@@ -220,7 +220,7 @@ impl<
         };
 
         Box::new(products_names.map_err(|e| {
-            e.context("Service BaseProduct, base_products_auto_complete endpoint error occured.")
+            e.context("Service BaseProduct, base_products_auto_complete endpoint error occurred.")
                 .into()
         }))
     }
@@ -236,7 +236,7 @@ impl<
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_base_products_filters_price endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_filters_price endpoint error occurred.")
                         .into()
                 }),
         )
@@ -253,7 +253,7 @@ impl<
                     search_prod.options = options;
                     products_el.count(search_prod)
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_base_products_filters_count endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_filters_count endpoint error occurred.")
                         .into()
                 }),
         )
@@ -281,7 +281,7 @@ impl<
                         Ok(root)
                     }
                 }.map_err(|e: FailureError| {
-                    e.context("Service BaseProduct, search_base_products_filters_category endpoint with empty name option error occured.")
+                    e.context("Service BaseProduct, search_base_products_filters_category endpoint with empty name option error occurred.")
                         .into()
                 })
             })
@@ -294,7 +294,7 @@ impl<
                         let new_cat = remove_unused_categories(category, &cats);
                         Ok(new_cat)
                     }.map_err(|e: FailureError| {
-                        e.context("Service BaseProduct, search_base_products_filters_category endpoint with name aggregation in elastic error occured.")
+                        e.context("Service BaseProduct, search_base_products_filters_category endpoint with name aggregation in elastic error occurred.")
                             .into()
                     })
                 })
@@ -322,7 +322,7 @@ impl<
                     }
                     Box::new(future::ok(None))
                 }).map_err(|e| {
-                    e.context("Service BaseProduct, search_base_products_attributes endpoint error occured.")
+                    e.context("Service BaseProduct, search_base_products_attributes endpoint error occurred.")
                         .into()
                 }),
         )
@@ -337,7 +337,7 @@ impl<
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo
                 .find(base_product_id)
-                .map_err(|e| e.context("Service BaseProduct, get_base_product endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, get_base_product endpoint error occurred.").into())
         })
     }
 
@@ -349,7 +349,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo.update_views(base_product_id).map_err(|e| {
-                e.context("Service BaseProduct, get_base_product_with_views_update endpoint error occured.")
+                e.context("Service BaseProduct, get_base_product_with_views_update endpoint error occurred.")
                     .into()
             })
         })
@@ -380,7 +380,7 @@ impl<
                 }
                 Ok(None)
             }.map_err(|e: FailureError| {
-                e.context("Service BaseProduct, get_base_product_by_product endpoint error occured.")
+                e.context("Service BaseProduct, get_base_product_by_product endpoint error occurred.")
                     .into()
             })
         })
@@ -407,7 +407,7 @@ impl<
                 };
                 Ok(prod)
             }.map_err(|e: FailureError| {
-                e.context("Service BaseProduct, deactivate_base_product endpoint error occured.")
+                e.context("Service BaseProduct, deactivate_base_product endpoint error occurred.")
                     .into()
             })
         })
@@ -422,7 +422,7 @@ impl<
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo
                 .list(from, count)
-                .map_err(|e| e.context("Service BaseProduct, list endpoint error occured.").into())
+                .map_err(|e| e.context("Service BaseProduct, list endpoint error occurred.").into())
         })
     }
 
@@ -442,7 +442,7 @@ impl<
             base_products_repo
                 .get_products_of_the_store(store_id, skip_base_product_id, from, count)
                 .map_err(|e| {
-                    e.context("Service BaseProduct, get_products_of_the_store endpoint error occured.")
+                    e.context("Service BaseProduct, get_products_of_the_store endpoint error occurred.")
                         .into()
                 })
         })
@@ -465,7 +465,7 @@ impl<
                 update_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
 
                 Ok(base_prod)
-            }).map_err(|e| e.context("Service BaseProduct, create endpoint error occured.").into())
+            }).map_err(|e| e.context("Service BaseProduct, create endpoint error occurred.").into())
         })
     }
 
@@ -520,7 +520,7 @@ impl<
 
                 Ok(base_prod)
             }).map_err(|e| {
-                e.context("Service BaseProduct, create with variants and attributes endpoint error occured.")
+                e.context("Service BaseProduct, create with variants and attributes endpoint error occurred.")
                     .into()
             })
         })
@@ -558,7 +558,7 @@ impl<
                 } else {
                     Err(Error::NotFound.into())
                 }
-            }).map_err(|e| e.context("Service BaseProduct, update endpoint error occured.").into())
+            }).map_err(|e| e.context("Service BaseProduct, update endpoint error occurred.").into())
         })
     }
 
@@ -617,7 +617,7 @@ impl<
                                 .into())
                         }
                     }).collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
-            }.map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occured.").into())
+            }.map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occurred.").into())
         })
     }
 
@@ -640,7 +640,7 @@ impl<
             let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
             base_products_repo
                 .moderator_search(from, count, term)
-                .map_err(|e: FailureError| e.context("Service base_products, moderator_search endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service base_products, moderator_search endpoint error occurred.").into())
         })
     }
 
@@ -659,7 +659,7 @@ impl<
             base_products_repo
                 .set_moderation_status(base_product_ids, status)
                 .map_err(|e: FailureError| {
-                    e.context("Service base_products, set_moderation_status endpoint error occured.")
+                    e.context("Service base_products, set_moderation_status endpoint error occurred.")
                         .into()
                 })
         })

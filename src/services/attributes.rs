@@ -37,7 +37,7 @@ impl<
             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             attributes_repo
                 .find(attribute_id)
-                .map_err(|e| e.context("Service Attributes, get endpoint error occured.").into())
+                .map_err(|e| e.context("Service Attributes, get endpoint error occurred.").into())
         })
     }
 
@@ -50,7 +50,7 @@ impl<
             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             attributes_repo
                 .list()
-                .map_err(|e| e.context("Service Attributes, list endpoint error occured.").into())
+                .map_err(|e| e.context("Service Attributes, list endpoint error occurred.").into())
         })
     }
 
@@ -62,7 +62,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             conn.transaction::<(Attribute), FailureError, _>(move || attributes_repo.create(new_attribute))
-                .map_err(|e| e.context("Service Attributes, create endpoint error occured.").into())
+                .map_err(|e| e.context("Service Attributes, create endpoint error occurred.").into())
         })
     }
 
@@ -75,7 +75,7 @@ impl<
             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
             attributes_repo
                 .update(attribute_id, payload)
-                .map_err(|e| e.context("Service Attributes, update endpoint error occured.").into())
+                .map_err(|e| e.context("Service Attributes, update endpoint error occurred.").into())
         })
     }
 }

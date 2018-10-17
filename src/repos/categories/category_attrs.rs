@@ -53,7 +53,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
-            }).map_err(|e: FailureError| e.context("List all category attributes error occured").into())
+            }).map_err(|e: FailureError| e.context("List all category attributes error occurred").into())
     }
 
     /// Creates new category attribute
@@ -66,7 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<CatAttr>(self.db_conn)
             .map(|_| ())
             .map_err(|e| {
-                e.context(format!("Creates new category attribute: {:?} error occured", payload))
+                e.context(format!("Creates new category attribute: {:?} error occurred", payload))
                     .into()
             })
     }
@@ -83,7 +83,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result::<CatAttr>(self.db_conn)
             .map(|_| ())
-            .map_err(|e| e.context(format!("Delete category attribute: {:?} error occured", payload)).into())
+            .map_err(|e| e.context(format!("Delete category attribute: {:?} error occurred", payload)).into())
     }
 }
 

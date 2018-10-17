@@ -31,7 +31,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
             currency_exchange_repo.get_latest().map_err(|e| {
-                e.context("Service CurrencyExchange, get_latest_currencies endpoint error occured.")
+                e.context("Service CurrencyExchange, get_latest_currencies endpoint error occurred.")
                     .into()
             })
         })
@@ -45,7 +45,7 @@ impl<
             let currency_exchange_repo = repo_factory.create_currency_exchange_repo(&*conn, user_id);
             currency_exchange_repo
                 .update(payload)
-                .map_err(|e| e.context("Service CurrencyExchange, update endpoint error occured.").into())
+                .map_err(|e| e.context("Service CurrencyExchange, update endpoint error occurred.").into())
         })
     }
 }

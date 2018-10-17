@@ -41,7 +41,7 @@ impl<
             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
             user_roles_repo
                 .list_for_user(user_id)
-                .map_err(|e: FailureError| e.context("Service user_roles, get_roles endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service user_roles, get_roles endpoint error occurred.").into())
         })
     }
 
@@ -53,7 +53,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
             conn.transaction::<UserRole, FailureError, _>(move || user_roles_repo.create(new_user_role))
-                .map_err(|e: FailureError| e.context("Service user_roles, create endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service user_roles, create endpoint error occurred.").into())
         })
     }
 
@@ -65,7 +65,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
             conn.transaction::<UserRole, FailureError, _>(move || user_roles_repo.delete_user_role(user_role.user_id, user_role.name))
-                .map_err(|e: FailureError| e.context("Service user_roles, delete_user_role endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service user_roles, delete_user_role endpoint error occurred.").into())
         })
     }
 
@@ -78,7 +78,7 @@ impl<
             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
             user_roles_repo
                 .delete_by_user_id(user_id_arg)
-                .map_err(|e: FailureError| e.context("Service user_roles, delete_by_user_id endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service user_roles, delete_by_user_id endpoint error occurred.").into())
         })
     }
 
@@ -91,7 +91,7 @@ impl<
             let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
             user_roles_repo
                 .delete_by_id(id_arg)
-                .map_err(|e: FailureError| e.context("Service user_roles, delete_by_id endpoint error occured.").into())
+                .map_err(|e: FailureError| e.context("Service user_roles, delete_by_id endpoint error occurred.").into())
         })
     }
 }

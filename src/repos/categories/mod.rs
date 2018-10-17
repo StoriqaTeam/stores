@@ -96,7 +96,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 acl::check(&*self.acl, Resource::Categories, Action::Create, self, Some(&category)).and_then(|_| Ok(category))
             });
 
-        created_category.map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occured", payload)).into())
+        created_category.map_err(|e: FailureError| e.context(format!("Create new category: {:?} error occurred", payload)).into())
     }
 
     /// Updates specific category
@@ -125,7 +125,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 result
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "Updating category with id {} and payload {:?} error occured",
+                    "Updating category with id {} and payload {:?} error occurred",
                     category_id_arg, payload
                 )).into()
             })
@@ -164,7 +164,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     set_attributes(&mut root, &cat_hash);
                     self.cache.set(root.clone());
                     Ok(root)
-                }).map_err(|e: FailureError| e.context("Get all categories error occured").into())
+                }).map_err(|e: FailureError| e.context("Get all categories error occurred").into())
         }
     }
 }

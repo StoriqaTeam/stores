@@ -40,7 +40,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             custom_attributes_repo.find_all_attributes(base_product_id_arg).map_err(|e| {
-                e.context("Service CustomAttributes, get_custom_attributes_by_base_product endpoint error occured.")
+                e.context("Service CustomAttributes, get_custom_attributes_by_base_product endpoint error occurred.")
                     .into()
             })
         })
@@ -54,7 +54,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             custom_attributes_repo.get_custom_attribute(id_arg).map_err(|e| {
-                e.context("Service CustomAttributes, get_custom_attribute endpoint error occured.")
+                e.context("Service CustomAttributes, get_custom_attribute endpoint error occurred.")
                     .into()
             })
         })
@@ -68,7 +68,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             conn.transaction::<(CustomAttribute), FailureError, _>(move || custom_attributes_repo.create(new_custom_attribute))
-                .map_err(|e| e.context("Service CustomAttributes, create endpoint error occured.").into())
+                .map_err(|e| e.context("Service CustomAttributes, create endpoint error occurred.").into())
         })
     }
 
@@ -81,7 +81,7 @@ impl<
             let attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             attributes_repo
                 .list()
-                .map_err(|e| e.context("Service CustomAttributes, list endpoint error occured.").into())
+                .map_err(|e| e.context("Service CustomAttributes, list endpoint error occurred.").into())
         })
     }
 
@@ -95,7 +95,7 @@ impl<
 
             custom_attributes_repo
                 .delete(id_arg)
-                .map_err(|e| e.context("Service CustomAttributes, delete endpoint error occured.").into())
+                .map_err(|e| e.context("Service CustomAttributes, delete endpoint error occurred.").into())
         })
     }
 }

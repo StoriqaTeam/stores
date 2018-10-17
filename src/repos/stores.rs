@@ -90,7 +90,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store))?;
                 };
                 Ok(store)
-            }).map_err(|e: FailureError| e.context(format!("Find store with id: {} error occured", store_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find store with id: {} error occurred", store_id_arg)).into())
     }
 
     /// Creates new store
@@ -101,7 +101,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<Store>(self.db_conn)
             .map_err(From::from)
             .and_then(|store| acl::check(&*self.acl, Resource::Stores, Action::Create, self, Some(&store)).and_then(|_| Ok(store)))
-            .map_err(|e: FailureError| e.context(format!("Create store {:?} error occured.", payload)).into())
+            .map_err(|e: FailureError| e.context(format!("Create store {:?} error occurred.", payload)).into())
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
@@ -118,7 +118,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(stores_res.clone())
             }).map_err(|e: FailureError| {
-                e.context(format!("Find in stores from {} count {} error occured.", from, count))
+                e.context(format!("Find in stores from {} count {} error occurred.", from, count))
                     .into()
             })
     }
@@ -135,7 +135,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query.get_result::<Store>(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "Updating store with id {} and payload {:?} error occured.",
+                    "Updating store with id {} and payload {:?} error occurred.",
                     store_id_arg, payload
                 )).into()
             })
@@ -151,7 +151,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
             }).map_err(|e: FailureError| {
-                e.context(format!("Deactivate store with id {} error occured.", store_id_arg))
+                e.context(format!("Deactivate store with id {} error occurred.", store_id_arg))
                     .into()
             })
     }
@@ -202,7 +202,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result(self.db_conn)
             .map_err(From::from)
             .and_then(|exists| acl::check(&*self.acl, Resource::Stores, Action::Read, self, None).and_then(|_| Ok(exists)))
-            .map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occured.", slug_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occurred.", slug_arg)).into())
     }
 
     /// Checks name exists
@@ -223,7 +223,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
             .and_then(|exists| acl::check(&*self.acl, Resource::Stores, Action::Read, self, None).and_then(|_| Ok(exists)))
-            .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occured.", name_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occurred.", name_arg)).into())
     }
 
     /// Checks if vendor code exists across the store
@@ -284,7 +284,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(stores_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "moderator search for stores, limited by {} and {} error occured",
+                    "moderator search for stores, limited by {} and {} error occurred",
                     from, count
                 )).into()
             })
@@ -304,7 +304,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 query.get_result(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| {
-                e.context(format!("Set moderation status for store {:?} error occured", store_id_arg))
+                e.context(format!("Set moderation status for store {:?} error occurred", store_id_arg))
                     .into()
             })
     }

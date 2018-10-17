@@ -381,7 +381,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 .map(ProductsElasticImpl::create_products_from_search_response)
                 .map_err(move |e| {
                     e.context(format!(
-                        "Search product by name error occured. Prod: {:?}, count: {:?}, offset: {:?}",
+                        "Search product by name error occurred. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
                     )).context(Error::ElasticSearch)
                     .into()
@@ -448,7 +448,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 .map(ProductsElasticImpl::create_products_from_search_response)
                 .map_err(move |e| {
                     e.context(format!(
-                        "Search most viewed product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
+                        "Search most viewed product error occurred. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
                     )).context(Error::ElasticSearch)
                     .into()
@@ -545,7 +545,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 .map(ProductsElasticImpl::create_products_from_search_response)
                 .map_err(move |e| {
                     e.context(format!(
-                        "Search most discount product error occured. Prod: {:?}, count: {:?}, offset: {:?}",
+                        "Search most discount product error occurred. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
                     )).context(Error::ElasticSearch)
                     .into()
@@ -602,7 +602,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 .map(|res| res.suggested_texts())
                 .map_err(move |e| {
                     e.context(format!(
-                        "Auto complete product name error occured. Name: {:?}, count: {}, offset: {}",
+                        "Auto complete product name error occurred. Name: {:?}, count: {}, offset: {}",
                         name, count, _offset
                     )).context(Error::ElasticSearch)
                     .into()
@@ -687,7 +687,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     }
                     cats
                 }).map_err(move |e| {
-                    e.context(format!("Aggregate categories for products error occured. Name: {:?}", name))
+                    e.context(format!("Aggregate categories for products error occurred. Name: {:?}", name))
                         .context(Error::ElasticSearch)
                         .into()
                 }),
@@ -836,7 +836,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     }
                     price_filters
                 }).map_err(move |e| {
-                    e.context(format!("Aggregate price name error occured. Prod: {:?}", prod))
+                    e.context(format!("Aggregate price name error occurred. Prod: {:?}", prod))
                         .context(Error::ElasticSearch)
                         .into()
                 }),
@@ -922,7 +922,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 .inspect(|ref res| log_elastic_resp(res))
                 .map(|res| res.get_count() as i32)
                 .map_err(move |e| {
-                    e.context(format!("Search base product count error occured. Base product: {:?}", prod))
+                    e.context(format!("Search base product count error occurred. Base product: {:?}", prod))
                         .context(Error::ElasticSearch)
                         .into()
                 }),

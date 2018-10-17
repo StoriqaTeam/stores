@@ -68,7 +68,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
                 Ok(wizard_store)
             }).map_err(|e: FailureError| {
-                e.context(format!("Find in wizard stores with user id {} error occured.", user_id_arg))
+                e.context(format!("Find in wizard stores with user id {} error occurred.", user_id_arg))
                     .into()
             })
     }
@@ -84,7 +84,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|wizard_store| {
                 acl::check(&*self.acl, Resource::WizardStores, Action::Create, self, Some(&wizard_store)).and_then(|_| Ok(wizard_store))
             }).map_err(|e: FailureError| {
-                e.context(format!("Create wizard store for user id {:?} error occured.", user_id_arg))
+                e.context(format!("Create wizard store for user id {:?} error occurred.", user_id_arg))
                     .into()
             })
     }
@@ -100,7 +100,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query.get_result::<WizardStore>(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "Updating wizard store with user_id {} and payload {:?} error occured.",
+                    "Updating wizard store with user_id {} and payload {:?} error occurred.",
                     user_id_arg, payload
                 )).into()
             })
@@ -116,7 +116,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(completed.eq(true));
                 query.get_result::<WizardStore>(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| {
-                e.context(format!("Delete wizard store with user_id {} error occured.", user_id_arg))
+                e.context(format!("Delete wizard store with user_id {} error occurred.", user_id_arg))
                     .into()
             })
     }
@@ -130,7 +130,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|exists| acl::check(&*self.acl, Resource::WizardStores, Action::Read, self, None).and_then(|_| Ok(exists)))
             .map_err(|e: FailureError| {
-                e.context(format!("Check if wizard already exists for user {} error occured.", user_id_arg))
+                e.context(format!("Check if wizard already exists for user {} error occurred.", user_id_arg))
                     .into()
             })
     }

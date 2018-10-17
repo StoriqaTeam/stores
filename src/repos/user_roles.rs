@@ -10,7 +10,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_types::{RoleId, StoresRole, UserId, UsersRole};
+use stq_types::{RoleId, StoresRole, UserId};
 
 use repos::legacy_acl::*;
 
@@ -30,7 +30,7 @@ pub trait UserRolesRepo {
     fn create(&self, payload: NewUserRole) -> RepoResult<UserRole>;
 
     /// Delete role of a user
-    fn delete_user_role(&self, user_id_arg: UserId, name_arg: UsersRole) -> RepoResult<UserRole>;
+    fn delete_user_role(&self, user_id_arg: UserId, name_arg: StoresRole) -> RepoResult<UserRole>;
 
     /// Delete role of a user
     fn delete_by_id(&self, id_arg: RoleId) -> RepoResult<UserRole>;
@@ -83,7 +83,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     }
                     Ok(roles)
                 }).map_err(|e: FailureError| {
-                    e.context(format!("List user roles for user {} error occured.", user_id_value))
+                    e.context(format!("List user roles for user {} error occurred.", user_id_value))
                         .into()
                 })
         }
@@ -99,7 +99,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|user_role_arg: UserRole| {
                 acl::check(&*self.acl, Resource::UserRoles, Action::Create, self, Some(&user_role_arg))?;
                 Ok(user_role_arg)
-            }).map_err(|e: FailureError| e.context(format!("Create a new user role {:?} error occured", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Create a new user role {:?} error occurred", payload)).into())
     }
 
     /// Delete role of a user
@@ -115,7 +115,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             }).map(|user_role: UserRole| {
                 self.cached_roles.remove(user_role.user_id);
                 user_role
-            }).map_err(|e: FailureError| e.context(format!("Delete user role {:?} error occured", id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Delete user role {:?} error occurred", id_arg)).into())
     }
 
     /// Delete user roles by user id
@@ -131,11 +131,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::UserRoles, Action::Delete, self, Some(&user_role_arg))?;
                 }
                 Ok(user_roles_arg)
-            }).map_err(|e: FailureError| e.context(format!("Delete user {} roles error occured", user_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Delete user {} roles error occurred", user_id_arg)).into())
     }
 
     /// Delete user roles by user id and name
-    fn delete_user_role(&self, user_id_arg: UserId, name_arg: UsersRole) -> RepoResult<UserRole> {
+    fn delete_user_role(&self, user_id_arg: UserId, name_arg: StoresRole) -> RepoResult<UserRole> {
         self.cached_roles.remove(user_id_arg);
         let filtered = user_roles.filter(user_id.eq(user_id_arg)).filter(name.eq(name_arg));
         let query = diesel::delete(filtered);
@@ -146,7 +146,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 acl::check(&*self.acl, Resource::UserRoles, Action::Delete, self, Some(&user_role_arg))?;
                 Ok(user_role_arg)
             }).map_err(|e: FailureError| {
-                e.context(format!("Delete user {} role {:?} error occured", user_id_arg, name_arg))
+                e.context(format!("Delete user {} role {:?} error occurred", user_id_arg, name_arg))
                     .into()
             })
     }

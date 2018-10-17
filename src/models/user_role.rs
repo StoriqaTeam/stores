@@ -3,7 +3,7 @@ use std::time::SystemTime;
 
 use serde_json;
 
-use stq_types::{RoleId, StoresRole, UserId, UsersRole};
+use stq_types::{RoleId, StoresRole, UserId};
 
 use schema::user_roles;
 
@@ -29,5 +29,5 @@ pub struct NewUserRole {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RemoveUserRole {
     pub user_id: UserId,
-    pub name: UsersRole,
+    pub name: StoresRole,
 }

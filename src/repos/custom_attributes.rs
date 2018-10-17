@@ -63,7 +63,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(custom_attributes_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "List all custom attributes error occured for base product {}",
+                    "List all custom attributes error occurred for base product {}",
                     base_product_id_arg
                 )).into()
             })
@@ -86,7 +86,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 )?;
                 Ok(custom_attribute)
             }).map_err(|e: FailureError| {
-                e.context(format!("Creates new custom attribute: {:?} error occured", payload))
+                e.context(format!("Creates new custom attribute: {:?} error occurred", payload))
                     .into()
             })
     }
@@ -120,7 +120,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::CustomAttributes, Action::Read, self, Some(&attribute))?;
                 };
                 Ok(attribute)
-            }).map_err(|e: FailureError| e.context(format!("Find custom attribute by id: {} error occured", id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find custom attribute by id: {} error occurred", id_arg)).into())
     }
 
     /// Delete custom attribute
@@ -140,7 +140,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Some(&custom_attribute),
                 )?;
                 Ok(custom_attribute)
-            }).map_err(|e: FailureError| e.context(format!("Delete custom attribute: {:?} error occured", id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Delete custom attribute: {:?} error occurred", id_arg)).into())
     }
 }
 

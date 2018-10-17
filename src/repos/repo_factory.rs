@@ -950,7 +950,7 @@ pub mod tests {
             })
         }
 
-        fn delete_user_role(&self, user_id_arg: UserId, _name_arg: UsersRole) -> RepoResult<UserRole> {
+        fn delete_user_role(&self, user_id_arg: UserId, _name_arg: StoresRole) -> RepoResult<UserRole> {
             Ok(UserRole {
                 id: RoleId::new(),
                 user_id: user_id_arg,

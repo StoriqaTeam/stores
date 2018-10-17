@@ -3,7 +3,7 @@
 //!
 //! `Application -> Controller -> Service -> Repo + HttpClient`
 //!
-//! Each layer can throw Error with context or cover occured error with
+//! Each layer can throw Error with context or cover occurred error with
 //! Error in the context. When error is not covered with Error it will
 //! be translated to code 500 in the http answer "Internal server error" of microservice.
 

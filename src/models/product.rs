@@ -6,7 +6,7 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, CategoryId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
+use stq_types::{BaseProductId, CategoryId, ExchangeRate, ProductId, ProductPrice, ProductSellerPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
 use models::{AttrValue, Attribute, AttributeFilter, BaseProduct, ProdAttr, RangeFilter};
@@ -32,6 +32,27 @@ pub struct Product {
     pub kafka_update_no: i32,
     pub pre_order: bool,
     pub pre_order_days: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProductWithCurrency {
+    #[serde(flatten)]
+    pub product: Product,
+    pub seller_price: ProductSellerPrice,
+}
+
+impl From<Product> for ProductWithCurrency {
+    fn from(other: Product) -> Self {
+        let seller_price = ProductSellerPrice {
+            price: other.price,
+            currency: other.currency,
+        };
+
+        Self {
+            product: other,
+            seller_price,
+        }
+    }
 }
 
 /// Payload for creating products

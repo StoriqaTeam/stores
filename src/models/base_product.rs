@@ -8,7 +8,7 @@ use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{AttributeId, BaseProductId, CategoryId, ProductId, ProductPrice, StoreId};
 
 use models::validation_rules::*;
-use models::{NewProductWithAttributes, Product, ProductWithAttributes, Store};
+use models::{NewProductWithAttributes, ProductWithAttributes, ProductWithCurrency, Store};
 
 use schema::base_products;
 
@@ -146,11 +146,11 @@ pub struct ElasticAttrValue {
 pub struct BaseProductWithVariants {
     #[serde(flatten)]
     pub base_product: BaseProduct,
-    pub variants: Vec<Product>,
+    pub variants: Vec<ProductWithCurrency>,
 }
 
 impl BaseProductWithVariants {
-    pub fn new(base_product: BaseProduct, variants: Vec<Product>) -> Self {
+    pub fn new(base_product: BaseProduct, variants: Vec<ProductWithCurrency>) -> Self {
         Self { base_product, variants }
     }
 }

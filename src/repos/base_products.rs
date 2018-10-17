@@ -20,7 +20,8 @@ use super::types::RepoResult;
 use models::authorization::*;
 use models::{
     Attribute, BaseProduct, BaseProductWithVariants, CatalogWithAttributes, ElasticProduct, ModeratorBaseProductSearchTerms,
-    MostDiscountProducts, MostViewedProducts, NewBaseProduct, ProdAttr, Product, ProductWithAttributes, Store, UpdateBaseProduct,
+    MostDiscountProducts, MostViewedProducts, NewBaseProduct, ProdAttr, Product, ProductWithAttributes, ProductWithCurrency, Store,
+    UpdateBaseProduct,
 };
 use repos::legacy_acl::*;
 use schema::attributes::dsl as DslAttributes;
@@ -347,8 +348,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_list
                     .into_iter()
                     .zip(variants)
-                    .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
-                    .collect())
+                    .map(|(base, vars)| {
+                        let vars = vars.into_iter().map(ProductWithCurrency::from).collect();
+                        BaseProductWithVariants::new(base, vars)
+                    }).collect())
             }).map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
     }
 
@@ -382,8 +385,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_list
                     .into_iter()
                     .zip(variants)
-                    .map(|(base, vars)| BaseProductWithVariants::new(base, vars))
-                    .collect())
+                    .map(|(base, vars)| {
+                        let vars = vars.into_iter().map(ProductWithCurrency::from).collect();
+                        BaseProductWithVariants::new(base, vars)
+                    }).collect())
             }).map_err(|e: FailureError| e.context("Querying for most viewed base products failed").into())
     }
 
@@ -438,7 +443,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_list
                     .into_iter()
                     .zip(variants)
-                    .map(|(base, var)| BaseProductWithVariants::new(base, vec![var]))
+                    .map(|(base, var)| BaseProductWithVariants::new(base, vec![ProductWithCurrency::from(var)]))
                     .collect())
             }).map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
     }

@@ -368,9 +368,10 @@ impl<
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                 let product = products_repo.find(product_id)?;
                 if let Some(product) = product {
-                    let base_product = base_products_repo
-                        .find(product.base_product_id)
-                        .map(|base_product| base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![product])))?;
+                    let base_product = base_products_repo.find(product.base_product_id).map(|base_product| {
+                        base_product
+                            .map(|base_product| BaseProductWithVariants::new(base_product, vec![ProductWithCurrency::from(product)]))
+                    })?;
                     if let Some(base_product) = base_product {
                         let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
                         let mut base_products = vec![base_product];
@@ -587,6 +588,8 @@ impl<
                     .into_iter()
                     .map(|(base_product_id, products)| {
                         let base_product = base_products_repo.find(base_product_id)?;
+                        let products = products.into_iter().map(ProductWithCurrency::from).collect();
+
                         if let Some(base_product) = base_product {
                             Ok(BaseProductWithVariants::new(base_product, products))
                         } else {
@@ -743,8 +746,8 @@ fn recalc_currencies(
     if let Some(currency_map) = currencies_map {
         for base_product in base_products {
             for mut variant in &mut base_product.variants {
-                variant.price.0 *= currency_map[&variant.currency].0;
-                variant.currency = currency;
+                variant.product.price.0 *= currency_map[&variant.product.currency].0;
+                variant.product.currency = currency;
             }
         }
     }

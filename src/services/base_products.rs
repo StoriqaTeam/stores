@@ -137,7 +137,7 @@ impl<
                         service.spawn_on_pool(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
-                            recalc_currencies(&mut base_products, currency_map, currency);
+                            calculate_customer_price(&mut base_products, currency_map, currency);
                             Ok(base_products)
                         })
                     }
@@ -165,7 +165,7 @@ impl<
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                 let mut base_products = base_products_repo.most_viewed(search_product, count, offset)?;
                 let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                recalc_currencies(&mut base_products, currencies_map, currency);
+                calculate_customer_price(&mut base_products, currencies_map, currency);
                 Ok(base_products)
             }.map_err(|e: FailureError| {
                 e.context("Service BaseProduct, search_base_products_most_viewed endpoint error occurred.")
@@ -200,7 +200,8 @@ impl<
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
                             let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                            recalc_currencies(&mut base_products, currencies_map, currency);
+                            calculate_customer_price(&mut base_products, currencies_map, currency);
+
                             Ok(base_products)
                         })
                     }
@@ -369,13 +370,14 @@ impl<
                 let product = products_repo.find(product_id)?;
                 if let Some(product) = product {
                     let base_product = base_products_repo.find(product.base_product_id).map(|base_product| {
-                        base_product
-                            .map(|base_product| BaseProductWithVariants::new(base_product, vec![ProductWithCurrency::from(product)]))
+                        base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![Product::from(product)]))
                     })?;
                     if let Some(base_product) = base_product {
                         let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
                         let mut base_products = vec![base_product];
-                        recalc_currencies(&mut base_products, currencies_map, currency);
+
+                        calculate_customer_price(&mut base_products, currencies_map, currency);
+
                         return Ok(base_products.pop());
                     };
                 }
@@ -578,7 +580,7 @@ impl<
                 let products_ids = cart.into_iter().map(|cart_product| cart_product.product_id).collect();
                 //find products
                 let products = products_repo.find_many(products_ids)?;
-                let mut group_by_base_product_id = BTreeMap::<BaseProductId, Vec<Product>>::default();
+                let mut group_by_base_product_id = BTreeMap::<BaseProductId, Vec<RawProduct>>::default();
                 for product in products {
                     let p = group_by_base_product_id.entry(product.base_product_id).or_insert_with(Vec::new);
                     p.push(product);
@@ -588,7 +590,7 @@ impl<
                     .into_iter()
                     .map(|(base_product_id, products)| {
                         let base_product = base_products_repo.find(base_product_id)?;
-                        let products = products.into_iter().map(ProductWithCurrency::from).collect();
+                        let products = products.into_iter().map(Product::from).collect();
 
                         if let Some(base_product) = base_product {
                             Ok(BaseProductWithVariants::new(base_product, products))
@@ -598,8 +600,10 @@ impl<
                                 .into())
                         }
                     }).collect::<RepoResult<Vec<BaseProductWithVariants>>>()?;
+
                 let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                recalc_currencies(&mut base_products, currencies_map, currency);
+                calculate_customer_price(&mut base_products, currencies_map, currency);
+
                 let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
                 for base_product_with_variants in base_products {
                     let bp = group_by_store_id
@@ -738,7 +742,7 @@ impl<
     }
 }
 
-fn recalc_currencies(
+fn calculate_customer_price(
     base_products: &mut [BaseProductWithVariants],
     currencies_map: Option<HashMap<Currency, ExchangeRate>>,
     currency: Currency,
@@ -746,8 +750,8 @@ fn recalc_currencies(
     if let Some(currency_map) = currencies_map {
         for base_product in base_products {
             for mut variant in &mut base_product.variants {
-                variant.product.price.0 *= currency_map[&variant.product.currency].0;
-                variant.product.currency = currency;
+                variant.customer_price.price.0 *= currency_map[&variant.product.currency].0;
+                variant.customer_price.currency = currency;
             }
         }
     }

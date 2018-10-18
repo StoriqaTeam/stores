@@ -8,31 +8,31 @@ use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{AttributeId, AttributeValue, BaseProductId, ExchangeRate, ProductId, ProductSellerPrice, StoreId};
+use stq_types::{AttributeId, AttributeValue, BaseProductId, ProductId, ProductPrice, ProductSellerPrice, StoreId};
 
 use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
-use repos::{AttributesRepo, CustomAttributesRepo, ProductAttrsRepo, ReposFactory, StoresRepo};
+use repos::{AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult, ReposFactory, StoresRepo};
 use services::Service;
 
 pub trait ProductsService {
     /// Returns product by ID
-    fn get_product(&self, product_id: ProductId) -> ServiceFuture<Option<ProductWithCurrency>>;
+    fn get_product(&self, product_id: ProductId) -> ServiceFuture<Option<Product>>;
     /// Returns product seller price by ID
     fn get_product_seller_price(&self, product_id: ProductId) -> ServiceFuture<Option<ProductSellerPrice>>;
     /// Returns store_id by ID
     fn get_product_store_id(&self, product_id: ProductId) -> ServiceFuture<Option<StoreId>>;
     /// Deactivates specific product
-    fn deactivate_product(&self, product_id: ProductId) -> ServiceFuture<ProductWithCurrency>;
+    fn deactivate_product(&self, product_id: ProductId) -> ServiceFuture<Product>;
     /// Creates base product
-    fn create_product(&self, payload: NewProductWithAttributes) -> ServiceFuture<ProductWithCurrency>;
+    fn create_product(&self, payload: NewProductWithAttributes) -> ServiceFuture<Product>;
     /// Lists product variants limited by `from` and `count` parameters
-    fn list_products(&self, from: i32, count: i32) -> ServiceFuture<Vec<ProductWithCurrency>>;
+    fn list_products(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>>;
     /// Updates  product
-    fn update_product(&self, product_id: ProductId, payload: UpdateProductWithAttributes) -> ServiceFuture<ProductWithCurrency>;
+    fn update_product(&self, product_id: ProductId, payload: UpdateProductWithAttributes) -> ServiceFuture<Product>;
     /// Get by base product id
-    fn find_products_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<ProductWithCurrency>>;
+    fn find_products_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<Product>>;
     /// Get by base product id
     fn find_products_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<AttrValue>>;
 }
@@ -44,7 +44,7 @@ impl<
     > ProductsService for Service<T, M, F>
 {
     /// Returns product by ID
-    fn get_product(&self, product_id: ProductId) -> ServiceFuture<Option<ProductWithCurrency>> {
+    fn get_product(&self, product_id: ProductId) -> ServiceFuture<Option<Product>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
@@ -53,15 +53,16 @@ impl<
             {
                 let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                let product = products_repo.find(product_id)?.map(ProductWithCurrency::from);
-                if let Some(mut product) = product {
-                    let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                    recalc_currencies(&mut product, &currencies_map, currency);
-                    Ok(Some(product))
+                let raw_product = products_repo.find(product_id)?;
+                if let Some(raw_product) = raw_product {
+                    let customer_price = calculate_customer_price(&*currency_exchange, &raw_product, currency)?;
+                    let result_product = Product::new(raw_product, customer_price);
+
+                    Ok(Some(result_product))
                 } else {
                     Ok(None)
                 }
-            }.map_err(|e: FailureError| e.context("Service Product, get endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get_product endpoint error occurred.").into())
         })
     }
 
@@ -111,23 +112,24 @@ impl<
     }
 
     /// Deactivates specific product
-    fn deactivate_product(&self, product_id: ProductId) -> ServiceFuture<ProductWithCurrency> {
+    fn deactivate_product(&self, product_id: ProductId) -> ServiceFuture<Product> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
-            conn.transaction::<ProductWithCurrency, FailureError, _>(move || {
-                let result_product: ProductWithCurrency = products_repo.deactivate(product_id)?.into();
-                prod_attr_repo.delete_all_attributes(result_product.product.id)?;
-                Ok(result_product)
+            conn.transaction::<Product, FailureError, _>(move || {
+                let result_product = products_repo.deactivate(product_id)?;
+                prod_attr_repo.delete_all_attributes(result_product.id)?;
+
+                Ok(result_product.into())
             }).map_err(|e| e.context("Service Product, deactivate endpoint error occurred.").into())
         })
     }
 
     /// Lists users limited by `from` and `count` parameters
-    fn list_products(&self, from: i32, count: i32) -> ServiceFuture<Vec<ProductWithCurrency>> {
+    fn list_products(&self, from: i32, count: i32) -> ServiceFuture<Vec<Product>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
@@ -136,22 +138,22 @@ impl<
             {
                 let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                let mut products = products_repo
-                    .list(from, count)?
+                let raw_products = products_repo.list(from, count)?;
+
+                let products = raw_products
                     .into_iter()
-                    .map(ProductWithCurrency::from)
-                    .collect::<Vec<ProductWithCurrency>>();
-                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                    .map(|raw_product| {
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                            .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
+                    }).collect::<RepoResult<Vec<Product>>>();
+
                 products
-                    .iter_mut()
-                    .for_each(|mut product| recalc_currencies(&mut product, &currencies_map, currency));
-                Ok(products)
             }.map_err(|e: FailureError| e.context("Service Product, list endpoint error occurred.").into())
         })
     }
 
     /// Creates new product
-    fn create_product(&self, payload: NewProductWithAttributes) -> ServiceFuture<ProductWithCurrency> {
+    fn create_product(&self, payload: NewProductWithAttributes) -> ServiceFuture<Product> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
@@ -165,7 +167,7 @@ impl<
 
             let NewProductWithAttributes { mut product, attributes } = payload;
 
-            conn.transaction::<ProductWithCurrency, FailureError, _>(move || {
+            conn.transaction::<Product, FailureError, _>(move || {
                 // fill currency id taken from base_product first
                 let base_product_id = product
                     .base_product_id
@@ -179,7 +181,7 @@ impl<
 
                 check_vendor_code(&*stores_repo, base_product.store_id, &product.vendor_code)?;
 
-                let result_product: ProductWithCurrency = products_repo.create((product, base_product.currency).into())?.into();
+                let result_product: Product = products_repo.create((product, base_product.currency).into())?.into();
 
                 create_product_attributes_values(
                     &*prod_attr_repo,
@@ -196,7 +198,7 @@ impl<
     }
 
     /// Updates specific product
-    fn update_product(&self, product_id: ProductId, payload: UpdateProductWithAttributes) -> ServiceFuture<ProductWithCurrency> {
+    fn update_product(&self, product_id: ProductId, payload: UpdateProductWithAttributes) -> ServiceFuture<Product> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
@@ -208,7 +210,7 @@ impl<
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
 
-            conn.transaction::<ProductWithCurrency, FailureError, _>(move || {
+            conn.transaction::<Product, FailureError, _>(move || {
                 let original_product = products_repo
                     .find(product_id)?
                     .ok_or(format_err!("Not found such product id: {}", product_id).context(Error::NotFound))?;
@@ -236,7 +238,7 @@ impl<
                     original_product
                 };
 
-                let result_product: ProductWithCurrency = product.into();
+                let result_product: Product = product.into();
 
                 if let Some(attributes) = payload.attributes {
                     create_product_attributes_values(
@@ -255,7 +257,7 @@ impl<
     }
 
     /// Get by base product id
-    fn find_products_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<ProductWithCurrency>> {
+    fn find_products_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<Product>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
@@ -264,16 +266,16 @@ impl<
             {
                 let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                let mut products = products_repo
-                    .find_with_base_id(base_product_id)?
+                let raw_products = products_repo.find_with_base_id(base_product_id)?;
+
+                let result_products = raw_products
                     .into_iter()
-                    .map(ProductWithCurrency::from)
-                    .collect::<Vec<ProductWithCurrency>>();
-                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                products
-                    .iter_mut()
-                    .for_each(|mut product| recalc_currencies(&mut product, &currencies_map, currency));
-                Ok(products)
+                    .map(|raw_product| {
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                            .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
+                    }).collect::<RepoResult<Vec<Product>>>();
+
+                result_products
             }.map_err(|e: FailureError| e.context("Service Product, find_with_base_id endpoint error occurred.").into())
         })
     }
@@ -293,10 +295,20 @@ impl<
     }
 }
 
-fn recalc_currencies(product_arg: &mut ProductWithCurrency, currencies_map: &Option<HashMap<Currency, ExchangeRate>>, currency: Currency) {
+fn calculate_customer_price(
+    currency_exchange: &CurrencyExchangeRepo,
+    product_arg: &RawProduct,
+    currency: Currency,
+) -> RepoResult<CustomerPrice> {
+    let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+
     if let Some(currency_map) = currencies_map {
-        product_arg.product.price.0 *= currency_map[&product_arg.product.currency].0;
-        product_arg.product.currency = currency;
+        let price = ProductPrice(product_arg.price.0 * currency_map[&product_arg.currency].0);
+        Ok(CustomerPrice { price, currency })
+    } else {
+        // When no currency convert how seller price
+        let price = product_arg.price;
+        Ok(CustomerPrice { price, currency })
     }
 }
 
@@ -304,7 +316,7 @@ pub fn create_product_attributes_values(
     prod_attr_repo: &ProductAttrsRepo,
     attr_repo: &AttributesRepo,
     custom_attributes_repo: &CustomAttributesRepo,
-    product_arg: &Product,
+    product_arg: &RawProduct,
     base_product_arg: BaseProductId,
     attributes_values: Vec<AttrValue>,
 ) -> Result<(), FailureError> {
@@ -400,8 +412,8 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
-        Product {
+    pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProduct {
+        RawProduct {
             id,
             base_product_id,
             is_active: true,

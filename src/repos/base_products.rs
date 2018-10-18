@@ -20,7 +20,7 @@ use super::types::RepoResult;
 use models::authorization::*;
 use models::{
     Attribute, BaseProduct, BaseProductWithVariants, CatalogWithAttributes, ElasticProduct, ModeratorBaseProductSearchTerms,
-    MostDiscountProducts, MostViewedProducts, NewBaseProduct, ProdAttr, Product, ProductWithAttributes, ProductWithCurrency, Store,
+    MostDiscountProducts, MostViewedProducts, NewBaseProduct, ProdAttr, Product, ProductWithAttributes, RawProduct, Store,
     UpdateBaseProduct,
 };
 use repos::legacy_acl::*;
@@ -339,17 +339,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         }
                     }).collect::<Vec<ProductId>>();
 
-                let variants = Product::belonging_to(&base_products_list)
+                let variants = RawProduct::belonging_to(&base_products_list)
                     .get_results(self.db_conn)?
                     .into_iter()
-                    .filter(|prod: &Product| variants_ids.iter().any(|id_arg| *id_arg == prod.id))
+                    .filter(|prod: &RawProduct| variants_ids.iter().any(|id_arg| *id_arg == prod.id))
                     .grouped_by(&base_products_list);
 
                 Ok(base_products_list
                     .into_iter()
                     .zip(variants)
                     .map(|(base, vars)| {
-                        let vars = vars.into_iter().map(ProductWithCurrency::from).collect();
+                        let vars = vars.into_iter().map(Product::from).collect();
                         BaseProductWithVariants::new(base, vars)
                     }).collect())
             }).map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
@@ -376,17 +376,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 let base_products_list: Vec<BaseProduct> = base_products_query.get_results(self.db_conn)?;
 
-                let variants = Product::belonging_to(&base_products_list)
+                let variants = RawProduct::belonging_to(&base_products_list)
                     .get_results(self.db_conn)?
                     .into_iter()
-                    .filter(|product: &Product| product.is_active)
+                    .filter(|product: &RawProduct| product.is_active)
                     .grouped_by(&base_products_list);
 
                 Ok(base_products_list
                     .into_iter()
                     .zip(variants)
                     .map(|(base, vars)| {
-                        let vars = vars.into_iter().map(ProductWithCurrency::from).collect();
+                        let vars = vars.into_iter().map(Product::from).collect();
                         BaseProductWithVariants::new(base, vars)
                     }).collect())
             }).map_err(|e: FailureError| e.context("Querying for most viewed base products failed").into())
@@ -405,7 +405,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .offset(offset.into())
                     .limit(count.into());
 
-                let variants = products_query.get_results::<Product>(self.db_conn)?;
+                let variants = products_query.get_results::<RawProduct>(self.db_conn)?;
 
                 let base_products_ids = variants.iter().map(|p| p.base_product_id).collect::<Vec<BaseProductId>>();
 
@@ -443,7 +443,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_list
                     .into_iter()
                     .zip(variants)
-                    .map(|(base, var)| BaseProductWithVariants::new(base, vec![ProductWithCurrency::from(var)]))
+                    .map(|(base, var)| BaseProductWithVariants::new(base, vec![Product::from(var)]))
                     .collect())
             }).map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
     }
@@ -518,7 +518,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .map_err(|e: FailureError| e.context("Getting all base products with variants."))?;
 
-        let all_products = Product::belonging_to(&all_base_products)
+        let all_products = RawProduct::belonging_to(&all_base_products)
             .filter(Products::is_active.eq(true))
             .get_results(self.db_conn)
             .map_err(From::from)
@@ -528,7 +528,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         all_base_products
             .into_iter()
             .zip(all_products)
-            .map(|(base, variants): (BaseProduct, Vec<Product>)| {
+            .map(|(base, variants): (BaseProduct, Vec<RawProduct>)| {
                 let prod_ids = variants.iter().map(|v| v.id).collect::<Vec<ProductId>>();
 
                 let query = DslProdAttr::prod_attr_values

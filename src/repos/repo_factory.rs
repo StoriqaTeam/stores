@@ -1139,19 +1139,19 @@ pub mod tests {
     pub struct ProductsRepoMock;
 
     impl ProductsRepo for ProductsRepoMock {
-        fn find(&self, product_id: ProductId) -> RepoResult<Option<Product>> {
+        fn find(&self, product_id: ProductId) -> RepoResult<Option<RawProduct>> {
             let product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
             Ok(Some(product))
         }
 
-        fn find_with_base_id(&self, base_id: BaseProductId) -> RepoResult<Vec<Product>> {
+        fn find_with_base_id(&self, base_id: BaseProductId) -> RepoResult<Vec<RawProduct>> {
             let mut products = vec![];
             let product = create_product(MOCK_PRODUCT_ID, base_id);
             products.push(product);
             Ok(products)
         }
 
-        fn list(&self, from: i32, count: i32) -> RepoResult<Vec<Product>> {
+        fn list(&self, from: i32, count: i32) -> RepoResult<Vec<RawProduct>> {
             let mut products = vec![];
             for i in from..(from + count) {
                 let product = create_product(ProductId(i), MOCK_BASE_PRODUCT_ID);
@@ -1160,7 +1160,7 @@ pub mod tests {
             Ok(products)
         }
 
-        fn create(&self, payload: NewProduct) -> RepoResult<Product> {
+        fn create(&self, payload: NewProduct) -> RepoResult<RawProduct> {
             if let Some(base_product_id) = payload.base_product_id {
                 return Ok(create_product(MOCK_PRODUCT_ID, base_product_id));
             } else {
@@ -1168,13 +1168,13 @@ pub mod tests {
             }
         }
 
-        fn update(&self, product_id: ProductId, _payload: UpdateProduct) -> RepoResult<Product> {
+        fn update(&self, product_id: ProductId, _payload: UpdateProduct) -> RepoResult<RawProduct> {
             let product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
 
             Ok(product)
         }
 
-        fn deactivate(&self, product_id: ProductId) -> RepoResult<Product> {
+        fn deactivate(&self, product_id: ProductId) -> RepoResult<RawProduct> {
             let mut product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
             product.is_active = false;
             Ok(product)
@@ -1184,7 +1184,7 @@ pub mod tests {
             Ok(1)
         }
 
-        fn find_many(&self, product_ids: Vec<ProductId>) -> RepoResult<Vec<Product>> {
+        fn find_many(&self, product_ids: Vec<ProductId>) -> RepoResult<Vec<RawProduct>> {
             let mut products = vec![];
             for id in product_ids {
                 let product = create_product(id, MOCK_BASE_PRODUCT_ID);
@@ -1286,8 +1286,8 @@ pub mod tests {
         }
     }
 
-    pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
-        Product {
+    pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProduct {
+        RawProduct {
             id,
             base_product_id,
             is_active: true,

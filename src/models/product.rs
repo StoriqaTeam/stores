@@ -16,7 +16,7 @@ use schema::products;
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[belongs_to(BaseProduct)]
 #[table_name = "products"]
-pub struct Product {
+pub struct RawProduct {
     pub id: ProductId,
     pub is_active: bool,
     pub discount: Option<f64>,
@@ -26,12 +26,48 @@ pub struct Product {
     pub updated_at: SystemTime,
     pub base_product_id: BaseProductId,
     pub additional_photos: Option<serde_json::Value>,
+    /// Seller price
     pub price: ProductPrice,
     pub vendor_code: String,
+    /// Seller currency
     pub currency: Currency,
     pub kafka_update_no: i32,
     pub pre_order: bool,
     pub pre_order_days: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CustomerPrice {
+    pub price: ProductPrice,
+    pub currency: Currency,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Product {
+    #[serde(flatten)]
+    pub product: RawProduct,
+    pub customer_price: CustomerPrice,
+}
+
+impl Product {
+    pub fn new(product: RawProduct, customer_price: CustomerPrice) -> Self {
+        Self { product, customer_price }
+    }
+}
+
+impl From<RawProduct> for Product {
+    /// When no currency convert how seller price
+    fn from(other: RawProduct) -> Self {
+        let customer_price = CustomerPrice {
+            price: other.price,
+            currency: other.currency,
+        };
+
+        Self {
+            product: other,
+            customer_price,
+        }
+    }
 }
 
 /// Payload for creating products
@@ -180,12 +216,12 @@ pub struct CartProduct {
 
 #[derive(Debug, Clone)]
 pub struct ProductWithAttributes {
-    pub product: Product,
+    pub product: RawProduct,
     pub attributes: Vec<(ProdAttr, Attribute)>,
 }
 
 impl ProductWithAttributes {
-    pub fn new(product: Product, attributes: Vec<(ProdAttr, Attribute)>) -> Self {
+    pub fn new(product: RawProduct, attributes: Vec<(ProdAttr, Attribute)>) -> Self {
         Self { product, attributes }
     }
 }

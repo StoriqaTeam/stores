@@ -8,12 +8,12 @@ use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{AttributeId, AttributeValue, BaseProductId, ExchangeRate, ProductId, ProductSellerPrice, StoreId};
+use stq_types::{AttributeId, AttributeValue, BaseProductId, ProductId, ProductPrice, ProductSellerPrice, StoreId};
 
 use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
-use repos::{AttributesRepo, CustomAttributesRepo, ProductAttrsRepo, ReposFactory, StoresRepo};
+use repos::{AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult, ReposFactory, StoresRepo};
 use services::Service;
 
 pub trait ProductsService {
@@ -53,15 +53,16 @@ impl<
             {
                 let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                let product = products_repo.find(product_id)?;
-                if let Some(mut product) = product {
-                    let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                    recalc_currencies(&mut product, &currencies_map, currency);
-                    Ok(Some(product))
+                let raw_product = products_repo.find(product_id)?;
+                if let Some(raw_product) = raw_product {
+                    let customer_price = calculate_customer_price(&*currency_exchange, &raw_product, currency)?;
+                    let result_product = Product::new(raw_product, customer_price);
+
+                    Ok(Some(result_product))
                 } else {
                     Ok(None)
                 }
-            }.map_err(|e: FailureError| e.context("Service Product, get endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get_product endpoint error occurred.").into())
         })
     }
 
@@ -118,10 +119,11 @@ impl<
         self.spawn_on_pool(move |conn| {
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
-            conn.transaction::<(Product), FailureError, _>(move || {
-                let product = products_repo.deactivate(product_id)?;
-                prod_attr_repo.delete_all_attributes(product.id)?;
-                Ok(product)
+            conn.transaction::<Product, FailureError, _>(move || {
+                let result_product = products_repo.deactivate(product_id)?;
+                prod_attr_repo.delete_all_attributes(result_product.id)?;
+
+                Ok(result_product.into())
             }).map_err(|e| e.context("Service Product, deactivate endpoint error occurred.").into())
         })
     }
@@ -136,12 +138,16 @@ impl<
             {
                 let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                let mut products = products_repo.list(from, count)?;
-                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                let raw_products = products_repo.list(from, count)?;
+
+                let products = raw_products
+                    .into_iter()
+                    .map(|raw_product| {
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                            .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
+                    }).collect::<RepoResult<Vec<Product>>>();
+
                 products
-                    .iter_mut()
-                    .for_each(|mut product| recalc_currencies(&mut product, &currencies_map, currency));
-                Ok(products)
             }.map_err(|e: FailureError| e.context("Service Product, list endpoint error occurred.").into())
         })
     }
@@ -161,7 +167,7 @@ impl<
 
             let NewProductWithAttributes { mut product, attributes } = payload;
 
-            conn.transaction::<(Product), FailureError, _>(move || {
+            conn.transaction::<Product, FailureError, _>(move || {
                 // fill currency id taken from base_product first
                 let base_product_id = product
                     .base_product_id
@@ -175,18 +181,18 @@ impl<
 
                 check_vendor_code(&*stores_repo, base_product.store_id, &product.vendor_code)?;
 
-                let product = products_repo.create((product, base_product.currency).into())?;
+                let result_product: Product = products_repo.create((product, base_product.currency).into())?.into();
 
                 create_product_attributes_values(
                     &*prod_attr_repo,
                     &*attr_repo,
                     &*custom_attributes_repo,
-                    &product,
+                    &result_product.product,
                     base_product.id,
                     attributes,
                 )?;
 
-                Ok(product)
+                Ok(result_product)
             }).map_err(|e| e.context("Service Product, create endpoint error occurred.").into())
         })
     }
@@ -204,7 +210,7 @@ impl<
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
 
-            conn.transaction::<(Product), FailureError, _>(move || {
+            conn.transaction::<Product, FailureError, _>(move || {
                 let original_product = products_repo
                     .find(product_id)?
                     .ok_or(format_err!("Not found such product id: {}", product_id).context(Error::NotFound))?;
@@ -232,18 +238,20 @@ impl<
                     original_product
                 };
 
+                let result_product: Product = product.into();
+
                 if let Some(attributes) = payload.attributes {
                     create_product_attributes_values(
                         &*prod_attr_repo,
                         &*attr_repo,
                         &*custom_attributes_repo,
-                        &product,
-                        product.base_product_id,
+                        &result_product.product,
+                        result_product.product.base_product_id,
                         attributes,
                     )?;
                 }
 
-                Ok(product)
+                Ok(result_product)
             }).map_err(|e| e.context("Service Product, update endpoint error occurred.").into())
         })
     }
@@ -258,12 +266,16 @@ impl<
             {
                 let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                let mut products = products_repo.find_with_base_id(base_product_id)?;
-                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                products
-                    .iter_mut()
-                    .for_each(|mut product| recalc_currencies(&mut product, &currencies_map, currency));
-                Ok(products)
+                let raw_products = products_repo.find_with_base_id(base_product_id)?;
+
+                let result_products = raw_products
+                    .into_iter()
+                    .map(|raw_product| {
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                            .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
+                    }).collect::<RepoResult<Vec<Product>>>();
+
+                result_products
             }.map_err(|e: FailureError| e.context("Service Product, find_with_base_id endpoint error occurred.").into())
         })
     }
@@ -283,10 +295,20 @@ impl<
     }
 }
 
-fn recalc_currencies(product: &mut Product, currencies_map: &Option<HashMap<Currency, ExchangeRate>>, currency: Currency) {
+fn calculate_customer_price(
+    currency_exchange: &CurrencyExchangeRepo,
+    product_arg: &RawProduct,
+    currency: Currency,
+) -> RepoResult<CustomerPrice> {
+    let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+
     if let Some(currency_map) = currencies_map {
-        product.price.0 *= currency_map[&product.currency].0;
-        product.currency = currency;
+        let price = ProductPrice(product_arg.price.0 * currency_map[&product_arg.currency].0);
+        Ok(CustomerPrice { price, currency })
+    } else {
+        // When no currency convert how seller price
+        let price = product_arg.price;
+        Ok(CustomerPrice { price, currency })
     }
 }
 
@@ -294,7 +316,7 @@ pub fn create_product_attributes_values(
     prod_attr_repo: &ProductAttrsRepo,
     attr_repo: &AttributesRepo,
     custom_attributes_repo: &CustomAttributesRepo,
-    product_arg: &Product,
+    product_arg: &RawProduct,
     base_product_arg: BaseProductId,
     attributes_values: Vec<AttrValue>,
 ) -> Result<(), FailureError> {
@@ -390,8 +412,8 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
-        Product {
+    pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProduct {
+        RawProduct {
             id,
             base_product_id,
             is_active: true,
@@ -463,7 +485,7 @@ pub mod tests {
         let service = create_service(Some(MOCK_USER_ID), handle);
         let work = service.get_product(ProductId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.unwrap().id, ProductId(1));
+        assert_eq!(result.unwrap().product.id, ProductId(1));
     }
 
     #[test]
@@ -484,7 +506,7 @@ pub mod tests {
         let new_product = create_new_product_with_attributes(MOCK_BASE_PRODUCT_ID);
         let work = service.create_product(new_product);
         let result = core.run(work).unwrap();
-        assert_eq!(result.base_product_id, MOCK_BASE_PRODUCT_ID);
+        assert_eq!(result.product.base_product_id, MOCK_BASE_PRODUCT_ID);
     }
 
     #[test]
@@ -495,8 +517,8 @@ pub mod tests {
         let new_product = create_update_product_with_attributes();
         let work = service.update_product(ProductId(1), new_product);
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, ProductId(1));
-        assert_eq!(result.base_product_id, MOCK_BASE_PRODUCT_ID);
+        assert_eq!(result.product.id, ProductId(1));
+        assert_eq!(result.product.base_product_id, MOCK_BASE_PRODUCT_ID);
     }
 
     #[test]
@@ -506,8 +528,8 @@ pub mod tests {
         let service = create_service(Some(MOCK_USER_ID), handle);
         let work = service.deactivate_product(ProductId(1));
         let result = core.run(work).unwrap();
-        assert_eq!(result.id, ProductId(1));
-        assert_eq!(result.is_active, false);
+        assert_eq!(result.product.id, ProductId(1));
+        assert_eq!(result.product.is_active, false);
     }
 
 }

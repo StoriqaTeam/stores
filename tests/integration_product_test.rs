@@ -26,8 +26,8 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
     }
 }
-pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> Product {
-    Product {
+pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProduct {
+    RawProduct {
         id: id,
         base_product_id: base_product_id,
         is_active: true,
@@ -133,7 +133,7 @@ fn products_crud() {
         .core
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
-    let value = serde_json::from_str::<Product>(&code);
+    let value = serde_json::from_str::<RawProduct>(&code);
     assert!(value.is_ok());
 
     let id = value.unwrap().id;
@@ -146,7 +146,7 @@ fn products_crud() {
         .core
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
-    let value = serde_json::from_str::<Product>(&code);
+    let value = serde_json::from_str::<RawProduct>(&code);
     assert!(value.is_ok());
 
     //update
@@ -165,7 +165,7 @@ fn products_crud() {
         .core
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
-    let value = serde_json::from_str::<Product>(&code);
+    let value = serde_json::from_str::<RawProduct>(&code);
     assert!(value.is_ok());
 
     //delete
@@ -177,6 +177,6 @@ fn products_crud() {
         .core
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
-    let value = serde_json::from_str::<Product>(&code);
+    let value = serde_json::from_str::<RawProduct>(&code);
     assert!(value.is_ok());
 }

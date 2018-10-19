@@ -49,7 +49,7 @@ pub trait ProductsRepo {
     fn deactivate(&self, product_id: ProductId) -> RepoResult<RawProduct>;
 
     /// Deactivates specific product
-    fn deactivate_by_base_product(&self, base_product_id: BaseProductId) -> RepoResult<Vec<Product>>;
+    fn deactivate_by_base_product(&self, base_product_id: BaseProductId) -> RepoResult<Vec<RawProduct>>;
 
     /// Update currency on all prodouct with base_product_id
     fn update_currency(&self, currency: Currency, base_product_id: BaseProductId) -> RepoResult<usize>;
@@ -188,7 +188,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Deactivates specific product
-    fn deactivate_by_base_product(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<Product>> {
+    fn deactivate_by_base_product(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<RawProduct>> {
         debug!("Deactivate products by base product id {}.", base_product_id_arg);
 
         let query = products.filter(base_product_id.eq(base_product_id_arg));
@@ -196,7 +196,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results(self.db_conn)
             .map_err(From::from)
-            .and_then(|results: Vec<Product>| {
+            .and_then(|results: Vec<RawProduct>| {
                 for product in &results {
                     acl::check(&*self.acl, Resource::Products, Action::Delete, self, Some(product))?;
                 }

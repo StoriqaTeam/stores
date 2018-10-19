@@ -417,7 +417,9 @@ impl<
                 let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                 let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
                 let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                let products_repo = repo_factory.create_product_repo(&*conn, user_id);
                 let prod = base_products_repo.deactivate(base_product_id)?;
+                let _ = products_repo.deactivate_by_base_product(base_product_id)?;
                 // update product categories of the store
                 let store = stores_repo.find(prod.store_id)?;
                 if let Some(store) = store {

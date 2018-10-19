@@ -1197,6 +1197,13 @@ pub mod tests {
             Ok(product)
         }
 
+
+        fn deactivate_by_base_product(&self, base_product_id: BaseProductId) -> RepoResult<Vec<RawProduct>> {
+            let mut product = create_product(MOCK_PRODUCT_ID, base_product_id);
+            product.is_active = false;
+            Ok(vec![product])
+        }
+
         fn update_currency(&self, _currency_arg: Currency, _base_product_id_arg: BaseProductId) -> RepoResult<usize> {
             Ok(1)
         }

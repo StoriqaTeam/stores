@@ -8,6 +8,7 @@ pub enum Route {
     Attributes,
     Attribute(AttributeId),
     BaseProducts,
+    BaseProductsCount,
     BaseProductWithVariants,
     BaseProductsSearch,
     BaseProductsAutoComplete,
@@ -52,6 +53,7 @@ pub enum Route {
     StoresCart,
     StoresSlugExists,
     Store(StoreId),
+    StoreCount,
     StoreByUser(UserId),
     StoreProducts(StoreId),
     StoreProductsCount(StoreId),
@@ -107,6 +109,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(StoreId)
             .map(Route::StoreProductsCount)
     });
+
+    // Stores count route
+    router.add_route(r"^/stores/count$", || Route::StoreCount);
 
     // Stores Cart route
     router.add_route(r"^/stores/cart$", || Route::StoresCart);
@@ -200,6 +205,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(BaseProductId)
             .map(Route::BaseProductWithViewsUpdate)
     });
+
+    // Base products count route
+    router.add_route(r"^/base_products/count$", || Route::BaseProductsCount);
 
     // Base products with variants routes
     router.add_route(r"^/base_products/with_variants$", || Route::BaseProductWithVariants);

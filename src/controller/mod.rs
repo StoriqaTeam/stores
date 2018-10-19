@@ -282,6 +282,18 @@ impl<
                 )
             }
 
+            // GET /stores/count
+            (&Get, Some(Route::StoreCount)) => {
+                let only_active = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "only_active" => bool
+                );
+
+                debug!("Received request to get store count (only_active: {:?})", only_active);
+
+                serialize_future({ service.count(only_active.unwrap_or(false)) })
+            }
+
             // PUT /stores/<store_id>
             (&Put, Some(Route::Store(store_id))) => {
                 debug!("User with id = '{:?}' is requesting  // PUT /stores/{}", user_id, store_id);
@@ -343,7 +355,7 @@ impl<
                 serialize_future(service.get_product(product_id))
             }
 
-            // GET products/by_base_product/<base_product_id> route
+            // GET /products/by_base_product/<base_product_id> route
             (&Get, Some(Route::ProductsByBaseProduct(base_product_id))) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // GET products/by_base_product/{}",
@@ -352,7 +364,7 @@ impl<
                 serialize_future(service.find_products_with_base_id(base_product_id))
             }
 
-            // GET products/<product_id>/attributes route
+            // GET /products/<product_id>/attributes route
             (&Get, Some(Route::ProductAttributes(product_id))) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // GET attributes/{}/attributes",
@@ -471,7 +483,7 @@ impl<
                 serialize_future(service.get_custom_attributes_by_base_product(base_product_id))
             }
 
-            // GET base_products/by_product/<product_id>
+            // GET /base_products/by_product/<product_id>
             (&Get, Some(Route::BaseProductByProduct(product_id))) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // GET base_products/by_product/{}",
@@ -494,6 +506,16 @@ impl<
                             .into(),
                     ))
                 }
+            }
+
+            // GET /base_products/count
+            (&Get, Some(Route::BaseProductsCount)) => {
+                debug!("User with id = '{:?}' is requesting  // GET /base_products/count", user_id);
+                let only_active = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "only_active" => bool
+                );
+                serialize_future(service.base_product_count(only_active.unwrap_or(false)))
             }
 
             // POST /base_products
@@ -1063,50 +1085,56 @@ impl<
 
             // POST /stores/moderator_search
             (&Post, Some(Route::ModeratorStoreSearch)) => {
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => StoreId, "count" => i64) {
-                    debug!("Received request to search {} stores starting from {}", count, offset);
-                    serialize_future(
-                        parse_body::<ModeratorStoreSearchTerms>(req.body())
-                            .map_err(|e| {
-                                e.context("Parsing body // POST /stores/moderator_search in ModeratorStoreSearchTerms failed!")
-                                    .context(Error::Parse)
-                                    .into()
-                            }).inspect(|payload| {
-                                debug!("Received request to search for store whith payload {:?}", payload);
-                            }).and_then(move |payload| service.moderator_search_stores(offset, count, payload)),
-                    )
-                } else {
-                    Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /stores/moderator_search failed!")
-                            .context(Error::Parse)
-                            .into(),
-                    ))
-                }
+                let (offset, skip_opt, count_opt) = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "offset" => StoreId, "skip" => i64, "count" => i64
+                );
+
+                debug!(
+                    "Received request to search stores (offset id: {:?}, skip: {:?}, count: {:?})",
+                    offset, skip_opt, count_opt
+                );
+
+                let skip = skip_opt.unwrap_or(0);
+                let count = count_opt.unwrap_or(0);
+
+                serialize_future(
+                    parse_body::<ModeratorStoreSearchTerms>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /stores/moderator_search in ModeratorStoreSearchTerms failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).inspect(|payload| {
+                            debug!("Received request to search for store whith payload {:?}", payload);
+                        }).and_then(move |payload| service.moderator_search_stores(offset, skip, count, payload)),
+                )
             }
 
             // POST /base_products/moderator_search
             (&Post, Some(Route::ModeratorBaseProductSearch)) => {
-                if let (Some(offset), Some(count)) =
-                    parse_query!(req.query().unwrap_or_default(), "offset" => BaseProductId, "count" => i64)
-                {
-                    debug!("Received request to search {} base_products starting from {}", count, offset);
-                    serialize_future(
-                        parse_body::<ModeratorBaseProductSearchTerms>(req.body())
-                            .map_err(|e| {
-                                e.context("Parsing body // POST /base_products/moderator_search in ModeratorBaseProductSearchTerms failed!")
-                                    .context(Error::Parse)
-                                    .into()
-                            }).inspect(|payload| {
-                                debug!("Received request to search for base_product whith payload {:?}", payload);
-                            }).and_then(move |payload| service.moderator_search_base_product(offset, count, payload)),
-                    )
-                } else {
-                    Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /base_products/moderator_search failed!")
-                            .context(Error::Parse)
-                            .into(),
-                    ))
-                }
+                let (offset, skip_opt, count_opt) = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "offset" => BaseProductId, "skip" => i64, "count" => i64
+                );
+
+                debug!(
+                    "Received request to search base_products (offset id: {:?}, skip: {:?}, count: {:?})",
+                    offset, skip_opt, count_opt
+                );
+
+                let skip = skip_opt.unwrap_or(0);
+                let count = count_opt.unwrap_or(0);
+
+                serialize_future(
+                    parse_body::<ModeratorBaseProductSearchTerms>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /base_products/moderator_search in ModeratorBaseProductSearchTerms failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).inspect(|payload| {
+                            debug!("Received request to search for base_product whith payload {:?}", payload);
+                        }).and_then(move |payload| service.moderator_search_base_product(offset, skip, count, payload)),
+                )
             }
 
             // Fallback

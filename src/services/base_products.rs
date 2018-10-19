@@ -27,6 +27,8 @@ use services::Service;
 const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
+    /// Returns base product count
+    fn base_product_count(&self, only_active: bool) -> ServiceFuture<i64>;
     /// Find product by name limited by `count` and `offset` parameters
     fn search_base_products_by_name(
         self,
@@ -84,10 +86,11 @@ pub trait BaseProductsService {
     fn update_base_product(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
     /// Cart
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
-    /// Search base products limited by `from` and `count` parameters
+    /// Search base products limited by `from`, `skip` and `count` parameters
     fn moderator_search_base_product(
         &self,
-        from: BaseProductId,
+        from: Option<BaseProductId>,
+        skip: i64,
         count: i64,
         term: ModeratorBaseProductSearchTerms,
     ) -> ServiceFuture<Vec<BaseProduct>>;
@@ -110,6 +113,21 @@ impl<
         F: ReposFactory<T>,
     > BaseProductsService for Service<T, M, F>
 {
+    /// Returns base product count
+    fn base_product_count(&self, only_active: bool) -> ServiceFuture<i64> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        debug!("Getting base product count");
+
+        self.spawn_on_pool(move |conn| {
+            let base_product_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            base_product_repo
+                .count(only_active)
+                .map_err(|e: FailureError| e.context("Service `base_products`, `count` endpoint error occurred.").into())
+        })
+    }
+
     fn search_base_products_by_name(
         self,
         mut search_product: SearchProductsByName,
@@ -628,10 +646,11 @@ impl<
         })
     }
 
-    /// Search base products limited by `from` and `count` parameters
+    /// Search base products limited by `from`, `skip` and `count` parameters
     fn moderator_search_base_product(
         &self,
-        from: BaseProductId,
+        from: Option<BaseProductId>,
+        skip: i64,
         count: i64,
         term: ModeratorBaseProductSearchTerms,
     ) -> ServiceFuture<Vec<BaseProduct>> {
@@ -639,15 +658,18 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         debug!(
-            "Searching for {} base_products starting from {} with payload: {:?}",
-            count, from, term
+            "Searching for base_products (from id: {:?}, skip: {}, count: {}) with payload: {:?}",
+            from, skip, count, term
         );
 
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
             base_products_repo
-                .moderator_search(from, count, term)
-                .map_err(|e: FailureError| e.context("Service base_products, moderator_search endpoint error occurred.").into())
+                .moderator_search(from, skip, count, term)
+                .map_err(|e: FailureError| {
+                    e.context("Service `base_products`, `moderator_search` endpoint error occurred.")
+                        .into()
+                })
         })
     }
 

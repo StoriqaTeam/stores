@@ -18,6 +18,8 @@ use repos::ReposFactory;
 use services::Service;
 
 pub trait StoresService {
+    /// Returns total store count
+    fn count(&self, only_active: bool) -> ServiceFuture<i64>;
     /// Find stores by name limited by `count` parameters
     fn find_store_by_name(self, search_store: SearchStore, count: i32, offset: i32) -> ServiceFuture<Vec<Store>>;
     /// search filters count
@@ -46,8 +48,14 @@ pub trait StoresService {
     fn update_store(&self, store_id: StoreId, payload: UpdateStore) -> ServiceFuture<Store>;
     /// Checks that slug exists
     fn store_slug_exists(&self, slug: String) -> ServiceFuture<bool>;
-    /// Search stores limited by `from` and `count` parameters
-    fn moderator_search_stores(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> ServiceFuture<Vec<Store>>;
+    /// Search stores limited by `from`, `skip` and `count` parameters
+    fn moderator_search_stores(
+        &self,
+        from: Option<StoreId>,
+        skip: i64,
+        count: i64,
+        term: ModeratorStoreSearchTerms,
+    ) -> ServiceFuture<Vec<Store>>;
     /// Set moderation status for specific store
     fn set_store_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store>;
 }
@@ -58,6 +66,21 @@ impl<
         F: ReposFactory<T>,
     > StoresService for Service<T, M, F>
 {
+    /// Returns total store count
+    fn count(&self, only_active: bool) -> ServiceFuture<i64> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        debug!("Getting store count");
+
+        self.spawn_on_pool(move |conn| {
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+            stores_repo
+                .count(only_active)
+                .map_err(|e: FailureError| e.context("Service `stores`, `count` endpoint error occurred.").into())
+        })
+    }
+
     fn store_auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>> {
         let client_handle = self.static_context.client_handle.clone();
         let address = self.static_context.config.server.elastic.clone();
@@ -301,18 +324,27 @@ impl<
         })
     }
 
-    /// Search stores limited by `from` and `count` parameters
-    fn moderator_search_stores(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> ServiceFuture<Vec<Store>> {
+    /// Search stores limited by `from`, `skip` and `count` parameters
+    fn moderator_search_stores(
+        &self,
+        from: Option<StoreId>,
+        skip: i64,
+        count: i64,
+        term: ModeratorStoreSearchTerms,
+    ) -> ServiceFuture<Vec<Store>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
-        debug!("Searching for {} stores starting from {} with payload: {:?}", count, from, term);
+        debug!(
+            "Searching for stores (from id: {:?}, skip: {}, count: {}) with payload: {:?}",
+            from, skip, count, term
+        );
 
         self.spawn_on_pool(move |conn| {
             let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
             stores_repo
-                .moderator_search(from, count, term)
-                .map_err(|e: FailureError| e.context("Service stores, moderator_search endpoint error occurred.").into())
+                .moderator_search(from, skip, count, term)
+                .map_err(|e: FailureError| e.context("Service `stores`, `moderator_search` endpoint error occurred.").into())
         })
     }
 

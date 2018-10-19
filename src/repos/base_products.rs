@@ -37,6 +37,9 @@ pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManag
 }
 
 pub trait BaseProductsRepo {
+    /// Get base_product count
+    fn count(&self, only_active: bool) -> RepoResult<i64>;
+
     /// Find specific base_product by ID
     fn find(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>>;
 
@@ -82,8 +85,14 @@ pub trait BaseProductsRepo {
     /// Convert data from elastic to PG models
     fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>>;
 
-    /// Search base product limited by `from` and `count` parameters
-    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> RepoResult<Vec<BaseProduct>>;
+    /// Search base product limited by `from`, `skip` and `count` parameters
+    fn moderator_search(
+        &self,
+        from: Option<BaseProductId>,
+        skip: i64,
+        count: i64,
+        term: ModeratorBaseProductSearchTerms,
+    ) -> RepoResult<Vec<BaseProduct>>;
 
     /// Set moderation status for base_product_ids
     fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
@@ -105,6 +114,19 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepo
     for BaseProductsRepoImpl<'a, T>
 {
+    /// Get base_product count
+    fn count(&self, only_active: bool) -> RepoResult<i64> {
+        let query = if only_active {
+            base_products.filter(is_active.eq(true)).into_boxed()
+        } else {
+            base_products.into_boxed()
+        };
+
+        acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
+            .and_then(|_| query.count().get_result(self.db_conn).map_err(From::from))
+            .map_err(|e| FailureError::from(e).context("Count base products error occurred").into())
+    }
+
     /// Find specific base_product by ID
     fn find(&self, base_product_id_arg: BaseProductId) -> RepoResult<Option<BaseProduct>> {
         debug!("Find in base products with id {}.", base_product_id_arg);
@@ -448,9 +470,25 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             }).map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
     }
 
-    /// Search base product limited by `from` and `count` parameters
-    fn moderator_search(&self, from: BaseProductId, count: i64, term: ModeratorBaseProductSearchTerms) -> RepoResult<Vec<BaseProduct>> {
-        let mut query = base_products.filter(id.ge(from)).into_boxed();
+    /// Search base product limited by `from`, `skip` and `count` parameters
+    fn moderator_search(
+        &self,
+        from: Option<BaseProductId>,
+        skip: i64,
+        count: i64,
+        term: ModeratorBaseProductSearchTerms,
+    ) -> RepoResult<Vec<BaseProduct>> {
+        let mut query = base_products.into_boxed();
+
+        if let Some(from_id) = from {
+            query = query.filter(id.ge(from_id));
+        }
+        if skip > 0 {
+            query = query.offset(skip);
+        }
+        if count > 0 {
+            query = query.limit(count);
+        }
 
         if let Some(term_name) = term.name {
             query = query.filter(sql(format!("name::text like '%{}%'", term_name).as_ref()));
@@ -462,9 +500,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             query = query.filter(status.eq(term_state));
         }
 
-        query = query.order(id).limit(count);
-
         query
+            .order(id)
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
@@ -475,8 +512,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "moderator search for base_products, limited by {} and {} error occurred",
-                    from, count
+                    "moderator search for base_products error occurred (from id: {:?}, skip: {}, count: {})",
+                    from, skip, count
                 )).into()
             })
     }

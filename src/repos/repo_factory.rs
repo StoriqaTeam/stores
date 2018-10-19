@@ -587,6 +587,11 @@ pub mod tests {
     pub struct BaseProductsRepoMock;
 
     impl BaseProductsRepo for BaseProductsRepoMock {
+        /// Get base_product count
+        fn count(&self, only_active: bool) -> RepoResult<i64> {
+            Ok(if only_active { 0 } else { 1 })
+        }
+
         /// Find specific base_product by ID
         fn find(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>> {
             Ok(Some(BaseProduct {
@@ -809,7 +814,8 @@ pub mod tests {
 
         fn moderator_search(
             &self,
-            _from: BaseProductId,
+            _from: Option<BaseProductId>,
+            _skip: i64,
             _count: i64,
             _term: ModeratorBaseProductSearchTerms,
         ) -> RepoResult<Vec<BaseProduct>> {
@@ -966,6 +972,10 @@ pub mod tests {
     pub struct StoresRepoMock;
 
     impl StoresRepo for StoresRepoMock {
+        fn count(&self, only_active: bool) -> RepoResult<i64> {
+            Ok(if only_active { 0 } else { 1 })
+        }
+
         fn find(&self, store_id: StoreId) -> RepoResult<Option<Store>> {
             let store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             Ok(Some(store))
@@ -1021,9 +1031,16 @@ pub mod tests {
             Ok(None)
         }
 
-        fn moderator_search(&self, from: StoreId, count: i64, _term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+        fn moderator_search(
+            &self,
+            from: Option<StoreId>,
+            skip: i64,
+            count: i64,
+            _term: ModeratorStoreSearchTerms,
+        ) -> RepoResult<Vec<Store>> {
             let mut stores = vec![];
-            for i in from.0..(from.0 + count as i32) {
+            let from_id = from.unwrap_or(StoreId(1));
+            for i in (from_id.0..).skip(skip as usize).take(count as usize) {
                 let store = create_store(StoreId(i), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
                 stores.push(store);
             }

@@ -29,6 +29,9 @@ pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = A
 }
 
 pub trait StoresRepo {
+    /// Get store count
+    fn count(&self, only_active: bool) -> RepoResult<i64>;
+
     /// Find specific store by ID
     fn find(&self, store_id: StoreId) -> RepoResult<Option<Store>>;
 
@@ -59,8 +62,8 @@ pub trait StoresRepo {
     /// Checks if vendor code exists across the store
     fn vendor_code_exists(&self, store_id: StoreId, vendor_code: &str) -> RepoResult<Option<bool>>;
 
-    /// Search stores limited by `from` and `count` parameters
-    fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
+    /// Search stores limited by `from`, `skip` and `count` parameters
+    fn moderator_search(&self, from: Option<StoreId>, skip: i64, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
 
     /// Set moderation status for specific store
     fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Store>;
@@ -77,6 +80,19 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepo for StoresRepoImpl<'a, T> {
+    /// Get store count
+    fn count(&self, only_active: bool) -> RepoResult<i64> {
+        let query = if only_active {
+            stores.filter(is_active.eq(true)).into_boxed()
+        } else {
+            stores.into_boxed()
+        };
+
+        acl::check(&*self.acl, Resource::Stores, Action::Read, self, None)
+            .and_then(|_| query.count().get_result(self.db_conn).map_err(From::from))
+            .map_err(|e| FailureError::from(e).context("Count stores error occurred").into())
+    }
+
     /// Find specific store by ID
     fn find(&self, store_id_arg: StoreId) -> RepoResult<Option<Store>> {
         debug!("Find in stores with id {}.", store_id_arg);
@@ -255,9 +271,19 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         })
     }
 
-    /// Search stores limited by `from` and `count` parameters
-    fn moderator_search(&self, from: StoreId, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
-        let mut query = stores.filter(id.ge(from)).into_boxed();
+    /// Search stores limited by `from`, `skip` and `count` parameters
+    fn moderator_search(&self, from: Option<StoreId>, skip: i64, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+        let mut query = stores.into_boxed();
+
+        if let Some(from_id) = from {
+            query = query.filter(id.ge(from_id));
+        }
+        if skip > 0 {
+            query = query.offset(skip);
+        }
+        if count > 0 {
+            query = query.limit(count);
+        }
 
         if let Some(term_name) = term.name {
             query = query.filter(sql(format!("name::text like '%{}%'", term_name).as_ref()));
@@ -271,9 +297,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             query = query.filter(status.eq(term_state));
         }
 
-        query = query.order(id).limit(count);
-
         query
+            .order(id)
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|stores_res: Vec<Store>| {
@@ -284,8 +309,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(stores_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "moderator search for stores, limited by {} and {} error occurred",
-                    from, count
+                    "moderator search for stores error occurred (from id: {:?}, skip: {}, count: {})",
+                    from, skip, count
                 )).into()
             })
     }

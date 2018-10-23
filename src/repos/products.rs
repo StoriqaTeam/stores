@@ -48,6 +48,9 @@ pub trait ProductsRepo {
     /// Deactivates specific product
     fn deactivate(&self, product_id: ProductId) -> RepoResult<RawProduct>;
 
+    /// Deactivates specific product
+    fn deactivate_by_base_product(&self, base_product_id: BaseProductId) -> RepoResult<Vec<RawProduct>>;
+
     /// Update currency on all prodouct with base_product_id
     fn update_currency(&self, currency: Currency, base_product_id: BaseProductId) -> RepoResult<usize>;
 }
@@ -180,6 +183,31 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 self.execute_query(query)
             }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate product with id {} error occurred.", product_id_arg))
+                    .into()
+            })
+    }
+
+    /// Deactivates specific product
+    fn deactivate_by_base_product(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<RawProduct>> {
+        debug!("Deactivate products by base product id {}.", base_product_id_arg);
+
+        let query = products.filter(base_product_id.eq(base_product_id_arg));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|results: Vec<RawProduct>| {
+                for product in &results {
+                    acl::check(&*self.acl, Resource::Products, Action::Delete, self, Some(product))?;
+                }
+
+                Ok(results)
+            }).and_then(|_| {
+                let filtered = products.filter(base_product_id.eq(base_product_id_arg)).filter(is_active.eq(true));
+                let query_update = diesel::update(filtered).set(is_active.eq(false));
+                query_update.get_results(self.db_conn).map_err(From::from)
+            }).map_err(|e: FailureError| {
+                e.context(format!("Deactivate products by base_product_id {} failed", base_product_id_arg))
                     .into()
             })
     }

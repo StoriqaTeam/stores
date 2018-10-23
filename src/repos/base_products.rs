@@ -43,6 +43,9 @@ pub trait BaseProductsRepo {
     /// Find specific base_product by ID
     fn find(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>>;
 
+    /// Find base_products by ids
+    fn find_many(&self, base_product_ids: Vec<BaseProductId>) -> RepoResult<Vec<BaseProduct>>;
+
     /// Returns list of base_products, limited by `from` and `count` parameters
     fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>>;
 
@@ -144,6 +147,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Find base product by id: {} error occurred", base_product_id_arg))
                     .into()
             })
+    }
+
+    /// Find base_products by ids
+    fn find_many(&self, base_product_ids: Vec<BaseProductId>) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Find many base products.");
+        let query = base_products.filter(id.eq_any(base_product_ids));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|results: Vec<BaseProduct>| {
+                for result in results.iter() {
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(result))?;
+                }
+                Ok(results)
+            }).map_err(|e: FailureError| e.context(format!("Find many base products error occurred")).into())
     }
 
     /// Counts products by store id

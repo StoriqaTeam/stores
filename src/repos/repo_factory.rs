@@ -24,6 +24,8 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
     fn create_custom_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a>;
     fn create_user_roles_repo_with_sys_acl<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a>;
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<UserRolesRepo + 'a>;
+    fn create_coupon_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CouponsRepo + 'a>;
+    fn create_coupon_scope_base_products_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CouponScopeBaseProductsRepo + 'a>;
 }
 
 #[derive(Clone)]
@@ -128,6 +130,16 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CustomAttributesRepoImpl::new(db_conn, acl)) as Box<CustomAttributesRepo>
     }
+
+    fn create_coupon_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CouponsRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(CouponsRepoImpl::new(db_conn, acl)) as Box<CouponsRepo>
+    }
+
+    fn create_coupon_scope_base_products_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CouponScopeBaseProductsRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(CouponScopeBaseProductsRepoImpl::new(db_conn, acl)) as Box<CouponScopeBaseProductsRepo>
+    }
 }
 
 #[cfg(test)]
@@ -177,6 +189,9 @@ pub mod tests {
     pub static MOCK_STORE_NAME: &'static str = "store";
     pub static MOCK_STORE_SLUG: &'static str = "{}";
     pub static MOCK_BASE_PRODUCT_NAME_JSON: &'static str = r##"[{"lang": "en","text": "base product"}]"##;
+
+    pub static MOCK_COUPON_ID: CouponId = CouponId(1);
+    pub static MOCK_COUPON_CODE: &'static str = "ASD";
 
     pub fn create_service(
         user_id: Option<UserId>,
@@ -240,6 +255,16 @@ pub mod tests {
         }
         fn create_custom_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CustomAttributesRepo + 'a> {
             Box::new(CustomAttributesRepoMock::default()) as Box<CustomAttributesRepo>
+        }
+        fn create_coupon_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CouponsRepo + 'a> {
+            Box::new(CouponsRepoMock::default()) as Box<CouponsRepo>
+        }
+        fn create_coupon_scope_base_products_repo<'a>(
+            &self,
+            _db_conn: &'a C,
+            _user_id: Option<UserId>,
+        ) -> Box<CouponScopeBaseProductsRepo + 'a> {
+            Box::new(CouponScopeBaseProductsRepoMock::default()) as Box<CouponScopeBaseProductsRepo>
         }
     }
 
@@ -321,6 +346,148 @@ pub mod tests {
                 id: id_arg,
                 base_product_id: BaseProductId(1),
                 attribute_id: AttributeId(1),
+            })
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct CouponsRepoMock;
+
+    impl CouponsRepo for CouponsRepoMock {
+        /// Creates new coupon
+        fn create(&self, payload: NewCoupon) -> RepoResult<Coupon> {
+            Ok(Coupon {
+                id: MOCK_COUPON_ID,
+                code: payload.code,
+                title: payload.title,
+                store_id: payload.store_id,
+                scope: payload.scope,
+                percent: payload.percent,
+                quantity: payload.quantity,
+                expired_at: None,
+                is_active: true,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            })
+        }
+
+        /// List all coupons
+        fn list(&self) -> RepoResult<Vec<Coupon>> {
+            Ok(vec![Coupon {
+                id: MOCK_COUPON_ID,
+                code: CouponCode(MOCK_COUPON_CODE.to_string()),
+                title: "title".to_string(),
+                store_id: StoreId(1),
+                scope: CouponScope::BaseProducts,
+                percent: 0,
+                quantity: 1,
+                expired_at: None,
+                is_active: true,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            }])
+        }
+
+        /// Get coupon
+        fn get(&self, _id_arg: CouponId) -> RepoResult<Option<Coupon>> {
+            Ok(None)
+        }
+
+        /// Get coupon by code
+        fn get_by_code(&self, code_arg: CouponCode, store_id_arg: StoreId) -> RepoResult<Option<Coupon>> {
+            Ok(Some(Coupon {
+                id: MOCK_COUPON_ID,
+                code: code_arg,
+                title: "title".to_string(),
+                store_id: store_id_arg,
+                scope: CouponScope::BaseProducts,
+                percent: 0,
+                quantity: 1,
+                expired_at: None,
+                is_active: true,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            }))
+        }
+
+        /// Search coupons
+        fn find_by(&self, search: CouponSearch) -> RepoResult<Vec<Coupon>> {
+            match search {
+                CouponSearch::Store(store_id) => Ok(vec![Coupon {
+                    id: MOCK_COUPON_ID,
+                    code: CouponCode(MOCK_COUPON_CODE.to_string()),
+                    title: "title".to_string(),
+                    store_id,
+                    scope: CouponScope::BaseProducts,
+                    percent: 0,
+                    quantity: 1,
+                    expired_at: None,
+                    is_active: true,
+                    created_at: SystemTime::now(),
+                    updated_at: SystemTime::now(),
+                }]),
+            }
+        }
+
+        /// Update coupon
+        fn update(&self, id_arg: CouponId, payload: UpdateCoupon) -> RepoResult<Coupon> {
+            Ok(Coupon {
+                id: id_arg,
+                code: CouponCode(MOCK_COUPON_CODE.to_string()),
+                title: "title".to_string(),
+                store_id: StoreId(1),
+                scope: CouponScope::BaseProducts,
+                percent: payload.percent.unwrap_or_default(),
+                quantity: payload.quantity.unwrap_or_default(),
+                expired_at: None,
+                is_active: payload.is_active.unwrap_or_default(),
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            })
+        }
+
+        /// Delete coupon
+        fn delete(&self, id_arg: CouponId) -> RepoResult<Coupon> {
+            Ok(Coupon {
+                id: id_arg,
+                code: CouponCode(MOCK_COUPON_CODE.to_string()),
+                title: "title".to_string(),
+                store_id: StoreId(1),
+                scope: CouponScope::BaseProducts,
+                percent: 0,
+                quantity: 1,
+                expired_at: None,
+                is_active: true,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            })
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct CouponScopeBaseProductsRepoMock;
+
+    impl CouponScopeBaseProductsRepo for CouponScopeBaseProductsRepoMock {
+        /// Add base product in to coupon
+        fn create(&self, payload: NewCouponScopeBaseProducts) -> RepoResult<CouponScopeBaseProducts> {
+            Ok(CouponScopeBaseProducts {
+                id: 0,
+                coupon_id: payload.coupon_id,
+                base_product_id: payload.base_product_id,
+            })
+        }
+
+        /// Search base_products by coupon id
+        fn find_base_products(&self, _id_arg: CouponId) -> RepoResult<Vec<BaseProductId>> {
+            Ok(vec![MOCK_BASE_PRODUCT_ID])
+        }
+
+        /// Delete coupon for scope base products
+        fn delete(&self, id_arg: CouponId, base_product_arg: BaseProductId) -> RepoResult<CouponScopeBaseProducts> {
+            Ok(CouponScopeBaseProducts {
+                id: 0,
+                coupon_id: id_arg,
+                base_product_id: base_product_arg,
             })
         }
     }
@@ -613,6 +780,36 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
             }))
+        }
+
+        fn find_many(&self, base_product_ids: Vec<BaseProductId>) -> RepoResult<Vec<BaseProduct>> {
+            let mut result = vec![];
+
+            for item in base_product_ids {
+                let val = BaseProduct {
+                    id: item,
+                    is_active: true,
+                    store_id: StoreId(1),
+                    name: serde_json::from_str("{}").unwrap(),
+                    short_description: serde_json::from_str("{}").unwrap(),
+                    long_description: None,
+                    seo_title: None,
+                    seo_description: None,
+                    currency: Currency::STQ,
+                    category_id: CategoryId(1),
+                    views: 1,
+                    created_at: SystemTime::now(),
+                    updated_at: SystemTime::now(),
+                    rating: 0f64,
+                    slug: "slug".to_string(),
+                    status: ModerationStatus::Published,
+                    kafka_update_no: 0,
+                };
+
+                result.push(val);
+            }
+
+            Ok(result)
         }
 
         /// Returns list of base_products, limited by `from` and `count` parameters

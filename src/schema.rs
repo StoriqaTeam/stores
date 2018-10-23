@@ -48,6 +48,38 @@ table! {
 }
 
 table! {
+    coupons (id) {
+        id -> Int4,
+        code -> Varchar,
+        title -> Varchar,
+        store_id -> Int4,
+        scope -> Varchar,
+        percent -> Int4,
+        quantity -> Int4,
+        expired_at -> Nullable<Timestamp>,
+        is_active -> Bool,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+table! {
+    coupon_scope_base_products (id) {
+        id -> Int4,
+        coupon_id -> Int4,
+        base_product_id -> Int4,
+    }
+}
+
+table! {
+    coupon_scope_categories (id) {
+        id -> Int4,
+        coupon_id -> Int4,
+        category_id -> Int4,
+    }
+}
+
+table! {
     currency_exchange (id) {
         id -> Uuid,
         data -> Jsonb,
@@ -193,6 +225,11 @@ joinable!(base_products -> categories (category_id));
 joinable!(base_products -> stores (store_id));
 joinable!(cat_attr_values -> attributes (attr_id));
 joinable!(cat_attr_values -> categories (cat_id));
+joinable!(coupon_scope_base_products -> base_products (base_product_id));
+joinable!(coupon_scope_base_products -> coupons (coupon_id));
+joinable!(coupon_scope_categories -> categories (category_id));
+joinable!(coupon_scope_categories -> coupons (coupon_id));
+joinable!(coupons -> stores (store_id));
 joinable!(custom_attributes -> attributes (attribute_id));
 joinable!(custom_attributes -> base_products (base_product_id));
 joinable!(moderator_product_comments -> base_products (base_product_id));
@@ -207,6 +244,9 @@ allow_tables_to_appear_in_same_query!(
     base_products,
     cat_attr_values,
     categories,
+    coupons,
+    coupon_scope_base_products,
+    coupon_scope_categories,
     currency_exchange,
     custom_attributes,
     moderator_product_comments,

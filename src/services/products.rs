@@ -295,7 +295,7 @@ impl<
     }
 }
 
-fn calculate_customer_price(
+pub fn calculate_customer_price(
     currency_exchange: &CurrencyExchangeRepo,
     product_arg: &RawProduct,
     currency: Currency,

@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS coupon_scope_base_products;

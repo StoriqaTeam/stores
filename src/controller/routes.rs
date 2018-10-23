@@ -32,6 +32,15 @@ pub enum Route {
     CurrencyExchange,
     CustomAttributes,
     CustomAttribute(CustomAttributeId),
+    Coupons,
+    Coupon(CouponId),
+    CouponsSearchCode,
+    CouponsSearchFiltersStore(StoreId),
+    CouponScopeBaseProducts {
+        coupon_id: CouponId,
+        base_product_id: BaseProductId,
+    },
+    BaseProductsByCoupon(CouponId),
     ModeratorProductComments,
     ModeratorBaseProductComment(BaseProductId),
     ModeratorBaseProductSearch,
@@ -60,8 +69,12 @@ pub enum Route {
     StorePublish(StoreId),
     StoreDraft(StoreId),
     Roles,
-    RoleById { id: RoleId },
-    RolesByUserId { user_id: UserId },
+    RoleById {
+        id: RoleId,
+    },
+    RolesByUserId {
+        user_id: UserId,
+    },
     WizardStores,
 }
 
@@ -268,17 +281,55 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route_with_params(r"^/custom_attributes/(\d+)$", |params| {
         params
             .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(CustomAttributeId)
+            .and_then(|string_id| string_id.parse::<CustomAttributeId>().ok())
             .map(Route::CustomAttribute)
+    });
+
+    // Coupons Routes
+    router.add_route(r"^/coupons$", || Route::Coupons);
+
+    // Coupons/:id route
+    router.add_route_with_params(r"^/coupons/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<CouponId>().ok())
+            .map(Route::Coupon)
+    });
+
+    router.add_route_with_params(r"^/coupons/stores/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<StoreId>().ok())
+            .map(Route::CouponsSearchFiltersStore)
+    });
+
+    // Search coupons route
+    router.add_route(r"^/coupons/search/code$", || Route::CouponsSearchCode);
+
+    // Add base product to coupon
+    router.add_route_with_params(r"^/coupons/(\d+)/base_products/(\d+)$", |params| {
+        let coupon_id = params.get(0)?.parse().ok().map(CouponId)?;
+        let base_product_id = params.get(1)?.parse().ok().map(BaseProductId)?;
+
+        Some(Route::CouponScopeBaseProducts {
+            coupon_id,
+            base_product_id,
+        })
+    });
+
+    // Getting base_products by coupon_id
+    router.add_route_with_params(r"^/coupons/(\d+)/base_products$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<CouponId>().ok())
+            .map(Route::BaseProductsByCoupon)
     });
 
     // Attributes/:id route
     router.add_route_with_params(r"^/attributes/(\d+)$", |params| {
         params
             .get(0)
-            .and_then(|string_id| string_id.parse::<i32>().ok())
-            .map(AttributeId)
+            .and_then(|string_id| string_id.parse::<AttributeId>().ok())
             .map(Route::Attribute)
     });
 

@@ -38,10 +38,12 @@ stq_logging = { path = "vendor/libstqbackend/logging" }
 stq_router = { path = "vendor/libstqbackend/router" }
 stq_static_resources = { path = "vendor/libstqbackend/static_resources" }
 stq_types = { path = "vendor/libstqbackend/types" }
+stq_diesel_macro_derive = { path = "vendor/libstqbackend/diesel_macro_derive" }
 tokio-core = "0.1"
 tokio = "0.1.11"
 validator = "0.7.1"
 validator_derive = "0.7.2"
+uuid = { version = "0.6", features = ["use_std", "v4", "serde"] }
 sentry = "0.12"
 
 # rocket rocket retail

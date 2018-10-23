@@ -43,7 +43,7 @@ pub trait BaseProductsService {
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
-    /// Find product by dicount pattern limited by `count` and `offset` parameters
+    /// Find product by discount pattern limited by `count` and `offset` parameters
     fn search_base_products_most_discount(
         self,
         prod: MostDiscountProducts,

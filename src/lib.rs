@@ -37,6 +37,8 @@ extern crate stq_logging;
 extern crate stq_router;
 extern crate stq_static_resources;
 extern crate stq_types;
+#[macro_use]
+extern crate stq_diesel_macro_derive;
 extern crate tokio_core;
 extern crate validator;
 #[macro_use]
@@ -47,6 +49,7 @@ extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate tokio;
 extern crate treexml;
+extern crate uuid;
 
 #[macro_use]
 pub mod macros;

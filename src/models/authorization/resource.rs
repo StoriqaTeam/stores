@@ -12,11 +12,13 @@ pub enum Resource {
     Categories,
     CategoryAttrs,
     CustomAttributes,
-    CustomAttributesValues,
     CurrencyExchange,
     WizardStores,
     ModeratorProductComments,
     ModeratorStoreComments,
+    Coupons,
+    CouponScopeBaseProducts,
+    CouponScopeCategories,
 }
 
 impl fmt::Display for Resource {
@@ -31,11 +33,13 @@ impl fmt::Display for Resource {
             Resource::CategoryAttrs => write!(f, "cat attrs"),
             Resource::Categories => write!(f, "categories"),
             Resource::CustomAttributes => write!(f, "custom_attributes"),
-            Resource::CustomAttributesValues => write!(f, "custom_attributes_values"),
             Resource::CurrencyExchange => write!(f, "currency_exchange"),
             Resource::WizardStores => write!(f, "wizard_stores"),
             Resource::ModeratorProductComments => write!(f, "moderator_product_comments"),
             Resource::ModeratorStoreComments => write!(f, "moderator_store_comments"),
+            Resource::Coupons => write!(f, "coupons"),
+            Resource::CouponScopeBaseProducts => write!(f, "coupon_scope_base_products"),
+            Resource::CouponScopeCategories => write!(f, "coupon_scope_categories"),
         }
     }
 }

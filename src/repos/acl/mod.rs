@@ -38,7 +38,7 @@ pub fn check<T>(
     })
 }
 
-/// ApplicationAcl contains main logic for manipulation with recources
+/// ApplicationAcl contains main logic for manipulation with resources
 #[derive(Clone)]
 pub struct ApplicationAcl {
     acls: Rc<HashMap<StoresRole, Vec<Permission>>>,
@@ -58,7 +58,6 @@ impl ApplicationAcl {
                 permission!(Resource::CategoryAttrs),
                 permission!(Resource::CurrencyExchange),
                 permission!(Resource::CustomAttributes),
-                permission!(Resource::CustomAttributesValues),
                 permission!(Resource::ModeratorProductComments),
                 permission!(Resource::ModeratorStoreComments),
                 permission!(Resource::ProductAttrs),
@@ -66,6 +65,9 @@ impl ApplicationAcl {
                 permission!(Resource::Stores),
                 permission!(Resource::UserRoles),
                 permission!(Resource::WizardStores),
+                permission!(Resource::Coupons),
+                permission!(Resource::CouponScopeBaseProducts),
+                permission!(Resource::CouponScopeCategories),
             ],
         );
         hash.insert(
@@ -81,8 +83,6 @@ impl ApplicationAcl {
                 permission!(Resource::CurrencyExchange, Action::Read),
                 permission!(Resource::CustomAttributes, Action::All, Scope::Owned),
                 permission!(Resource::CustomAttributes, Action::Read),
-                permission!(Resource::CustomAttributesValues, Action::All, Scope::Owned),
-                permission!(Resource::CustomAttributesValues, Action::Read),
                 permission!(Resource::ModeratorProductComments, Action::All, Scope::Owned),
                 permission!(Resource::ModeratorProductComments, Action::Read),
                 permission!(Resource::ModeratorStoreComments, Action::All, Scope::Owned),
@@ -98,6 +98,12 @@ impl ApplicationAcl {
                 permission!(Resource::UserRoles, Action::Read, Scope::Owned),
                 permission!(Resource::WizardStores, Action::All, Scope::Owned),
                 permission!(Resource::WizardStores, Action::Read),
+                permission!(Resource::Coupons, Action::All, Scope::Owned),
+                permission!(Resource::Coupons, Action::Read),
+                permission!(Resource::CouponScopeBaseProducts, Action::All, Scope::Owned),
+                permission!(Resource::CouponScopeBaseProducts, Action::Read),
+                permission!(Resource::CouponScopeCategories, Action::All, Scope::Owned),
+                permission!(Resource::CouponScopeCategories, Action::Read),
             ],
         );
 

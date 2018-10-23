@@ -5,7 +5,7 @@ use isolang::Language;
 use regex::Regex;
 use serde_json;
 use stq_static_resources::Translation;
-use stq_types::ProductPrice;
+use stq_types::{CouponCode, ProductPrice};
 use validator::ValidationError;
 
 pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
@@ -65,6 +65,27 @@ pub fn validate_non_negative<T: Into<f64>>(val: T) -> Result<(), ValidationError
 
 pub fn validate_non_negative_price(price: &ProductPrice) -> Result<(), ValidationError> {
     validate_non_negative(price.0)
+}
+
+pub fn validate_non_negative_coupon_quantity(value: i32) -> Result<(), ValidationError> {
+    validate_non_negative(value)
+}
+
+pub fn validate_length_coupon_code(val: &CouponCode) -> Result<(), ValidationError> {
+    let expect_min = 4;
+    let expect_max = 12;
+
+    let data = val.to_string();
+
+    if data.len() < expect_min || data.len() > expect_max {
+        Ok(())
+    } else {
+        Err(ValidationError {
+            code: Cow::from("value"),
+            message: Some(Cow::from("Value must be >=4 and <= 12 characters.")),
+            params: HashMap::new(),
+        })
+    }
 }
 
 pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {

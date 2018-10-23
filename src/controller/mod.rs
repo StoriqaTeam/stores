@@ -36,10 +36,12 @@ use controller::context::{DynamicContext, StaticContext};
 use errors::Error;
 use models::*;
 use repos::repo_factory::*;
+use repos::CouponSearch;
 use sentry_integration::log_and_capture_error;
 use services::attributes::AttributesService;
 use services::base_products::BaseProductsService;
 use services::categories::CategoriesService;
+use services::coupons::CouponsService;
 use services::currency_exchange::CurrencyExchangeService;
 use services::custom_attributes::CustomAttributesService;
 use services::moderator_comments::ModeratorCommentsService;
@@ -805,27 +807,145 @@ impl<
                 serialize_future({ service.delete_custom_attribute(custom_attributes_id) })
             }
 
-            (Get, Some(Route::RolesByUserId { user_id })) => {
+            // POST /coupons
+            (&Post, Some(Route::Coupons)) => {
+                debug!("User with id = '{:?}' is requesting // POST /coupons", user_id);
+                serialize_future(
+                    parse_body::<NewCoupon>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /coupons in NewCoupon failed!")
+                                .context(Error::Parse)
+                                .into()
+                        })
+                        .and_then(move |new_coupon| {
+                            new_coupon
+                                .validate()
+                                .map_err(|e| {
+                                    format_err!("Validation of NewCoupon failed!")
+                                        .context(Error::Validate(e))
+                                        .into()
+                                }).into_future()
+                                .and_then(move |_| service.create_coupon(new_coupon))
+                        }),
+                )
+            }
+
+            // GET /coupons/:id
+            (&Get, Some(Route::Coupon(coupon_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /coupons/{}",
+                    user_id, coupon_id
+                );
+                serialize_future(service.get_coupon(coupon_id))
+            }
+
+            // POST /coupons/search/code
+            (&Post, Some(Route::CouponsSearchCode)) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /coupons/search/code",
+                    user_id
+                );
+
+                serialize_future(parse_body::<CouponsSearchCodePayload>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /coupons/search/code in CouponsSearchCodePayload failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |payload| service.get_coupon_by_code(payload)))
+            }
+
+            // POST /coupons/:coupon_id/base_products/:base_product_id
+            (&Post, Some(Route::CouponScopeBaseProducts {coupon_id, base_product_id})) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /coupons/{}/base_products/{}",
+                    user_id, coupon_id, base_product_id
+                );
+
+                serialize_future(service.add_base_product_coupon(coupon_id, base_product_id))
+            }
+
+            // GET /coupons/stores/:id
+            (&Get, Some(Route::CouponsSearchFiltersStore(store_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /coupons/stores/{}",
+                    user_id, store_id
+                );
+                let search = CouponSearch::Store(store_id);
+                serialize_future(service.find_coupons(search))
+            }
+
+            // GET /coupons/:coupon_id/base_products
+            (&Get, Some(Route::BaseProductsByCoupon(coupon_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /coupons/{}/base_products",
+                    user_id, coupon_id
+                );
+
+                serialize_future(service.find_base_products_by_coupon(coupon_id))
+            }
+
+            // PUT /coupons/:id
+            (&Put, Some(Route::Coupon(coupon_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // PUT /coupons/{}",
+                    user_id, coupon_id
+                );
+                serialize_future(
+                    parse_body::<UpdateCoupon>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // PUT /coupons/<base_product_id> in UpdateCoupon failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |update_coupon| {
+                            update_coupon
+                                .validate()
+                                .map_err(|e| {
+                                    format_err!("Validation of UpdateCoupon failed!")
+                                        .context(Error::Validate(e))
+                                        .into()
+                                }).into_future()
+                                .and_then(move |_| service.update_coupon(coupon_id, update_coupon))
+                        }),
+                )
+            }
+
+            // DELETE /coupons/:id
+            (Delete, Some(Route::Coupon(coupon_id))) => {
+                debug!("Received request to delete coupon id {} by user id {:?}", coupon_id, user_id);
+                serialize_future({ service.delete_coupon(coupon_id) })
+            }
+
+            // DELETE /coupons/:coupon_id/base_products/:base_product_id
+            (&Delete, Some(Route::CouponScopeBaseProducts {coupon_id, base_product_id})) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // DELETE /coupons/{}/base_products/{}",
+                    user_id, coupon_id, base_product_id
+                );
+
+                serialize_future(service.delete_base_product_from_coupon(coupon_id, base_product_id))
+            }
+
+            (&Get, Some(Route::RolesByUserId { user_id })) => {
                 debug!("Received request to get roles by user id {}", user_id);
                 serialize_future({ service.get_roles(user_id) })
             }
-            (Post, Some(Route::Roles)) => serialize_future({
+            (&Post, Some(Route::Roles)) => serialize_future({
                 parse_body::<NewUserRole>(req.body()).and_then(move |data| {
                     debug!("Received request to create role {:?}", data);
                     service.create_user_role(data)
                 })
             }),
-            (Delete, Some(Route::Roles)) => serialize_future({
+            (&Delete, Some(Route::Roles)) => serialize_future({
                 parse_body::<RemoveUserRole>(req.body()).and_then(move |data| {
                     debug!("Received request to remove role {:?}", data);
                     service.delete_user_role(data)
                 })
             }),
-            (Delete, Some(Route::RolesByUserId { user_id })) => {
+            (&Delete, Some(Route::RolesByUserId { user_id })) => {
                 debug!("Received request to delete role by user id {}", user_id);
                 serialize_future({ service.delete_user_role_by_user_id(user_id) })
             }
-            (Delete, Some(Route::RoleById { id })) => {
+            (&Delete, Some(Route::RoleById { id })) => {
                 debug!("Received request to delete role by id {}", id);
                 serialize_future({ service.delete_user_role_by_id(id) })
             }

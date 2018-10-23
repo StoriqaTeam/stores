@@ -192,7 +192,7 @@ impl<
         })
     }
 
-    /// Find product by dicount pattern limited by `count` and `offset` parameters
+    /// Find product by discount pattern limited by `count` and `offset` parameters
     fn search_base_products_most_discount(
         self,
         mut search_product: MostDiscountProducts,
@@ -513,9 +513,16 @@ impl<
             conn.transaction::<BaseProduct, FailureError, _>(move || {
                 // create base_product
                 let base_prod = base_products_repo.create(new_base_product)?;
+                let base_prod_id = base_prod.id;
 
                 // update product categories of the store
                 update_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
+
+                let variants = variants.into_iter().map(move |mut variant| {
+                    variant.product.base_product_id = Some(base_prod_id);
+
+                    variant
+                });
 
                 for variant in variants {
                     // create variant

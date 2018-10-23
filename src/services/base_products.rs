@@ -109,10 +109,10 @@ pub trait BaseProductsService {
 }
 
 impl<
-    T: Connection<Backend=Pg, TransactionManager=AnsiTransactionManager> + 'static,
-    M: ManageConnection<Connection=T>,
-    F: ReposFactory<T>,
-> BaseProductsService for Service<T, M, F>
+        T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+        M: ManageConnection<Connection = T>,
+        F: ReposFactory<T>,
+    > BaseProductsService for Service<T, M, F>
 {
     /// Returns base product count
     fn base_product_count(&self, only_active: bool) -> ServiceFuture<i64> {
@@ -152,18 +152,18 @@ impl<
                         .search_by_name(search_product, count, offset)
                         .map(|el_products| (el_products, currency_map))
                 }).and_then({
-                move |(el_products, currency_map)| {
-                    service.spawn_on_pool(move |conn| {
-                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                        let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
-                        calculate_customer_price(&mut base_products, currency_map, currency);
-                        Ok(base_products)
-                    })
-                }
-            }).map_err(|e| {
-                e.context("Service BaseProduct, search_base_products_by_name endpoint error occurred.")
-                    .into()
-            }),
+                    move |(el_products, currency_map)| {
+                        service.spawn_on_pool(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
+                            calculate_customer_price(&mut base_products, currency_map, currency);
+                            Ok(base_products)
+                        })
+                    }
+                }).map_err(|e| {
+                    e.context("Service BaseProduct, search_base_products_by_name endpoint error occurred.")
+                        .into()
+                }),
         )
     }
 
@@ -213,21 +213,21 @@ impl<
                     search_product.options = options;
                     products_el.search_most_discount(search_product, count, offset)
                 }).and_then({
-                move |el_products| {
-                    self.spawn_on_pool(move |conn| {
-                        let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
-                        let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                        let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
-                        let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                        calculate_customer_price(&mut base_products, currencies_map, currency);
+                    move |el_products| {
+                        self.spawn_on_pool(move |conn| {
+                            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                            let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
+                            let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                            calculate_customer_price(&mut base_products, currencies_map, currency);
 
-                        Ok(base_products)
-                    })
-                }
-            }).map_err(|e| {
-                e.context("Service BaseProduct, search_base_products_most_discount endpoint error occurred.")
-                    .into()
-            }),
+                            Ok(base_products)
+                        })
+                    }
+                }).map_err(|e| {
+                    e.context("Service BaseProduct, search_base_products_most_discount endpoint error occurred.")
+                        .into()
+                }),
         )
     }
 
@@ -256,9 +256,9 @@ impl<
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
                 }).map_err(|e| {
-                e.context("Service BaseProduct, search_base_products_filters_price endpoint error occurred.")
-                    .into()
-            }),
+                    e.context("Service BaseProduct, search_base_products_filters_price endpoint error occurred.")
+                        .into()
+                }),
         )
     }
 
@@ -273,9 +273,9 @@ impl<
                     search_prod.options = options;
                     products_el.count(search_prod)
                 }).map_err(|e| {
-                e.context("Service BaseProduct, search_base_products_filters_count endpoint error occurred.")
-                    .into()
-            }),
+                    e.context("Service BaseProduct, search_base_products_filters_count endpoint error occurred.")
+                        .into()
+                }),
         )
     }
 
@@ -342,9 +342,9 @@ impl<
                     }
                     Box::new(future::ok(None))
                 }).map_err(|e| {
-                e.context("Service BaseProduct, search_base_products_attributes endpoint error occurred.")
-                    .into()
-            }),
+                    e.context("Service BaseProduct, search_base_products_attributes endpoint error occurred.")
+                        .into()
+                }),
         )
     }
 

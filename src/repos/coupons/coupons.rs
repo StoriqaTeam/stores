@@ -61,6 +61,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Creates new coupon
     fn create(&self, payload: NewCoupon) -> RepoResult<Coupon> {
         debug!("Create new coupon {:?}.", payload);
+        let mut payload = payload;
+        payload.code = payload.code.0.to_uppercase().into();
 
         let query = diesel::insert_into(Coupons::coupons).values(&payload);
         query

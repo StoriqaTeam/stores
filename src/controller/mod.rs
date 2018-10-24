@@ -839,6 +839,12 @@ impl<
                 serialize_future(service.get_coupon(coupon_id))
             }
 
+            // GET /coupons/generate_code
+            (&Get, Some(Route::CouponsGenerateCode)) => {
+                debug!("User with id = '{:?}' is requesting  // GET /coupons/generate_code", user_id);
+                serialize_future(service.generate_coupon_code())
+            }
+
             // POST /coupons/search/code
             (&Post, Some(Route::CouponsSearchCode)) => {
                 debug!(

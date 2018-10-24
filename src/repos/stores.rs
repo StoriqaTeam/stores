@@ -16,7 +16,7 @@ use stq_types::{StoreId, UserId};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::{ModeratorStoreSearchTerms, NewStore, Store, UpdateStore};
+use models::{ModeratorStoreSearchTerms, NewStore, Store, UpdateStore, Visibility};
 use repos::legacy_acl::*;
 use schema::base_products::dsl as BaseProducts;
 use schema::products::dsl as Products;
@@ -30,13 +30,13 @@ pub struct StoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = A
 
 pub trait StoresRepo {
     /// Get store count
-    fn count(&self, only_active: bool) -> RepoResult<i64>;
+    fn count(&self, visibility: Visibility) -> RepoResult<i64>;
 
     /// Find specific store by ID
-    fn find(&self, store_id: StoreId) -> RepoResult<Option<Store>>;
+    fn find(&self, store_id: StoreId, visibility: Visibility) -> RepoResult<Option<Store>>;
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: StoreId, count: i32) -> RepoResult<Vec<Store>>;
+    fn list(&self, from: StoreId, count: i32, visibility: Visibility) -> RepoResult<Vec<Store>>;
 
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store>;
@@ -81,11 +81,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepo for StoresRepoImpl<'a, T> {
     /// Get store count
-    fn count(&self, only_active: bool) -> RepoResult<i64> {
-        let query = if only_active {
-            stores.filter(is_active.eq(true)).into_boxed()
-        } else {
-            stores.into_boxed()
+    fn count(&self, visibility: Visibility) -> RepoResult<i64> {
+        debug!("Count stores with visibility = {:?}", visibility);
+
+        let query = match visibility {
+            Visibility::Active => stores.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => stores
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
         };
 
         acl::check(&*self.acl, Resource::Stores, Action::Read, self, None)
@@ -94,11 +97,19 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Find specific store by ID
-    fn find(&self, store_id_arg: StoreId) -> RepoResult<Option<Store>> {
-        debug!("Find in stores with id {}.", store_id_arg);
-        let query = stores.find(store_id_arg).filter(is_active.eq(true));
+    fn find(&self, store_id_arg: StoreId, visibility: Visibility) -> RepoResult<Option<Store>> {
+        debug!("Find in stores with id {}, visibility = {:?}", store_id_arg, visibility);
+
+        let query = match visibility {
+            Visibility::Active => stores.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => stores
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
+
         query
-            .get_result(self.db_conn)
+            .filter(id.eq(store_id_arg))
+            .first(self.db_conn)
             .optional()
             .map_err(From::from)
             .and_then(|store: Option<Store>| {
@@ -121,11 +132,20 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
-    fn list(&self, from: StoreId, count: i32) -> RepoResult<Vec<Store>> {
-        debug!("Find in stores from {} count {}.", from, count);
-        let query = stores.filter(is_active.eq(true)).filter(id.gt(from)).order(id).limit(count.into());
+    fn list(&self, from: StoreId, count: i32, visibility: Visibility) -> RepoResult<Vec<Store>> {
+        debug!("Find in stores from {} count {} with visibility = {:?}", from, count, visibility);
+
+        let query = match visibility {
+            Visibility::Active => stores.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => stores
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
 
         query
+            .filter(id.ge(from))
+            .order(id)
+            .limit(count.into())
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|stores_res: Vec<Store>| {
@@ -247,7 +267,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         debug!("Check if vendor code '{}' exists for store '{}'", vendor_code, store_id);
 
         {
-            if self.find(store_id)?.is_none() {
+            if self.find(store_id, Visibility::Active)?.is_none() {
                 return Ok(None);
             }
 
@@ -273,7 +293,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Search stores limited by `from`, `skip` and `count` parameters
     fn moderator_search(&self, from: Option<StoreId>, skip: i64, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
-        let mut query = stores.into_boxed();
+        let mut query = stores.filter(is_active.eq(true)).into_boxed();
 
         if let Some(from_id) = from {
             query = query.filter(id.ge(from_id));

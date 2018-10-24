@@ -21,7 +21,7 @@ use models::authorization::*;
 use models::{
     Attribute, BaseProduct, BaseProductWithVariants, CatalogWithAttributes, ElasticProduct, ModeratorBaseProductSearchTerms,
     MostDiscountProducts, MostViewedProducts, NewBaseProduct, ProdAttr, Product, ProductWithAttributes, RawProduct, Store,
-    UpdateBaseProduct,
+    UpdateBaseProduct, Visibility,
 };
 use repos::legacy_acl::*;
 use schema::attributes::dsl as DslAttributes;
@@ -38,16 +38,16 @@ pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManag
 
 pub trait BaseProductsRepo {
     /// Get base_product count
-    fn count(&self, only_active: bool) -> RepoResult<i64>;
+    fn count(&self, visibility: Visibility) -> RepoResult<i64>;
 
     /// Find specific base_product by ID
-    fn find(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>>;
+    fn find(&self, base_product_id: BaseProductId, visibility: Visibility) -> RepoResult<Option<BaseProduct>>;
 
     /// Find base_products by ids
     fn find_many(&self, base_product_ids: Vec<BaseProductId>) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns list of base_products, limited by `from` and `count` parameters
-    fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>>;
+    fn list(&self, from: BaseProductId, count: i32, visibility: Visibility) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns most viewed list of base_products, limited by `from` and `offset` parameters
     fn most_viewed(&self, search_product: MostViewedProducts, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>>;
@@ -62,10 +62,11 @@ pub trait BaseProductsRepo {
         skip_base_product_id: Option<BaseProductId>,
         from: BaseProductId,
         count: i32,
+        visibility: Visibility,
     ) -> RepoResult<Vec<BaseProduct>>;
 
     /// Counts products by store id
-    fn count_with_store_id(&self, store_id: StoreId) -> RepoResult<i32>;
+    fn count_with_store_id(&self, store_id: StoreId, visibility: Visibility) -> RepoResult<i32>;
 
     /// Creates new base_product
     fn create(&self, payload: NewBaseProduct) -> RepoResult<BaseProduct>;
@@ -118,11 +119,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     for BaseProductsRepoImpl<'a, T>
 {
     /// Get base_product count
-    fn count(&self, only_active: bool) -> RepoResult<i64> {
-        let query = if only_active {
-            base_products.filter(is_active.eq(true)).into_boxed()
-        } else {
-            base_products.into_boxed()
+    fn count(&self, visibility: Visibility) -> RepoResult<i64> {
+        debug!("Count base products with visibility = {:?}", visibility);
+
+        let query = match visibility {
+            Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => base_products
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
         };
 
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
@@ -131,11 +135,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Find specific base_product by ID
-    fn find(&self, base_product_id_arg: BaseProductId) -> RepoResult<Option<BaseProduct>> {
-        debug!("Find in base products with id {}.", base_product_id_arg);
-        let query = base_products.find(base_product_id_arg);
+    fn find(&self, base_product_id_arg: BaseProductId, visibility: Visibility) -> RepoResult<Option<BaseProduct>> {
+        debug!(
+            "Find in base products with id {}, visibility = {:?}",
+            base_product_id_arg, visibility
+        );
+
+        let query = match visibility {
+            Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => base_products
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
+
         query
-            .get_result(self.db_conn)
+            .filter(id.eq(base_product_id_arg))
+            .first(self.db_conn)
             .optional()
             .map_err(From::from)
             .and_then(|base_product: Option<BaseProduct>| {
@@ -166,11 +181,19 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Counts products by store id
-    fn count_with_store_id(&self, store_id_arg: StoreId) -> RepoResult<i32> {
-        debug!("Counts products with store id {}.", store_id_arg);
-        let query = base_products.filter(is_active.eq(true)).filter(store_id.eq(store_id_arg)).count();
+    fn count_with_store_id(&self, store_id_arg: StoreId, visibility: Visibility) -> RepoResult<i32> {
+        debug!("Counts products with store id {}, visibility = {:?}", store_id_arg, visibility);
+
+        let query = match visibility {
+            Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => base_products
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
 
         query
+            .filter(store_id.eq(store_id_arg))
+            .count()
             .get_result(self.db_conn)
             .optional()
             .map(|count: Option<i64>| if let Some(count) = count { count as i32 } else { 0 })
@@ -193,15 +216,23 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Returns list of base_products, limited by `from` and `count` parameters
-    fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>> {
-        debug!("Find in base products with ids from {} count {}.", from, count);
-        let query = base_products
-            .filter(is_active.eq(true))
-            .filter(id.ge(from))
-            .order(id)
-            .limit(count.into());
+    fn list(&self, from: BaseProductId, count: i32, visibility: Visibility) -> RepoResult<Vec<BaseProduct>> {
+        debug!(
+            "Find in base products with ids from {} count {} with visibility = {:?}",
+            from, count, visibility
+        );
+
+        let query = match visibility {
+            Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => base_products
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
 
         query
+            .filter(id.ge(from))
+            .order(id)
+            .limit(count.into())
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
@@ -224,15 +255,21 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         skip_base_product_id: Option<BaseProductId>,
         from: BaseProductId,
         count: i32,
+        visibility: Visibility,
     ) -> RepoResult<Vec<BaseProduct>> {
         debug!(
-            "Find in base products with store id {} skip {:?} from {} count {}.",
-            store_id_arg, skip_base_product_id, from, count
+            "Find in base products with store id = {}, skip = {:?}, from id = {}, count = {}, visibility = {:?}",
+            store_id_arg, skip_base_product_id, from, count, visibility
         );
-        let mut query = base_products
-            .filter(is_active.eq(true))
-            .filter(store_id.eq(store_id_arg))
-            .into_boxed();
+
+        let mut query = match visibility {
+            Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => base_products
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
+
+        query = query.filter(store_id.eq(store_id_arg));
 
         if let Some(skip_base_product_id) = skip_base_product_id {
             query = query.filter(id.ne(skip_base_product_id));
@@ -277,7 +314,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Update views on specific base_product
     fn update_views(&self, base_product_id_arg: BaseProductId) -> RepoResult<Option<BaseProduct>> {
         debug!("Updating views of base product with id {}.", base_product_id_arg);
-        let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
+        let filter = base_products
+            .filter(id.eq(base_product_id_arg))
+            .filter(is_active.eq(true))
+            .filter(status.eq(ModerationStatus::Published));
         let query = diesel::update(filter).set(views.eq(views + 1));
         query
             .get_result::<BaseProduct>(self.db_conn)
@@ -497,7 +537,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         count: i64,
         term: ModeratorBaseProductSearchTerms,
     ) -> RepoResult<Vec<BaseProduct>> {
-        let mut query = base_products.into_boxed();
+        let mut query = base_products.filter(is_active.eq(true)).into_boxed();
 
         if let Some(from_id) = from {
             query = query.filter(id.ge(from_id));

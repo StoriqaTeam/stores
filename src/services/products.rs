@@ -22,7 +22,7 @@ pub trait ProductsService {
     /// Returns product seller price by ID
     fn get_product_seller_price(&self, product_id: ProductId) -> ServiceFuture<Option<ProductSellerPrice>>;
     /// Returns store_id by ID
-    fn get_product_store_id(&self, product_id: ProductId) -> ServiceFuture<Option<StoreId>>;
+    fn get_product_store_id(&self, product_id: ProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<StoreId>>;
     /// Deactivates specific product
     fn deactivate_product(&self, product_id: ProductId) -> ServiceFuture<Product>;
     /// Creates base product
@@ -88,9 +88,15 @@ impl<
     }
 
     /// Returns store_id by ID
-    fn get_product_store_id(&self, product_id: ProductId) -> ServiceFuture<Option<StoreId>> {
+    fn get_product_store_id(&self, product_id: ProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<StoreId>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        debug!(
+            "Get product store id by product id = {:?} with visibility = {:?}",
+            product_id, visibility
+        );
 
         self.spawn_on_pool(move |conn| {
             {
@@ -98,7 +104,7 @@ impl<
                 let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                 let product = products_repo.find(product_id)?;
                 if let Some(product) = product {
-                    let base_product = base_products_repo.find(product.base_product_id)?;
+                    let base_product = base_products_repo.find(product.base_product_id, visibility)?;
                     if let Some(base_product) = base_product {
                         Ok(Some(base_product.store_id))
                     } else {
@@ -173,7 +179,7 @@ impl<
                     .base_product_id
                     .ok_or(format_err!("Base product id not set.").context(Error::NotFound))?;
 
-                let base_product = base_products_repo.find(base_product_id)?;
+                let base_product = base_products_repo.find(base_product_id, Visibility::Active)?;
                 let base_product =
                     base_product.ok_or(format_err!("Base product with id {} not found.", base_product_id).context(Error::NotFound))?;
 
@@ -217,7 +223,9 @@ impl<
 
                 let product = if let Some(product) = payload.product {
                     if let Some(vendor_code) = &product.vendor_code {
-                        let BaseProduct { store_id, .. } = base_products_repo.find(original_product.base_product_id)?.ok_or(
+                        let BaseProduct { store_id, .. } = base_products_repo
+                            .find(original_product.base_product_id, Visibility::Active)?
+                            .ok_or(
                             format_err!("Base product with id {} not found.", original_product.base_product_id).context(Error::NotFound),
                         )?;
 

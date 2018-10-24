@@ -111,7 +111,7 @@ impl<
                 if let Some(slug) = payload.slug.clone() {
                     let stores_repo = repo_factory.create_stores_repo(&*conn, Some(user_id));
                     let slug_exist = if let Some(store_id) = payload.store_id {
-                        let store = stores_repo.find(store_id)?;
+                        let store = stores_repo.find(store_id, Visibility::Active)?;
                         let store = store.ok_or(format_err!("Not found such store id : {}", store_id).context(Error::NotFound))?;
                         if store.slug == slug {
                             // if updated slug equal wizard stores store slug

@@ -12,14 +12,14 @@ use stq_types::{StoreId, UserId};
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
 use errors::Error;
-use models::{Category, ModeratorStoreSearchTerms, NewStore, SearchStore, Store, UpdateStore};
+use models::{Category, ModeratorStoreSearchTerms, NewStore, SearchStore, Store, UpdateStore, Visibility};
 use repos::remove_unused_categories;
 use repos::ReposFactory;
 use services::Service;
 
 pub trait StoresService {
     /// Returns total store count
-    fn count(&self, only_active: bool) -> ServiceFuture<i64>;
+    fn count(&self, visibility: Option<Visibility>) -> ServiceFuture<i64>;
     /// Find stores by name limited by `count` parameters
     fn find_store_by_name(self, search_store: SearchStore, count: i32, offset: i32) -> ServiceFuture<Vec<Store>>;
     /// search filters count
@@ -31,9 +31,9 @@ pub trait StoresService {
     /// Find stores auto complete limited by `count` parameters
     fn store_auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
-    fn get_store(&self, store_id: StoreId) -> ServiceFuture<Option<Store>>;
+    fn get_store(&self, store_id: StoreId, visibility: Option<Visibility>) -> ServiceFuture<Option<Store>>;
     /// Returns products count
-    fn get_store_products_count(&self, store_id: StoreId) -> ServiceFuture<i32>;
+    fn get_store_products_count(&self, store_id: StoreId, visibility: Option<Visibility>) -> ServiceFuture<i32>;
     /// Deactivates specific store
     fn deactivate_store(&self, store_id: StoreId) -> ServiceFuture<Store>;
     /// Get store by user id
@@ -43,7 +43,7 @@ pub trait StoresService {
     /// Creates new store
     fn create_store(&self, payload: NewStore) -> ServiceFuture<Store>;
     /// Lists stores limited by `from` and `count` parameters
-    fn list_stores(&self, from: StoreId, count: i32) -> ServiceFuture<Vec<Store>>;
+    fn list_stores(&self, from: StoreId, count: i32, visibility: Option<Visibility>) -> ServiceFuture<Vec<Store>>;
     /// Updates specific store
     fn update_store(&self, store_id: StoreId, payload: UpdateStore) -> ServiceFuture<Store>;
     /// Checks that slug exists
@@ -67,16 +67,17 @@ impl<
     > StoresService for Service<T, M, F>
 {
     /// Returns total store count
-    fn count(&self, only_active: bool) -> ServiceFuture<i64> {
+    fn count(&self, visibility: Option<Visibility>) -> ServiceFuture<i64> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Active);
 
-        debug!("Getting store count");
+        debug!("Getting store count with visibility = {:?}", visibility);
 
         self.spawn_on_pool(move |conn| {
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
-                .count(only_active)
+                .count(visibility)
                 .map_err(|e: FailureError| e.context("Service `stores`, `count` endpoint error occurred.").into())
         })
     }
@@ -111,7 +112,7 @@ impl<
                         el_stores
                             .into_iter()
                             .map(|el_store| {
-                                let store = stores_repo.find(el_store.id)?;
+                                let store = stores_repo.find(el_store.id, Visibility::Published)?;
                                 store.ok_or(
                                     format_err!("Not found such store id : {}", el_store.id)
                                         .context(Error::NotFound)
@@ -170,27 +171,31 @@ impl<
     }
 
     /// Returns store by ID
-    fn get_store(&self, store_id: StoreId) -> ServiceFuture<Option<Store>> {
+    fn get_store(&self, store_id: StoreId, visibility: Option<Visibility>) -> ServiceFuture<Option<Store>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
 
         self.spawn_on_pool(move |conn| {
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
-                .find(store_id)
+                .find(store_id, visibility)
                 .map_err(|e| e.context("Service Stores, get endpoint error occurred.").into())
         })
     }
 
     /// Returns products count
-    fn get_store_products_count(&self, store_id: StoreId) -> ServiceFuture<i32> {
+    fn get_store_products_count(&self, store_id: StoreId, visibility: Option<Visibility>) -> ServiceFuture<i32> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        debug!("Get product count in store with id = {:?}, visibility = {:?}", store_id, visibility);
 
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo
-                .count_with_store_id(store_id)
+                .count_with_store_id(store_id, visibility)
                 .map_err(|e| e.context("Service Stores, get_products_count endpoint error occurred.").into())
         })
     }
@@ -250,14 +255,15 @@ impl<
     }
 
     /// Lists users limited by `from` and `count` parameters
-    fn list_stores(&self, from: StoreId, count: i32) -> ServiceFuture<Vec<Store>> {
+    fn list_stores(&self, from: StoreId, count: i32, visibility: Option<Visibility>) -> ServiceFuture<Vec<Store>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
 
         self.spawn_on_pool(move |conn| {
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             stores_repo
-                .list(from, count)
+                .list(from, count, visibility)
                 .map_err(|e| e.context("Service Stores, list endpoint error occurred.").into())
         })
     }
@@ -298,7 +304,7 @@ impl<
         self.spawn_on_pool(move |conn| {
             {
                 let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
-                let store = stores_repo.find(store_id)?;
+                let store = stores_repo.find(store_id, Visibility::Active)?;
                 let store = store.ok_or(format_err!("Not found such store id : {}", store_id).context(Error::NotFound))?;
                 if let Some(slug) = payload.slug.clone() {
                     if store.slug != slug {
@@ -448,7 +454,7 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
-        let work = service.get_store(StoreId(1));
+        let work = service.get_store(StoreId(1), Some(Visibility::Active));
         let result = core.run(work).unwrap();
         assert_eq!(result.unwrap().id, StoreId(1));
     }
@@ -458,7 +464,7 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
-        let work = service.list_stores(StoreId(1), 5);
+        let work = service.list_stores(StoreId(1), 5, Some(Visibility::Active));
         let result = core.run(work).unwrap();
         assert_eq!(result.len(), 5);
     }

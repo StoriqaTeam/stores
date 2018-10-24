@@ -113,15 +113,25 @@ impl<
         let fut = match (&req.method().clone(), self.static_context.route_parser.test(req.path())) {
             // GET /stores/<store_id>
             (&Get, Some(Route::Store(store_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /stores/{}", user_id, store_id);
-                serialize_future(service.get_store(store_id))
+                let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /stores/{}. Params: {:?}",
+                    user_id, store_id, visibility
+                );
+                serialize_future(service.get_store(store_id, visibility))
             }
 
             // GET /stores
             (&Get, Some(Route::Stores)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /stores", user_id);
-                if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => StoreId, "count" => i32) {
-                    serialize_future(service.list_stores(offset, count))
+                let params = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "offset" => StoreId, "count" => i32, "visibility" => Visibility
+                );
+
+                debug!("User with id = '{:?}' is requesting  // GET /stores. Params: {:?}", user_id, params);
+
+                if let (Some(offset), Some(count), visibility) = params {
+                    serialize_future(service.list_stores(offset, count, visibility))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /stores failed!")
@@ -133,13 +143,24 @@ impl<
 
             // GET /stores/:id/products route
             (&Get, Some(Route::StoreProducts(store_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /stores/:id/products route", user_id);
-                if let (skip_base_product_id, Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "skip_base_product_id" => BaseProductId, "offset" => BaseProductId, "count" => i32)
-                {
-                    serialize_future(service.get_base_products_of_the_store(store_id, skip_base_product_id, offset, count))
+                let params = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "skip_base_product_id" => BaseProductId,
+                    "offset" => BaseProductId,
+                    "count" => i32,
+                    "visibility" => Visibility
+                );
+
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /stores/{}/products route. Params: {:?}",
+                    user_id, store_id, params
+                );
+
+                if let (skip_base_product_id, Some(offset), Some(count), visibility) = params {
+                    serialize_future(service.get_base_products_of_the_store(store_id, skip_base_product_id, offset, count, visibility))
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // GET /stores/:id/product failed!")
+                        format_err!("Parsing query parameters // GET /stores/{}/product failed!", store_id)
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -148,8 +169,12 @@ impl<
 
             // GET /stores/:id/products/count route
             (&Get, Some(Route::StoreProductsCount(store_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /stores/{}", user_id, store_id);
-                serialize_future(service.get_store_products_count(store_id))
+                let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /stores/{}. Params: {:?}",
+                    user_id, store_id, visibility
+                );
+                serialize_future(service.get_store_products_count(store_id, visibility))
             }
 
             // GET /stores/slug_exists route
@@ -286,14 +311,17 @@ impl<
 
             // GET /stores/count
             (&Get, Some(Route::StoreCount)) => {
-                let only_active = parse_query!(
+                let visibility = parse_query!(
                     req.query().unwrap_or_default(),
-                    "only_active" => bool
+                    "visibility" => Visibility
                 );
 
-                debug!("Received request to get store count (only_active: {:?})", only_active);
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /stores/count. Params: {:?}",
+                    user_id, visibility
+                );
 
-                serialize_future({ service.count(only_active.unwrap_or(false)) })
+                serialize_future({ service.count(visibility) })
             }
 
             // PUT /stores/<store_id>
@@ -391,9 +419,19 @@ impl<
 
             // GET /products/store_id
             (&Get, Some(Route::ProductStoreId)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /products/store_id", user_id);
-                if let Some(product_id) = parse_query!(req.query().unwrap_or_default(), "product_id" => ProductId) {
-                    serialize_future(service.get_product_store_id(product_id))
+                let params = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "product_id" => ProductId,
+                    "visibility" => Visibility
+                );
+
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /products/store_id. Params: {:?}",
+                    user_id, params
+                );
+
+                if let (Some(product_id), visibility) = params {
+                    serialize_future(service.get_product_store_id(product_id, visibility))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /products/store_id failed!")
@@ -460,11 +498,12 @@ impl<
 
             // GET /base_products/<base_product_id>
             (&Get, Some(Route::BaseProduct(base_product_id))) => {
+                let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/{}",
-                    user_id, base_product_id
+                    "User with id = '{:?}' is requesting  // GET /base_products/{}. Params: {:?}",
+                    user_id, base_product_id, visibility
                 );
-                serialize_future(service.get_base_product(base_product_id))
+                serialize_future(service.get_base_product(base_product_id, visibility))
             }
 
             // GET /base_products/<base_product_id>/update_view
@@ -487,20 +526,30 @@ impl<
 
             // GET /base_products/by_product/<product_id>
             (&Get, Some(Route::BaseProductByProduct(product_id))) => {
+                let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
+
                 debug!(
-                    "User with id = '{:?}' is requesting  // GET base_products/by_product/{}",
-                    user_id, product_id
+                    "User with id = '{:?}' is requesting  // GET base_products/by_product/{}. Params: {:?}",
+                    user_id, product_id, visibility
                 );
-                serialize_future(service.get_base_product_by_product(product_id))
+
+                serialize_future(service.get_base_product_by_product(product_id, visibility))
             }
 
             // GET /base_products
             (&Get, Some(Route::BaseProducts)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /base_products", user_id);
-                if let (Some(offset), Some(count)) =
-                    parse_query!(req.query().unwrap_or_default(), "offset" => BaseProductId, "count" => i32)
-                {
-                    serialize_future(service.list_base_products(offset, count))
+                let params = parse_query!(
+                    req.query().unwrap_or_default(),
+                    "offset" => BaseProductId, "count" => i32, "visibility" => Visibility
+                );
+
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /base_products. Params: {:?}",
+                    user_id, params
+                );
+
+                if let (Some(offset), Some(count), visibility) = params {
+                    serialize_future(service.list_base_products(offset, count, visibility))
                 } else {
                     Box::new(future::err(
                         format_err!("Parsing query parameters // GET /base_products failed!")
@@ -512,12 +561,17 @@ impl<
 
             // GET /base_products/count
             (&Get, Some(Route::BaseProductsCount)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /base_products/count", user_id);
-                let only_active = parse_query!(
+                let visibility = parse_query!(
                     req.query().unwrap_or_default(),
-                    "only_active" => bool
+                    "visibility" => Visibility
                 );
-                serialize_future(service.base_product_count(only_active.unwrap_or(false)))
+
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /base_products/count. Params: {:?}",
+                    user_id, visibility
+                );
+
+                serialize_future(service.base_product_count(visibility))
             }
 
             // POST /base_products
@@ -816,15 +870,11 @@ impl<
                             e.context("Parsing body // POST /coupons in NewCoupon failed!")
                                 .context(Error::Parse)
                                 .into()
-                        })
-                        .and_then(move |new_coupon| {
+                        }).and_then(move |new_coupon| {
                             new_coupon
                                 .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of NewCoupon failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
+                                .map_err(|e| format_err!("Validation of NewCoupon failed!").context(Error::Validate(e)).into())
+                                .into_future()
                                 .and_then(move |_| service.create_coupon(new_coupon))
                         }),
                 )
@@ -832,30 +882,32 @@ impl<
 
             // GET /coupons/:id
             (&Get, Some(Route::Coupon(coupon_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /coupons/{}",
-                    user_id, coupon_id
-                );
+                debug!("User with id = '{:?}' is requesting  // GET /coupons/{}", user_id, coupon_id);
                 serialize_future(service.get_coupon(coupon_id))
             }
 
             // POST /coupons/search/code
             (&Post, Some(Route::CouponsSearchCode)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /coupons/search/code",
-                    user_id
-                );
+                debug!("User with id = '{:?}' is requesting  // POST /coupons/search/code", user_id);
 
-                serialize_future(parse_body::<CouponsSearchCodePayload>(req.body())
+                serialize_future(
+                    parse_body::<CouponsSearchCodePayload>(req.body())
                         .map_err(|e| {
                             e.context("Parsing body // POST /coupons/search/code in CouponsSearchCodePayload failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |payload| service.get_coupon_by_code(payload)))
+                        }).and_then(move |payload| service.get_coupon_by_code(payload)),
+                )
             }
 
             // POST /coupons/:coupon_id/base_products/:base_product_id
-            (&Post, Some(Route::CouponScopeBaseProducts {coupon_id, base_product_id})) => {
+            (
+                &Post,
+                Some(Route::CouponScopeBaseProducts {
+                    coupon_id,
+                    base_product_id,
+                }),
+            ) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // POST /coupons/{}/base_products/{}",
                     user_id, coupon_id, base_product_id
@@ -866,10 +918,7 @@ impl<
 
             // GET /coupons/stores/:id
             (&Get, Some(Route::CouponsSearchFiltersStore(store_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /coupons/stores/{}",
-                    user_id, store_id
-                );
+                debug!("User with id = '{:?}' is requesting  // GET /coupons/stores/{}", user_id, store_id);
                 let search = CouponSearch::Store(store_id);
                 serialize_future(service.find_coupons(search))
             }
@@ -886,10 +935,7 @@ impl<
 
             // PUT /coupons/:id
             (&Put, Some(Route::Coupon(coupon_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // PUT /coupons/{}",
-                    user_id, coupon_id
-                );
+                debug!("User with id = '{:?}' is requesting  // PUT /coupons/{}", user_id, coupon_id);
                 serialize_future(
                     parse_body::<UpdateCoupon>(req.body())
                         .map_err(|e| {
@@ -899,11 +945,8 @@ impl<
                         }).and_then(move |update_coupon| {
                             update_coupon
                                 .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of UpdateCoupon failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
+                                .map_err(|e| format_err!("Validation of UpdateCoupon failed!").context(Error::Validate(e)).into())
+                                .into_future()
                                 .and_then(move |_| service.update_coupon(coupon_id, update_coupon))
                         }),
                 )
@@ -916,7 +959,13 @@ impl<
             }
 
             // DELETE /coupons/:coupon_id/base_products/:base_product_id
-            (&Delete, Some(Route::CouponScopeBaseProducts {coupon_id, base_product_id})) => {
+            (
+                &Delete,
+                Some(Route::CouponScopeBaseProducts {
+                    coupon_id,
+                    base_product_id,
+                }),
+            ) => {
                 debug!(
                     "User with id = '{:?}' is requesting  // DELETE /coupons/{}/base_products/{}",
                     user_id, coupon_id, base_product_id

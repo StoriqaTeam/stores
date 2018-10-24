@@ -755,12 +755,12 @@ pub mod tests {
 
     impl BaseProductsRepo for BaseProductsRepoMock {
         /// Get base_product count
-        fn count(&self, only_active: bool) -> RepoResult<i64> {
-            Ok(if only_active { 0 } else { 1 })
+        fn count(&self, _visibility: Visibility) -> RepoResult<i64> {
+            Ok(1)
         }
 
         /// Find specific base_product by ID
-        fn find(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>> {
+        fn find(&self, base_product_id: BaseProductId, _visibility: Visibility) -> RepoResult<Option<BaseProduct>> {
             Ok(Some(BaseProduct {
                 id: base_product_id,
                 is_active: true,
@@ -813,7 +813,7 @@ pub mod tests {
         }
 
         /// Returns list of base_products, limited by `from` and `count` parameters
-        fn list(&self, from: BaseProductId, count: i32) -> RepoResult<Vec<BaseProduct>> {
+        fn list(&self, from: BaseProductId, count: i32, _visibility: Visibility) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
             for i in from.0..(from.0 + count) {
                 let base_product = BaseProduct {
@@ -847,6 +847,7 @@ pub mod tests {
             skip_base_product_id: Option<BaseProductId>,
             from: BaseProductId,
             count: i32,
+            _visibility: Visibility,
         ) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
             for i in (skip_base_product_id.unwrap().0 + from.0)..(skip_base_product_id.unwrap().0 + from.0 + count) {
@@ -875,7 +876,7 @@ pub mod tests {
         }
 
         /// Find specific base_product by ID
-        fn count_with_store_id(&self, _store_id: StoreId) -> RepoResult<i32> {
+        fn count_with_store_id(&self, _store_id: StoreId, _visibility: Visibility) -> RepoResult<i32> {
             Ok(1)
         }
 
@@ -1169,11 +1170,11 @@ pub mod tests {
     pub struct StoresRepoMock;
 
     impl StoresRepo for StoresRepoMock {
-        fn count(&self, only_active: bool) -> RepoResult<i64> {
-            Ok(if only_active { 0 } else { 1 })
+        fn count(&self, _visibility: Visibility) -> RepoResult<i64> {
+            Ok(1)
         }
 
-        fn find(&self, store_id: StoreId) -> RepoResult<Option<Store>> {
+        fn find(&self, store_id: StoreId, _visibility: Visibility) -> RepoResult<Option<Store>> {
             let store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             Ok(Some(store))
         }
@@ -1190,7 +1191,7 @@ pub mod tests {
             Ok(Some(false))
         }
 
-        fn list(&self, from: StoreId, count: i32) -> RepoResult<Vec<Store>> {
+        fn list(&self, from: StoreId, count: i32, _visibility: Visibility) -> RepoResult<Vec<Store>> {
             let mut stores = vec![];
             for i in from.0..(from.0 + count) {
                 let store = create_store(StoreId(i), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());

@@ -28,7 +28,7 @@ const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 
 pub trait BaseProductsService {
     /// Returns base product count
-    fn base_product_count(&self, only_active: bool) -> ServiceFuture<i64>;
+    fn base_product_count(&self, visibility: Option<Visibility>) -> ServiceFuture<i64>;
     /// Find product by name limited by `count` and `offset` parameters
     fn search_base_products_by_name(
         self,
@@ -61,11 +61,15 @@ pub trait BaseProductsService {
     /// search filters
     fn search_base_products_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
     /// Returns product by ID
-    fn get_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
+    fn get_base_product(&self, base_product_id: BaseProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base product by ID with update views
     fn get_base_product_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base_product by product ID
-    fn get_base_product_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>>;
+    fn get_base_product_by_product(
+        &self,
+        product_id: ProductId,
+        visibility: Option<Visibility>,
+    ) -> ServiceFuture<Option<BaseProductWithVariants>>;
     /// Deactivates specific product
     fn deactivate_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
     /// Creates base product
@@ -73,7 +77,7 @@ pub trait BaseProductsService {
     /// Creates base product with variants
     fn create_base_product_with_variants(&self, payload: NewBaseProductWithVariants) -> ServiceFuture<BaseProduct>;
     /// Lists base products limited by `from` and `count` parameters
-    fn list_base_products(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>>;
+    fn list_base_products(&self, from: BaseProductId, count: i32, visibility: Option<Visibility>) -> ServiceFuture<Vec<BaseProduct>>;
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
     fn get_base_products_of_the_store(
         &self,
@@ -81,6 +85,7 @@ pub trait BaseProductsService {
         skip_base_product_id: Option<BaseProductId>,
         from: BaseProductId,
         count: i32,
+        visibility: Option<Visibility>,
     ) -> ServiceFuture<Vec<BaseProduct>>;
     /// Updates base product
     fn update_base_product(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
@@ -115,16 +120,16 @@ impl<
     > BaseProductsService for Service<T, M, F>
 {
     /// Returns base product count
-    fn base_product_count(&self, only_active: bool) -> ServiceFuture<i64> {
+    fn base_product_count(&self, visibility: Option<Visibility>) -> ServiceFuture<i64> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
-        debug!("Getting base product count");
+        debug!("Getting base product count with visibility = {:?}", visibility);
 
         self.spawn_on_pool(move |conn| {
             let base_product_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_product_repo
-                .count(only_active)
+                .count(visibility.unwrap_or(Visibility::Active))
                 .map_err(|e: FailureError| e.context("Service `base_products`, `count` endpoint error occurred.").into())
         })
     }
@@ -349,14 +354,17 @@ impl<
     }
 
     /// Returns product by ID
-    fn get_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
+    fn get_base_product(&self, base_product_id: BaseProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<BaseProduct>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        debug!("Get base product by id = {:?} with visibility = {:?}", base_product_id, visibility);
 
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo
-                .find(base_product_id)
+                .find(base_product_id, visibility)
                 .map_err(|e| e.context("Service BaseProduct, get_base_product endpoint error occurred.").into())
         })
     }
@@ -376,10 +384,20 @@ impl<
     }
 
     /// Returns base_product by product ID
-    fn get_base_product_by_product(&self, product_id: ProductId) -> ServiceFuture<Option<BaseProductWithVariants>> {
+    fn get_base_product_by_product(
+        &self,
+        product_id: ProductId,
+        visibility: Option<Visibility>,
+    ) -> ServiceFuture<Option<BaseProductWithVariants>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        debug!(
+            "Get base product by variant id = {:?} with visibility = {:?}",
+            product_id, visibility
+        );
 
         self.spawn_on_pool(move |conn| {
             {
@@ -388,7 +406,7 @@ impl<
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                 let product = products_repo.find(product_id)?;
                 if let Some(product) = product {
-                    let base_product = base_products_repo.find(product.base_product_id).map(|base_product| {
+                    let base_product = base_products_repo.find(product.base_product_id, visibility).map(|base_product| {
                         base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![Product::from(product)]))
                     })?;
                     if let Some(base_product) = base_product {
@@ -422,7 +440,7 @@ impl<
                 let prod = base_products_repo.deactivate(base_product_id)?;
                 let _ = products_repo.deactivate_by_base_product(base_product_id)?;
                 // update product categories of the store
-                let store = stores_repo.find(prod.store_id)?;
+                let store = stores_repo.find(prod.store_id, Visibility::Active)?;
                 if let Some(store) = store {
                     let category_root = categories_repo.get_all_categories()?;
                     let cat = get_first_level_category(prod.category_id, category_root)?;
@@ -438,14 +456,20 @@ impl<
     }
 
     /// Lists base products limited by `from` and `count` parameters
-    fn list_base_products(&self, from: BaseProductId, count: i32) -> ServiceFuture<Vec<BaseProduct>> {
+    fn list_base_products(&self, from: BaseProductId, count: i32, visibility: Option<Visibility>) -> ServiceFuture<Vec<BaseProduct>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        debug!(
+            "List base products from id = {:?} with count = {}, visibility = {:?}",
+            from, count, visibility
+        );
 
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo
-                .list(from, count)
+                .list(from, count, visibility)
                 .map_err(|e| e.context("Service BaseProduct, list endpoint error occurred.").into())
         })
     }
@@ -457,14 +481,19 @@ impl<
         skip_base_product_id: Option<BaseProductId>,
         from: BaseProductId,
         count: i32,
+        visibility: Option<Visibility>,
     ) -> ServiceFuture<Vec<BaseProduct>> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        debug!("Get base products of the store with id = {:?} skipping base product with id = {:?}, from id = {:?}, count = {}, visibility = {:?}",
+               store_id, skip_base_product_id, from, count, visibility);
 
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             base_products_repo
-                .get_products_of_the_store(store_id, skip_base_product_id, from, count)
+                .get_products_of_the_store(store_id, skip_base_product_id, from, count, visibility)
                 .map_err(|e| {
                     e.context("Service BaseProduct, get_products_of_the_store endpoint error occurred.")
                         .into()
@@ -567,7 +596,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             conn.transaction::<(BaseProduct), FailureError, _>(move || {
-                let old_prod = base_products_repo.find(base_product_id)?;
+                let old_prod = base_products_repo.find(base_product_id, Visibility::Active)?;
                 if let Some(old_prod) = old_prod {
                     let payload = payload.reset_moderation_status();
                     let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
@@ -575,7 +604,7 @@ impl<
                         // updating product categories of the store
                         let old_cat_id = old_prod.category_id;
                         let old_prod_store_id = old_prod.store_id;
-                        let store = stores_repo.find(old_prod_store_id)?;
+                        let store = stores_repo.find(old_prod_store_id, Visibility::Active)?;
                         if let Some(store) = store {
                             let update_store =
                                 UpdateStore::update_product_categories(store.product_categories.clone(), old_cat_id, new_cat_id);
@@ -617,7 +646,7 @@ impl<
                 let mut base_products = group_by_base_product_id
                     .into_iter()
                     .map(|(base_product_id, products)| {
-                        let base_product = base_products_repo.find(base_product_id)?;
+                        let base_product = base_products_repo.find(base_product_id, Visibility::Published)?;
                         let products = products.into_iter().map(Product::from).collect();
 
                         if let Some(base_product) = base_product {
@@ -643,7 +672,7 @@ impl<
                 group_by_store_id
                     .into_iter()
                     .map(|(store_id, base_products)| {
-                        let store = stores_repo.find(store_id)?;
+                        let store = stores_repo.find(store_id, Visibility::Published)?;
                         if let Some(store) = store {
                             Ok(StoreWithBaseProducts::new(store, base_products))
                         } else {
@@ -856,7 +885,7 @@ fn update_product_categories(
     store_id_arg: StoreId,
     category_id_arg: CategoryId,
 ) -> RepoResult<()> {
-    let store = stores_repo.find(store_id_arg)?;
+    let store = stores_repo.find(store_id_arg, Visibility::Active)?;
     if let Some(store) = store {
         let category_root = categories_repo.get_all_categories()?;
         let cat = get_first_level_category(category_id_arg, category_root)?;
@@ -915,7 +944,7 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
-        let work = service.get_base_product(BaseProductId(1));
+        let work = service.get_base_product(BaseProductId(1), Some(Visibility::Active));
         let result = core.run(work).unwrap();
         assert_eq!(result.unwrap().id, BaseProductId(1));
     }
@@ -925,7 +954,7 @@ pub mod tests {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
         let service = create_service(Some(MOCK_USER_ID), handle);
-        let work = service.list_base_products(BaseProductId(1), 5);
+        let work = service.list_base_products(BaseProductId(1), 5, Some(Visibility::Active));
         let result = core.run(work).unwrap();
         assert_eq!(result.len(), 5);
     }

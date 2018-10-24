@@ -15,6 +15,7 @@ pub mod product;
 pub mod store;
 pub mod user_role;
 pub mod validation_rules;
+pub mod visibility;
 pub mod wizard_store;
 
 pub use self::attributes::*;
@@ -31,4 +32,5 @@ pub use self::product::*;
 pub use self::store::*;
 pub use self::user_role::*;
 pub use self::validation_rules::*;
+pub use self::visibility::*;
 pub use self::wizard_store::*;

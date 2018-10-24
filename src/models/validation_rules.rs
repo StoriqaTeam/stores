@@ -4,9 +4,13 @@ use std::collections::HashMap;
 use isolang::Language;
 use regex::Regex;
 use serde_json;
+use validator::validate_length;
+use validator::ValidationError;
+use validator::Validator;
+
+use models::Coupon;
 use stq_static_resources::Translation;
 use stq_types::{CouponCode, ProductPrice};
-use validator::ValidationError;
 
 pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     lazy_static! {
@@ -71,21 +75,40 @@ pub fn validate_non_negative_coupon_quantity(value: i32) -> Result<(), Validatio
     validate_non_negative(value)
 }
 
-pub fn validate_length_coupon_code(val: &CouponCode) -> Result<(), ValidationError> {
-    let expect_min = 4;
-    let expect_max = 12;
+pub fn validate_coupon_code(val: &CouponCode) -> Result<(), ValidationError> {
+    lazy_static! {
+        static ref CODE_VALIDATION_RE: Regex = Regex::new(r"^[a-zA-Z0-9]*$").unwrap();
+    }
 
-    let data = val.to_string();
+    let validator_code = Validator::Length {
+        min: Some(Coupon::MIN_LENGTH_CODE),
+        max: Some(Coupon::MAX_LENGTH_CODE),
+        equal: None,
+    };
 
-    if data.len() < expect_min || data.len() > expect_max {
-        Ok(())
+    let check_result = if validate_length(validator_code, &val.0) {
+        if CODE_VALIDATION_RE.is_match(&val.0) {
+            Ok(())
+        } else {
+            Err(ValidationError {
+                code: Cow::from("code"),
+                message: Some(Cow::from("Incorrect code format. Must be only (a-z,A-Z,0-9)")),
+                params: HashMap::new(),
+            })
+        }
     } else {
         Err(ValidationError {
-            code: Cow::from("value"),
-            message: Some(Cow::from("Value must be >=4 and <= 12 characters.")),
+            code: Cow::from("code"),
+            message: Some(Cow::from(format!(
+                "Value must be >= {} and <= {} characters.",
+                Coupon::MIN_LENGTH_CODE,
+                Coupon::MAX_LENGTH_CODE
+            ))),
             params: HashMap::new(),
         })
-    }
+    };
+
+    check_result
 }
 
 pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {

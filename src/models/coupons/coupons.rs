@@ -30,7 +30,7 @@ pub struct Coupon {
 #[derive(Serialize, Deserialize, Insertable, Clone, Validate, Debug)]
 #[table_name = "coupons"]
 pub struct NewCoupon {
-    #[validate(custom = "validate_length_coupon_code")]
+    #[validate(custom = "validate_coupon_code")]
     pub code: CouponCode,
     pub title: String,
     pub store_id: StoreId,
@@ -40,6 +40,12 @@ pub struct NewCoupon {
     #[validate(custom = "validate_non_negative_coupon_quantity")]
     pub quantity: i32,
     pub expired_at: Option<SystemTime>,
+}
+
+impl Coupon {
+    pub const MIN_LENGTH_CODE: u64 = 4;
+    pub const MAX_LENGTH_CODE: u64 = 12;
+    pub const MIN_GENERATE_LENGTH_CODE: usize = 6;
 }
 
 /// Payload for updating coupon

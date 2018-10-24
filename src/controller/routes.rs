@@ -35,6 +35,7 @@ pub enum Route {
     Coupons,
     Coupon(CouponId),
     CouponsSearchCode,
+    CouponsGenerateCode,
     CouponsSearchFiltersStore(StoreId),
     CouponScopeBaseProducts {
         coupon_id: CouponId,
@@ -287,6 +288,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Coupons Routes
     router.add_route(r"^/coupons$", || Route::Coupons);
+
+    // Generate code coupon
+    router.add_route(r"^/coupons/generate_code$", || Route::CouponsGenerateCode);
 
     // Coupons/:id route
     router.add_route_with_params(r"^/coupons/(\d+)$", |params| {

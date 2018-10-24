@@ -6,6 +6,8 @@ use diesel::Connection;
 use r2d2::ManageConnection;
 
 use failure::Error as FailureError;
+use future::IntoFuture;
+use uuid::prelude::*;
 
 use stq_types::{BaseProductId, CouponId};
 
@@ -38,6 +40,8 @@ pub trait CouponsService {
     fn delete_base_product_from_coupon(&self, id_arg: CouponId, base_product_arg: BaseProductId) -> ServiceFuture<CouponScopeBaseProducts>;
     /// Find base products for coupon
     fn find_base_products_by_coupon(&self, id_arg: CouponId) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+    /// Generate coupon code
+    fn generate_coupon_code(&self) -> ServiceFuture<String>;
 }
 
 impl<
@@ -217,6 +221,14 @@ impl<
             })
         })
     }
+
+    /// Generate coupon code
+    fn generate_coupon_code(&self) -> ServiceFuture<String> {
+        let new_uuid = Uuid::new_v4().simple().to_string().to_uppercase();
+        let result = Ok(new_uuid.chars().take(Coupon::MIN_GENERATE_LENGTH_CODE).collect::<String>());
+
+        Box::new(result.into_future())
+    }
 }
 
 #[cfg(test)]
@@ -333,5 +345,16 @@ pub mod tests {
     #[test]
     #[ignore]
     fn test_find_base_products_by_coupon() {}
+
+    #[test]
+    #[ignore]
+    fn test_generate_coupon_code() {
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_service(Some(MOCK_USER_ID), handle);
+        let work = service.generate_coupon_code();
+        let result = core.run(work);
+        assert_eq!(result.unwrap().len(), Coupon::MIN_GENERATE_LENGTH_CODE);
+    }
 
 }

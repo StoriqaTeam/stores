@@ -26,6 +26,7 @@ pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTran
     fn create_user_roles_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<UserRolesRepo + 'a>;
     fn create_coupon_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CouponsRepo + 'a>;
     fn create_coupon_scope_base_products_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CouponScopeBaseProductsRepo + 'a>;
+    fn create_used_coupons_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<UsedCouponsRepo + 'a>;
 }
 
 #[derive(Clone)]
@@ -139,6 +140,11 @@ impl<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 
     fn create_coupon_scope_base_products_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CouponScopeBaseProductsRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(CouponScopeBaseProductsRepoImpl::new(db_conn, acl)) as Box<CouponScopeBaseProductsRepo>
+    }
+
+    fn create_used_coupons_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<UsedCouponsRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(UsedCouponsRepoImpl::new(db_conn, acl)) as Box<UsedCouponsRepo>
     }
 }
 
@@ -265,6 +271,10 @@ pub mod tests {
             _user_id: Option<UserId>,
         ) -> Box<CouponScopeBaseProductsRepo + 'a> {
             Box::new(CouponScopeBaseProductsRepoMock::default()) as Box<CouponScopeBaseProductsRepo>
+        }
+
+        fn create_used_coupons_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<UsedCouponsRepo + 'a> {
+            Box::new(UsedCouponsRepoMock::default()) as Box<UsedCouponsRepo>
         }
     }
 
@@ -488,6 +498,51 @@ pub mod tests {
                 id: 0,
                 coupon_id: id_arg,
                 base_product_id: base_product_arg,
+            })
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct UsedCouponsRepoMock;
+
+    impl UsedCouponsRepo for UsedCouponsRepoMock {
+        fn create(&self, payload: NewUsedCoupon) -> RepoResult<UsedCoupon> {
+            Ok(UsedCoupon {
+                coupon_id: payload.coupon_id,
+                user_id: payload.user_id,
+            })
+        }
+
+        fn list(&self) -> RepoResult<Vec<UsedCoupon>> {
+            Ok(vec![UsedCoupon {
+                coupon_id: MOCK_COUPON_ID,
+                user_id: MOCK_USER_ID,
+            }])
+        }
+
+        fn find_by(&self, search: UsedCouponSearch) -> RepoResult<Vec<UsedCoupon>> {
+            let result = match search {
+                UsedCouponSearch::Coupon(coupon_id) => UsedCoupon {
+                    coupon_id,
+                    user_id: MOCK_USER_ID,
+                },
+                UsedCouponSearch::User(user_id) => UsedCoupon {
+                    coupon_id: MOCK_COUPON_ID,
+                    user_id,
+                },
+            };
+
+            Ok(vec![result])
+        }
+
+        fn user_used_coupon(&self, _id_arg: CouponId, _user_id_arg: UserId) -> RepoResult<bool> {
+            Ok(false)
+        }
+
+        fn delete(&self, id_arg: CouponId, user_id_arg: UserId) -> RepoResult<UsedCoupon> {
+            Ok(UsedCoupon {
+                coupon_id: id_arg,
+                user_id: user_id_arg,
             })
         }
     }

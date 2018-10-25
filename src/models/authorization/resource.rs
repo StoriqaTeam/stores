@@ -19,6 +19,7 @@ pub enum Resource {
     Coupons,
     CouponScopeBaseProducts,
     CouponScopeCategories,
+    UsedCoupons,
 }
 
 impl fmt::Display for Resource {
@@ -40,6 +41,7 @@ impl fmt::Display for Resource {
             Resource::Coupons => write!(f, "coupons"),
             Resource::CouponScopeBaseProducts => write!(f, "coupon_scope_base_products"),
             Resource::CouponScopeCategories => write!(f, "coupon_scope_categories"),
+            Resource::UsedCoupons => write!(f, "used_coupons"),
         }
     }
 }

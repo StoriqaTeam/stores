@@ -1,5 +1,7 @@
 //! Coupons Services, presents CRUD operations with coupons
 
+use std::time::SystemTime;
+
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
@@ -7,15 +9,18 @@ use r2d2::ManageConnection;
 
 use failure::Error as FailureError;
 use future::IntoFuture;
+use futures::future;
+
 use uuid::prelude::*;
 
-use stq_types::{BaseProductId, CouponId};
+use stq_types::{BaseProductId, CouponId, UserId};
 
 use super::types::ServiceFuture;
+use errors::Error;
 use models::*;
 use repos::CouponSearch;
 
-use repos::{RepoResult, ReposFactory};
+use repos::{CouponValidate, RepoResult, ReposFactory, UsedCouponSearch};
 use services::products::calculate_customer_price;
 use services::Service;
 
@@ -42,6 +47,12 @@ pub trait CouponsService {
     fn find_base_products_by_coupon(&self, id_arg: CouponId) -> ServiceFuture<Vec<BaseProductWithVariants>>;
     /// Generate coupon code
     fn generate_coupon_code(&self) -> ServiceFuture<String>;
+    /// Add used coupon for user
+    fn add_used_coupon(&self, coupon_id: CouponId, user_id: UserId) -> ServiceFuture<UsedCoupon>;
+    /// Delete coupon for user
+    fn delete_used_coupon(&self, coupon_id: CouponId, user_id: UserId) -> ServiceFuture<UsedCoupon>;
+    /// Validate coupon
+    fn validate_coupon(&self, payload: CouponsSearchCodePayload) -> ServiceFuture<CouponValidate>;
 }
 
 impl<
@@ -229,20 +240,124 @@ impl<
 
         Box::new(result.into_future())
     }
+
+    /// Add used coupon for user
+    fn add_used_coupon(&self, coupon_id_arg: CouponId, user_id_arg: UserId) -> ServiceFuture<UsedCoupon> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let payload = NewUsedCoupon {
+            coupon_id: coupon_id_arg,
+            user_id: user_id_arg,
+        };
+
+        self.spawn_on_pool(move |conn| {
+            let used_coupons_repo = repo_factory.create_used_coupons_repo(&*conn, user_id);
+
+            used_coupons_repo
+                .create(payload)
+                .map_err(|e| e.context("Service Coupons, create endpoint error occurred.").into())
+        })
+    }
+
+    /// Delete coupon for user
+    fn delete_used_coupon(&self, coupon_id_arg: CouponId, user_id_arg: UserId) -> ServiceFuture<UsedCoupon> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let used_coupons_repo = repo_factory.create_used_coupons_repo(&*conn, user_id);
+
+            used_coupons_repo
+                .delete(coupon_id_arg, user_id_arg)
+                .map_err(|e: FailureError| e.context("Service Coupons, delete endpoint error occurred.").into())
+        })
+    }
+
+    /// Validate coupon
+    fn validate_coupon(&self, payload: CouponsSearchCodePayload) -> ServiceFuture<CouponValidate> {
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        let user_id = match self.dynamic_context.user_id {
+            Some(user_id) => user_id,
+            None => {
+                return Box::new(future::err(
+                    format_err!("Denied request to validate coupon for unauthorized user")
+                        .context(Error::Forbidden)
+                        .into(),
+                ));
+            }
+        };
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let used_coupons_repo = repo_factory.create_used_coupons_repo(&*conn, Some(user_id));
+                let coupon_repo = repo_factory.create_coupon_repo(&*conn, Some(user_id));
+
+                let coupon = coupon_repo.get_by_code(payload.code, payload.store_id)?;
+
+                if let Some(coupon) = coupon {
+                    let search_used_coupon = UsedCouponSearch::Coupon(coupon.id);
+                    let used_coupons = used_coupons_repo.find_by(search_used_coupon)?;
+
+                    validate_coupon(coupon, user_id, used_coupons)?;
+                }
+
+                Ok(CouponValidate::NotExists)
+            }.map_err(|e: FailureError| e.context("Service Coupons, validate_coupon endpoint error occurred.").into())
+        })
+    }
+}
+
+pub fn validate_coupon(coupon: Coupon, user_id: UserId, used_coupons: Vec<UsedCoupon>) -> RepoResult<CouponValidate> {
+    if !coupon.is_active {
+        return Ok(CouponValidate::NotActive);
+    }
+
+    if let Some(expired_at) = coupon.expired_at {
+        let now = SystemTime::now();
+        if expired_at < now {
+            return Ok(CouponValidate::HasExpired);
+        }
+    }
+
+    let user_used_coupon = used_coupons.iter().find(|c| c.user_id == user_id);
+    if user_used_coupon.is_some() {
+        return Ok(CouponValidate::AlreadyActivated);
+    }
+
+    if coupon.quantity == Coupon::INFINITE {
+        return Ok(CouponValidate::Valid);
+    }
+
+    if coupon.quantity < 0 {
+        return Ok(CouponValidate::NoActivationsAvailable);
+    }
+
+    let check_result = match (used_coupons.len(), coupon.quantity as usize) {
+        (used_coupons_count, quantity) if used_coupons_count >= quantity => Some(CouponValidate::NoActivationsAvailable),
+        (used_coupons_count, quantity) if used_coupons_count < quantity => Some(CouponValidate::Valid),
+        (_, _) => unreachable!(),
+    };
+
+    match check_result {
+        Some(check_result) => Ok(check_result),
+        None => Ok(CouponValidate::Valid),
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
     use std::sync::Arc;
-    use std::time;
-    use std::time::SystemTime;
+
+    use std::time::{self, Duration, SystemTime};
     use tokio_core::reactor::Core;
 
-    use stq_types::{CouponCode, StoreId};
+    use stq_types::*;
 
     use models::*;
     use repos::repo_factory::tests::*;
     use repos::CouponSearch;
+    use repos::CouponValidate;
     use services::*;
 
     pub fn create_new_coupon(code: CouponCode) -> NewCoupon {
@@ -347,7 +462,6 @@ pub mod tests {
     fn test_find_base_products_by_coupon() {}
 
     #[test]
-    #[ignore]
     fn test_generate_coupon_code() {
         let mut core = Core::new().unwrap();
         let handle = Arc::new(core.handle());
@@ -355,6 +469,132 @@ pub mod tests {
         let work = service.generate_coupon_code();
         let result = core.run(work);
         assert_eq!(result.unwrap().len(), Coupon::MIN_GENERATE_LENGTH_CODE);
+    }
+
+    #[test]
+    fn test_validate_coupon_code() {
+        // only success run function
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_service(Some(MOCK_USER_ID), handle);
+        let payload = CouponsSearchCodePayload {
+            code: CouponCode(MOCK_COUPON_CODE.to_string()),
+            store_id: StoreId(1),
+        };
+        let work = service.validate_coupon(payload);
+        let result = core.run(work);
+        assert_eq!(result.is_ok(), true);
+    }
+
+    fn create_test_coupon() -> Coupon {
+        Coupon {
+            id: MOCK_COUPON_ID,
+            code: CouponCode(MOCK_COUPON_CODE.to_string()),
+            title: "title".to_string(),
+            store_id: StoreId(1),
+            scope: CouponScope::BaseProducts,
+            percent: 0,
+            quantity: 0,
+            expired_at: None,
+            is_active: true,
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+        }
+    }
+
+    fn create_used_coupons() -> Vec<UsedCoupon> {
+        vec![UsedCoupon {
+            coupon_id: MOCK_COUPON_ID,
+            user_id: MOCK_USER_ID,
+        }]
+    }
+
+    static MOCK_USER_ID_PLUS1: UserId = UserId(MOCK_USER_ID.0 + 1);
+    static MOCK_USER_ID_PLUS2: UserId = UserId(MOCK_USER_ID.0 + 2);
+
+    #[test]
+    fn test_validate_infinity_coupon() {
+        let test_coupon = create_test_coupon();
+        let used_coupons = create_used_coupons();
+
+        let mut infinity_coupon = test_coupon;
+        infinity_coupon.quantity = Coupon::INFINITE;
+        assert_eq!(
+            CouponValidate::Valid,
+            validate_coupon(infinity_coupon, MOCK_USER_ID_PLUS1, used_coupons).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_validate_not_active_coupon() {
+        let test_coupon = create_test_coupon();
+        let used_coupons = create_used_coupons();
+
+        let mut not_active_coupon = test_coupon;
+        not_active_coupon.is_active = false;
+        assert_eq!(
+            CouponValidate::NotActive,
+            validate_coupon(not_active_coupon, MOCK_USER_ID, used_coupons).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_validate_already_activated_coupon() {
+        let test_coupon = create_test_coupon();
+        let used_coupons = create_used_coupons();
+
+        let already_activated_coupon = test_coupon;
+        assert_eq!(
+            CouponValidate::AlreadyActivated,
+            validate_coupon(already_activated_coupon, MOCK_USER_ID, used_coupons).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_validate_has_expired_coupon() {
+        let test_coupon = create_test_coupon();
+        let used_coupons = create_used_coupons();
+
+        let mut has_expired_coupon = test_coupon;
+        has_expired_coupon.expired_at = Some(SystemTime::now() - Duration::from_secs(86400));
+        assert_eq!(
+            CouponValidate::HasExpired,
+            validate_coupon(has_expired_coupon, MOCK_USER_ID_PLUS1, used_coupons).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_validate_activations_available_coupon() {
+        let test_coupon = create_test_coupon();
+        let mut used_coupons = create_used_coupons();
+        used_coupons.clear();
+
+        let mut activations_available_coupon = test_coupon;
+        activations_available_coupon.quantity = 1;
+        assert_eq!(
+            CouponValidate::Valid,
+            validate_coupon(activations_available_coupon, MOCK_USER_ID_PLUS1, used_coupons).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_validate_no_activations_available_coupon() {
+        let test_coupon = create_test_coupon();
+        let mut used_coupons = create_used_coupons();
+
+        used_coupons.push(UsedCoupon {
+            coupon_id: MOCK_COUPON_ID,
+            user_id: MOCK_USER_ID_PLUS2,
+        });
+
+        assert!(used_coupons.len() == 2);
+
+        let mut no_activations_available_coupon = test_coupon;
+        no_activations_available_coupon.quantity = 1;
+        assert_eq!(
+            CouponValidate::NoActivationsAvailable,
+            validate_coupon(no_activations_available_coupon, MOCK_USER_ID_PLUS1, used_coupons).unwrap()
+        );
     }
 
 }

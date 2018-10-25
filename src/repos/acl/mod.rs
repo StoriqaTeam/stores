@@ -68,6 +68,7 @@ impl ApplicationAcl {
                 permission!(Resource::Coupons),
                 permission!(Resource::CouponScopeBaseProducts),
                 permission!(Resource::CouponScopeCategories),
+                permission!(Resource::UsedCoupons),
             ],
         );
         hash.insert(
@@ -104,6 +105,7 @@ impl ApplicationAcl {
                 permission!(Resource::CouponScopeBaseProducts, Action::Read),
                 permission!(Resource::CouponScopeCategories, Action::All, Scope::Owned),
                 permission!(Resource::CouponScopeCategories, Action::Read),
+                permission!(Resource::UsedCoupons, Action::Read),
             ],
         );
 

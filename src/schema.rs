@@ -187,6 +187,13 @@ table! {
 }
 
 table! {
+    used_coupons (coupon_id, user_id) {
+        coupon_id -> Int4,
+        user_id -> Int4,
+    }
+}
+
+table! {
     user_roles (id) {
         user_id -> Int4,
         created_at -> Timestamp,
@@ -238,6 +245,7 @@ joinable!(prod_attr_values -> attributes (attr_id));
 joinable!(prod_attr_values -> base_products (base_prod_id));
 joinable!(prod_attr_values -> products (prod_id));
 joinable!(products -> base_products (base_product_id));
+joinable!(used_coupons -> coupons (coupon_id));
 
 allow_tables_to_appear_in_same_query!(
     attributes,
@@ -254,6 +262,7 @@ allow_tables_to_appear_in_same_query!(
     prod_attr_values,
     products,
     stores,
+    used_coupons,
     user_roles,
     wizard_stores,
 );

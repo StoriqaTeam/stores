@@ -906,6 +906,20 @@ impl<
                 )
             }
 
+            // POST /coupons/validate/code
+            (&Post, Some(Route::CouponsValidateCode)) => {
+                debug!("User with id = '{:?}' is requesting  // POST /coupons/validate/code", user_id);
+
+                serialize_future(
+                    parse_body::<CouponsSearchCodePayload>(req.body())
+                        .map_err(|e| {
+                            e.context("Parsing body // POST /coupons/validate/code in CouponsSearchCodePayload failed!")
+                                .context(Error::Parse)
+                                .into()
+                        }).and_then(move |payload| service.validate_coupon(payload)),
+                )
+            }
+
             // POST /coupons/:coupon_id/base_products/:base_product_id
             (
                 &Post,

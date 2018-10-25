@@ -46,6 +46,7 @@ impl Coupon {
     pub const MIN_LENGTH_CODE: u64 = 4;
     pub const MAX_LENGTH_CODE: u64 = 12;
     pub const MIN_GENERATE_LENGTH_CODE: usize = 6;
+    pub const INFINITE: i32 = 0;
 }
 
 /// Payload for updating coupon

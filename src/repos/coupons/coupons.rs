@@ -77,7 +77,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// List all coupons
     fn list(&self) -> RepoResult<Vec<Coupon>> {
-        debug!("Find all attributes.");
+        debug!("Find all coupons.");
         let query = Coupons::coupons.order(Coupons::id);
 
         query

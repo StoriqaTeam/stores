@@ -21,6 +21,7 @@ use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
 use repos::{CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
+use services::check_vendor_code;
 use services::create_product_attributes_values;
 use services::Service;
 
@@ -546,6 +547,7 @@ impl<
                 // create base_product
                 let base_prod = base_products_repo.create(new_base_product)?;
                 let base_prod_id = base_prod.id;
+                let store_id = base_prod.store_id;
 
                 // update product categories of the store
                 update_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
@@ -557,6 +559,7 @@ impl<
                 });
 
                 for variant in variants {
+                    check_vendor_code(&*stores_repo, store_id, &variant.product.vendor_code)?;
                     // create variant
                     let product = products_repo.create((variant.product, base_prod.currency).into())?;
                     // create attributes values for variant

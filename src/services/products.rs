@@ -389,7 +389,7 @@ fn check_attributes_values_exist(
     }
 }
 
-fn check_vendor_code(stores_repo: &StoresRepo, store_id: StoreId, vendor_code: &str) -> Result<(), FailureError> {
+pub fn check_vendor_code(stores_repo: &StoresRepo, store_id: StoreId, vendor_code: &str) -> Result<(), FailureError> {
     let vendor_code_exists = stores_repo
         .vendor_code_exists(store_id, vendor_code)?
         .ok_or(format_err!("Store with id {} not found.", store_id).context(Error::NotFound))?;

@@ -183,14 +183,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let filtered = Coupons::coupons.filter(Coupons::id.eq(&id_arg));
         let query = diesel::delete(filtered);
 
+        acl::check(&*self.acl, Resource::Coupons, Action::Delete, self, None)?;
+
         query
             .get_result::<Coupon>(self.db_conn)
             .map_err(From::from)
-            .and_then(|value| {
-                acl::check(&*self.acl, Resource::Coupons, Action::Delete, self, Some(&value))?;
-
-                Ok(value)
-            }).map_err(|e: FailureError| e.context(format!("Delete coupon: {:?} error occurred", id_arg)).into())
+            .map_err(|e: FailureError| e.context(format!("Delete coupon: {:?} error occurred", id_arg)).into())
     }
 }
 

@@ -36,6 +36,7 @@ pub enum Route {
     Coupon(CouponId),
     CouponsSearchCode,
     CouponsValidateCode,
+    CouponValidate(CouponId),
     CouponsGenerateCode,
     CouponsSearchFiltersStore(StoreId),
     CouponScopeBaseProducts {
@@ -313,6 +314,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Validate coupons route by code
     router.add_route(r"^/coupons/validate/code$", || Route::CouponsValidateCode);
+
+    // Validate coupons route by code
+    router.add_route_with_params(r"^/coupons/(\d+)/validate$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<CouponId>().ok())
+            .map(Route::CouponValidate)
+    });
 
     // Add base product to coupon
     router.add_route_with_params(r"^/coupons/(\d+)/base_products/(\d+)$", |params| {

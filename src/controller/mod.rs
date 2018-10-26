@@ -916,8 +916,18 @@ impl<
                             e.context("Parsing body // POST /coupons/validate/code in CouponsSearchCodePayload failed!")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |payload| service.validate_coupon(payload)),
+                        }).and_then(move |payload| service.validate_coupon_by_code(payload)),
                 )
+            }
+
+            // GET /coupons/:id/validate
+            (&Get, Some(Route::CouponValidate(coupon_id))) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // GET /coupons/{}/validate",
+                    user_id, coupon_id
+                );
+
+                serialize_future(service.validate_coupon(coupon_id))
             }
 
             // POST /coupons/:coupon_id/base_products/:base_product_id

@@ -10,7 +10,6 @@ pub use self::used_coupons::*;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum CouponValidate {
-    NotExists,
     NotActive,
     HasExpired,
     NoActivationsAvailable,

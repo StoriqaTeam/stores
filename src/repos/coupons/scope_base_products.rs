@@ -88,16 +88,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .filter(DslCouponScope::coupon_id.eq(&id_arg))
             .filter(DslCouponScope::base_product_id.eq(&base_product_arg));
 
+        acl::check(&*self.acl, Resource::CouponScopeBaseProducts, Action::Delete, self, None)?;
+
         let query = diesel::delete(filtered);
 
         query
             .get_result::<CouponScopeBaseProducts>(self.db_conn)
             .map_err(From::from)
-            .and_then(|value| {
-                acl::check(&*self.acl, Resource::CouponScopeBaseProducts, Action::Delete, self, Some(&value))?;
-
-                Ok(value)
-            }).map_err(|e: FailureError| {
+            .map_err(|e: FailureError| {
                 e.context(format!(
                     "Delete record coupon scope for base product, coupon_id: {} and base_product_id: {} error occurred",
                     id_arg, base_product_arg

@@ -25,8 +25,11 @@ extern crate jsonwebtoken;
 extern crate lazy_static;
 #[macro_use]
 extern crate log;
+extern crate num_traits;
 extern crate r2d2;
 extern crate regex;
+extern crate reqwest;
+extern crate rust_decimal;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -66,6 +69,7 @@ pub mod services;
 
 use std::process;
 use std::sync::Arc;
+use std::time::Duration;
 
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
@@ -80,6 +84,7 @@ use stq_http::controller::Application;
 use config::Config;
 use controller::context::StaticContext;
 use errors::Error;
+use loaders::ticker;
 use repos::acl::RolesCacheImpl;
 use repos::attributes::AttributeCacheImpl;
 use repos::categories::CategoryCacheImpl;
@@ -175,4 +180,33 @@ fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Fu
             error!("Error in rocket retail loader: {}.", e);
             futures::future::ok(())
         }).for_each(|_| futures::future::ok(()))
+}
+
+pub fn start_ticker(config: Config) {
+    let Config { server, ticker, .. } = config;
+    let ticker = ticker.expect("Ticker config not found");
+
+    // Prepare database pool
+    let database_url = server.database.parse::<String>().expect("Failed to parse database URL");
+    let db_manager = ConnectionManager::<PgConnection>::new(database_url);
+    let db_pool = r2d2::Pool::builder().build(db_manager).expect("Failed to create connection pool");
+
+    let http_client = reqwest::async::Client::new();
+
+    let interval = Duration::from_secs(ticker.interval_s);
+
+    let thread_pool = CpuPool::new(ticker.thread_count);
+
+    let ctx = ticker::TickerContext {
+        api_endpoint_url: ticker.api_endpoint_url,
+        db_pool,
+        http_client,
+        interval,
+        thread_pool,
+    };
+
+    Core::new()
+        .expect("Unexpected error occurred when creating an event loop core for Ticker")
+        .run(ticker::run(ctx))
+        .unwrap();
 }

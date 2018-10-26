@@ -35,7 +35,7 @@ impl From<DbCurrencyExchange> for CurrencyExchange {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NewCurrencyExchange {
     pub data: Data,
 }

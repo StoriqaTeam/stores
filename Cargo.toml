@@ -11,6 +11,10 @@ name = "rocket_retail"
 path = "src/bin/rocket_retail.rs"
 
 [[bin]]
+name = "ticker"
+path = "src/bin/ticker.rs"
+
+[[bin]]
 name = "stores"
 path = "src/main.rs"
 
@@ -27,9 +31,11 @@ isolang="0.2"
 jsonwebtoken = "4.0.0"
 lazy_static = "1.0"
 log = "0.4"
+num-traits = "0.2"
 r2d2 = "0.8.1"
 rand = "0.4"
 regex = "0.2"
+rust_decimal = "0.10"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
@@ -50,3 +56,7 @@ sentry = "0.12"
 treexml = "0.7.0"
 rusoto_core = "0.34"
 rusoto_s3 = "0.34"
+
+# ticker
+enum-iter = { git = "https://github.com/StoriqaTeam/enum-iter" }
+reqwest = "0.9"

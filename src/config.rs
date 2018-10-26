@@ -17,6 +17,7 @@ pub struct Config {
     pub sentry: Option<SentryConfig>,
     pub rocket_retail: Option<RocketRetail>,
     pub s3: Option<S3>,
+    pub ticker: Option<Ticker>,
 }
 
 /// Common server settings
@@ -46,6 +47,14 @@ pub struct RocketRetail {
     pub thread_count: usize,
 }
 
+/// Ticker settings
+#[derive(Debug, Deserialize, Clone)]
+pub struct Ticker {
+    pub api_endpoint_url: String,
+    pub interval_s: u64,
+    pub thread_count: usize,
+}
+
 /// AWS S3 credentials
 #[derive(Debug, Deserialize, Clone)]
 pub struct S3 {
@@ -71,8 +80,8 @@ impl Config {
         let env = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
         s.merge(File::with_name(&format!("config/{}", env)).required(false))?;
 
-        // Add in settings from the environment (with a prefix of STQ_USERS)
-        s.merge(Environment::with_prefix("STQ_USERS"))?;
+        // Add in settings from the environment (with a prefix of STQ_STORES)
+        s.merge(Environment::with_prefix("STQ_STORES"))?;
 
         s.try_into()
     }

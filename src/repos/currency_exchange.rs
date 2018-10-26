@@ -47,7 +47,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Get latest currency exchanges
     fn get_latest(&self) -> RepoResult<Option<CurrencyExchange>> {
         debug!("Find latest currency.");
-        let query = currency_exchange.order_by(id.desc()).limit(1);
+        let query = currency_exchange.order_by(created_at.desc()).limit(1);
 
         query
             .first(self.db_conn)

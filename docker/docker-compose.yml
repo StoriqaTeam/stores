@@ -22,9 +22,11 @@ services:
     depends_on:
       - stores-pg
       - stores-es
+      - stores-redis
     links:
-      - stores-es
       - stores-pg
+      - stores-es
+      - stores-redis
 
   zoo1:
     image: zookeeper
@@ -161,13 +163,15 @@ services:
     image: debezium/postgres
     container_name: stores-pg
     volumes:
-      - stq-stores-postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5420:5432"
+      - stq_stores_postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=stores
       - POSTGRES_DB=stores
       - POSTGRES_PASSWORD=stores
+    ports:
+      - "5432"
+    expose:
+      - 5432
     
   stores-es:
     image: docker.elastic.co/elasticsearch/elasticsearch:6.2.1
@@ -183,13 +187,23 @@ services:
         soft: -1
         hard: -1
     volumes:
-      - stq-stores-elastic-data:/var/lib/elasticsearch/data
-    
+      - stq_stores_elastic_data:/var/lib/elasticsearch/data
+
+  stores-redis:
+    image: redis:4.0-alpine
+    container_name: stores-redis
+    volumes:
+      - stq_stores_redis_data:/data
+    ports:
+      - "6379"
+    expose:
+      - 6379
 
 volumes:
   stq_cargo_cache:
-  stq-stores-postgres-data:
-  stq-stores-elastic-data:
+  stq_stores_postgres_data:
+  stq_stores_elastic_data:
+  stq_stores_redis_data:
 
 networks:
   default:

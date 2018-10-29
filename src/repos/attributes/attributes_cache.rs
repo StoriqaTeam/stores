@@ -1,35 +1,51 @@
 //! AttributeCache is a module that caches received from db information about user and his categories
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-
+use failure::Fail;
+use stq_cache::cache::Cache;
 use stq_types::AttributeId;
 
 use models::Attribute;
 
-#[derive(Clone, Default)]
-pub struct AttributeCacheImpl {
-    inner: Arc<Mutex<HashMap<AttributeId, Attribute>>>,
+pub struct AttributeCacheImpl<C>
+where
+    C: Cache<Attribute>,
+{
+    cache: C,
 }
 
-impl AttributeCacheImpl {
-    pub fn get(&self, _id: AttributeId) -> Option<Attribute> {
-        //self.inner.lock().unwrap().get(&id).cloned()
-        None
+impl<C> AttributeCacheImpl<C>
+where
+    C: Cache<Attribute>,
+{
+    pub fn new(cache: C) -> Self {
+        AttributeCacheImpl { cache }
     }
 
-    pub fn contains(&self, _id: AttributeId) -> bool {
-        //let hash_map = self.inner.lock().unwrap();
-        //hash_map.contains_key(&id)
-        false
+    pub fn get(&self, id: AttributeId) -> Option<Attribute> {
+        debug!("Getting an attribute from AttributeCache at key '{}'", id);
+
+        self.cache.get(id.to_string().as_str()).unwrap_or_else(|err| {
+            let err = err.context(format!("Failed to get an attribute from AttributeCache at key '{}'", id));
+            error!("{}", err);
+            None
+        })
     }
 
-    pub fn add_attribute(&self, _id: AttributeId, _attribute: Attribute) {
-        //let mut hash_map = self.inner.lock().unwrap();
-        //hash_map.insert(id, attribute);
+    pub fn remove(&self, id: AttributeId) -> bool {
+        debug!("Removing an attribute from AttributeCache at key '{}'", id);
+
+        self.cache.remove(id.to_string().as_str()).unwrap_or_else(|err| {
+            let err = err.context(format!("Failed to remove an attribute from AttributeCache at key '{}'", id));
+            error!("{}", err);
+            false
+        })
     }
 
-    pub fn remove(&self, _id: AttributeId) {
-        //let mut hash_map = self.inner.lock().unwrap();
-        //hash_map.remove(&id);
+    pub fn set(&self, id: AttributeId, attribute: Attribute) {
+        debug!("Setting an attribute in AttributeCache at key '{}'", id);
+
+        self.cache.set(id.to_string().as_str(), attribute).unwrap_or_else(|err| {
+            let err = err.context(format!("Failed to set an attribute in AttributeCache at key '{}'", id));
+            error!("{}", err);
+        })
     }
 }

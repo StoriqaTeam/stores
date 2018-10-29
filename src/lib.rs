@@ -27,6 +27,7 @@ extern crate lazy_static;
 extern crate log;
 extern crate num_traits;
 extern crate r2d2;
+extern crate r2d2_redis;
 extern crate regex;
 extern crate reqwest;
 extern crate rust_decimal;
@@ -35,6 +36,7 @@ extern crate serde;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_json;
+extern crate stq_cache;
 extern crate stq_http;
 extern crate stq_logging;
 extern crate stq_router;
@@ -77,9 +79,10 @@ use futures::future;
 use futures::{Future, Stream};
 use futures_cpupool::CpuPool;
 use hyper::server::Http;
-use tokio_core::reactor::Core;
-
+use r2d2_redis::RedisConnectionManager;
+use stq_cache::cache::{redis::RedisCache, Cache, NullCache, TypedCache};
 use stq_http::controller::Application;
+use tokio_core::reactor::Core;
 
 use config::Config;
 use controller::context::StaticContext;
@@ -104,8 +107,10 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
 
     // Prepare database pool
     let database_url: String = config.server.database.parse().expect("Database URL must be set in configuration");
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    let db_pool = r2d2::Pool::builder().build(manager).expect("Failed to create connection pool");
+    let db_manager = ConnectionManager::<PgConnection>::new(database_url);
+    let db_pool = r2d2::Pool::builder()
+        .build(db_manager)
+        .expect("Failed to create DB connection pool");
 
     let thread_count = config.server.thread_count;
 
@@ -118,17 +123,44 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
         format!("{}:{}", config.server.host, port).parse().expect("Could not parse address")
     };
 
-    // Roles cache
-    let roles_cache = RolesCacheImpl::default();
+    // Prepare caches
+    let (roles_cache, category_cache, attribute_cache) = match &config.server.redis {
+        Some(redis_url) => {
+            // Prepare Redis pool
+            let redis_url: String = redis_url.parse().expect("Redis URL must be set in configuration");
+            let redis_manager = RedisConnectionManager::new(redis_url.as_ref()).expect("Failed to create Redis connection manager");
+            let redis_pool = r2d2::Pool::builder()
+                .build(redis_manager)
+                .expect("Failed to create Redis connection pool");
 
-    // Categories cache
-    let category_cache = CategoryCacheImpl::default();
+            let ttl = Duration::from_secs(config.server.cache_ttl_sec);
 
-    // Attributes cache
-    let attributes_cache = AttributeCacheImpl::default();
+            let roles_cache_backend = Box::new(TypedCache::new(
+                RedisCache::new(redis_pool.clone(), "roles".to_string()).with_ttl(ttl),
+            )) as Box<dyn Cache<_, Error = _> + Send + Sync>;
+            let roles_cache = RolesCacheImpl::new(roles_cache_backend);
+
+            let category_cache_backend = Box::new(TypedCache::new(
+                RedisCache::new(redis_pool.clone(), "category".to_string()).with_ttl(ttl),
+            )) as Box<dyn Cache<_, Error = _> + Send + Sync>;
+            let category_cache = CategoryCacheImpl::new(category_cache_backend);
+
+            let attribute_cache_backend = Box::new(TypedCache::new(
+                RedisCache::new(redis_pool.clone(), "attribute".to_string()).with_ttl(ttl),
+            )) as Box<dyn Cache<_, Error = _> + Send + Sync>;
+            let attribute_cache = AttributeCacheImpl::new(attribute_cache_backend);
+
+            (roles_cache, category_cache, attribute_cache)
+        }
+        None => (
+            RolesCacheImpl::new(Box::new(NullCache::new()) as Box<_>),
+            CategoryCacheImpl::new(Box::new(NullCache::new()) as Box<_>),
+            AttributeCacheImpl::new(Box::new(NullCache::new()) as Box<_>),
+        ),
+    };
 
     // Repo factory
-    let repo_factory = ReposFactoryImpl::new(roles_cache, category_cache, attributes_cache);
+    let repo_factory = ReposFactoryImpl::new(roles_cache, category_cache, attribute_cache);
 
     let context = StaticContext::new(db_pool, cpu_pool, client_handle, Arc::new(config), repo_factory);
 

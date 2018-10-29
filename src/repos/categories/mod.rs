@@ -9,7 +9,8 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
-
+use std::sync::Arc;
+use stq_cache::cache::CacheSingle;
 use stq_types::{CategoryId, UserId};
 
 use models::authorization::*;
@@ -28,10 +29,14 @@ pub use self::category_attrs::*;
 pub use self::category_cache::*;
 
 /// Categories repository, responsible for handling categorie_values
-pub struct CategoriesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+pub struct CategoriesRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+{
     pub db_conn: &'a T,
     pub acl: Box<Acl<Resource, Action, Scope, FailureError, Category>>,
-    pub cache: CategoryCacheImpl,
+    pub cache: Arc<CategoryCacheImpl<C>>,
 }
 
 pub trait CategoriesRepo {
@@ -48,13 +53,21 @@ pub trait CategoriesRepo {
     fn get_all_categories(&self) -> RepoResult<Category>;
 }
 
-impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Category>>, cache: CategoryCacheImpl) -> Self {
+impl<'a, C, T> CategoriesRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+{
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Category>>, cache: Arc<CategoryCacheImpl<C>>) -> Self {
         Self { db_conn, acl, cache }
     }
 }
 
-impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoriesRepo for CategoriesRepoImpl<'a, T> {
+impl<'a, C, T> CategoriesRepo for CategoriesRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+{
     /// Find specific category by id
     fn find(&self, id_arg: CategoryId) -> RepoResult<Option<Category>> {
         debug!("Find in categories with id {}.", id_arg);
@@ -65,7 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category> {
         debug!("Create new category {:?}.", payload);
-        self.cache.clear();
+        self.cache.remove();
 
         let new_category_level = if payload.parent_id == CategoryId(0) {
             Ok(1)
@@ -102,7 +115,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Updates specific category
     fn update(&self, category_id_arg: CategoryId, payload: UpdateCategory) -> RepoResult<Category> {
         debug!("Updating category with id {} and payload {:?}.", category_id_arg, payload);
-        self.cache.clear();
+        self.cache.remove();
         let query = categories.find(category_id_arg);
         query
             .get_result::<RawCategory>(self.db_conn)
@@ -269,8 +282,10 @@ pub fn set_attributes<S: BuildHasher>(cat: &mut Category, attrs_hash: &HashMap<C
     }
 }
 
-impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, Category>
-    for CategoriesRepoImpl<'a, T>
+impl<'a, C, T> CheckScope<Scope, Category> for CategoriesRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
     fn is_in_scope(&self, _user_id: UserId, scope: &Scope, _obj: Option<&Category>) -> bool {
         match *scope {

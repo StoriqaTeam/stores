@@ -3,12 +3,14 @@ host = "0.0.0.0"
 port = "8000"
 database = "postgresql://stores:stores@stores-pg/stores"
 elastic = "stores-es:9200"
+# redis = "redis://stores-redis"
 thread_count = 20
+cache_ttl_sec = 600
 
 [client]
-http_client_buffer_size=3
-http_client_retries=3
-http_timeout_ms=5000
+http_client_buffer_size = 3
+http_client_retries = 3
+http_timeout_ms = 5000
 
 [ticker]
 api_endpoint_url = "https://api.exmo.com/v1/ticker"

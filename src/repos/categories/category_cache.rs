@@ -1,33 +1,47 @@
 //! CategoryCache is a module that caches received from db information about user and his categories
-use std::sync::{Arc, Mutex};
+use failure::Fail;
+use stq_cache::cache::CacheSingle;
 
 use models::Category;
 
-#[derive(Clone, Default)]
-pub struct CategoryCacheImpl {
-    inner: Arc<Mutex<Option<Category>>>,
+pub struct CategoryCacheImpl<C>
+where
+    C: CacheSingle<Category>,
+{
+    cache: C,
 }
 
-impl CategoryCacheImpl {
+impl<C> CategoryCacheImpl<C>
+where
+    C: CacheSingle<Category>,
+{
+    pub fn new(cache: C) -> Self {
+        CategoryCacheImpl { cache }
+    }
+
     pub fn get(&self) -> Option<Category> {
-        //let category = self.inner.lock().unwrap();
-        //category.clone()
-        None
+        debug!("Getting category from CategoryCache");
+
+        self.cache.get().unwrap_or_else(|err| {
+            error!("{}", err.context("Failed to get category from CategoryCache"));
+            None
+        })
     }
 
-    pub fn clear(&self) {
-        //let mut category = self.inner.lock().unwrap();
-        //*category = None;
+    pub fn remove(&self) -> bool {
+        debug!("Removing category from CategoryCache");
+
+        self.cache.remove().unwrap_or_else(|err| {
+            error!("{}", err.context("Failed to remove category from CategoryCache"));
+            false
+        })
     }
 
-    pub fn is_some(&self) -> bool {
-        //let category = self.inner.lock().unwrap();
-        //category.is_some()
-        false
-    }
+    pub fn set(&self, cat: Category) {
+        debug!("Setting category in CategoryCache");
 
-    pub fn set(&self, _cat: Category) {
-        //let mut category = self.inner.lock().unwrap();
-        //*category = Some(cat);
+        self.cache.set(cat).unwrap_or_else(|err| {
+            error!("{}", err.context("Failed to set category in CategoryCache"));
+        })
     }
 }

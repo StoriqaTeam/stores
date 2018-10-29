@@ -6,11 +6,12 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
-
+use std::sync::Arc;
+use stq_cache::cache::CacheSingle;
 use stq_types::{CategoryId, UserId};
 
 use models::authorization::*;
-use models::{CatAttr, NewCatAttr, OldCatAttr};
+use models::{CatAttr, Category, NewCatAttr, OldCatAttr};
 use repos::acl;
 use repos::categories::CategoryCacheImpl;
 use repos::legacy_acl::{Acl, CheckScope};
@@ -18,10 +19,14 @@ use repos::types::RepoResult;
 use schema::cat_attr_values::dsl::*;
 
 /// CatAttr repository, responsible for handling cat_attr_values
-pub struct CategoryAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
+pub struct CategoryAttrsRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+{
     pub db_conn: &'a T,
     pub acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>,
-    pub cache: CategoryCacheImpl,
+    pub cache: Arc<CategoryCacheImpl<C>>,
 }
 
 pub trait CategoryAttrsRepo {
@@ -35,14 +40,20 @@ pub trait CategoryAttrsRepo {
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()>;
 }
 
-impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoryAttrsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>, cache: CategoryCacheImpl) -> Self {
+impl<'a, C, T> CategoryAttrsRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
+{
+    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>, cache: Arc<CategoryCacheImpl<C>>) -> Self {
         Self { db_conn, acl, cache }
     }
 }
 
-impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CategoryAttrsRepo
-    for CategoryAttrsRepoImpl<'a, T>
+impl<'a, C, T> CategoryAttrsRepo for CategoryAttrsRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
     /// Find specific category_attributes by category ID
     fn find_all_attributes(&self, category_id_arg: CategoryId) -> RepoResult<Vec<CatAttr>> {
@@ -60,7 +71,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn create(&self, payload: NewCatAttr) -> RepoResult<()> {
         debug!("Create new category attribute {:?}.", payload);
         acl::check(&*self.acl, Resource::CategoryAttrs, Action::Create, self, None)?;
-        self.cache.clear();
+        self.cache.remove();
         let query_category_attribute = diesel::insert_into(cat_attr_values).values(&payload);
         query_category_attribute
             .get_result::<CatAttr>(self.db_conn)
@@ -75,7 +86,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
         debug!("Delete category attributewith payload {:?}.", payload);
         acl::check(&*self.acl, Resource::CategoryAttrs, Action::Delete, self, None)?;
-        self.cache.clear();
+        self.cache.remove();
         let filtered = cat_attr_values
             .filter(cat_id.eq(payload.cat_id))
             .filter(attr_id.eq(payload.attr_id));
@@ -87,8 +98,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 }
 
-impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CheckScope<Scope, CatAttr>
-    for CategoryAttrsRepoImpl<'a, T>
+impl<'a, C, T> CheckScope<Scope, CatAttr> for CategoryAttrsRepoImpl<'a, C, T>
+where
+    C: CacheSingle<Category>,
+    T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
     fn is_in_scope(&self, _user_id: UserId, scope: &Scope, _obj: Option<&CatAttr>) -> bool {
         match *scope {

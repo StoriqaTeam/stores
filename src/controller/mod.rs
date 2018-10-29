@@ -946,6 +946,22 @@ impl<
                 serialize_future(service.add_base_product_coupon(coupon_id, base_product_id))
             }
 
+            // POST /coupons/:coupon_id/user_id/:user_id
+            (
+                &Post,
+                Some(Route::UsedCoupon {
+                    coupon_id,
+                    user_id: user_id_arg,
+                }),
+            ) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // POST /coupons/{}/user_id/{}",
+                    user_id, coupon_id, user_id_arg
+                );
+
+                serialize_future(service.add_used_coupon(coupon_id, user_id_arg))
+            }
+
             // GET /coupons/stores/:id
             (&Get, Some(Route::CouponsSearchFiltersStore(store_id))) => {
                 debug!("User with id = '{:?}' is requesting  // GET /coupons/stores/{}", user_id, store_id);
@@ -1002,6 +1018,22 @@ impl<
                 );
 
                 serialize_future(service.delete_base_product_from_coupon(coupon_id, base_product_id))
+            }
+
+            // DELETE /coupons/:coupon_id/user_id/:user_id
+            (
+                &Delete,
+                Some(Route::UsedCoupon {
+                    coupon_id,
+                    user_id: user_id_arg,
+                }),
+            ) => {
+                debug!(
+                    "User with id = '{:?}' is requesting  // DELETE /coupons/{}/user_id/{}",
+                    user_id, coupon_id, user_id_arg
+                );
+
+                serialize_future(service.delete_used_coupon(coupon_id, user_id_arg))
             }
 
             (&Get, Some(Route::RolesByUserId { user_id })) => {

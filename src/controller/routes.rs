@@ -43,6 +43,10 @@ pub enum Route {
         coupon_id: CouponId,
         base_product_id: BaseProductId,
     },
+    UsedCoupon {
+        user_id: UserId,
+        coupon_id: CouponId,
+    },
     BaseProductsByCoupon(CouponId),
     ModeratorProductComments,
     ModeratorBaseProductComment(BaseProductId),
@@ -332,6 +336,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
             coupon_id,
             base_product_id,
         })
+    });
+
+    // Modify used coupons to user
+    router.add_route_with_params(r"^/coupons/(\d+)/users/(\d+)$", |params| {
+        let coupon_id = params.get(0)?.parse().ok().map(CouponId)?;
+        let user_id = params.get(1)?.parse().ok().map(UserId)?;
+
+        Some(Route::UsedCoupon { coupon_id, user_id })
     });
 
     // Getting base_products by coupon_id

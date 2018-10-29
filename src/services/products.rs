@@ -79,6 +79,7 @@ impl<
                     Ok(Some(ProductSellerPrice {
                         price: product.price,
                         currency: product.currency,
+                        discount: product.discount,
                     }))
                 } else {
                     Ok(None)

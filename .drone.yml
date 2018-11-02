@@ -204,10 +204,10 @@ pipeline:
     group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
-    object: rocket
+    object: stores-rocket
     kind: deployment
     img_names: storiqateam/stq-stores-rocket
-    img_cnts: rocket
+    img_cnts: stores-rocket
     img_tags: ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
     secrets:
     - source: k8s_nightly_ca
@@ -225,10 +225,10 @@ pipeline:
     group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
-    object: ticker
+    object: stores-ticker
     kind: deployment
     img_names: storiqateam/stq-stores-ticker
-    img_cnts: ticker
+    img_cnts: stores-ticker
     img_tags: ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
     secrets:
     - source: k8s_nightly_ca
@@ -268,10 +268,10 @@ pipeline:
     group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
-    object: rocket
+    object: stores-rocket
     kind: deployment
     img_names: storiqateam/stq-stores-rocket
-    img_cnts: rocket
+    img_cnts: stores-rocket
     img_tags: ${DRONE_BRANCH//\//_}${DRONE_PARENT_BUILD_NUMBER}
     secrets:
     - source: k8s_stable_ca
@@ -310,10 +310,10 @@ pipeline:
     group: deploy
     image: jackthestripper/drone_setimage
     namespace: default
-    object: rocket
+    object: stores-rocket
     kind: deployment
     img_names: storiqateam/stq-stores-rocket
-    img_cnts: rocket
+    img_cnts: stores-rocket
     img_tags: '${DRONE_TAG}'
     secrets:
     - source: k8s_stage_ca
@@ -353,9 +353,9 @@ pipeline:
     image: jackthestripper/drone_setimage
     namespace: default
     kind: deployment
-    object: rocket
+    object: stores-rocket
     img_names: storiqateam/stq-stores-rocket
-    img_cnts: rocket
+    img_cnts: stores-rocket
     img_tags: '${DRONE_TAG}'
     secrets:
     - source: k8s_prod_ca

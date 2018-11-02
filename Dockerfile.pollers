@@ -1,6 +1,7 @@
 FROM debian:stable-slim
 
 ARG env=debug
+ARG binary
 
 RUN mkdir -p /app/config \
   && mkdir -p /app/migrations \
@@ -16,9 +17,9 @@ RUN mkdir -p /app/config \
 
 WORKDIR /app
 
-COPY target/$env/rocket_retail /app
+COPY target/$env/$binary /app
 COPY config /app/config
 
-EXPOSE 8000
+ENV BIN=/app/$binary
 
-ENTRYPOINT ["/app/rocket_retail"]
+ENTRYPOINT $BIN

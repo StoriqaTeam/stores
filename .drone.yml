@@ -285,6 +285,27 @@ pipeline:
     when:
       event: deployment
       environment: stable
+  deploy2stable_ticker:
+    group: deploy
+    image: jackthestripper/drone_setimage
+    namespace: default
+    object: stores-ticker
+    kind: deployment
+    img_names: storiqateam/stq-stores-ticker
+    img_cnts: stores-ticker
+    img_tags: ${DRONE_BRANCH//\//_}${DRONE_PARENT_BUILD_NUMBER}
+    secrets:
+    - source: k8s_stable_ca
+      target: k8s_ca
+    - source: k8s_stable_user
+      target: k8s_user
+    - source: k8s_stable_token
+      target: k8s_token
+    - source: k8s_stable_addr
+      target: k8s_addr
+    when:
+      event: deployment
+      environment: stable
 # stage
   deploy2stage_stores:
     group: deploy
@@ -314,6 +335,26 @@ pipeline:
     kind: deployment
     img_names: storiqateam/stq-stores-rocket
     img_cnts: stores-rocket
+    img_tags: '${DRONE_TAG}'
+    secrets:
+    - source: k8s_stage_ca
+      target: k8s_ca
+    - source: k8s_stage_user
+      target: k8s_user
+    - source: k8s_stage_token
+      target: k8s_token
+    - source: k8s_stage_addr
+      target: k8s_addr
+    when:
+      event: tag
+  deploy2stage_ticker:
+    group: deploy
+    image: jackthestripper/drone_setimage
+    namespace: default
+    object: stores-ticker
+    kind: deployment
+    img_names: storiqateam/stq-stores-ticker
+    img_cnts: stores-ticker
     img_tags: '${DRONE_TAG}'
     secrets:
     - source: k8s_stage_ca
@@ -356,6 +397,27 @@ pipeline:
     object: stores-rocket
     img_names: storiqateam/stq-stores-rocket
     img_cnts: stores-rocket
+    img_tags: '${DRONE_TAG}'
+    secrets:
+    - source: k8s_prod_ca
+      target: k8s_ca
+    - source: k8s_prod_user
+      target: k8s_user
+    - source: k8s_prod_token
+      target: k8s_token
+    - source: k8s_prod_addr
+      target: k8s_addr
+    when:
+      event: deployment
+      environment: production
+  deploy2production_ticker:
+    group: deploy
+    image: jackthestripper/drone_setimage
+    namespace: default
+    object: stores-ticker
+    kind: deployment
+    img_names: storiqateam/stq-stores-ticker
+    img_cnts: stores-ticker
     img_tags: '${DRONE_TAG}'
     secrets:
     - source: k8s_prod_ca

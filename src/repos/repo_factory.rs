@@ -228,6 +228,7 @@ pub mod tests {
     pub static MOCK_BASE_PRODUCT_NAME_JSON: &'static str = r##"[{"lang": "en","text": "base product"}]"##;
 
     pub static MOCK_COUPON_ID: CouponId = CouponId(1);
+    pub static MOCK_STORE_ID: StoreId = StoreId(1);
     pub static MOCK_COUPON_CODE: &'static str = "ASD";
 
     pub fn create_service(
@@ -430,8 +431,20 @@ pub mod tests {
         }
 
         /// Get coupon
-        fn get(&self, _id_arg: CouponId) -> RepoResult<Option<Coupon>> {
-            Ok(None)
+        fn get(&self, id_arg: CouponId) -> RepoResult<Option<Coupon>> {
+            Ok(Some(Coupon {
+                id: id_arg,
+                code: CouponCode("COUPONCODE".to_string()),
+                title: "Coupon title".to_string(),
+                store_id: MOCK_STORE_ID,
+                scope: CouponScope::BaseProducts,
+                percent: 30,
+                quantity: 0,
+                expired_at: None,
+                is_active: true,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+            }))
         }
 
         /// Get coupon by code
@@ -850,7 +863,7 @@ pub mod tests {
             Ok(Some(BaseProduct {
                 id: base_product_id,
                 is_active: true,
-                store_id: StoreId(1),
+                store_id: MOCK_STORE_ID,
                 name: serde_json::from_str("{}").unwrap(),
                 short_description: serde_json::from_str("{}").unwrap(),
                 long_description: None,

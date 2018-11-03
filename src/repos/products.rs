@@ -51,7 +51,7 @@ pub trait ProductsRepo {
     /// Deactivates specific product
     fn deactivate_by_base_product(&self, base_product_id: BaseProductId) -> RepoResult<Vec<RawProduct>>;
 
-    /// Update currency on all prodouct with base_product_id
+    /// Update currency on all products with base_product_id
     fn update_currency(&self, currency: Currency, base_product_id: BaseProductId) -> RepoResult<usize>;
 }
 
@@ -69,7 +69,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific product by ID
     fn find(&self, product_id_arg: ProductId) -> RepoResult<Option<RawProduct>> {
         debug!("Find in products with id {}.", product_id_arg);
-        let query = products.find(product_id_arg).filter(is_active.eq(true));
+        let query = products.find(product_id_arg).filter(is_active.eq(true)).order(id);
         query
             .get_result(self.db_conn)
             .optional()
@@ -85,7 +85,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific product by IDs
     fn find_many(&self, product_ids: Vec<ProductId>) -> RepoResult<Vec<RawProduct>> {
         debug!("Find in products {:?}.", product_ids);
-        let query = products.filter(id.eq_any(product_ids.clone())).filter(is_active.eq(true));
+        let query = products.filter(id.eq_any(product_ids.clone())).filter(is_active.eq(true)).order(id);
 
         query
             .get_results(self.db_conn)

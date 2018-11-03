@@ -138,7 +138,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = products
             .filter(base_product_id.eq(base_id_arg))
             .filter(is_active.eq(true))
-            .order_by(id.desc());
+            .order_by(id);
 
         query
             .get_results(self.db_conn)

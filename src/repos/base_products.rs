@@ -430,7 +430,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .into_iter()
                     .zip(variants)
                     .map(|(base, vars)| {
-                        let vars = vars.into_iter().map(Product::from).collect();
+                        let mut vars: Vec<Product> = vars.into_iter().map(Product::from).collect();
+                        vars.sort_by(|a, b| a.product.id.cmp(&b.product.id));
+
                         BaseProductWithVariants::new(base, vars)
                     }).collect())
             }).map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())

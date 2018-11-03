@@ -172,8 +172,29 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let coupon_scope_base_products_repo = repo_factory.create_coupon_scope_base_products_repo(&*conn, user_id);
+            let base_product_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let coupon_repo = repo_factory.create_coupon_repo(&*conn, user_id);
 
-            coupon_scope_base_products_repo.create(payload).map_err(|e| {
+            conn.transaction::<CouponScopeBaseProducts, FailureError, _>(move || {
+                let base_product = base_product_repo.find(base_product_id, Visibility::Active)?;
+                let coupon = coupon_repo.get(coupon_id)?;
+
+                match (base_product, coupon) {
+                    (Some(ref base_product), Some(ref coupon)) if &base_product.store_id == &coupon.store_id => {
+                        //do nothing
+                    }
+                    _ => {
+                        return Err(format_err!(
+                            "Coupon {} and base product {} do not belong to same store.",
+                            coupon_id,
+                            base_product_id
+                        ).context(Error::Forbidden)
+                        .into())
+                    }
+                }
+
+                coupon_scope_base_products_repo.create(payload)
+            }).map_err(|e| {
                 e.context("Service Coupons, add_base_product_coupon endpoint error occurred.")
                     .into()
             })
@@ -635,5 +656,4 @@ pub mod tests {
             validate_coupon(no_activations_available_coupon, MOCK_USER_ID_PLUS1, used_coupons)
         );
     }
-
 }

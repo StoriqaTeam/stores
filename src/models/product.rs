@@ -80,7 +80,7 @@ pub struct NewProduct {
     pub photo_main: Option<String>,
     #[validate(custom = "validate_urls")]
     pub additional_photos: Option<serde_json::Value>,
-    #[validate(length(min = "1"))]
+    #[validate(custom = "validate_not_empty")]
     pub vendor_code: String,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
@@ -100,7 +100,7 @@ pub struct NewProductWithoutCurrency {
     pub photo_main: Option<String>,
     #[validate(custom = "validate_urls")]
     pub additional_photos: Option<serde_json::Value>,
-    #[validate(length(min = "1"))]
+    #[validate(custom = "validate_not_empty")]
     pub vendor_code: String,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,
@@ -143,6 +143,7 @@ pub struct UpdateProduct {
     pub photo_main: Option<String>,
     #[validate(custom = "validate_urls")]
     pub additional_photos: Option<serde_json::Value>,
+    #[validate(custom = "validate_not_empty")]
     pub vendor_code: Option<String>,
     #[validate(range(min = "0.0", max = "1.0"))]
     pub cashback: Option<f64>,

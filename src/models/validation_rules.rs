@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::convert::AsRef;
 
 use isolang::Language;
 use regex::Regex;
@@ -52,6 +53,18 @@ pub fn validate_lang(lang: &str) -> Result<(), ValidationError> {
             params: HashMap::new(),
         }),
         Some(_) => Ok(()),
+    }
+}
+
+pub fn validate_not_empty<T: AsRef<str>>(val: T) -> Result<(), ValidationError> {
+    if val.as_ref().trim().is_empty() {
+        Err(ValidationError {
+            code: Cow::from("value"),
+            message: Some(Cow::from("Value must not be empty.")),
+            params: HashMap::new(),
+        })
+    } else {
+        Ok(())
     }
 }
 

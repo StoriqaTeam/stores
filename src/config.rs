@@ -8,6 +8,10 @@ use sentry_integration::SentryConfig;
 
 use config_crate::{Config as RawConfig, ConfigError, Environment, File};
 
+pub const ATTRIBUTE_CACHE_NAMESPACE: &'static str = "attribute";
+pub const CATEGORY_CACHE_NAMESPACE: &'static str = "category";
+pub const ROLES_CACHE_NAMESPACE: &'static str = "roles";
+
 /// Basic settings - HTTP binding address and database DSN
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {

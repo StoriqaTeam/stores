@@ -51,6 +51,9 @@ pub trait CategoriesRepo {
 
     /// Returns all categories as a tree
     fn get_all_categories(&self) -> RepoResult<Category>;
+
+    /// Returns all raw categories
+    fn get_raw_categories(&self) -> RepoResult<Vec<RawCategory>>;
 }
 
 impl<'a, C, T> CategoriesRepoImpl<'a, C, T>
@@ -142,6 +145,12 @@ where
                     category_id_arg, payload
                 )).into()
             })
+    }
+
+    fn get_raw_categories(&self) -> RepoResult<Vec<RawCategory>> {
+        acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)
+            .and_then(|_| categories.load::<RawCategory>(self.db_conn).map_err(From::from))
+            .map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
     }
 
     fn get_all_categories(&self) -> RepoResult<Category> {

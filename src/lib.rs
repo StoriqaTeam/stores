@@ -84,7 +84,7 @@ use stq_cache::cache::{redis::RedisCache, Cache, NullCache, TypedCache};
 use stq_http::controller::Application;
 use tokio_core::reactor::Core;
 
-use config::Config;
+use config::{Config, ATTRIBUTE_CACHE_NAMESPACE, CATEGORY_CACHE_NAMESPACE, ROLES_CACHE_NAMESPACE};
 use controller::context::StaticContext;
 use errors::Error;
 use loaders::ticker;
@@ -136,17 +136,17 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
             let ttl = Duration::from_secs(config.server.cache_ttl_sec);
 
             let roles_cache_backend = Box::new(TypedCache::new(
-                RedisCache::new(redis_pool.clone(), "roles".to_string()).with_ttl(ttl),
+                RedisCache::new(redis_pool.clone(), ROLES_CACHE_NAMESPACE.to_string()).with_ttl(ttl),
             )) as Box<dyn Cache<_, Error = _> + Send + Sync>;
             let roles_cache = RolesCacheImpl::new(roles_cache_backend);
 
             let category_cache_backend = Box::new(TypedCache::new(
-                RedisCache::new(redis_pool.clone(), "category".to_string()).with_ttl(ttl),
+                RedisCache::new(redis_pool.clone(), CATEGORY_CACHE_NAMESPACE.to_string()).with_ttl(ttl),
             )) as Box<dyn Cache<_, Error = _> + Send + Sync>;
             let category_cache = CategoryCacheImpl::new(category_cache_backend);
 
             let attribute_cache_backend = Box::new(TypedCache::new(
-                RedisCache::new(redis_pool.clone(), "attribute".to_string()).with_ttl(ttl),
+                RedisCache::new(redis_pool.clone(), ATTRIBUTE_CACHE_NAMESPACE.to_string()).with_ttl(ttl),
             )) as Box<dyn Cache<_, Error = _> + Send + Sync>;
             let attribute_cache = AttributeCacheImpl::new(attribute_cache_backend);
 

@@ -638,6 +638,10 @@ pub mod tests {
         fn get_all_categories(&self) -> RepoResult<Category> {
             Ok(create_mock_categories())
         }
+
+        fn get_raw_categories(&self) -> RepoResult<Vec<RawCategory>> {
+            Ok(create_raw_mock_categories())
+        }
     }
 
     fn create_mock_categories() -> Category {
@@ -677,6 +681,32 @@ pub mod tests {
             parent_id: None,
             attributes: vec![],
         }
+    }
+
+    fn create_raw_mock_categories() -> Vec<RawCategory> {
+        vec![
+            RawCategory {
+                id: CategoryId(1),
+                name: serde_json::from_str("{}").unwrap(),
+                parent_id: Some(CategoryId(0)),
+                level: 1,
+                meta_field: None,
+            },
+            RawCategory {
+                id: CategoryId(2),
+                name: serde_json::from_str("{}").unwrap(),
+                parent_id: Some(CategoryId(1)),
+                level: 2,
+                meta_field: None,
+            },
+            RawCategory {
+                id: CategoryId(3),
+                name: serde_json::from_str("{}").unwrap(),
+                parent_id: Some(CategoryId(2)),
+                level: 3,
+                meta_field: None,
+            },
+        ]
     }
 
     #[derive(Clone, Default)]

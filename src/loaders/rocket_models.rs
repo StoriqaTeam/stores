@@ -4,13 +4,13 @@ use failure::Error as FailureError;
 use failure::Fail;
 use serde_json;
 
-use treexml::{Document, Element, ElementBuilder};
+use treexml::{Document, Element, ElementBuilder, XmlVersion};
 
 use stq_static_resources::{Language, Translation};
 use stq_types::{ProductId, StoreId};
 
 use errors::Error;
-use models::{Attribute, BaseProduct, ProdAttr, ProductWithAttributes};
+use models::{Attribute, BaseProduct, ProdAttr, ProductWithAttributes, RawCategory};
 
 use loaders::RocketRetailEnvironment;
 
@@ -81,7 +81,107 @@ impl ToXMLElement for Param {
     }
 }
 
-/// Details a see [https://yandex.ru/support/partnermarket/offers.html](https://yandex.ru/support/partnermarket/offers.html)
+/// For details, see [https://yandex.ru/support/partnermarket/export/yml.html#yml-format](https://yandex.ru/support/partnermarket/export/yml.html#yml-format)
+#[derive(Debug, Default)]
+pub struct RocketRetailCatalog {
+    pub date: String,
+    pub shop: RocketRetailShop,
+}
+
+impl ToXMLDocument for RocketRetailCatalog {
+    fn to_xml_document(self) -> Document {
+        Document {
+            encoding: "UTF-8".to_string(),
+            root: Some(self.to_xml()),
+            version: XmlVersion::Version10,
+        }
+    }
+}
+
+impl ToXMLElement for RocketRetailCatalog {
+    fn to_xml(self) -> Element {
+        let mut bld = ElementBuilder::new("yml_catalog");
+        bld.attr("date", self.date);
+        bld.children(vec![&mut ElementBuilder::from(self.shop.to_xml())]);
+        bld.element()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct RocketRetailShop {
+    pub categories: Vec<RocketRetailCategory>,
+    pub offers: Vec<RocketRetailProduct>,
+}
+
+impl ToXMLElement for RocketRetailShop {
+    fn to_xml(self) -> Element {
+        let mut categories_bld = ElementBuilder::new("categories");
+        let mut category_blds = self
+            .categories
+            .into_iter()
+            .map(|v| ElementBuilder::from(v.to_xml()))
+            .collect::<Vec<_>>();
+        categories_bld.children(category_blds.iter_mut().collect());
+
+        let mut offers_bld = ElementBuilder::new("offers");
+        let mut offer_blds = self
+            .offers
+            .into_iter()
+            .map(|v| ElementBuilder::from(v.to_xml()))
+            .collect::<Vec<_>>();
+        offers_bld.children(offer_blds.iter_mut().collect());
+
+        ElementBuilder::new("shop")
+            .children(vec![&mut categories_bld, &mut offers_bld])
+            .element()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct RocketRetailCategory {
+    pub id: i32,
+    pub parent_id: Option<i32>,
+    pub title: String,
+}
+
+impl ToXMLElement for RocketRetailCategory {
+    fn to_xml(self) -> Element {
+        let mut elm = ElementBuilder::new("category");
+        elm.attr("id", self.id);
+        if let Some(parent_id) = self.parent_id {
+            elm.attr("parentid", parent_id);
+        };
+        elm.text(self.title);
+        elm.element()
+    }
+}
+
+impl RocketRetailCategory {
+    pub fn from_raw_category(raw_category: RawCategory, lang_arg: Option<Language>) -> RocketRetailCategory {
+        let lang = lang_arg.unwrap_or(RocketRetailEnvironment::DEFAULT_LANG);
+
+        let RawCategory { id, parent_id, name, .. } = raw_category;
+
+        let parent_id = parent_id.and_then(|parent_id| {
+            let parent_id = parent_id.0;
+            if parent_id != 0 {
+                Some(parent_id)
+            } else {
+                None
+            }
+        });
+
+        let category_translations = get_translations(name).unwrap_or_default();
+        let title = get_text_by_lang(&category_translations, lang.clone()).unwrap_or(format!("no category title for language: {}", lang));
+
+        RocketRetailCategory {
+            id: id.0,
+            parent_id,
+            title,
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct RocketRetailProduct {
     pub id: String, // attribute
@@ -93,6 +193,7 @@ pub struct RocketRetailProduct {
     pub url: String,             // max 512 characters
     pub price: f64,
     pub oldprice: Option<f64>,
+    pub category_id: i32,
     pub currency_id: String,
     pub picture: String, // max 512 characters
     pub delivery: Option<bool>,
@@ -111,15 +212,29 @@ pub struct RocketRetailProduct {
     pub dimensions: Option<f64>,
     pub downloadable: Option<bool>,
     pub age: Option<u32>,
-    pub group_id: Option<String>,
 }
 
 impl RocketRetailProduct {
-    pub fn new(base: BaseProduct, product_arg: ProductWithAttributes, lang_arg: Option<Language>, cluster: &str) -> Self {
+    pub fn new(
+        base: BaseProduct,
+        store_name: serde_json::Value,
+        product_arg: ProductWithAttributes,
+        lang_arg: Option<Language>,
+        cluster: &str,
+    ) -> Self {
         let lang = lang_arg.unwrap_or(RocketRetailEnvironment::DEFAULT_LANG);
+
+        let store_translations = get_translations(store_name).unwrap_or_default();
+        let store_name = get_text_by_lang(&store_translations, lang.clone()).unwrap_or(format!("no store name for language: {}", lang));
 
         let translation_names = get_translations(base.name.clone()).unwrap_or_default();
         let name = get_text_by_lang(&translation_names, lang.clone()).unwrap_or(format!("no name for language: {}", lang));
+
+        let descriptions = base.long_description.unwrap_or(base.short_description);
+        let description_translations = get_translations(descriptions).unwrap_or_default();
+        let description =
+            get_text_by_lang(&description_translations, lang.clone()).unwrap_or(format!("no description for language: {}", lang));
+
         let ProductWithAttributes { product, attributes } = product_arg;
 
         let params = attributes.into_iter().map(|v| Param::from_attribute(v, lang.clone())).collect();
@@ -127,12 +242,15 @@ impl RocketRetailProduct {
         Self {
             id: product.id.to_string(),
             name,
+            description: Some(description),
+            vendor: Some(store_name),
+            model: Some(product.vendor_code),
             url: create_product_url(cluster, base.store_id, product.id),
             price: product.price.into(),
+            category_id: base.category_id.0,
             currency_id: product.currency.code().to_string(),
             picture: product.photo_main.unwrap_or("".to_string()),
             params,
-            group_id: Some(base.id.to_string()),
             ..Default::default()
         }
     }
@@ -142,22 +260,6 @@ fn create_product_url(cluster: &str, store_id: StoreId, product_id: ProductId) -
     format!("https://{}/store/{}/products/{}", cluster, store_id, product_id)
 }
 
-impl ToXMLDocument for Vec<RocketRetailProduct> {
-    fn to_xml_document(self) -> Document {
-        let mut root = Element::new("offers");
-
-        for item in self {
-            let offer = item.to_xml();
-            root.children.push(offer);
-        }
-
-        Document {
-            root: Some(root),
-            ..Document::default()
-        }
-    }
-}
-
 impl ToXMLElement for RocketRetailProduct {
     fn to_xml(self) -> Element {
         let mut elm = ElementBuilder::new("offer");
@@ -165,12 +267,14 @@ impl ToXMLElement for RocketRetailProduct {
         let RocketRetailProduct {
             id,
             name,
+            model,
             vendor,
             vendor_code,
             available,
             url,
             price,
             oldprice,
+            category_id,
             currency_id,
             picture,
             delivery,
@@ -187,7 +291,6 @@ impl ToXMLElement for RocketRetailProduct {
             downloadable,
             age,
             params,
-            group_id,
             ..
         } = self;
 
@@ -195,16 +298,20 @@ impl ToXMLElement for RocketRetailProduct {
 
         if let Some(available) = available {
             elm.attr("available", available);
+        } else {
+            elm.attr("available", true);
         }
 
         let mut elm = elm
             .element()
             .with_child_text("name", name)
+            .with_child_option_text("model", model)
             .with_child_option_text("vendor", vendor)
             .with_child_option_text("vendorCode", vendor_code)
             .with_child_text("url", url)
             .with_child_text("price", price)
             .with_child_option_text("oldprice", oldprice)
+            .with_child_text("categoryId", category_id)
             .with_child_text("currencyId", currency_id)
             .with_child_text("picture", picture)
             .with_child_option_text("delivery", delivery)
@@ -219,8 +326,7 @@ impl ToXMLElement for RocketRetailProduct {
             .with_child_option_text("weight", weight)
             .with_child_option_text("dimensions", dimensions)
             .with_child_option_text("downloadable", downloadable)
-            .with_child_option_text("age", age)
-            .with_child_option_text("group_id", group_id);
+            .with_child_option_text("age", age);
 
         for param in params.into_iter() {
             elm = elm.with_child(param.to_xml());

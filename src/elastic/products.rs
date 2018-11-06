@@ -466,13 +466,13 @@ impl ProductsElastic for ProductsElasticImpl {
                 "nested": {
                     "path": "variants",
                     "query": {
-                    "bool": {
-                        "filter": {
-                            "exists": {
-                                "field": "variants.discount"
+                        "bool": {
+                            "filter": {
+                                "exists": {
+                                    "field": "variants.discount"
+                                }
                             }
                         }
-                    }
                     }
                 }
             });
@@ -485,11 +485,16 @@ impl ProductsElastic for ProductsElasticImpl {
                 "path":"variants",
                 "query":{  
                     "bool": {
-                        "filter": {
-                            "exists": {
+                        "filter": [
+                            { "exists": {
                                 "field": "variants.discount"
-                            }
-                        }
+                            }},
+                            { "range": {
+                                "variants.discount": {
+                                    "gt": 0
+                                }
+                            }}
+                        ]
                     }
                 },
                 "inner_hits": {

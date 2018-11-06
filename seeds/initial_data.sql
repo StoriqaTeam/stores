@@ -1,4 +1,5 @@
 
+DELETE FROM custom_attributes;
 DELETE FROM prod_attr_values;
 DELETE FROM products;
 DELETE FROM base_products;

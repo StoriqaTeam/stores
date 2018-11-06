@@ -143,8 +143,8 @@ services:
     environment:
       ES_HOST: "stores-es"
       DB_HOST: "stores-pg"
-      KC_HOST: "docker_kafka-connect_1"
-      SR_HOST: "docker_kafka-schema-registry_1"
+      KC_HOST: "kafka-connect"
+      SR_HOST: "kafka-schema-registry"
     depends_on:
       - kafka-connect
 
@@ -179,6 +179,8 @@ services:
     environment:
       - xpack.security.enabled=false
       - cluster.name=stores-es-cluster
+      - cluster.routing.allocation.disk.watermark.low=95%
+      - cluster.routing.allocation.disk.watermark.high=95%
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -188,6 +190,8 @@ services:
         hard: -1
     volumes:
       - stq_stores_elastic_data:/var/lib/elasticsearch/data
+    ports:
+      - "9200"
 
   stores-redis:
     image: redis:4.0-alpine

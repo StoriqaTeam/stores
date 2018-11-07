@@ -74,11 +74,16 @@ impl<
 pub struct DynamicContext {
     pub user_id: Option<UserId>,
     pub currency: Currency,
+    pub correlation_token: String,
 }
 
 impl DynamicContext {
     /// Create a new dynamic context for each request
-    pub fn new(user_id: Option<UserId>, currency: Currency) -> Self {
-        Self { user_id, currency }
+    pub fn new(user_id: Option<UserId>, currency: Currency, correlation_token: String) -> Self {
+        Self {
+            user_id,
+            currency,
+            correlation_token,
+        }
     }
 }

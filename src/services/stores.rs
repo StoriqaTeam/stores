@@ -12,7 +12,9 @@ use stq_types::{StoreId, UserId};
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
 use errors::Error;
-use models::{Category, ModeratorStoreSearchTerms, NewStore, SearchStore, Store, UpdateStore, Visibility};
+use models::{
+    Category, Direction, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, SearchStore, Store, UpdateStore, Visibility,
+};
 use repos::remove_unused_categories;
 use repos::ReposFactory;
 use services::Service;
@@ -351,10 +353,18 @@ impl<
             from, skip, count, term
         );
 
+        let pagination_params = PaginationParams {
+            direction: Direction::Reverse,
+            limit: count,
+            ordering: Ordering::Descending,
+            skip,
+            start: from.filter(|id| id.0 > 0),
+        };
+
         self.spawn_on_pool(move |conn| {
             let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
             stores_repo
-                .moderator_search(from, skip, count, term)
+                .moderator_search(pagination_params, term)
                 .map_err(|e: FailureError| e.context("Service `stores`, `moderator_search` endpoint error occurred.").into())
         })
     }

@@ -19,9 +19,9 @@ use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
 use models::{
-    Attribute, BaseProduct, BaseProductWithVariants, CatalogWithAttributes, ElasticProduct, ModeratorBaseProductSearchTerms,
-    MostDiscountProducts, MostViewedProducts, NewBaseProduct, ProdAttr, Product, ProductWithAttributes, RawProduct, Store,
-    UpdateBaseProduct, Visibility,
+    Attribute, BaseProduct, BaseProductWithVariants, CatalogWithAttributes, Direction, ElasticProduct, ModeratorBaseProductSearchTerms,
+    MostDiscountProducts, MostViewedProducts, NewBaseProduct, Ordering, PaginationParams, ProdAttr, Product, ProductWithAttributes,
+    RawProduct, Store, UpdateBaseProduct, Visibility,
 };
 use repos::legacy_acl::*;
 use schema::attributes::dsl as DslAttributes;
@@ -89,12 +89,10 @@ pub trait BaseProductsRepo {
     /// Convert data from elastic to PG models
     fn convert_from_elastic(&self, el_products: Vec<ElasticProduct>) -> RepoResult<Vec<BaseProductWithVariants>>;
 
-    /// Search base product limited by `from`, `skip` and `count` parameters
+    /// Search base product limited by pagination parameters
     fn moderator_search(
         &self,
-        from: Option<BaseProductId>,
-        skip: i64,
-        count: i64,
+        pagination_params: PaginationParams<BaseProductId>,
         term: ModeratorBaseProductSearchTerms,
     ) -> RepoResult<Vec<BaseProduct>>;
 
@@ -531,38 +529,53 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             }).map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
     }
 
-    /// Search base product limited by `from`, `skip` and `count` parameters
+    /// Search base product limited by pagination parameters
     fn moderator_search(
         &self,
-        from: Option<BaseProductId>,
-        skip: i64,
-        count: i64,
+        pagination_params: PaginationParams<BaseProductId>,
         term: ModeratorBaseProductSearchTerms,
     ) -> RepoResult<Vec<BaseProduct>> {
+        let PaginationParams {
+            direction,
+            limit,
+            ordering,
+            skip,
+            start,
+        } = pagination_params;
+
         let mut query = base_products.filter(is_active.eq(true)).into_boxed();
 
-        if let Some(from_id) = from {
-            query = query.filter(id.ge(from_id));
+        if let Some(from_id) = start {
+            query = match direction {
+                Direction::Forward => query.filter(id.gt(from_id)),
+                Direction::Reverse => query.filter(id.lt(from_id)),
+            };
         }
+
         if skip > 0 {
             query = query.offset(skip);
         }
-        if count > 0 {
-            query = query.limit(count);
+
+        if limit > 0 {
+            query = query.limit(limit);
         }
 
-        if let Some(term_name) = term.name {
+        if let Some(term_name) = &term.name {
             query = query.filter(sql(format!("name::text like '%{}%'", term_name).as_ref()));
         }
-        if let Some(term_store_id) = term.store_id {
+        if let Some(term_store_id) = &term.store_id {
             query = query.filter(store_id.eq(term_store_id));
         }
-        if let Some(term_state) = term.state {
+        if let Some(term_state) = &term.state {
             query = query.filter(status.eq(term_state));
         }
 
+        query = match ordering {
+            Ordering::Ascending => query.order(id.asc()),
+            Ordering::Descending => query.order(id.desc()),
+        };
+
         query
-            .order(id)
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
@@ -573,8 +586,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_products_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "moderator search for base_products error occurred (from id: {:?}, skip: {}, count: {})",
-                    from, skip, count
+                    "moderator search for base_products error occurred (pagination params: {:?}, search terms: {:?})",
+                    pagination_params, term
                 )).into()
             })
     }

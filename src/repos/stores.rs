@@ -16,7 +16,7 @@ use stq_types::{StoreId, UserId};
 use super::acl;
 use super::types::RepoResult;
 use models::authorization::*;
-use models::{ModeratorStoreSearchTerms, NewStore, Store, UpdateStore, Visibility};
+use models::{Direction, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, Store, UpdateStore, Visibility};
 use repos::legacy_acl::*;
 use schema::base_products::dsl as BaseProducts;
 use schema::products::dsl as Products;
@@ -62,8 +62,8 @@ pub trait StoresRepo {
     /// Checks if vendor code exists across the store
     fn vendor_code_exists(&self, store_id: StoreId, vendor_code: &str) -> RepoResult<Option<bool>>;
 
-    /// Search stores limited by `from`, `skip` and `count` parameters
-    fn moderator_search(&self, from: Option<StoreId>, skip: i64, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
+    /// Search stores limited by pagination parameters
+    fn moderator_search(&self, pagination_params: PaginationParams<StoreId>, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
 
     /// Set moderation status for specific store
     fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Store>;
@@ -291,34 +291,51 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         })
     }
 
-    /// Search stores limited by `from`, `skip` and `count` parameters
-    fn moderator_search(&self, from: Option<StoreId>, skip: i64, count: i64, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+    /// Search stores limited by pagination parameters
+    fn moderator_search(&self, pagination_params: PaginationParams<StoreId>, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+        let PaginationParams {
+            direction,
+            limit,
+            ordering,
+            skip,
+            start,
+        } = pagination_params;
+
         let mut query = stores.filter(is_active.eq(true)).into_boxed();
 
-        if let Some(from_id) = from {
-            query = query.filter(id.ge(from_id));
+        if let Some(from_id) = start {
+            query = match direction {
+                Direction::Forward => query.filter(id.gt(from_id)),
+                Direction::Reverse => query.filter(id.lt(from_id)),
+            };
         }
+
         if skip > 0 {
             query = query.offset(skip);
         }
-        if count > 0 {
-            query = query.limit(count);
+
+        if limit > 0 {
+            query = query.limit(limit);
         }
 
-        if let Some(term_name) = term.name {
+        if let Some(term_name) = &term.name {
             query = query.filter(sql(format!("name::text like '%{}%'", term_name).as_ref()));
         }
 
-        if let Some(ref store_manager_ids) = term.store_manager_ids {
+        if let Some(ref store_manager_ids) = &term.store_manager_ids {
             query = query.filter(user_id.eq_any(store_manager_ids));
         }
 
-        if let Some(term_state) = term.state {
+        if let Some(term_state) = &term.state {
             query = query.filter(status.eq(term_state));
         }
 
+        query = match ordering {
+            Ordering::Ascending => query.order(id.asc()),
+            Ordering::Descending => query.order(id.desc()),
+        };
+
         query
-            .order(id)
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|stores_res: Vec<Store>| {
@@ -329,8 +346,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(stores_res)
             }).map_err(|e: FailureError| {
                 e.context(format!(
-                    "moderator search for stores error occurred (from id: {:?}, skip: {}, count: {})",
-                    from, skip, count
+                    "moderator search for stores error occurred (pagination params: {:?}, search terms: {:?})",
+                    pagination_params, term
                 )).into()
             })
     }

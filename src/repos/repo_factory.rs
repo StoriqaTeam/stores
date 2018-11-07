@@ -1141,9 +1141,7 @@ pub mod tests {
 
         fn moderator_search(
             &self,
-            _from: Option<BaseProductId>,
-            _skip: i64,
-            _count: i64,
+            _pagination_params: PaginationParams<BaseProductId>,
             _term: ModeratorBaseProductSearchTerms,
         ) -> RepoResult<Vec<BaseProduct>> {
             Ok(vec![])
@@ -1360,14 +1358,13 @@ pub mod tests {
 
         fn moderator_search(
             &self,
-            from: Option<StoreId>,
-            skip: i64,
-            count: i64,
+            pagination_params: PaginationParams<StoreId>,
             _term: ModeratorStoreSearchTerms,
         ) -> RepoResult<Vec<Store>> {
             let mut stores = vec![];
-            let from_id = from.unwrap_or(StoreId(1));
-            for i in (from_id.0..).skip(skip as usize).take(count as usize) {
+            let PaginationParams { limit, skip, start, .. } = pagination_params;
+            let from_id = start.unwrap_or(StoreId(1));
+            for i in (from_id.0..).skip(skip as usize).take(limit as usize) {
                 let store = create_store(StoreId(i), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
                 stores.push(store);
             }

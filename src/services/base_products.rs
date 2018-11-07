@@ -704,10 +704,18 @@ impl<
             from, skip, count, term
         );
 
+        let pagination_params = PaginationParams {
+            direction: Direction::Reverse,
+            limit: count,
+            ordering: Ordering::Descending,
+            skip,
+            start: from.filter(|id| id.0 > 0),
+        };
+
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
             base_products_repo
-                .moderator_search(from, skip, count, term)
+                .moderator_search(pagination_params, term)
                 .map_err(|e: FailureError| {
                     e.context("Service `base_products`, `moderator_search` endpoint error occurred.")
                         .into()

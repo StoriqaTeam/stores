@@ -9,25 +9,23 @@ pub mod utils;
 
 use std::str::FromStr;
 
-use diesel::connection::AnsiTransactionManager;
-use diesel::pg::Pg;
-use diesel::Connection;
+use diesel::{connection::AnsiTransactionManager, pg::Pg, Connection};
 use failure::Fail;
-use futures::future;
-use futures::Future;
-use futures::IntoFuture;
-use hyper::header::{Authorization, Cookie};
-use hyper::server::Request;
-use hyper::{Delete, Get, Post, Put};
+use futures::{future, Future, IntoFuture};
+use hyper::{
+    header::{Authorization, Cookie},
+    server::Request,
+    Delete, Get, Post, Put,
+};
 use r2d2::ManageConnection;
 use validator::Validate;
 
-use stq_http::controller::Controller;
-use stq_http::controller::ControllerFuture;
-use stq_http::errors::ErrorMessageWrapper;
-use stq_http::request_util::serialize_future;
-use stq_http::request_util::Currency as CurrencyHeader;
-use stq_http::request_util::{parse_body, read_body};
+use stq_http::{
+    controller::{Controller, ControllerFuture},
+    errors::ErrorMessageWrapper,
+    request_util::{self, parse_body, read_body, serialize_future, Currency as CurrencyHeader},
+};
+
 use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::*;
 
@@ -104,7 +102,9 @@ impl<
             }
         };
 
-        let dynamic_context = DynamicContext::new(user_id, currency);
+        let correlation_token = request_util::get_correlation_token(&req);
+
+        let dynamic_context = DynamicContext::new(user_id, currency, correlation_token);
 
         let service = Service::new(self.static_context.clone(), dynamic_context);
 
@@ -114,10 +114,6 @@ impl<
             // GET /stores/<store_id>
             (&Get, Some(Route::Store(store_id))) => {
                 let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /stores/{}. Params: {:?}",
-                    user_id, store_id, visibility
-                );
                 serialize_future(service.get_store(store_id, visibility))
             }
 
@@ -128,13 +124,11 @@ impl<
                     "offset" => StoreId, "count" => i32, "visibility" => Visibility
                 );
 
-                debug!("User with id = '{:?}' is requesting  // GET /stores. Params: {:?}", user_id, params);
-
                 if let (Some(offset), Some(count), visibility) = params {
                     serialize_future(service.list_stores(offset, count, visibility))
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // GET /stores failed!")
+                        format_err!("Parsing query parameters failed, action: get stores")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -151,18 +145,15 @@ impl<
                     "visibility" => Visibility
                 );
 
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /stores/{}/products route. Params: {:?}",
-                    user_id, store_id, params
-                );
-
                 if let (skip_base_product_id, Some(offset), Some(count), visibility) = params {
                     serialize_future(service.get_base_products_of_the_store(store_id, skip_base_product_id, offset, count, visibility))
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // GET /stores/{}/product failed!", store_id)
-                            .context(Error::Parse)
-                            .into(),
+                        format_err!(
+                            "Parsing query parameters failed, action: get products by store, store id: {}",
+                            store_id
+                        ).context(Error::Parse)
+                        .into(),
                     ))
                 }
             }
@@ -170,10 +161,6 @@ impl<
             // GET /stores/:id/products/count route
             (&Get, Some(Route::StoreProductsCount(store_id))) => {
                 let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /stores/{}. Params: {:?}",
-                    user_id, store_id, visibility
-                );
                 serialize_future(service.get_store_products_count(store_id, visibility))
             }
 
@@ -183,7 +170,7 @@ impl<
                     serialize_future(service.store_slug_exists(slug))
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // GET /stores/slug_exists failed!")
+                        format_err!("Parsing query parameters failed, action: check exists slug")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -191,33 +178,26 @@ impl<
             }
 
             // POST /stores/cart
-            (&Post, Some(Route::StoresCart)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /stores/cart", user_id);
-                serialize_future(
-                    parse_body::<Vec<CartProduct>>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /stores/cart in Vec<CartProduct> failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |cart_products| service.find_by_cart(cart_products)),
-                )
-            }
+            (&Post, Some(Route::StoresCart)) => serialize_future(
+                parse_body::<Vec<CartProduct>>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: Vec<CartProduct>")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |cart_products| service.find_by_cart(cart_products)),
+            ),
 
             // POST /stores/search
             (&Post, Some(Route::StoresSearch)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /stores/search", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<SearchStore>(req.body())
-                            .map_err(|e| {
-                                e.context("Parsing body // POST /stores/search in SearchStore failed!")
-                                    .context(Error::Parse)
-                                    .into()
-                            }).and_then(move |store_search| service.find_store_by_name(store_search, count, offset)),
+                            .map_err(|e| e.context("Parsing body failed, target: SearchStore").context(Error::Parse).into())
+                            .and_then(move |store_search| service.find_store_by_name(store_search, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /stores/search failed!")
+                        format_err!("Parsing query parameters failed, action: search stores")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -225,65 +205,37 @@ impl<
             }
 
             // POST /stores/search/filters/count
-            (&Post, Some(Route::StoresSearchFiltersCount)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /stores/search/filters/count", user_id);
-                serialize_future(
-                    parse_body::<SearchStore>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /stores/search/filters/count in SearchStore failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |search_store| service.search_store_filters_count(search_store)),
-                )
-            }
+            (&Post, Some(Route::StoresSearchFiltersCount)) => serialize_future(
+                parse_body::<SearchStore>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: SearchStore").context(Error::Parse).into())
+                    .and_then(move |search_store| service.search_store_filters_count(search_store)),
+            ),
 
             // POST /stores/search/filters/country
-            (&Post, Some(Route::StoresSearchFiltersCountry)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/country",
-                    user_id
-                );
-                serialize_future(
-                    parse_body::<SearchStore>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /stores/search/filters/country in SearchStore failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |search_store| service.search_store_filters_country(search_store)),
-                )
-            }
+            (&Post, Some(Route::StoresSearchFiltersCountry)) => serialize_future(
+                parse_body::<SearchStore>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: SearchStore").context(Error::Parse).into())
+                    .and_then(move |search_store| service.search_store_filters_country(search_store)),
+            ),
 
             // POST /stores/search/filters/category
-            (&Post, Some(Route::StoresSearchFiltersCategory)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /stores/search/filters/category",
-                    user_id
-                );
-                serialize_future(
-                    parse_body::<SearchStore>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /stores/search/filters/category in SearchStore failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |search_store| service.search_store_filters_category(search_store)),
-                )
-            }
+            (&Post, Some(Route::StoresSearchFiltersCategory)) => serialize_future(
+                parse_body::<SearchStore>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: SearchStore").context(Error::Parse).into())
+                    .and_then(move |search_store| service.search_store_filters_category(search_store)),
+            ),
 
             // POST /stores/auto_complete
             (&Post, Some(Route::StoresAutoComplete)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /stores/auto_complete", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         read_body(req.body())
-                            .map_err(|e| {
-                                e.context("Parsing body // POST /stores/auto_complete in String failed!")
-                                    .context(Error::Parse)
-                                    .into()
-                            }).and_then(move |name| service.store_auto_complete(name, count, offset)),
+                            .map_err(|e| e.context("Parsing body failed, target: String").context(Error::Parse).into())
+                            .and_then(move |name| service.store_auto_complete(name, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /stores/auto_complete failed!")
+                        format_err!("Parsing query parameters failed, action: stores auto_complete")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -291,23 +243,20 @@ impl<
             }
 
             // POST /stores
-            (&Post, Some(Route::Stores)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /stores", user_id);
-                serialize_future(
-                    parse_body::<NewStore>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /stores in NewStore failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_store| {
-                            new_store
-                                .validate()
-                                .map_err(|e| format_err!("Validation of NewStore failed!").context(Error::Validate(e)).into())
-                                .into_future()
-                                .and_then(move |_| service.create_store(new_store))
-                        }),
-                )
-            }
+            (&Post, Some(Route::Stores)) => serialize_future(
+                parse_body::<NewStore>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: NewStore").context(Error::Parse).into())
+                    .and_then(move |new_store| {
+                        new_store
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewStore")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_store(new_store))
+                    }),
+            ),
 
             // GET /stores/count
             (&Get, Some(Route::StoreCount)) => {
@@ -316,101 +265,62 @@ impl<
                     "visibility" => Visibility
                 );
 
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /stores/count. Params: {:?}",
-                    user_id, visibility
-                );
-
                 serialize_future({ service.count(visibility) })
             }
 
             // PUT /stores/<store_id>
-            (&Put, Some(Route::Store(store_id))) => {
-                debug!("User with id = '{:?}' is requesting  // PUT /stores/{}", user_id, store_id);
-                serialize_future(
-                    parse_body::<UpdateStore>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // PUT /stores/<store_id> in UpdateStore failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |update_store| {
-                            update_store
-                                .validate()
-                                .map_err(|e| format_err!("Validation of UpdateStore failed!").context(Error::Validate(e)).into())
-                                .into_future()
-                                .and_then(move |_| service.update_store(store_id, update_store))
-                        }),
-                )
-            }
+            (&Put, Some(Route::Store(store_id))) => serialize_future(
+                parse_body::<UpdateStore>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: UpdateStore").context(Error::Parse).into())
+                    .and_then(move |update_store| {
+                        update_store
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateStore")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_store(store_id, update_store))
+                    }),
+            ),
 
             // DELETE /stores/<store_id>
-            (&Delete, Some(Route::Store(store_id))) => {
-                debug!("User with id = '{:?}' is requesting  // DELETE /stores/{}", user_id, store_id);
-                serialize_future(service.deactivate_store(store_id))
-            }
+            (&Delete, Some(Route::Store(store_id))) => serialize_future(service.deactivate_store(store_id)),
 
             // Get /stores/by_user_id/<user_id>
-            (&Get, Some(Route::StoreByUser(user_id_arg))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // Get /stores/by_user_id/{}",
-                    user_id, user_id_arg
-                );
-                serialize_future(service.get_store_by_user(user_id_arg))
-            }
+            (&Get, Some(Route::StoreByUser(user_id_arg))) => serialize_future(service.get_store_by_user(user_id_arg)),
 
             // DELETE /stores/by_user_id/<user_id>
-            (&Delete, Some(Route::StoreByUser(user_id_arg))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // DELETE /stores/by_user_id/{}",
-                    user_id, user_id_arg
-                );
-                serialize_future(service.delete_store_by_user(user_id_arg))
-            }
+            (&Delete, Some(Route::StoreByUser(user_id_arg))) => serialize_future(service.delete_store_by_user(user_id_arg)),
 
             // POST /stores/<store_id>/publish
             (&Post, Some(Route::StorePublish(store_id))) => {
-                debug!("Received request to publish store {}", store_id);
                 serialize_future(service.set_store_moderation_status(store_id, ModerationStatus::Published))
             }
 
             // POST /stores/<store_id>/draft
             (&Post, Some(Route::StoreDraft(store_id))) => {
-                debug!("Received request to draft store {}", store_id);
                 serialize_future(service.set_store_moderation_status(store_id, ModerationStatus::Draft))
             }
 
             // GET /products/<product_id>
-            (&Get, Some(Route::Product(product_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /products/{}", user_id, product_id);
-                serialize_future(service.get_product(product_id))
-            }
+            (&Get, Some(Route::Product(product_id))) => serialize_future(service.get_product(product_id)),
 
             // GET /products/by_base_product/<base_product_id> route
             (&Get, Some(Route::ProductsByBaseProduct(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET products/by_base_product/{}",
-                    user_id, base_product_id
-                );
                 serialize_future(service.find_products_with_base_id(base_product_id))
             }
 
             // GET /products/<product_id>/attributes route
-            (&Get, Some(Route::ProductAttributes(product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET attributes/{}/attributes",
-                    user_id, product_id
-                );
-                serialize_future(service.find_products_attributes(product_id))
-            }
+            (&Get, Some(Route::ProductAttributes(product_id))) => serialize_future(service.find_products_attributes(product_id)),
 
             // GET /products
             (&Get, Some(Route::Products)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /products", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(service.list_products(offset, count))
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // GET /products failed!")
+                        format_err!("Parsing query parameters failed, action: get products")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -425,16 +335,11 @@ impl<
                     "visibility" => Visibility
                 );
 
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /products/store_id. Params: {:?}",
-                    user_id, params
-                );
-
                 if let (Some(product_id), visibility) = params {
                     serialize_future(service.get_product_store_id(product_id, visibility))
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // GET /products/store_id failed!")
+                        format_err!("Parsing query parameters failed, action: get store id by product")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -442,96 +347,70 @@ impl<
             }
 
             // POST /products
-            (&Post, Some(Route::Products)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /products", user_id);
-                serialize_future(
-                    parse_body::<NewProductWithAttributes>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /products in NewProductWithAttributes failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_product| {
-                            new_product
-                                .product
+            (&Post, Some(Route::Products)) => serialize_future(
+                parse_body::<NewProductWithAttributes>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewProductWithAttributes")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_product| {
+                        new_product
+                            .product
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewProductWithAttributes")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_product(new_product))
+                    }),
+            ),
+
+            // PUT /products/<product_id>
+            (&Put, Some(Route::Product(product_id))) => serialize_future(
+                parse_body::<UpdateProductWithAttributes>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: UpdateProductWithAttributes")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |update_product| {
+                        let validation = if let Some(product) = update_product.product.clone() {
+                            product
                                 .validate()
                                 .map_err(|e| {
-                                    format_err!("Validation of NewProductWithAttributes failed!")
+                                    format_err!("Validation failed, target: UpdateProductWithAttributes")
                                         .context(Error::Validate(e))
                                         .into()
                                 }).into_future()
-                                .and_then(move |_| service.create_product(new_product))
-                        }),
-                )
-            }
-
-            // PUT /products/<product_id>
-            (&Put, Some(Route::Product(product_id))) => {
-                debug!("User with id = '{:?}' is requesting  // PUT /products/{}", user_id, product_id);
-                serialize_future(
-                    parse_body::<UpdateProductWithAttributes>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // PUT /products/<product_id> in UpdateProductWithAttributes failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |update_product| {
-                            let validation = if let Some(product) = update_product.product.clone() {
-                                product
-                                    .validate()
-                                    .map_err(|e| {
-                                        format_err!("Validation of UpdateProductWithAttributes failed!")
-                                            .context(Error::Validate(e))
-                                            .into()
-                                    }).into_future()
-                            } else {
-                                future::ok(())
-                            };
-                            validation.and_then(move |_| service.update_product(product_id, update_product))
-                        }),
-                )
-            }
+                        } else {
+                            future::ok(())
+                        };
+                        validation.and_then(move |_| service.update_product(product_id, update_product))
+                    }),
+            ),
 
             // DELETE /products/<product_id>
-            (&Delete, Some(Route::Product(product_id))) => {
-                debug!("User with id = '{:?}' is requesting  // DELETE /products/{}", user_id, product_id);
-                serialize_future(service.deactivate_product(product_id))
-            }
+            (&Delete, Some(Route::Product(product_id))) => serialize_future(service.deactivate_product(product_id)),
 
             // GET /base_products/<base_product_id>
             (&Get, Some(Route::BaseProduct(base_product_id))) => {
                 let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/{}. Params: {:?}",
-                    user_id, base_product_id, visibility
-                );
                 serialize_future(service.get_base_product(base_product_id, visibility))
             }
 
             // GET /base_products/<base_product_id>/update_view
             (&Get, Some(Route::BaseProductWithViewsUpdate(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/{}/update_view",
-                    user_id, base_product_id
-                );
                 serialize_future(service.get_base_product_with_views_update(base_product_id))
             }
 
             // GET /base_products/<base_product_id>/custom_attributes
             (&Get, Some(Route::BaseProductCustomAttributes(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/{}/custom_attributes",
-                    user_id, base_product_id
-                );
                 serialize_future(service.get_custom_attributes_by_base_product(base_product_id))
             }
 
             // GET /base_products/by_product/<product_id>
             (&Get, Some(Route::BaseProductByProduct(product_id))) => {
                 let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
-
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET base_products/by_product/{}. Params: {:?}",
-                    user_id, product_id, visibility
-                );
 
                 serialize_future(service.get_base_product_by_product(product_id, visibility))
             }
@@ -543,16 +422,11 @@ impl<
                     "offset" => BaseProductId, "count" => i32, "visibility" => Visibility
                 );
 
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products. Params: {:?}",
-                    user_id, params
-                );
-
                 if let (Some(offset), Some(count), visibility) = params {
                     serialize_future(service.list_base_products(offset, count, visibility))
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // GET /base_products failed!")
+                        format_err!("Parsing query parameters failed, action: get base products")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -566,107 +440,83 @@ impl<
                     "visibility" => Visibility
                 );
 
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /base_products/count. Params: {:?}",
-                    user_id, visibility
-                );
-
                 serialize_future(service.base_product_count(visibility))
             }
 
             // POST /base_products
-            (&Post, Some(Route::BaseProducts)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /base_products", user_id);
-                serialize_future(
-                    parse_body::<NewBaseProduct>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /base_products in NewBaseProduct failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_base_product| {
-                            new_base_product
-                                .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of NewBaseProduct failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
-                                .and_then(move |_| service.create_base_product(new_base_product))
-                        }),
-                )
-            }
+            (&Post, Some(Route::BaseProducts)) => serialize_future(
+                parse_body::<NewBaseProduct>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewBaseProduct")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_base_product| {
+                        new_base_product
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewBaseProduct")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_base_product(new_base_product))
+                    }),
+            ),
 
             // POST /base_products/with_variants
-            (&Post, Some(Route::BaseProductWithVariants)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /base_products/with_variants", user_id);
-                serialize_future(
-                    parse_body::<NewBaseProductWithVariants>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /base_products/with_variants in NewBaseProductWithVariants failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_base_product| {
-                            new_base_product
-                                .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of NewBaseProductWithVariants failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
-                                .and_then(move |_| service.create_base_product_with_variants(new_base_product))
-                        }),
-                )
-            }
+            (&Post, Some(Route::BaseProductWithVariants)) => serialize_future(
+                parse_body::<NewBaseProductWithVariants>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewBaseProductWithVariants")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_base_product| {
+                        new_base_product
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewBaseProductWithVariants")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_base_product_with_variants(new_base_product))
+                    }),
+            ),
 
             // PUT /base_products/<base_product_id>
-            (&Put, Some(Route::BaseProduct(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // PUT /base_products/{}",
-                    user_id, base_product_id
-                );
-                serialize_future(
-                    parse_body::<UpdateBaseProduct>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // PUT /base_products/<base_product_id> in UpdateBaseProduct failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |update_base_product| {
-                            update_base_product
-                                .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of UpdateBaseProduct failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
-                                .and_then(move |_| service.update_base_product(base_product_id, update_base_product))
-                        }),
-                )
-            }
+            (&Put, Some(Route::BaseProduct(base_product_id))) => serialize_future(
+                parse_body::<UpdateBaseProduct>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: UpdateBaseProduct")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |update_base_product| {
+                        update_base_product
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateBaseProduct")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_base_product(base_product_id, update_base_product))
+                    }),
+            ),
 
             // DELETE /base_products/<base_product_id>
-            (&Delete, Some(Route::BaseProduct(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // DELETE /base_products/{}",
-                    user_id, base_product_id
-                );
-                serialize_future(service.deactivate_base_product(base_product_id))
-            }
+            (&Delete, Some(Route::BaseProduct(base_product_id))) => serialize_future(service.deactivate_base_product(base_product_id)),
 
             // POST /base_products/search
             (&Post, Some(Route::BaseProductsSearch)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /products/search", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<SearchProductsByName>(req.body())
                             .map_err(|e| {
-                                e.context("Parsing body // POST /products/search in SearchProductsByName failed!")
+                                e.context("Parsing body failed, target: SearchProductsByName")
                                     .context(Error::Parse)
                                     .into()
                             }).and_then(move |prod| service.search_base_products_by_name(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /products/search failed!")
+                        format_err!("Parsing query parameters failed, action: search base products")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -675,19 +525,18 @@ impl<
 
             // POST /base_products/auto_complete
             (&Post, Some(Route::BaseProductsAutoComplete)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /products/auto_complete", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<AutoCompleteProductName>(req.body())
                             .map_err(|e| {
-                                e.context("Parsing body // POST /products/auto_complete in AutoCompleteProductName failed!")
+                                e.context("Parsing body failed, target: AutoCompleteProductName")
                                     .context(Error::Parse)
                                     .into()
                             }).and_then(move |name| service.base_products_auto_complete(name, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /products/auto_complete failed!")
+                        format_err!("Parsing query parameters failed, action: auto complete base products")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -696,19 +545,18 @@ impl<
 
             // POST /base_products/most_discount
             (&Post, Some(Route::BaseProductsMostDiscount)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /products/most_discount", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<MostDiscountProducts>(req.body())
                             .map_err(|e| {
-                                e.context("Parsing body // POST /products/most_discount in MostDiscountProducts failed!")
+                                e.context("Parsing body failed, target: MostDiscountProducts")
                                     .context(Error::Parse)
                                     .into()
                             }).and_then(move |prod| service.search_base_products_most_discount(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /products/most_discount failed!")
+                        format_err!("Parsing query parameters failed, action: most discount products")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -717,19 +565,18 @@ impl<
 
             // POST /base_products/most_viewed
             (&Post, Some(Route::BaseProductsMostViewed)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /products/most_viewed", user_id);
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
                     serialize_future(
                         parse_body::<MostViewedProducts>(req.body())
                             .map_err(|e| {
-                                e.context("Parsing body // POST /products/most_viewed in MostViewedProducts failed!")
+                                e.context("Parsing body failed, target: MostViewedProducts")
                                     .context(Error::Parse)
                                     .into()
                             }).and_then(move |prod| service.search_base_products_most_viewed(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
-                        format_err!("Parsing query parameters // POST /products/most_viewed failed!")
+                        format_err!("Parsing query parameters failed, action: most viewed products")
                             .context(Error::Parse)
                             .into(),
                     ))
@@ -737,198 +584,133 @@ impl<
             }
 
             // POST /base_products/search/filters/price
-            (&Post, Some(Route::BaseProductsSearchFiltersPrice)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/filters/price",
-                    user_id
-                );
-                serialize_future(
-                    parse_body::<SearchProductsByName>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /products/search/filters/price in SearchProductsByName failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |search_prod| service.search_base_products_filters_price(search_prod)),
-                )
-            }
+            (&Post, Some(Route::BaseProductsSearchFiltersPrice)) => serialize_future(
+                parse_body::<SearchProductsByName>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: SearchProductsByName")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |search_prod| service.search_base_products_filters_price(search_prod)),
+            ),
             // POST /base_products/search/filters/category
-            (&Post, Some(Route::BaseProductsSearchFiltersCategory)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/filters/category",
-                    user_id
-                );
-                serialize_future(
-                    parse_body::<SearchProductsByName>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /products/search/filters/category in SearchProductsByName failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |search_prod| service.search_base_products_filters_category(search_prod)),
-                )
-            }
+            (&Post, Some(Route::BaseProductsSearchFiltersCategory)) => serialize_future(
+                parse_body::<SearchProductsByName>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: SearchProductsByName")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |search_prod| service.search_base_products_filters_category(search_prod)),
+            ),
             // POST /base_products/search/filters/attributes
-            (&Post, Some(Route::BaseProductsSearchFiltersAttributes)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/filters/attributes",
-                    user_id
-                );
-                serialize_future(
-                    parse_body::<SearchProductsByName>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /products/search/filters/attributes in SearchProductsByName failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |search_prod| service.search_base_products_attributes(search_prod)),
-                )
-            }
+            (&Post, Some(Route::BaseProductsSearchFiltersAttributes)) => serialize_future(
+                parse_body::<SearchProductsByName>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: SearchProductsByName")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |search_prod| service.search_base_products_attributes(search_prod)),
+            ),
             // POST /base_products/search/filters/count
-            (&Post, Some(Route::BaseProductsSearchFiltersCount)) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /products/search/filters/count",
-                    user_id
-                );
-                serialize_future(
-                    parse_body::<SearchProductsByName>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /products/search/filters/count in SearchProductsByName failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |search_prod| service.search_base_products_filters_count(search_prod)),
-                )
-            }
+            (&Post, Some(Route::BaseProductsSearchFiltersCount)) => serialize_future(
+                parse_body::<SearchProductsByName>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: SearchProductsByName")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |search_prod| service.search_base_products_filters_count(search_prod)),
+            ),
 
             // POST /base_products/publish
-            (&Post, Some(Route::BaseProductPublish)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /base_products/publish", user_id);
-                serialize_future(
-                    parse_body::<Vec<BaseProductId>>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /base_products/publish in Vec<BaseProductId> failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |base_product_ids| {
-                            service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Published)
-                        }),
-                )
-            }
+            (&Post, Some(Route::BaseProductPublish)) => serialize_future(
+                parse_body::<Vec<BaseProductId>>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: Vec<BaseProductId>")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |base_product_ids| {
+                        service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Published)
+                    }),
+            ),
 
             // POST /base_products/draft
-            (&Post, Some(Route::BaseProductDraft)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /base_products/draft", user_id);
-                serialize_future(
-                    parse_body::<Vec<BaseProductId>>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /base_products/draft in Vec<BaseProductId> failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |base_product_ids| {
-                            service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Draft)
-                        }),
-                )
-            }
+            (&Post, Some(Route::BaseProductDraft)) => serialize_future(
+                parse_body::<Vec<BaseProductId>>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: Vec<BaseProductId>")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |base_product_ids| {
+                        service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Draft)
+                    }),
+            ),
 
             // POST /custom_attributes
-            (&Post, Some(Route::CustomAttributes)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /custom_attributes", user_id);
-                serialize_future(
-                    parse_body::<NewCustomAttribute>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /custom_attributes in NewCustomAttribute failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |payload| service.create_custom_attribute(payload)),
-                )
-            }
+            (&Post, Some(Route::CustomAttributes)) => serialize_future(
+                parse_body::<NewCustomAttribute>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewCustomAttribute")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |payload| service.create_custom_attribute(payload)),
+            ),
 
             // GET /custom_attributes
-            (&Get, Some(Route::CustomAttributes)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /custom_attributes", user_id);
-                serialize_future(service.list_custom_attributes())
-            }
+            (&Get, Some(Route::CustomAttributes)) => serialize_future(service.list_custom_attributes()),
 
             // GET /custom_attributes/:id
             (&Get, Some(Route::CustomAttribute(custom_attributes_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /custom_attributes/{}",
-                    user_id, custom_attributes_id
-                );
                 serialize_future(service.get_custom_attribute(custom_attributes_id))
             }
 
             // DELETE /custom_attributes/:id
             (Delete, Some(Route::CustomAttribute(custom_attributes_id))) => {
-                debug!("Received request to delete custom_attributes by user id {:?}", user_id);
                 serialize_future({ service.delete_custom_attribute(custom_attributes_id) })
             }
 
             // POST /coupons
-            (&Post, Some(Route::Coupons)) => {
-                debug!("User with id = '{:?}' is requesting // POST /coupons", user_id);
-                serialize_future(
-                    parse_body::<NewCoupon>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /coupons in NewCoupon failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_coupon| {
-                            new_coupon
-                                .validate()
-                                .map_err(|e| format_err!("Validation of NewCoupon failed!").context(Error::Validate(e)).into())
-                                .into_future()
-                                .and_then(move |_| service.create_coupon(new_coupon))
-                        }),
-                )
-            }
+            (&Post, Some(Route::Coupons)) => serialize_future(
+                parse_body::<NewCoupon>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: NewCoupon").context(Error::Parse).into())
+                    .and_then(move |new_coupon| {
+                        new_coupon
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewCoupon")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_coupon(new_coupon))
+                    }),
+            ),
 
             // GET /coupons/:id
-            (&Get, Some(Route::Coupon(coupon_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /coupons/{}", user_id, coupon_id);
-                serialize_future(service.get_coupon(coupon_id))
-            }
+            (&Get, Some(Route::Coupon(coupon_id))) => serialize_future(service.get_coupon(coupon_id)),
 
             // GET /coupons/generate_code
-            (&Get, Some(Route::CouponsGenerateCode)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /coupons/generate_code", user_id);
-                serialize_future(service.generate_coupon_code())
-            }
+            (&Get, Some(Route::CouponsGenerateCode)) => serialize_future(service.generate_coupon_code()),
 
             // POST /coupons/search/code
-            (&Post, Some(Route::CouponsSearchCode)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /coupons/search/code", user_id);
-
-                serialize_future(
-                    parse_body::<CouponsSearchCodePayload>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /coupons/search/code in CouponsSearchCodePayload failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |payload| service.get_coupon_by_code(payload)),
-                )
-            }
+            (&Post, Some(Route::CouponsSearchCode)) => serialize_future(
+                parse_body::<CouponsSearchCodePayload>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: CouponsSearchCodePayload")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |payload| service.get_coupon_by_code(payload)),
+            ),
 
             // POST /coupons/validate/code
-            (&Post, Some(Route::CouponsValidateCode)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /coupons/validate/code", user_id);
-
-                serialize_future(
-                    parse_body::<CouponsSearchCodePayload>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /coupons/validate/code in CouponsSearchCodePayload failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |payload| service.validate_coupon_by_code(payload)),
-                )
-            }
+            (&Post, Some(Route::CouponsValidateCode)) => serialize_future(
+                parse_body::<CouponsSearchCodePayload>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: CouponsSearchCodePayload")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |payload| service.validate_coupon_by_code(payload)),
+            ),
 
             // GET /coupons/:id/validate
-            (&Get, Some(Route::CouponValidate(coupon_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /coupons/{}/validate",
-                    user_id, coupon_id
-                );
-
-                serialize_future(service.validate_coupon(coupon_id))
-            }
+            (&Get, Some(Route::CouponValidate(coupon_id))) => serialize_future(service.validate_coupon(coupon_id)),
 
             // POST /coupons/:coupon_id/base_products/:base_product_id
             (
@@ -937,14 +719,7 @@ impl<
                     coupon_id,
                     base_product_id,
                 }),
-            ) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /coupons/{}/base_products/{}",
-                    user_id, coupon_id, base_product_id
-                );
-
-                serialize_future(service.add_base_product_coupon(coupon_id, base_product_id))
-            }
+            ) => serialize_future(service.add_base_product_coupon(coupon_id, base_product_id)),
 
             // POST /coupons/:coupon_id/user_id/:user_id
             (
@@ -953,56 +728,35 @@ impl<
                     coupon_id,
                     user_id: user_id_arg,
                 }),
-            ) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // POST /coupons/{}/user_id/{}",
-                    user_id, coupon_id, user_id_arg
-                );
-
-                serialize_future(service.add_used_coupon(coupon_id, user_id_arg))
-            }
+            ) => serialize_future(service.add_used_coupon(coupon_id, user_id_arg)),
 
             // GET /coupons/stores/:id
             (&Get, Some(Route::CouponsSearchFiltersStore(store_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /coupons/stores/{}", user_id, store_id);
                 let search = CouponSearch::Store(store_id);
                 serialize_future(service.find_coupons(search))
             }
 
             // GET /coupons/:coupon_id/base_products
-            (&Get, Some(Route::BaseProductsByCoupon(coupon_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /coupons/{}/base_products",
-                    user_id, coupon_id
-                );
-
-                serialize_future(service.find_base_products_by_coupon(coupon_id))
-            }
+            (&Get, Some(Route::BaseProductsByCoupon(coupon_id))) => serialize_future(service.find_base_products_by_coupon(coupon_id)),
 
             // PUT /coupons/:id
-            (&Put, Some(Route::Coupon(coupon_id))) => {
-                debug!("User with id = '{:?}' is requesting  // PUT /coupons/{}", user_id, coupon_id);
-                serialize_future(
-                    parse_body::<UpdateCoupon>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // PUT /coupons/<base_product_id> in UpdateCoupon failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |update_coupon| {
-                            update_coupon
-                                .validate()
-                                .map_err(|e| format_err!("Validation of UpdateCoupon failed!").context(Error::Validate(e)).into())
-                                .into_future()
-                                .and_then(move |_| service.update_coupon(coupon_id, update_coupon))
-                        }),
-                )
-            }
+            (&Put, Some(Route::Coupon(coupon_id))) => serialize_future(
+                parse_body::<UpdateCoupon>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: UpdateCoupon").context(Error::Parse).into())
+                    .and_then(move |update_coupon| {
+                        update_coupon
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateCoupon")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_coupon(coupon_id, update_coupon))
+                    }),
+            ),
 
             // DELETE /coupons/:id
-            (Delete, Some(Route::Coupon(coupon_id))) => {
-                debug!("Received request to delete coupon id {} by user id {:?}", coupon_id, user_id);
-                serialize_future({ service.delete_coupon(coupon_id) })
-            }
+            (Delete, Some(Route::Coupon(coupon_id))) => serialize_future({ service.delete_coupon(coupon_id) }),
 
             // DELETE /coupons/:coupon_id/base_products/:base_product_id
             (
@@ -1011,14 +765,7 @@ impl<
                     coupon_id,
                     base_product_id,
                 }),
-            ) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // DELETE /coupons/{}/base_products/{}",
-                    user_id, coupon_id, base_product_id
-                );
-
-                serialize_future(service.delete_base_product_from_coupon(coupon_id, base_product_id))
-            }
+            ) => serialize_future(service.delete_base_product_from_coupon(coupon_id, base_product_id)),
 
             // DELETE /coupons/:coupon_id/user_id/:user_id
             (
@@ -1027,292 +774,188 @@ impl<
                     coupon_id,
                     user_id: user_id_arg,
                 }),
-            ) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // DELETE /coupons/{}/user_id/{}",
-                    user_id, coupon_id, user_id_arg
-                );
+            ) => serialize_future(service.delete_used_coupon(coupon_id, user_id_arg)),
 
-                serialize_future(service.delete_used_coupon(coupon_id, user_id_arg))
+            (&Get, Some(Route::RolesByUserId { user_id })) => serialize_future({ service.get_roles(user_id) }),
+            (&Post, Some(Route::Roles)) => {
+                serialize_future({ parse_body::<NewUserRole>(req.body()).and_then(move |data| service.create_user_role(data)) })
             }
-
-            (&Get, Some(Route::RolesByUserId { user_id })) => {
-                debug!("Received request to get roles by user id {}", user_id);
-                serialize_future({ service.get_roles(user_id) })
+            (&Delete, Some(Route::Roles)) => {
+                serialize_future({ parse_body::<RemoveUserRole>(req.body()).and_then(move |data| service.delete_user_role(data)) })
             }
-            (&Post, Some(Route::Roles)) => serialize_future({
-                parse_body::<NewUserRole>(req.body()).and_then(move |data| {
-                    debug!("Received request to create role {:?}", data);
-                    service.create_user_role(data)
-                })
-            }),
-            (&Delete, Some(Route::Roles)) => serialize_future({
-                parse_body::<RemoveUserRole>(req.body()).and_then(move |data| {
-                    debug!("Received request to remove role {:?}", data);
-                    service.delete_user_role(data)
-                })
-            }),
-            (&Delete, Some(Route::RolesByUserId { user_id })) => {
-                debug!("Received request to delete role by user id {}", user_id);
-                serialize_future({ service.delete_user_role_by_user_id(user_id) })
-            }
-            (&Delete, Some(Route::RoleById { id })) => {
-                debug!("Received request to delete role by id {}", id);
-                serialize_future({ service.delete_user_role_by_id(id) })
-            }
+            (&Delete, Some(Route::RolesByUserId { user_id })) => serialize_future({ service.delete_user_role_by_user_id(user_id) }),
+            (&Delete, Some(Route::RoleById { id })) => serialize_future({ service.delete_user_role_by_id(id) }),
 
             // GET /attributes/<attribute_id>
-            (&Get, Some(Route::Attribute(attribute_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /attributes/{}", user_id, attribute_id);
-                serialize_future(service.get_attribute(attribute_id))
-            }
+            (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(service.get_attribute(attribute_id)),
 
             // GET /attributes
-            (&Get, Some(Route::Attributes)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /attributes", user_id);
-                serialize_future(service.list_attributes())
-            }
+            (&Get, Some(Route::Attributes)) => serialize_future(service.list_attributes()),
 
             // POST /attributes
-            (&Post, Some(Route::Attributes)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /attributes", user_id);
-                serialize_future(
-                    parse_body::<NewAttribute>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /attributes in NewAttribute failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_attribute| {
-                            new_attribute
-                                .validate()
-                                .map_err(|e| format_err!("Validation of NewAttribute failed!").context(Error::Validate(e)).into())
-                                .into_future()
-                                .and_then(move |_| service.create_attribute(new_attribute))
-                        }),
-                )
-            }
+            (&Post, Some(Route::Attributes)) => serialize_future(
+                parse_body::<NewAttribute>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: NewAttribute").context(Error::Parse).into())
+                    .and_then(move |new_attribute| {
+                        new_attribute
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewAttribute")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_attribute(new_attribute))
+                    }),
+            ),
 
             // PUT /attributes/<attribute_id>
-            (&Put, Some(Route::Attribute(attribute_id))) => {
-                debug!("User with id = '{:?}' is requesting  // PUT /attributes/{}", user_id, attribute_id);
-                serialize_future(
-                    parse_body::<UpdateAttribute>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // PUT /attributes/<attribute_id> in UpdateAttribute failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |update_attribute| {
-                            update_attribute
-                                .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of UpdateAttribute failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
-                                .and_then(move |_| service.update_attribute(attribute_id, update_attribute))
-                        }),
-                )
-            }
+            (&Put, Some(Route::Attribute(attribute_id))) => serialize_future(
+                parse_body::<UpdateAttribute>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: UpdateAttribute")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |update_attribute| {
+                        update_attribute
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateAttribute")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_attribute(attribute_id, update_attribute))
+                    }),
+            ),
 
             // GET /categories/<category_id>
-            (&Get, Some(Route::Category(category_id))) => {
-                debug!("User with id = '{:?}' is requesting  // GET /categories/{}", user_id, category_id);
-                serialize_future(service.get_category(category_id))
-            }
+            (&Get, Some(Route::Category(category_id))) => serialize_future(service.get_category(category_id)),
 
             // POST /categories
-            (&Post, Some(Route::Categories)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /categories", user_id);
-                serialize_future(
-                    parse_body::<NewCategory>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /categories in NewCategory failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_category| {
-                            new_category
-                                .validate()
-                                .map_err(|e| format_err!("Validation of NewCategory failed!").context(Error::Validate(e)).into())
-                                .into_future()
-                                .and_then(move |_| service.create_category(new_category))
-                        }),
-                )
-            }
+            (&Post, Some(Route::Categories)) => serialize_future(
+                parse_body::<NewCategory>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: NewCategory").context(Error::Parse).into())
+                    .and_then(move |new_category| {
+                        new_category
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewCategory")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_category(new_category))
+                    }),
+            ),
 
             // PUT /categories/<category_id>
-            (&Put, Some(Route::Category(category_id))) => {
-                debug!("User with id = '{:?}' is requesting  // PUT /categories/{}", user_id, category_id);
-                serialize_future(
-                    parse_body::<UpdateCategory>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // PUT /categories/<category_id> in UpdateCategory failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |update_category| {
-                            update_category
-                                .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of UpdateCategory failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
-                                .and_then(move |_| service.update_category(category_id, update_category))
-                        }),
-                )
-            }
+            (&Put, Some(Route::Category(category_id))) => serialize_future(
+                parse_body::<UpdateCategory>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: UpdateCategory")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |update_category| {
+                        update_category
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateCategory")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_category(category_id, update_category))
+                    }),
+            ),
 
             // GET /categories
-            (&Get, Some(Route::Categories)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /categories", user_id);
-                serialize_future(service.get_all_categories())
-            }
+            (&Get, Some(Route::Categories)) => serialize_future(service.get_all_categories()),
 
             // GET /categories/<category_id>/attributes
-            (&Get, Some(Route::CategoryAttr(category_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /categories/{}/attributes",
-                    user_id, category_id
-                );
-                serialize_future(service.find_all_attributes_for_category(category_id))
-            }
+            (&Get, Some(Route::CategoryAttr(category_id))) => serialize_future(service.find_all_attributes_for_category(category_id)),
 
             // POST /categories/attributes
-            (&Post, Some(Route::CategoryAttrs)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /categories/attributes", user_id);
-                serialize_future(
-                    parse_body::<NewCatAttr>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /categories/attributes in CategoryAttrs failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_category_attr| service.add_attribute_to_category(new_category_attr)),
-                )
-            }
+            (&Post, Some(Route::CategoryAttrs)) => serialize_future(
+                parse_body::<NewCatAttr>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: CategoryAttrs").context(Error::Parse).into())
+                    .and_then(move |new_category_attr| service.add_attribute_to_category(new_category_attr)),
+            ),
 
             // DELETE /categories/attributes
-            (&Delete, Some(Route::CategoryAttrs)) => {
-                debug!("User with id = '{:?}' is requesting  // DELETE /categories/attributes", user_id);
-                serialize_future(
-                    parse_body::<OldCatAttr>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // DELETE /categories/attributes in OldCatAttr failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |old_category_attr| service.delete_attribute_from_category(old_category_attr)),
-                )
-            }
+            (&Delete, Some(Route::CategoryAttrs)) => serialize_future(
+                parse_body::<OldCatAttr>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: OldCatAttr").context(Error::Parse).into())
+                    .and_then(move |old_category_attr| service.delete_attribute_from_category(old_category_attr)),
+            ),
 
             // GET /currency_exchange
-            (&Get, Some(Route::CurrencyExchange)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /currency_exchange", user_id);
-                serialize_future(service.get_latest_currencies())
-            }
+            (&Get, Some(Route::CurrencyExchange)) => serialize_future(service.get_latest_currencies()),
 
             // POST /currency_exchange
-            (&Post, Some(Route::CurrencyExchange)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /currency_exchange", user_id);
-                serialize_future(
-                    parse_body::<NewCurrencyExchange>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /currency_exchange in NewCurrencyExchange failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_currency_exchange| service.update_currencies(new_currency_exchange)),
-                )
-            }
+            (&Post, Some(Route::CurrencyExchange)) => serialize_future(
+                parse_body::<NewCurrencyExchange>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewCurrencyExchange")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_currency_exchange| service.update_currencies(new_currency_exchange)),
+            ),
 
             // GET /wizard_stores
-            (&Get, Some(Route::WizardStores)) => {
-                debug!("User with id = '{:?}' is requesting  // GET /wizard_stores", user_id);
-                serialize_future(service.get_wizard_store())
-            }
+            (&Get, Some(Route::WizardStores)) => serialize_future(service.get_wizard_store()),
 
             // POST /wizard_stores
-            (&Post, Some(Route::WizardStores)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /wizard_stores", user_id);
-                serialize_future(service.create_wizard_store())
-            }
+            (&Post, Some(Route::WizardStores)) => serialize_future(service.create_wizard_store()),
 
             // PUT /wizard_stores
-            (&Put, Some(Route::WizardStores)) => {
-                debug!("User with id = '{:?}' is requesting  // PUT /wizard_stores", user_id);
-                serialize_future(
-                    parse_body::<UpdateWizardStore>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // PUT /wizard_stores in UpdateWizardStore failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |update_wizard| {
-                            update_wizard
-                                .validate()
-                                .map_err(|e| {
-                                    format_err!("Validation of UpdateWizardStore failed!")
-                                        .context(Error::Validate(e))
-                                        .into()
-                                }).into_future()
-                                .and_then(move |_| service.update_wizard_store(update_wizard))
-                        }),
-                )
-            }
+            (&Put, Some(Route::WizardStores)) => serialize_future(
+                parse_body::<UpdateWizardStore>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: UpdateWizardStore")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |update_wizard| {
+                        update_wizard
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateWizardStore")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_wizard_store(update_wizard))
+                    }),
+            ),
 
             // DELETE /wizard_stores
-            (&Delete, Some(Route::WizardStores)) => {
-                debug!("User with id = '{:?}' is requesting  // DELETE /wizard_stores", user_id);
-                serialize_future(service.delete_wizard_store())
-            }
+            (&Delete, Some(Route::WizardStores)) => serialize_future(service.delete_wizard_store()),
 
             // GET /moderator_product_comments/<base_product_id>
             (&Get, Some(Route::ModeratorBaseProductComment(base_product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /moderator_product_comments/{}",
-                    user_id, base_product_id
-                );
                 serialize_future(service.get_latest_for_product(base_product_id))
             }
 
             // POST /moderator_product_comments
-            (&Post, Some(Route::ModeratorProductComments)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /moderator_product_comments", user_id);
-                serialize_future(
-                    parse_body::<NewModeratorProductComments>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /moderator_product_comments in NewModeratorProductComments failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_comments| service.create_product_comment(new_comments)),
-                )
-            }
+            (&Post, Some(Route::ModeratorProductComments)) => serialize_future(
+                parse_body::<NewModeratorProductComments>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewModeratorProductComments")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_comments| service.create_product_comment(new_comments)),
+            ),
 
             // GET /moderator_store_comments/<store_id>
-            (&Get, Some(Route::ModeratorStoreComment(store_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /moderator_store_comments/{}",
-                    user_id, store_id
-                );
-                serialize_future(service.get_latest_for_store(store_id))
-            }
+            (&Get, Some(Route::ModeratorStoreComment(store_id))) => serialize_future(service.get_latest_for_store(store_id)),
 
             // POST /moderator_store_comments
-            (&Post, Some(Route::ModeratorStoreComments)) => {
-                debug!("User with id = '{:?}' is requesting  // POST /moderator_store_comments", user_id);
-                serialize_future(
-                    parse_body::<NewModeratorStoreComments>(req.body())
-                        .map_err(|e| {
-                            e.context("Parsing body // POST /moderator_store_comments in NewModeratorProductComments failed!")
-                                .context(Error::Parse)
-                                .into()
-                        }).and_then(move |new_comments| service.create_store_comment(new_comments)),
-                )
-            }
+            (&Post, Some(Route::ModeratorStoreComments)) => serialize_future(
+                parse_body::<NewModeratorStoreComments>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewModeratorProductComments")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_comments| service.create_store_comment(new_comments)),
+            ),
 
             // GET /products/<product_id>/seller_price
-            (&Get, Some(Route::SellerProductPrice(product_id))) => {
-                debug!(
-                    "User with id = '{:?}' is requesting  // GET /products/{}/seller_price",
-                    user_id, product_id
-                );
-                serialize_future(service.get_product_seller_price(product_id))
-            }
+            (&Get, Some(Route::SellerProductPrice(product_id))) => serialize_future(service.get_product_seller_price(product_id)),
 
             // POST /stores/moderator_search
             (&Post, Some(Route::ModeratorStoreSearch)) => {
@@ -1321,22 +964,15 @@ impl<
                     "offset" => StoreId, "skip" => i64, "count" => i64
                 );
 
-                debug!(
-                    "Received request to search stores (offset id: {:?}, skip: {:?}, count: {:?})",
-                    offset, skip_opt, count_opt
-                );
-
                 let skip = skip_opt.unwrap_or(0);
                 let count = count_opt.unwrap_or(0);
 
                 serialize_future(
                     parse_body::<ModeratorStoreSearchTerms>(req.body())
                         .map_err(|e| {
-                            e.context("Parsing body // POST /stores/moderator_search in ModeratorStoreSearchTerms failed!")
+                            e.context("Parsing body failed, target: ModeratorStoreSearchTerms")
                                 .context(Error::Parse)
                                 .into()
-                        }).inspect(|payload| {
-                            debug!("Received request to search for store whith payload {:?}", payload);
                         }).and_then(move |payload| service.moderator_search_stores(offset, skip, count, payload)),
                 )
             }
@@ -1348,22 +984,15 @@ impl<
                     "offset" => BaseProductId, "skip" => i64, "count" => i64
                 );
 
-                debug!(
-                    "Received request to search base_products (offset id: {:?}, skip: {:?}, count: {:?})",
-                    offset, skip_opt, count_opt
-                );
-
                 let skip = skip_opt.unwrap_or(0);
                 let count = count_opt.unwrap_or(0);
 
                 serialize_future(
                     parse_body::<ModeratorBaseProductSearchTerms>(req.body())
                         .map_err(|e| {
-                            e.context("Parsing body // POST /base_products/moderator_search in ModeratorBaseProductSearchTerms failed!")
+                            e.context("Parsing body failed, target: ModeratorBaseProductSearchTerms")
                                 .context(Error::Parse)
                                 .into()
-                        }).inspect(|payload| {
-                            debug!("Received request to search for base_product whith payload {:?}", payload);
                         }).and_then(move |payload| service.moderator_search_base_product(offset, skip, count, payload)),
                 )
             }

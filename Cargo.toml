@@ -49,6 +49,7 @@ stq_types = { path = "vendor/libstqbackend/types" }
 stq_diesel_macro_derive = { path = "vendor/libstqbackend/diesel_macro_derive" }
 tokio-core = "0.1"
 tokio = "0.1.11"
+tokio-signal = "0.2.6"
 validator = "0.7.1"
 validator_derive = "0.7.2"
 uuid = { version = "0.6", features = ["use_std", "v4", "serde"] }

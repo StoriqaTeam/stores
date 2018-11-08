@@ -53,6 +53,7 @@ extern crate sentry;
 extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate tokio;
+extern crate tokio_signal;
 extern crate treexml;
 extern crate uuid;
 
@@ -190,7 +191,14 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
         callback();
         future::ok(())
     });
-    core.run(future::empty::<(), ()>()).unwrap();
+
+    let endless_stream = tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
+        info!("Ctrl+C received. Exit");
+
+        Ok(())
+    });
+
+    core.run(endless_stream).unwrap();
 }
 
 pub fn start_rocket_retail_loader(config: Config) {
@@ -200,7 +208,13 @@ pub fn start_rocket_retail_loader(config: Config) {
     let env = loaders::RocketRetailEnvironment::new(config);
     handle.spawn(create_rocket_retail_loader(env));
 
-    core.run(future::empty::<(), ()>()).unwrap();
+    let endless_stream = tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
+        info!("Ctrl+C received. Exit");
+
+        Ok(())
+    });
+
+    core.run(endless_stream).unwrap();
 }
 
 fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Future<Item = (), Error = ()> {

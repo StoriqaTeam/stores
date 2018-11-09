@@ -89,23 +89,6 @@ pub struct UpdateBaseProduct {
 }
 
 impl UpdateBaseProduct {
-    pub fn reset_moderation_status(self) -> Self {
-        if self.name.is_some()
-            | self.long_description.is_some()
-            | self.short_description.is_some()
-            | self.slug.is_some()
-            | self.seo_title.is_some()
-            | self.seo_description.is_some()
-        {
-            Self {
-                status: Some(ModerationStatus::Draft),
-                ..self
-            }
-        } else {
-            self
-        }
-    }
-
     pub fn update_status(status: ModerationStatus) -> Self {
         Self {
             status: Some(status),

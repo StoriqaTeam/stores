@@ -7,7 +7,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
-use stq_static_resources::{Currency, ModerationStatus};
+use stq_static_resources::Currency;
 use stq_types::{AttributeId, AttributeValue, BaseProductId, ProductId, ProductPrice, ProductSellerPrice, StoreId};
 
 use super::types::ServiceFuture;
@@ -235,14 +235,7 @@ impl<
                         }
                     };
 
-                    let reset_moderation = product.reset_moderation_status_needed();
-                    let updated_product = products_repo.update(product_id, product)?;
-                    // reset moderation if needed
-                    if reset_moderation {
-                        let update_base_product = UpdateBaseProduct::update_status(ModerationStatus::Draft);
-                        base_products_repo.update(updated_product.base_product_id, update_base_product)?;
-                    }
-                    updated_product
+                    products_repo.update(product_id, product)?
                 } else {
                     original_product
                 };

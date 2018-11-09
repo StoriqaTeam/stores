@@ -236,23 +236,6 @@ impl UpdateStore {
             ..UpdateStore::default()
         }
     }
-
-    pub fn reset_moderation_status(self) -> Self {
-        if self.name.is_some()
-            | self.long_description.is_some()
-            | self.short_description.is_some()
-            | self.slug.is_some()
-            | self.logo.is_some()
-            | self.cover.is_some()
-        {
-            Self {
-                status: Some(ModerationStatus::Draft),
-                ..self
-            }
-        } else {
-            self
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -154,12 +154,6 @@ pub struct UpdateProduct {
     pub pre_order_days: Option<i32>,
 }
 
-impl UpdateProduct {
-    pub fn reset_moderation_status_needed(&self) -> bool {
-        self.photo_main.is_some() | self.additional_photos.is_some()
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UpdateProductWithAttributes {
     pub product: Option<UpdateProduct>,

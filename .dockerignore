@@ -1,1 +1,4 @@
-target/rls
+target/*/deps
+target/*/build
+target/*/incremental
+deps

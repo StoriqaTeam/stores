@@ -76,8 +76,8 @@ use std::time::Duration;
 
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
-use futures::future;
-use futures::{Future, Stream};
+use failure::{err_msg, Error as FailureError};
+use futures::{future, Future, Stream};
 use futures_cpupool::CpuPool;
 use hyper::server::Http;
 use r2d2_redis::RedisConnectionManager;
@@ -228,7 +228,7 @@ fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Fu
         }).for_each(|_| futures::future::ok(()))
 }
 
-pub fn start_ticker(config: Config) {
+pub fn start_ticker(config: Config) -> impl Future<Item = (), Error = FailureError> {
     let Config { server, ticker, .. } = config;
     let ticker = ticker.expect("Ticker config not found");
 
@@ -251,8 +251,5 @@ pub fn start_ticker(config: Config) {
         thread_pool,
     };
 
-    Core::new()
-        .expect("Unexpected error occurred when creating an event loop core for Ticker")
-        .run(ticker::run(ctx))
-        .unwrap();
+    ticker::run(ctx)
 }

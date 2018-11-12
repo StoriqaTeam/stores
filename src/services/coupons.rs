@@ -70,10 +70,11 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let coupon_repo = repo_factory.create_coupon_repo(&*conn, user_id);
-
-            coupon_repo
-                .create(payload)
-                .map_err(|e| e.context("Service Coupons, create endpoint error occurred.").into())
+            conn.transaction::<Coupon, FailureError, _>(move || {
+                coupon_repo
+                    .create(payload)
+                    .map_err(|e| e.context("Service Coupons, create endpoint error occurred.").into())
+            })
         })
     }
 
@@ -275,10 +276,11 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let used_coupons_repo = repo_factory.create_used_coupons_repo(&*conn, user_id);
-
-            used_coupons_repo
-                .create(payload)
-                .map_err(|e| e.context("Service Coupons, create endpoint error occurred.").into())
+            conn.transaction::<UsedCoupon, FailureError, _>(move || {
+                used_coupons_repo
+                    .create(payload)
+                    .map_err(|e| e.context("Service Coupons, create endpoint error occurred.").into())
+            })
         })
     }
 

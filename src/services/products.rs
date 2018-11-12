@@ -8,7 +8,7 @@ use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
 use stq_static_resources::Currency;
-use stq_types::{AttributeId, AttributeValue, BaseProductId, ProductId, ProductPrice, ProductSellerPrice, StoreId};
+use stq_types::{AttributeId, AttributeValueCode, BaseProductId, ProductId, ProductPrice, ProductSellerPrice, StoreId};
 
 use super::types::ServiceFuture;
 use errors::Error;
@@ -331,7 +331,7 @@ pub fn create_product_attributes_values(
         .find_all_attributes(base_product_arg)?
         .into_iter()
         .map(|v| (v.attribute_id, String::default().into()))
-        .collect::<HashMap<AttributeId, AttributeValue>>();
+        .collect::<HashMap<AttributeId, AttributeValueCode>>();
 
     check_attributes_values_exist(base_attrs, attributes_values.clone(), available_attributes)?;
 
@@ -355,9 +355,9 @@ pub fn create_product_attributes_values(
 fn check_attributes_values_exist(
     base_attrs: Vec<ProdAttr>,
     attributes: Vec<AttrValue>,
-    available_attributes: HashMap<AttributeId, AttributeValue>,
+    available_attributes: HashMap<AttributeId, AttributeValueCode>,
 ) -> Result<(), FailureError> {
-    let mut hash = HashMap::<ProductId, HashMap<AttributeId, AttributeValue>>::default();
+    let mut hash = HashMap::<ProductId, HashMap<AttributeId, AttributeValueCode>>::default();
     for attr in base_attrs {
         let mut prod_attrs = hash.entry(attr.prod_id).or_insert_with(|| available_attributes.clone());
         prod_attrs.insert(attr.attr_id, attr.value);
@@ -439,7 +439,7 @@ pub mod tests {
             product: create_new_product(base_product_id),
             attributes: vec![AttrValue {
                 attr_id: AttributeId(1),
-                value: AttributeValue("String".to_string()),
+                value: AttributeValueCode("String".to_string()),
                 meta_field: None,
             }],
         }

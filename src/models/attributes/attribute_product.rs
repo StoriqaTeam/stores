@@ -1,5 +1,5 @@
 use stq_static_resources::AttributeType;
-use stq_types::{AttributeId, AttributeValue, BaseProductId, ProductId};
+use stq_types::{AttributeId, AttributeValueCode, BaseProductId, ProductId, AttributeValueId, ProdAttrId};
 
 use schema::prod_attr_values;
 
@@ -7,13 +7,14 @@ use schema::prod_attr_values;
 #[derive(Debug, Deserialize, Associations, Queryable, Clone, Identifiable)]
 #[table_name = "prod_attr_values"]
 pub struct ProdAttr {
-    pub id: i32,
+    pub id: ProdAttrId,
     pub prod_id: ProductId,
     pub attr_id: AttributeId,
-    pub value: AttributeValue,
+    pub value: AttributeValueCode,
     pub value_type: AttributeType,
     pub meta_field: Option<String>,
     pub base_prod_id: BaseProductId,
+    pub attr_value_id: Option<AttributeValueId>,
 }
 
 /// Payload for creating product attributes
@@ -23,7 +24,7 @@ pub struct NewProdAttr {
     pub prod_id: ProductId,
     pub base_prod_id: BaseProductId,
     pub attr_id: AttributeId,
-    pub value: AttributeValue,
+    pub value: AttributeValueCode,
     pub value_type: AttributeType,
     pub meta_field: Option<String>,
 }
@@ -33,7 +34,7 @@ impl NewProdAttr {
         prod_id: ProductId,
         base_prod_id: BaseProductId,
         attr_id: AttributeId,
-        value: AttributeValue,
+        value: AttributeValueCode,
         value_type: AttributeType,
         meta_field: Option<String>,
     ) -> Self {
@@ -55,7 +56,7 @@ pub struct UpdateProdAttr {
     pub prod_id: ProductId,
     pub base_prod_id: BaseProductId,
     pub attr_id: AttributeId,
-    pub value: AttributeValue,
+    pub value: AttributeValueCode,
     pub meta_field: Option<String>,
 }
 
@@ -64,7 +65,7 @@ impl UpdateProdAttr {
         prod_id: ProductId,
         base_prod_id: BaseProductId,
         attr_id: AttributeId,
-        value: AttributeValue,
+        value: AttributeValueCode,
         meta_field: Option<String>,
     ) -> Self {
         Self {

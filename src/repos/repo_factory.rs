@@ -1186,7 +1186,7 @@ pub mod tests {
                 prod_id: product_id_arg,
                 base_prod_id: BaseProductId(1),
                 attr_id: AttributeId(1),
-                value: AttributeValue("value".to_string()),
+                value: AttributeValueCode("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
             }])
@@ -1199,7 +1199,7 @@ pub mod tests {
                 prod_id: ProductId(1),
                 base_prod_id: base_product_id_arg,
                 attr_id: AttributeId(1),
-                value: AttributeValue("value".to_string()),
+                value: AttributeValueCode("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
             }])
@@ -1237,7 +1237,7 @@ pub mod tests {
                 prod_id: ProductId(1),
                 base_prod_id: BaseProductId(1),
                 attr_id: AttributeId(1),
-                value: AttributeValue("value".to_string()),
+                value: AttributeValueCode("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
             })

@@ -3,7 +3,7 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::AttributeType;
-use stq_types::{AttributeId, AttributeValue};
+use stq_types::{AttributeId, AttributeValueCode};
 
 use models::validation_rules::*;
 use models::*;
@@ -40,7 +40,7 @@ pub struct UpdateAttribute {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AttrValue {
     pub attr_id: AttributeId,
-    pub value: AttributeValue,
+    pub value: AttributeValueCode,
     pub meta_field: Option<String>,
 }
 

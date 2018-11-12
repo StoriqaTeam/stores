@@ -38,6 +38,9 @@ pub trait CategoryAttrsRepo {
 
     /// Delete attr from category
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()>;
+
+    /// Deletes specific categories
+    fn delete_all_by_category_ids(&self, category_ids_arg: &[CategoryId]) -> RepoResult<()>;
 }
 
 impl<'a, C, T> CategoryAttrsRepoImpl<'a, C, T>
@@ -84,7 +87,7 @@ where
 
     /// Delete category attribute
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
-        debug!("Delete category attributewith payload {:?}.", payload);
+        debug!("Delete category attribute with payload {:?}.", payload);
         acl::check(&*self.acl, Resource::CategoryAttrs, Action::Delete, self, None)?;
         self.cache.remove();
         let filtered = cat_attr_values
@@ -95,6 +98,28 @@ where
             .get_result::<CatAttr>(self.db_conn)
             .map(|_| ())
             .map_err(|e| e.context(format!("Delete category attribute: {:?} error occurred", payload)).into())
+    }
+
+    /// Deletes specific categories
+    fn delete_all_by_category_ids(&self, category_ids_arg: &[CategoryId]) -> RepoResult<()> {
+        debug!("Delete categories attribute({}).", category_ids_arg.len());
+        self.cache.remove();
+
+        cat_attr_values
+            .filter(cat_id.eq_any(category_ids_arg))
+            .load::<CatAttr>(self.db_conn)
+            .map_err(From::from)
+            .and_then(|cat_attrs| {
+                cat_attrs
+                    .into_iter()
+                    .try_for_each(|cat_attr| acl::check(&*self.acl, Resource::CategoryAttrs, Action::Delete, self, Some(&cat_attr)))
+            })?;
+
+        diesel::delete(cat_attr_values)
+            .filter(cat_id.eq_any(category_ids_arg))
+            .execute(self.db_conn)?;
+
+        Ok(())
     }
 }
 

@@ -8,12 +8,13 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::sql_types::Bool;
 use diesel::Connection;
 use failure::Error as FailureError;
 use failure::Fail;
 
 use stq_static_resources::ModerationStatus;
-use stq_types::{BaseProductId, ProductId, StoreId, UserId};
+use stq_types::{BaseProductId, CategoryId, ProductId, StoreId, UserId};
 
 use super::acl;
 use super::types::RepoResult;
@@ -36,6 +37,13 @@ pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManag
     pub acl: Box<Acl<Resource, Action, Scope, FailureError, BaseProduct>>,
 }
 
+#[derive(Debug, Default)]
+pub struct BaseProductsSearchTerms {
+    pub is_active: Option<bool>,
+    pub category_id: Option<CategoryId>,
+    pub category_ids: Option<Vec<CategoryId>>,
+}
+
 pub trait BaseProductsRepo {
     /// Get base_product count
     fn count(&self, visibility: Visibility) -> RepoResult<i64>;
@@ -45,6 +53,9 @@ pub trait BaseProductsRepo {
 
     /// Find base_products by ids
     fn find_many(&self, base_product_ids: Vec<BaseProductId>) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Search many products by search terms
+    fn search(&self, search_terms: BaseProductsSearchTerms) -> RepoResult<Vec<BaseProduct>>;
 
     /// Returns list of base_products, limited by `from` and `count` parameters
     fn list(&self, from: BaseProductId, count: i32, visibility: Visibility) -> RepoResult<Vec<BaseProduct>>;
@@ -176,6 +187,48 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(results)
             }).map_err(|e: FailureError| e.context(format!("Find many base products error occurred")).into())
+    }
+
+    /// Search many products by search terms
+    fn search(&self, search_terms: BaseProductsSearchTerms) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Find many base products with search terms.");
+
+        type BoxedExpr = Box<BoxableExpression<base_products, Pg, SqlType = Bool>>;
+
+        let mut filter_expressions = Vec::<BoxedExpr>::new();
+
+        if let Some(is_active_filter) = search_terms.is_active {
+            filter_expressions.push(Box::new(is_active.eq(is_active_filter)));
+        }
+
+        if let Some(category_id_filter) = search_terms.category_id {
+            filter_expressions.push(Box::new(category_id.eq(category_id_filter)));
+        }
+
+        if let Some(category_ids_filter) = search_terms.category_ids {
+            filter_expressions.push(Box::new(category_id.eq_any(category_ids_filter)));
+        }
+
+        let filter = filter_expressions
+            .into_iter()
+            .fold(None, |acc_expresson: Option<BoxedExpr>, next_expresson| {
+                if let Some(acc_expresson) = acc_expresson {
+                    Some(Box::new(acc_expresson.and(next_expresson)))
+                } else {
+                    Some(next_expresson)
+                }
+            }).ok_or(format_err!("Search terms are empty"))?;
+
+        base_products
+            .filter(filter)
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|results: Vec<BaseProduct>| {
+                for result in results.iter() {
+                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(result))?;
+                }
+                Ok(results)
+            }).map_err(|e: FailureError| e.context(format!("Find many base products by search terms error occurred")).into())
     }
 
     /// Counts products by store id

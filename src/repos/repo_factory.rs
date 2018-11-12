@@ -634,6 +634,11 @@ pub mod tests {
             })
         }
 
+        /// Deletes specific categories
+        fn delete_all(&self, _category_ids_arg: &[CategoryId]) -> RepoResult<()> {
+            Ok(())
+        }
+
         /// Returns all categories as a tree
         fn get_all_categories(&self) -> RepoResult<Category> {
             Ok(create_mock_categories())
@@ -729,6 +734,11 @@ pub mod tests {
 
         /// Delete attr from category
         fn delete(&self, _payload: OldCatAttr) -> RepoResult<()> {
+            Ok(())
+        }
+
+        /// Deletes specific categories
+        fn delete_all_by_category_ids(&self, _category_ids_arg: &[CategoryId]) -> RepoResult<()> {
             Ok(())
         }
     }
@@ -939,6 +949,11 @@ pub mod tests {
             }
 
             Ok(result)
+        }
+
+        /// Search many products by search terms
+        fn search(&self, _search_terms: BaseProductsSearchTerms) -> RepoResult<Vec<BaseProduct>> {
+            Ok(vec![])
         }
 
         /// Returns list of base_products, limited by `from` and `count` parameters

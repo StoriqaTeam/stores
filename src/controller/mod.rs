@@ -830,6 +830,9 @@ impl<
             // GET /categories/<category_id>
             (&Get, Some(Route::Category(category_id))) => serialize_future(service.get_category(category_id)),
 
+            // DELETE /categories/<category_id>
+            (&Delete, Some(Route::Category(category_id))) => serialize_future(service.delete_category(category_id)),
+
             // POST /categories
             (&Post, Some(Route::Categories)) => serialize_future(
                 parse_body::<NewCategory>(req.body())

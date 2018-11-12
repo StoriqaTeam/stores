@@ -13,7 +13,7 @@ use errors::Error;
 use models::{Attribute, NewCatAttr, OldCatAttr};
 use models::{Category, NewCategory, UpdateCategory};
 use repos::types::RepoResult;
-use repos::ReposFactory;
+use repos::{BaseProductsRepo, BaseProductsSearchTerms, ReposFactory};
 use services::Service;
 
 pub trait CategoriesService {
@@ -23,6 +23,8 @@ pub trait CategoriesService {
     fn create_category(&self, payload: NewCategory) -> ServiceFuture<Category>;
     /// Updates specific category
     fn update_category(&self, category_id: CategoryId, payload: UpdateCategory) -> ServiceFuture<Category>;
+    /// Deletes category
+    fn delete_category(&self, category_id: CategoryId) -> ServiceFuture<()>;
     /// Returns all categories as a tree
     fn get_all_categories(&self) -> ServiceFuture<Category>;
     /// Returns all category attributes belonging to category
@@ -75,6 +77,33 @@ impl<
             categories_repo
                 .update(category_id, payload)
                 .map_err(|e| e.context("Service Categories, update endpoint error occurred.").into())
+        })
+    }
+
+    /// Deletes category
+    fn delete_category(&self, category_id: CategoryId) -> ServiceFuture<()> {
+        let user_id = self.dynamic_context.user_id;
+
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+            let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
+            let base_product_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+
+            conn.transaction::<(), FailureError, _>(move || {
+                let category: Category = categories_repo
+                    .find(category_id)?
+                    .ok_or(format_err!("No such category with id : {}", category_id).context(Error::NotFound))?;
+                let category_ids = category_and_children_ids(&category);
+
+                validate_category_delete(&category_ids, &*base_product_repo as &BaseProductsRepo)?;
+
+                category_attrs_repo.delete_all_by_category_ids(&category_ids)?;
+                categories_repo.delete_all(&category_ids)?;
+
+                Ok(())
+            })
         })
     }
 
@@ -148,6 +177,38 @@ impl<
     }
 }
 
+fn validate_category_delete(
+    category_ids: &[CategoryId],
+    base_products_repo: &BaseProductsRepo,
+) -> Result<(), FailureError> {
+    let base_prods_search_terms = BaseProductsSearchTerms {
+        category_ids: Some(category_ids.to_vec()),
+        is_active: Some(true),
+        ..Default::default()
+    };
+    let active_base_prods_with_target_category = base_products_repo.search(base_prods_search_terms)?;
+    if !active_base_prods_with_target_category.is_empty() {
+        return Err(format_err!(
+            "Category has {} active base products.",
+            active_base_prods_with_target_category.len()
+        ).context(Error::Validate(
+            validation_errors!({"category_id": ["category_id" => "Category has active base products."]}),
+        )).into());
+    }
+    Ok(())
+}
+
+fn category_and_children_ids(category: &Category) -> Vec<CategoryId> {
+    let mut ids = Vec::new();
+    add_ids(category, &mut ids);
+    ids
+}
+
+fn add_ids(category: &Category, ids: &mut Vec<CategoryId>) {
+    ids.push(category.id);
+    category.children.iter().for_each(|child| add_ids(child, ids));
+}
+
 #[cfg(test)]
 pub mod tests {
     use serde_json;
@@ -207,6 +268,22 @@ pub mod tests {
         let work = service.update_category(CategoryId(1), new_categories);
         let result = core.run(work).unwrap();
         assert_eq!(result.id, CategoryId(1));
+    }
+
+    #[test]
+    fn test_delete() {
+        //given
+        let mut core = Core::new().unwrap();
+        let handle = Arc::new(core.handle());
+        let service = create_service(Some(MOCK_USER_ID), handle);
+        let work = service.get_category(CategoryId(1));
+        let result = core.run(work).unwrap();
+        assert_eq!(result.unwrap().id, CategoryId(1));
+        //when
+        let work = service.delete_category(CategoryId(1));
+        let result = core.run(work);
+        //then
+        assert!(result.is_ok());
     }
 
 }

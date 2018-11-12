@@ -44,6 +44,7 @@ table! {
         parent_id -> Nullable<Int4>,
         level -> Int4,
         meta_field -> Nullable<Jsonb>,
+        is_active -> Bool,
     }
 }
 

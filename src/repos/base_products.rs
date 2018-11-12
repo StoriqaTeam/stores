@@ -195,32 +195,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         type BoxedExpr = Box<BoxableExpression<base_products, Pg, SqlType = Bool>>;
 
-        let mut filter_expressions = Vec::<BoxedExpr>::new();
+        let mut query: BoxedExpr = Box::new(id.eq(id));
 
         if let Some(is_active_filter) = search_terms.is_active {
-            filter_expressions.push(Box::new(is_active.eq(is_active_filter)));
+            query = Box::new(query.and(is_active.eq(is_active_filter)));
         }
 
         if let Some(category_id_filter) = search_terms.category_id {
-            filter_expressions.push(Box::new(category_id.eq(category_id_filter)));
+            query = Box::new(query.and(category_id.eq(category_id_filter)));
         }
 
         if let Some(category_ids_filter) = search_terms.category_ids {
-            filter_expressions.push(Box::new(category_id.eq_any(category_ids_filter)));
+            query = Box::new(query.and(category_id.eq_any(category_ids_filter)));
         }
 
-        let filter = filter_expressions
-            .into_iter()
-            .fold(None, |acc_expresson: Option<BoxedExpr>, next_expresson| {
-                if let Some(acc_expresson) = acc_expresson {
-                    Some(Box::new(acc_expresson.and(next_expresson)))
-                } else {
-                    Some(next_expresson)
-                }
-            }).ok_or(format_err!("Search terms are empty"))?;
-
         base_products
-            .filter(filter)
+            .filter(query)
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|results: Vec<BaseProduct>| {

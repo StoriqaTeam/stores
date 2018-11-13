@@ -77,6 +77,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
         query.get_result::<Ty>(self.db_conn).map_err(From::from)
     }
+
+    /// Checking user permissions
+    fn check_read_permissions(&self, obj: &Store) -> RepoResult<()> {
+        match obj.status {
+            ModerationStatus::Draft | ModerationStatus::Decline | ModerationStatus::Moderation => {
+                acl::check(&*self.acl, Resource::Stores, Action::ReadUnPublished, self, Some(obj))
+            }
+            ModerationStatus::Published => acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(obj)),
+        }
+    }
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepo for StoresRepoImpl<'a, T> {
@@ -114,7 +124,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|store: Option<Store>| {
                 if let Some(ref store) = store {
-                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store))?;
+                    self.check_read_permissions(store)?;
                 };
                 Ok(store)
             }).map_err(|e: FailureError| e.context(format!("Find store with id: {} error occurred", store_id_arg)).into())
@@ -150,7 +160,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|stores_res: Vec<Store>| {
                 for store in &stores_res {
-                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(&store))?;
+                    self.check_read_permissions(&store)?;
                 }
                 Ok(stores_res.clone())
             }).map_err(|e: FailureError| {
@@ -222,11 +232,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result(self.db_conn)
             .optional()
             .map_err(From::from)
-            .and_then(|store_res: Option<Store>| {
-                if let Some(ref store_res) = store_res {
-                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store_res))?;
+            .and_then(|store: Option<Store>| {
+                if let Some(ref store) = store {
+                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(store))?;
                 };
-                Ok(store_res)
+                Ok(store)
             }).map_err(|e: FailureError| e.context(format!("Get store by user id {}.", user_id_arg)).into())
     }
 
@@ -338,12 +348,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results(self.db_conn)
             .map_err(From::from)
-            .and_then(|stores_res: Vec<Store>| {
-                for store in &stores_res {
-                    acl::check(&*self.acl, Resource::Stores, Action::Read, self, Some(&store))?;
+            .and_then(|results: Vec<Store>| {
+                for store in results.iter() {
+                    self.check_read_permissions(&store)?;
                 }
 
-                Ok(stores_res)
+                Ok(results)
             }).map_err(|e: FailureError| {
                 e.context(format!(
                     "moderator search for stores error occurred (pagination params: {:?}, search terms: {:?})",

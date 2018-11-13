@@ -111,6 +111,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
         query.get_result::<Ty>(self.db_conn).map_err(From::from)
     }
+
+    /// Checking user permissions
+    fn check_read_permissions(&self, obj: &BaseProduct) -> RepoResult<()> {
+        match obj.status {
+            ModerationStatus::Draft | ModerationStatus::Decline | ModerationStatus::Moderation => {
+                acl::check(&*self.acl, Resource::BaseProducts, Action::ReadUnPublished, self, Some(obj))
+            }
+            ModerationStatus::Published => acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(obj)),
+        }
+    }
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> BaseProductsRepo
@@ -153,8 +163,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_product: Option<BaseProduct>| {
                 if let Some(ref base_product) = base_product {
-                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(base_product))?;
+                    self.check_read_permissions(base_product)?;
                 };
+
                 Ok(base_product)
             }).map_err(|e: FailureError| {
                 e.context(format!("Find base product by id: {} error occurred", base_product_id_arg))
@@ -235,7 +246,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
-                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
+                    self.check_read_permissions(base_product)?;
                 }
                 Ok(base_products_res)
             }).map_err(|e: FailureError| {
@@ -280,7 +291,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
-                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
+                    self.check_read_permissions(base_product)?;
                 }
                 Ok(base_products_res)
             }).map_err(|e: FailureError| {
@@ -580,7 +591,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
-                    acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(&base_product))?;
+                    self.check_read_permissions(base_product)?;
                 }
 
                 Ok(base_products_res)

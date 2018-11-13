@@ -78,6 +78,7 @@ impl ApplicationAcl {
                 permission!(Resource::BaseProducts, Action::Create, Scope::Owned),
                 permission!(Resource::BaseProducts, Action::Delete, Scope::Owned),
                 permission!(Resource::BaseProducts, Action::Read),
+                permission!(Resource::BaseProducts, Action::ReadUnPublished, Scope::Owned),
                 permission!(Resource::BaseProducts, Action::Update, Scope::Owned),
                 permission!(Resource::Categories, Action::Read),
                 permission!(Resource::CategoryAttrs, Action::Read),

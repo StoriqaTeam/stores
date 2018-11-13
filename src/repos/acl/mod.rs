@@ -95,6 +95,7 @@ impl ApplicationAcl {
                 permission!(Resource::Stores, Action::Create, Scope::Owned),
                 permission!(Resource::Stores, Action::Delete, Scope::Owned),
                 permission!(Resource::Stores, Action::Read),
+                permission!(Resource::Stores, Action::ReadUnPublished, Scope::Owned),
                 permission!(Resource::Stores, Action::Update, Scope::Owned),
                 permission!(Resource::UserRoles, Action::Read, Scope::Owned),
                 permission!(Resource::WizardStores, Action::All, Scope::Owned),
@@ -116,6 +117,7 @@ impl ApplicationAcl {
                 permission!(Resource::ModeratorProductComments),
                 permission!(Resource::ModeratorStoreComments),
                 permission!(Resource::Stores, Action::Moderate),
+                permission!(Resource::Stores, Action::ReadUnPublished),
                 permission!(Resource::Stores, Action::Read),
             ],
         );

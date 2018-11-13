@@ -561,7 +561,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         }
 
         if let Some(term_name) = &term.name {
-            query = query.filter(sql(format!("name::text like '%{}%'", term_name).as_ref()));
+            query = query.filter(sql(format!("name::text ILIKE '%{}%'", term_name).as_ref()));
         }
         if let Some(term_store_id) = &term.store_id {
             query = query.filter(store_id.eq(term_store_id));

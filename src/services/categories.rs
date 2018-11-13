@@ -177,10 +177,7 @@ impl<
     }
 }
 
-fn validate_category_delete(
-    category_ids: &[CategoryId],
-    base_products_repo: &BaseProductsRepo,
-) -> Result<(), FailureError> {
+fn validate_category_delete(category_ids: &[CategoryId], base_products_repo: &BaseProductsRepo) -> Result<(), FailureError> {
     let base_prods_search_terms = BaseProductsSearchTerms {
         category_ids: Some(category_ids.to_vec()),
         is_active: Some(true),

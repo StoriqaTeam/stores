@@ -1,6 +1,7 @@
 //! Services is a core layer for the app business logic like
 //! validation, authorization, etc.
 
+pub mod attribute_values;
 pub mod attributes;
 pub mod base_products;
 pub mod categories;
@@ -14,6 +15,7 @@ pub mod types;
 pub mod user_roles;
 pub mod wizard_stores;
 
+pub use self::attribute_values::*;
 pub use self::attributes::*;
 pub use self::base_products::*;
 pub use self::categories::*;

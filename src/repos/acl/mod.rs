@@ -53,6 +53,7 @@ impl ApplicationAcl {
             StoresRole::Superuser,
             vec![
                 permission!(Resource::Attributes),
+                permission!(Resource::AttributeValues),
                 permission!(Resource::BaseProducts),
                 permission!(Resource::Categories),
                 permission!(Resource::CategoryAttrs),
@@ -75,6 +76,7 @@ impl ApplicationAcl {
             StoresRole::User,
             vec![
                 permission!(Resource::Attributes, Action::Read),
+                permission!(Resource::AttributeValues, Action::Read),
                 permission!(Resource::BaseProducts, Action::Create, Scope::Owned),
                 permission!(Resource::BaseProducts, Action::Delete, Scope::Owned),
                 permission!(Resource::BaseProducts, Action::Read),

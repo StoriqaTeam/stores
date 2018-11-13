@@ -1,5 +1,5 @@
 use stq_static_resources::AttributeType;
-use stq_types::{AttributeId, AttributeValueCode, BaseProductId, ProductId, AttributeValueId, ProdAttrId};
+use stq_types::{AttributeId, AttributeValueCode, AttributeValueId, BaseProductId, ProdAttrId, ProductId};
 
 use schema::prod_attr_values;
 

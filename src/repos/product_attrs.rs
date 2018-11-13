@@ -3,6 +3,7 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::sql_types::Bool;
 use diesel::Connection;
 use failure::Error as FailureError;
 
@@ -17,10 +18,18 @@ use schema::base_products::dsl as BaseProducts;
 use schema::prod_attr_values::dsl::*;
 use schema::stores::dsl as Stores;
 
+use stq_types::{AttributeId, AttributeValueId};
+
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
     pub acl: Box<Acl<Resource, Action, Scope, FailureError, ProdAttr>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ProductAttrsSearchTerms {
+    pub attr_id: Option<AttributeId>,
+    pub attr_value_id: Option<AttributeValueId>,
 }
 
 pub trait ProductAttrsRepo {
@@ -35,6 +44,9 @@ pub trait ProductAttrsRepo {
 
     /// Updates specific product_attribute
     fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr>;
+
+    /// Finds many product attributes by search terms
+    fn find_many(&self, search_terms: ProductAttrsSearchTerms) -> RepoResult<Vec<ProdAttr>>;
 
     /// Delete all attributes values from product
     fn delete_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>>;
@@ -130,6 +142,35 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<ProdAttr>(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| e.context(format!("Updating product attribute {:?} error occurred", payload)).into())
+    }
+
+    /// Finds many product attributes by search terms
+    fn find_many(&self, search_terms: ProductAttrsSearchTerms) -> RepoResult<Vec<ProdAttr>> {
+        type BoxedExpr = Box<BoxableExpression<prod_attr_values, Pg, SqlType = Bool>>;
+
+        let mut query: BoxedExpr = Box::new(id.eq(id));
+
+        if let Some(attr_id_filter) = search_terms.attr_id {
+            query = Box::new(query.and(attr_id.eq(attr_id_filter)));
+        }
+
+        if let Some(attr_value_id_filter) = search_terms.attr_value_id {
+            query = Box::new(query.and(attr_value_id.eq(attr_value_id_filter)));
+        }
+
+        prod_attr_values
+            .filter(query)
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|results: Vec<ProdAttr>| {
+                for result in results.iter() {
+                    acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(result))?;
+                }
+                Ok(results)
+            }).map_err(|e: FailureError| {
+                e.context(format!("Find many product attributes by search terms error occurred"))
+                    .into()
+            })
     }
 
     /// Delete all attributes values from product

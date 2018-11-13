@@ -177,8 +177,12 @@ where
 
     fn get_raw_categories(&self) -> RepoResult<Vec<RawCategory>> {
         acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)
-            .and_then(|_| categories.filter(is_active.eq(true)).load::<RawCategory>(self.db_conn).map_err(From::from))
-            .map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
+            .and_then(|_| {
+                categories
+                    .filter(is_active.eq(true))
+                    .load::<RawCategory>(self.db_conn)
+                    .map_err(From::from)
+            }).map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
     }
 
     fn get_all_categories(&self) -> RepoResult<Category> {
@@ -207,9 +211,7 @@ where
                         },
                     );
 
-                    let cats = categories
-                        .filter(is_active.eq(true))
-                        .load::<RawCategory>(self.db_conn)?;
+                    let cats = categories.filter(is_active.eq(true)).load::<RawCategory>(self.db_conn)?;
                     let mut root = Category::default();
                     let children = create_tree(&cats, Some(root.id));
                     root.children = children;
@@ -343,6 +345,7 @@ mod tests {
     fn create_mock_category(id_: CategoryId, parent_id_: CategoryId, level_: i32) -> Category {
         Category {
             id: id_,
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
@@ -389,6 +392,7 @@ mod tests {
         Category {
             // root category
             id: root_id,
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_1],
@@ -402,6 +406,7 @@ mod tests {
     fn test_get_intermediate_category_child_level() {
         let lvl1_category = Category {
             id: CategoryId(1000),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
@@ -417,6 +422,7 @@ mod tests {
     fn test_get_leaf_category_child_level() {
         let lvl3_category = Category {
             id: CategoryId(1000),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],

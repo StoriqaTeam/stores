@@ -27,6 +27,7 @@ pub struct NewProdAttr {
     pub value: AttributeValueCode,
     pub value_type: AttributeType,
     pub meta_field: Option<String>,
+    pub attr_value_id: Option<AttributeValueId>,
 }
 
 impl NewProdAttr {
@@ -37,6 +38,7 @@ impl NewProdAttr {
         value: AttributeValueCode,
         value_type: AttributeType,
         meta_field: Option<String>,
+        attr_value_id: Option<AttributeValueId>,
     ) -> Self {
         Self {
             prod_id,
@@ -45,6 +47,7 @@ impl NewProdAttr {
             value,
             value_type,
             meta_field,
+            attr_value_id,
         }
     }
 }

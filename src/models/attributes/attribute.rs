@@ -3,10 +3,9 @@ use serde_json;
 use validator::Validate;
 
 use stq_static_resources::AttributeType;
-use stq_types::{AttributeId, AttributeValueCode};
+use stq_types::{AttributeId, AttributeValueCode, AttributeValueId};
 
 use models::validation_rules::*;
-use models::*;
 use schema::attributes;
 
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
@@ -40,16 +39,8 @@ pub struct UpdateAttribute {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AttrValue {
     pub attr_id: AttributeId,
+    pub attr_value_id: Option<AttributeValueId>,
     pub value: AttributeValueCode,
+    pub translations: Option<serde_json::Value>,
     pub meta_field: Option<String>,
-}
-
-impl From<ProdAttr> for AttrValue {
-    fn from(pr: ProdAttr) -> Self {
-        Self {
-            attr_id: pr.attr_id,
-            value: pr.value,
-            meta_field: pr.meta_field,
-        }
-    }
 }

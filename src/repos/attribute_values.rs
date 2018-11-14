@@ -33,6 +33,7 @@ pub struct AttributeValuesRepoImpl<'a, T: Connection<Backend = Pg, TransactionMa
 #[derive(Debug, Clone, Default)]
 pub struct AttributeValuesSearchTerms {
     pub attr_id: Option<AttributeId>,
+    pub ids: Option<Vec<AttributeValueId>>,
     pub code: Option<AttributeValueCode>,
 }
 
@@ -82,6 +83,10 @@ where
 
         if let Some(code_filter) = search_terms.code {
             query = Box::new(query.and(code.eq(code_filter)));
+        }
+
+        if let Some(ids_filter) = search_terms.ids {
+            query = Box::new(query.and(id.eq_any(ids_filter)));
         }
 
         attribute_values

@@ -13,7 +13,7 @@ use stq_types::{AttributeId, AttributeValueCode, BaseProductId, ProductId, Produ
 use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
-use repos::{AttributeValuesSearchTerms, AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult, ReposFactory, StoresRepo};
+use repos::{AttributeValuesRepo, AttributeValuesSearchTerms, AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult, ReposFactory, StoresRepo};
 use services::Service;
 
 pub trait ProductsService {
@@ -169,12 +169,14 @@ impl<
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
             let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
 
             let NewProductWithAttributes { mut product, attributes } = payload;
 
             conn.transaction::<Product, FailureError, _>(move || {
+
                 // fill currency id taken from base_product first
                 let base_product_id = product
                     .base_product_id
@@ -194,6 +196,7 @@ impl<
                     &*prod_attr_repo,
                     &*attr_repo,
                     &*custom_attributes_repo,
+                    &*attribute_values_repo,
                     &result_product.product,
                     base_product.id,
                     attributes,
@@ -214,6 +217,7 @@ impl<
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
             let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
 
@@ -247,6 +251,7 @@ impl<
                         &*prod_attr_repo,
                         &*attr_repo,
                         &*custom_attributes_repo,
+                        &*attribute_values_repo,
                         &result_product.product,
                         result_product.product.base_product_id,
                         attributes,
@@ -334,24 +339,17 @@ pub fn create_product_attributes_values(
     prod_attr_repo: &ProductAttrsRepo,
     attr_repo: &AttributesRepo,
     custom_attributes_repo: &CustomAttributesRepo,
+    attribute_values_repo: &AttributeValuesRepo,
     product_arg: &RawProduct,
     base_product_arg: BaseProductId,
-    attributes_values: Vec<AttrValue>,
+    attribute_values: Vec<AttrValue>,
 ) -> Result<(), FailureError> {
     // deleting old attributes for this product
     prod_attr_repo.delete_all_attributes(product_arg.id)?;
-    // searching for existed product with such attribute values
-    let base_attrs = prod_attr_repo.find_all_attributes_by_base(base_product_arg)?;
-    // get available attributes
-    let available_attributes = custom_attributes_repo
-        .find_all_attributes(base_product_arg)?
-        .into_iter()
-        .map(|v| (v.attribute_id, String::default().into()))
-        .collect::<HashMap<AttributeId, AttributeValueCode>>();
+    let attribute_values = fill_attr_value_id(attribute_values)?;
+    check_products_attribute_values_are_unique(prod_attr_repo, custom_attributes_repo, base_product_arg, attribute_values.clone())?;
 
-    check_attributes_values_exist(base_attrs, attributes_values.clone(), available_attributes)?;
-
-    for attr_value in attributes_values {
+    for attr_value in attribute_values {
         let attr = attr_repo.find(attr_value.attr_id)?;
         let attr = attr.ok_or(format_err!("Not found such attribute id : {}", attr_value.attr_id).context(Error::NotFound))?;
         let new_prod_attr = NewProdAttr::new(
@@ -361,7 +359,7 @@ pub fn create_product_attributes_values(
             attr_value.value,
             attr.value_type,
             attr_value.meta_field,
-            attr_value.attr_value_id,
+            attr_value.attr_value_id,//todo
         );
         prod_attr_repo.create(new_prod_attr)?;
     }
@@ -369,11 +367,27 @@ pub fn create_product_attributes_values(
     Ok(())
 }
 
-fn check_attributes_values_exist(
-    base_attrs: Vec<ProdAttr>,
-    attributes: Vec<AttrValue>,
-    available_attributes: HashMap<AttributeId, AttributeValueCode>,
+fn fill_attr_value_id(
+    attribute_values: Vec<AttrValue>
+) -> Result<Vec<AttrValue>, FailureError> {
+    Ok(attribute_values)
+}
+
+fn check_products_attribute_values_are_unique(
+    prod_attr_repo: &ProductAttrsRepo,
+    custom_attributes_repo: &CustomAttributesRepo,
+    base_product_arg: BaseProductId,
+    new_product_attributes: Vec<AttrValue>,
 ) -> Result<(), FailureError> {
+    // searching for existed product with such attribute values
+    let base_attrs = prod_attr_repo.find_all_attributes_by_base(base_product_arg)?;
+    // get available attributes
+    let available_attributes = custom_attributes_repo
+        .find_all_attributes(base_product_arg)?
+        .into_iter()
+        .map(|v| (v.attribute_id, String::default().into()))
+        .collect::<HashMap<AttributeId, AttributeValueCode>>();
+
     let mut hash = HashMap::<ProductId, HashMap<AttributeId, AttributeValueCode>>::default();
     for attr in base_attrs {
         let mut prod_attrs = hash.entry(attr.prod_id).or_insert_with(|| available_attributes.clone());
@@ -381,7 +395,7 @@ fn check_attributes_values_exist(
     }
 
     let result = hash.into_iter().any(|(_, prod_attrs)| {
-        attributes.iter().all(|attr| {
+        new_product_attributes.iter().all(|attr| {
             if let Some(value) = prod_attrs.get(&attr.attr_id) {
                 value == &attr.value
             } else {
@@ -391,7 +405,7 @@ fn check_attributes_values_exist(
     });
 
     if result {
-        Err(format_err!("Product with attributes {:?} already exists", attributes)
+        Err(format_err!("Product with attributes {:?} already exists", new_product_attributes)
             .context(Error::Validate(
                 validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
             )).into())

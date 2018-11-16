@@ -35,7 +35,7 @@ pub struct AttributeMetaField {
     pub ui_element: serde_json::Value,
 }
 
-#[derive(Deserialize, Debug, Clone, Validate, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validate, PartialEq)]
 pub struct CreateAttributePayload {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,

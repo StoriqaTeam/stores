@@ -356,6 +356,10 @@ pub mod tests {
                 meta_field: None,
             })
         }
+
+        fn delete(&self, _attribute_id_arg: AttributeId) -> RepoResult<()> {
+            Ok(())
+        }
     }
 
     #[derive(Clone, Default)]
@@ -792,6 +796,14 @@ pub mod tests {
                 id: 1,
                 cat_id: category_id_arg,
                 attr_id: AttributeId(1),
+            }])
+        }
+
+        fn find_all_attributes_by_attribute_id(&self, attribute_id_arg: AttributeId) -> RepoResult<Vec<CatAttr>> {
+            Ok(vec![CatAttr {
+                id: 1,
+                cat_id: CategoryId(1),
+                attr_id: attribute_id_arg,
             }])
         }
 

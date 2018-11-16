@@ -207,11 +207,15 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    pub fn create_new_attribute(name: &str) -> NewAttribute {
-        NewAttribute {
+    pub fn create_new_attribute(name: &str) -> CreateAttributePayload {
+        CreateAttributePayload {
             name: serde_json::from_str(name).unwrap(),
             value_type: AttributeType::Str,
-            meta_field: None,
+            meta_field: Some(AttributeMetaField {
+                values: Some(vec!["45".to_string(), "46".to_string()]),
+                translated_values: None,
+                ui_element: serde_json::Value::Null,
+            }),
         }
     }
 

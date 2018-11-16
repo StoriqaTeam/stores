@@ -274,9 +274,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(From::from)
-            .and_then(|exists| {
-                acl::check_with_rule(&*self.acl, Resource::Stores, Action::Read, self, Rule::Any, None).and_then(|_| Ok(exists))
-            }).map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occurred.", slug_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occurred.", slug_arg)).into())
     }
 
     /// Checks name exists
@@ -296,9 +294,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             }).collect::<RepoResult<Vec<bool>>>();
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
-            .and_then(|exists| {
-                acl::check_with_rule(&*self.acl, Resource::Stores, Action::Read, self, Rule::Any, None).and_then(|_| Ok(exists))
-            }).map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occurred.", name_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occurred.", name_arg)).into())
     }
 
     /// Checks if vendor code exists across the store

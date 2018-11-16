@@ -433,9 +433,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .map_err(From::from)
-            .and_then(|exists| {
-                acl::check_with_rule(&*self.acl, Resource::BaseProducts, Action::Read, self, Rule::Any, None).and_then(|_| Ok(exists))
-            }).map_err(move |e: FailureError| e.context(format!("Check if store slug {} exists failed", slug_arg)).into())
+            .map_err(move |e: FailureError| e.context(format!("Check if store slug {} exists failed", slug_arg)).into())
     }
 
     /// Convert data from elastic to PG models

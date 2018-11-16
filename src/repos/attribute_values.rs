@@ -1,4 +1,3 @@
-use repos::types::RepoAcl;
 use diesel;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -7,6 +6,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_types::Bool;
 use diesel::Connection;
 use failure::Error as FailureError;
+use repos::types::RepoAcl;
 
 use stq_types::{AttributeId, AttributeValueCode, AttributeValueId, UserId};
 
@@ -19,7 +19,7 @@ use schema::attribute_values::dsl::*;
 
 pub trait AttributeValuesRepo {
     fn create(&self, new_attribute: NewAttributeValue) -> RepoResult<AttributeValue>;
-    fn find(&self, attr_id: AttributeId, code: AttributeValueCode) -> RepoResult<AttributeValue>;
+    fn find(&self, attr_id: AttributeId, code: AttributeValueCode) -> RepoResult<Option<AttributeValue>>;
     fn find_many(&self, search_terms: AttributeValuesSearchTerms) -> RepoResult<Vec<AttributeValue>>;
     fn update(&self, id: AttributeValueId, update: UpdateAttributeValue) -> RepoResult<AttributeValue>;
     fn delete(&self, id: AttributeValueId) -> RepoResult<AttributeValue>;
@@ -65,11 +65,12 @@ where
             })
     }
 
-    fn find(&self, attr_id_arg: AttributeId, code_arg: AttributeValueCode) -> RepoResult<AttributeValue> {
+    fn find(&self, attr_id_arg: AttributeId, code_arg: AttributeValueCode) -> RepoResult<Option<AttributeValue>> {
         let res = attribute_values
             .filter(attr_id.eq(attr_id_arg).and(code.eq(code_arg)))
-            .get_result(self.db_conn)?;
-        acl::check(&*self.acl, Resource::AttributeValues, Action::Read, self, Some(&res))?;
+            .get_result(self.db_conn)
+            .optional()?;
+        acl::check(&*self.acl, Resource::AttributeValues, Action::Read, self, res.as_ref())?;
         Ok(res)
     }
 

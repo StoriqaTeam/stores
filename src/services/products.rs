@@ -377,13 +377,18 @@ fn fill_attr_value(attribute_values_repo: &AttributeValuesRepo, attribute_values
     attribute_values
         .into_iter()
         .map(|attr_value| {
-            attribute_values_repo
-                .find(attr_value.attr_id.clone(), attr_value.value.clone())
-                .map(|attribute_value| AttrValue {
-                    attr_value_id: Some(attribute_value.id),
-                    translations: attribute_value.translations,
-                    ..attr_value
-                })
+            let attribute_value = attribute_values_repo
+                .find(attr_value.attr_id.clone(), attr_value.value.clone())?
+                .ok_or(format_err!(
+                    "Attribute value for {} with code {} not found",
+                    attr_value.attr_id,
+                    attr_value.value
+                ))?;
+            Ok(AttrValue {
+                attr_value_id: Some(attribute_value.id),
+                translations: attribute_value.translations,
+                ..attr_value
+            })
         }).collect()
 }
 

@@ -76,7 +76,11 @@ impl<
         self.spawn_on_pool(move |conn| {
             let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
             conn.transaction::<(AttributeValue), FailureError, _>(move || {
-                let value = attribute_values_repo.find(attr_id, code)?;
+                let value = attribute_values_repo.find(attr_id, code.clone())?.ok_or(format_err!(
+                    "Attribute value for {} with code {} not found",
+                    attr_id,
+                    code
+                ))?;
                 attribute_values_repo.update(value.id, update)
             }).map_err(|e| e.context("AttributeValuesService, update_attribute_value error occurred.").into())
         })
@@ -90,7 +94,11 @@ impl<
             let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
             conn.transaction::<(AttributeValue), FailureError, _>(move || {
-                let attribute_value = attribute_values_repo.find(attr_id, code)?;
+                let attribute_value = attribute_values_repo.find(attr_id, code.clone())?.ok_or(format_err!(
+                    "Attribute value for {} with code {} not found",
+                    attr_id,
+                    code
+                ))?;
                 validate_delete_attribute_value(&attribute_value, &*prod_attr_repo)?;
 
                 attribute_values_repo.delete(attribute_value.id)

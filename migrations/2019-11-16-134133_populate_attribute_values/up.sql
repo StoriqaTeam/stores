@@ -1,3 +1,5 @@
+CREATE UNIQUE INDEX stores_attribute_values_id_idx ON attribute_values (attr_id, code);
+
 insert into attribute_values (attr_id, code, translations)
 
 select
@@ -13,7 +15,7 @@ null as translations
 from attributes codes where codes.meta_field->'values' != 'null'::jsonb;
 
 update attribute_values set code=(
-  select av.translations->0->'text' from attribute_values as av where av.id=attribute_values.id
+  select jsonb_extract_path_text(av.translations->0, 'text') from attribute_values as av where av.id=attribute_values.id
 ) where code='';
 
-update prod_attr_values set attr_value_id=(select av.id from attribute_values av where av.attr_id=attr_id and av.code=value);
+update prod_attr_values set attr_value_id=(select av.id from attribute_values av where av.attr_id=prod_attr_values.attr_id and av.code=value);

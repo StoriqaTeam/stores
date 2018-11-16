@@ -1,4 +1,4 @@
-CREATE UNIQUE INDEX stores_attribute_values_id_idx ON attribute_values (attr_id, code);
+CREATE UNIQUE INDEX IF NOT EXISTS stores_attribute_values_attr_id_code_idx ON attribute_values (attr_id, code);
 
 insert into attribute_values (attr_id, code, translations)
 

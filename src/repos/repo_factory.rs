@@ -371,13 +371,13 @@ pub mod tests {
             })
         }
 
-        fn find(&self, attr_id: AttributeId, code: AttributeValueCode) -> RepoResult<AttributeValue> {
-            Ok(AttributeValue {
+        fn find(&self, attr_id: AttributeId, code: AttributeValueCode) -> RepoResult<Option<AttributeValue>> {
+            Ok(Some(AttributeValue {
                 id: AttributeValueId(1),
                 attr_id,
                 code,
                 translations: None,
-            })
+            }))
         }
 
         fn find_many(&self, _search_terms: AttributeValuesSearchTerms) -> RepoResult<Vec<AttributeValue>> {

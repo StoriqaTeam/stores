@@ -15,11 +15,11 @@ use stq_types::{RoleId, StoresRole, UserId};
 
 use repos::legacy_acl::*;
 
-use super::acl;
-use super::types::RepoResult;
 use models::authorization::*;
 use models::{NewUserRole, UserRole};
+use repos::acl;
 use repos::acl::RolesCacheImpl;
+use repos::types::{RepoAcl, RepoResult};
 use schema::user_roles::dsl::*;
 
 /// UserRoles repository for handling UserRoles
@@ -46,7 +46,7 @@ where
     C: Cache<Vec<StoresRole>>,
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, UserRole>>,
+    pub acl: Box<RepoAcl<UserRole>>,
     pub db_conn: &'a T,
     pub cached_roles: Arc<RolesCacheImpl<C>>,
 }
@@ -56,11 +56,7 @@ where
     C: Cache<Vec<StoresRole>>,
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
-    pub fn new(
-        db_conn: &'a T,
-        acl: Box<Acl<Resource, Action, Scope, FailureError, UserRole>>,
-        cached_roles: Arc<RolesCacheImpl<C>>,
-    ) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<UserRole>>, cached_roles: Arc<RolesCacheImpl<C>>) -> Self {
         Self {
             db_conn,
             acl,

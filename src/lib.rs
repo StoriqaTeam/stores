@@ -76,7 +76,7 @@ use std::time::Duration;
 
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
-use failure::{err_msg, Error as FailureError};
+use failure::Error as FailureError;
 use futures::{future, Future, Stream};
 use futures_cpupool::CpuPool;
 use hyper::server::Http;

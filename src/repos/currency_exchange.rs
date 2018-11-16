@@ -11,17 +11,17 @@ use failure::Error as FailureError;
 use stq_static_resources::Currency;
 use stq_types::{ExchangeRate, UserId};
 
-use super::acl;
-use super::types::RepoResult;
 use models::authorization::*;
 use models::{CurrencyExchange, DbCurrencyExchange, DbNewCurrencyExchange, NewCurrencyExchange};
+use repos::acl;
 use repos::legacy_acl::*;
+use repos::types::{RepoAcl, RepoResult};
 use schema::currency_exchange::dsl::*;
 
 /// CurrencyExchange repository, responsible for handling prod_attr_values
 pub struct CurrencyExchangeRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, CurrencyExchange>>,
+    pub acl: Box<RepoAcl<CurrencyExchange>>,
 }
 
 pub trait CurrencyExchangeRepo {
@@ -36,7 +36,7 @@ pub trait CurrencyExchangeRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CurrencyExchangeRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CurrencyExchange>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<CurrencyExchange>>) -> Self {
         Self { db_conn, acl }
     }
 }

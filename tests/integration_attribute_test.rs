@@ -49,9 +49,9 @@ fn attributes_crud() {
         .core
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
-    //println!("Attribute string: {:?}", code);
+    println!("Attribute string: {:?}", code);
     let value = serde_json::from_str::<Attribute>(&code);
-    //println!("Attribute {:?}", value);
+    println!("Attributes {:?}", value);
     assert!(value.is_ok());
 
     let id = value.unwrap().id;

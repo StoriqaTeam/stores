@@ -11,8 +11,8 @@ use stq_types::{CouponCode, CouponId, StoreId, UserId};
 
 use models::*;
 use repos::acl;
-use repos::legacy_acl::{Acl, CheckScope};
-use repos::types::RepoResult;
+use repos::legacy_acl::CheckScope;
+use repos::types::{RepoAcl, RepoResult};
 use schema::coupons::dsl as Coupons;
 use schema::stores::dsl as Stores;
 
@@ -25,7 +25,7 @@ pub enum CouponSearch {
 /// Coupons repository, responsible for handling coupon
 pub struct CouponsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, Coupon>>,
+    pub acl: Box<RepoAcl<Coupon>>,
 }
 
 pub trait CouponsRepo {
@@ -52,7 +52,7 @@ pub trait CouponsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CouponsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Coupon>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<Coupon>>) -> Self {
         Self { db_conn, acl }
     }
 }

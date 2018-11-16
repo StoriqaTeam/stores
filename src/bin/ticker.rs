@@ -5,6 +5,7 @@ extern crate log;
 extern crate stores_lib;
 extern crate stq_logging;
 extern crate tokio_core;
+extern crate tokio_signal;
 
 use failure::{err_msg, Error as FailureError};
 use futures::{future, Future, Stream};

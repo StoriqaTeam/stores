@@ -11,17 +11,17 @@ use failure::Error as FailureError;
 
 use stq_types::UserId;
 
-use super::acl;
-use super::types::RepoResult;
 use models::authorization::*;
 use models::{NewWizardStore, UpdateWizardStore, WizardStore};
+use repos::acl;
 use repos::legacy_acl::*;
+use repos::types::{RepoAcl, RepoResult};
 use schema::wizard_stores::dsl::*;
 
 /// Wizard stores repository, responsible for handling wizard stores
 pub struct WizardStoresRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, WizardStore>>,
+    pub acl: Box<RepoAcl<WizardStore>>,
 }
 
 pub trait WizardStoresRepo {
@@ -42,7 +42,7 @@ pub trait WizardStoresRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> WizardStoresRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, WizardStore>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<WizardStore>>) -> Self {
         Self { db_conn, acl }
     }
 

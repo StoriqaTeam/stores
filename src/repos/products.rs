@@ -16,14 +16,14 @@ use schema::base_products::dsl as BaseProducts;
 use schema::products::dsl::*;
 use schema::stores::dsl as Stores;
 
-use super::acl;
-use super::types::RepoResult;
 use models::authorization::*;
+use repos::acl;
+use repos::types::{RepoAcl, RepoResult};
 
 /// Products repository, responsible for handling products
 pub struct ProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, RawProduct>>,
+    pub acl: Box<RepoAcl<RawProduct>>,
 }
 
 pub trait ProductsRepo {
@@ -56,7 +56,7 @@ pub trait ProductsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, RawProduct>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<RawProduct>>) -> Self {
         Self { db_conn, acl }
     }
 

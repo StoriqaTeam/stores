@@ -1,13 +1,12 @@
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
-use failure::Error as FailureError;
 use std::sync::Arc;
 use stq_cache::cache::{Cache, CacheSingle};
 use stq_types::*;
 
 use models::*;
-use repos::legacy_acl::{Acl, SystemACL};
+use repos::legacy_acl::SystemACL;
 use repos::*;
 
 pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>: Clone + Send + 'static {
@@ -85,14 +84,11 @@ where
         &self,
         db_conn: &'a C,
         user_id: Option<UserId>,
-    ) -> Box<Acl<Resource, Action, Scope, FailureError, T>> {
-        user_id.map_or(
-            Box::new(UnauthorizedAcl::default()) as Box<Acl<Resource, Action, Scope, FailureError, T>>,
-            |id| {
-                let roles = self.get_roles(id, db_conn);
-                (Box::new(ApplicationAcl::new(roles, id)) as Box<Acl<Resource, Action, Scope, FailureError, T>>)
-            },
-        )
+    ) -> Box<RepoAcl<T>> {
+        user_id.map_or(Box::new(UnauthorizedAcl::default()) as Box<RepoAcl<T>>, |id| {
+            let roles = self.get_roles(id, db_conn);
+            (Box::new(ApplicationAcl::new(roles, id)) as Box<RepoAcl<T>>)
+        })
     }
 }
 
@@ -150,7 +146,7 @@ where
     fn create_user_roles_repo_with_sys_acl<'a>(&self, db_conn: &'a C) -> Box<UserRolesRepo + 'a> {
         Box::new(UserRolesRepoImpl::new(
             db_conn,
-            Box::new(SystemACL::default()) as Box<Acl<Resource, Action, Scope, FailureError, UserRole>>,
+            Box::new(SystemACL::default()) as Box<RepoAcl<UserRole>>,
             self.roles_cache.clone(),
         )) as Box<UserRolesRepo>
     }

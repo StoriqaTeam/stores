@@ -14,8 +14,8 @@ use models::authorization::*;
 use models::{CatAttr, Category, NewCatAttr, OldCatAttr};
 use repos::acl;
 use repos::categories::CategoryCacheImpl;
-use repos::legacy_acl::{Acl, CheckScope};
-use repos::types::RepoResult;
+use repos::legacy_acl::CheckScope;
+use repos::types::{RepoAcl, RepoResult};
 use schema::cat_attr_values::dsl::*;
 
 /// CatAttr repository, responsible for handling cat_attr_values
@@ -25,7 +25,7 @@ where
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>,
+    pub acl: Box<RepoAcl<CatAttr>>,
     pub cache: Arc<CategoryCacheImpl<C>>,
 }
 
@@ -51,7 +51,7 @@ where
     C: CacheSingle<Category>,
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CatAttr>>, cache: Arc<CategoryCacheImpl<C>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<CatAttr>>, cache: Arc<CategoryCacheImpl<C>>) -> Self {
         Self { db_conn, acl, cache }
     }
 }

@@ -6,6 +6,7 @@ use std::fmt;
 // Create - create resource with id.
 // Update - update resource with id.
 // Delete - delete resource with id.
+// Moderate - moderation resources
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Action {
     All,

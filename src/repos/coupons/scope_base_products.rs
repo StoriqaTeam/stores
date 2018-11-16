@@ -10,8 +10,8 @@ use stq_types::{BaseProductId, CouponId, UserId};
 
 use models::*;
 use repos::acl;
-use repos::legacy_acl::{Acl, CheckScope};
-use repos::types::RepoResult;
+use repos::legacy_acl::CheckScope;
+use repos::types::{RepoAcl, RepoResult};
 use schema::base_products::dsl as DslBaseProducts;
 use schema::coupon_scope_base_products::dsl as DslCouponScope;
 use schema::stores::dsl as DslStores;
@@ -19,7 +19,7 @@ use schema::stores::dsl as DslStores;
 /// CouponScopeBaseProducts repository, responsible for handling coupon_scope_base_products table
 pub struct CouponScopeBaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, CouponScopeBaseProducts>>,
+    pub acl: Box<RepoAcl<CouponScopeBaseProducts>>,
 }
 
 pub trait CouponScopeBaseProductsRepo {
@@ -34,7 +34,7 @@ pub trait CouponScopeBaseProductsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CouponScopeBaseProductsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CouponScopeBaseProducts>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<CouponScopeBaseProducts>>) -> Self {
         Self { db_conn, acl }
     }
 }

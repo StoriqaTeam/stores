@@ -9,17 +9,17 @@ use failure::Error as FailureError;
 
 use stq_types::{StoreId, UserId};
 
-use super::acl;
-use super::types::RepoResult;
 use models::authorization::*;
 use models::{ModeratorStoreComments, NewModeratorStoreComments};
+use repos::acl;
 use repos::legacy_acl::*;
+use repos::types::{RepoAcl, RepoResult};
 use schema::moderator_store_comments::dsl::*;
 
 /// Moderator product comments repository
 pub struct ModeratorStoreRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, ModeratorStoreComments>>,
+    pub acl: Box<RepoAcl<ModeratorStoreComments>>,
 }
 
 pub trait ModeratorStoreRepo {
@@ -31,7 +31,7 @@ pub trait ModeratorStoreRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ModeratorStoreRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, ModeratorStoreComments>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<ModeratorStoreComments>>) -> Self {
         Self { db_conn, acl }
     }
 }

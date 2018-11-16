@@ -10,10 +10,10 @@ use failure::Error as FailureError;
 use stq_types::{BaseProductId, ProductId, UserId};
 
 use super::acl;
-use super::types::RepoResult;
 use models::authorization::*;
 use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
 use repos::legacy_acl::*;
+use repos::types::{RepoAcl, RepoResult};
 use schema::base_products::dsl as BaseProducts;
 use schema::prod_attr_values::dsl::*;
 use schema::stores::dsl as Stores;
@@ -23,7 +23,7 @@ use stq_types::{AttributeId, AttributeValueId};
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, ProdAttr>>,
+    pub acl: Box<RepoAcl<ProdAttr>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -59,7 +59,7 @@ pub trait ProductAttrsRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, ProdAttr>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<ProdAttr>>) -> Self {
         Self { db_conn, acl }
     }
 }

@@ -16,8 +16,8 @@ use stq_types::{CategoryId, UserId};
 use models::authorization::*;
 use models::{Attribute, CatAttr, Category, InsertCategory, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
-use repos::legacy_acl::{Acl, CheckScope};
-use repos::types::RepoResult;
+use repos::legacy_acl::CheckScope;
+use repos::types::{RepoAcl, RepoResult};
 use schema::attributes::dsl as Attributes;
 use schema::cat_attr_values::dsl as CategoryAttributes;
 use schema::categories::dsl::*;
@@ -35,7 +35,7 @@ where
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, Category>>,
+    pub acl: Box<RepoAcl<Category>>,
     pub cache: Arc<CategoryCacheImpl<C>>,
 }
 
@@ -64,7 +64,7 @@ where
     C: CacheSingle<Category>,
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Category>>, cache: Arc<CategoryCacheImpl<C>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<Category>>, cache: Arc<CategoryCacheImpl<C>>) -> Self {
         Self { db_conn, acl, cache }
     }
 }

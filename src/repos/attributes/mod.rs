@@ -13,8 +13,8 @@ use stq_types::{AttributeId, UserId};
 use models::authorization::*;
 use models::{Attribute, NewAttribute, UpdateAttribute};
 use repos::acl;
-use repos::legacy_acl::{Acl, CheckScope};
-use repos::types::RepoResult;
+use repos::legacy_acl::CheckScope;
+use repos::types::{RepoAcl, RepoResult};
 use schema::attributes::dsl::*;
 
 pub mod attributes_cache;
@@ -28,7 +28,7 @@ where
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, Attribute>>,
+    pub acl: Box<RepoAcl<Attribute>>,
     pub cache: Arc<AttributeCacheImpl<C>>,
 }
 
@@ -54,7 +54,7 @@ where
     C: Cache<Attribute>,
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, Attribute>>, cache: Arc<AttributeCacheImpl<C>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<Attribute>>, cache: Arc<AttributeCacheImpl<C>>) -> Self {
         Self { db_conn, acl, cache }
     }
 }

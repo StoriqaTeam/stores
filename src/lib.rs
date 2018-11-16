@@ -192,13 +192,11 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
         future::ok(())
     });
 
-    let endless_stream = tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
+    core.run(tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
         info!("Ctrl+C received. Exit");
 
         Ok(())
-    });
-
-    core.run(endless_stream).unwrap();
+    })).unwrap();
 }
 
 pub fn start_rocket_retail_loader(config: Config) {
@@ -208,13 +206,11 @@ pub fn start_rocket_retail_loader(config: Config) {
     let env = loaders::RocketRetailEnvironment::new(config);
     handle.spawn(create_rocket_retail_loader(env));
 
-    let endless_stream = tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
+    core.run(tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
         info!("Ctrl+C received. Exit");
 
         Ok(())
-    });
-
-    core.run(endless_stream).unwrap();
+    })).unwrap();
 }
 
 fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Future<Item = (), Error = ()> {

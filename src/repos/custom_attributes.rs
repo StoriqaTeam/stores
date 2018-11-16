@@ -11,8 +11,8 @@ use stq_types::{BaseProductId, CustomAttributeId, UserId};
 use models::authorization::*;
 use models::{BaseProduct, CustomAttribute, NewCustomAttribute, Store};
 use repos::acl;
-use repos::legacy_acl::{Acl, CheckScope};
-use repos::types::RepoResult;
+use repos::legacy_acl::CheckScope;
+use repos::types::{RepoAcl, RepoResult};
 use schema::base_products::dsl as BaseProducts;
 use schema::custom_attributes::dsl::*;
 use schema::stores::dsl as Stores;
@@ -20,7 +20,7 @@ use schema::stores::dsl as Stores;
 /// CustomAttribute repository, responsible for handling custom_attributes
 pub struct CustomAttributesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, CustomAttribute>>,
+    pub acl: Box<RepoAcl<CustomAttribute>>,
 }
 
 pub trait CustomAttributesRepo {
@@ -41,7 +41,7 @@ pub trait CustomAttributesRepo {
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CustomAttributesRepoImpl<'a, T> {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, CustomAttribute>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<CustomAttribute>>) -> Self {
         Self { db_conn, acl }
     }
 }

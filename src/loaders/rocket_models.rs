@@ -7,7 +7,7 @@ use serde_json;
 use treexml::{Document, Element, ElementBuilder, XmlVersion};
 
 use stq_static_resources::{Language, Translation};
-use stq_types::{ProductId, StoreId};
+use stq_types::{BaseProductId, StoreId};
 
 use errors::Error;
 use models::{Attribute, BaseProduct, ProdAttr, ProductWithAttributes, RawCategory};
@@ -245,7 +245,7 @@ impl RocketRetailProduct {
             description: Some(description),
             vendor: Some(store_name),
             model: Some(product.vendor_code),
-            url: create_product_url(cluster, base.store_id, product.id),
+            url: create_product_url(cluster, base.store_id, base.id),
             price: product.price.into(),
             category_id: base.category_id.0,
             currency_id: product.currency.code().to_string(),
@@ -256,8 +256,8 @@ impl RocketRetailProduct {
     }
 }
 
-fn create_product_url(cluster: &str, store_id: StoreId, product_id: ProductId) -> String {
-    format!("https://{}/store/{}/products/{}", cluster, store_id, product_id)
+fn create_product_url(cluster: &str, store_id: StoreId, base_product_id: BaseProductId) -> String {
+    format!("https://{}/store/{}/products/{}", cluster, store_id, base_product_id)
 }
 
 impl ToXMLElement for RocketRetailProduct {

@@ -1,3 +1,4 @@
+use repos::types::RepoAcl;
 use diesel;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -27,7 +28,7 @@ pub trait AttributeValuesRepo {
 /// AttributeValues repository, responsible for handling attribute_values
 pub struct AttributeValuesRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
     pub db_conn: &'a T,
-    pub acl: Box<Acl<Resource, Action, Scope, FailureError, AttributeValue>>,
+    pub acl: Box<RepoAcl<AttributeValue>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -41,7 +42,7 @@ impl<'a, T> AttributeValuesRepoImpl<'a, T>
 where
     T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static,
 {
-    pub fn new(db_conn: &'a T, acl: Box<Acl<Resource, Action, Scope, FailureError, AttributeValue>>) -> Self {
+    pub fn new(db_conn: &'a T, acl: Box<RepoAcl<AttributeValue>>) -> Self {
         Self { db_conn, acl }
     }
 }

@@ -8,7 +8,7 @@ use failure::Error as FailureError;
 use failure::Fail;
 use std::sync::Arc;
 use stq_cache::cache::CacheSingle;
-use stq_types::{CategoryId, UserId};
+use stq_types::{AttributeId, CategoryId, UserId};
 
 use models::authorization::*;
 use models::{CatAttr, Category, NewCatAttr, OldCatAttr};
@@ -32,6 +32,9 @@ where
 pub trait CategoryAttrsRepo {
     /// Find category attributes by category ID
     fn find_all_attributes(&self, category_id_arg: CategoryId) -> RepoResult<Vec<CatAttr>>;
+
+    /// Find category attributes by attribute ID
+    fn find_all_attributes_by_attribute_id(&self, attribute_id_arg: AttributeId) -> RepoResult<Vec<CatAttr>>;
 
     /// Creates new category_attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<()>;
@@ -68,6 +71,17 @@ where
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
             }).map_err(|e: FailureError| e.context("List all category attributes error occurred").into())
+    }
+
+    /// Find category attributes by attribute ID
+    fn find_all_attributes_by_attribute_id(&self, attribute_id_arg: AttributeId) -> RepoResult<Vec<CatAttr>> {
+        let query = cat_attr_values.filter(attr_id.eq(attribute_id_arg)).order(id);
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|cat_attrs_res: Vec<CatAttr>| {
+                acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
+            }).map_err(|e: FailureError| e.context("Find category attributes by attribute ID error occurred").into())
     }
 
     /// Creates new category attribute

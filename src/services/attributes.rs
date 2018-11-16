@@ -8,7 +8,7 @@ use stq_static_resources::language::{Language, Translation};
 use stq_types::newtypes::AttributeValueCode;
 
 use models::{Attribute, CreateAttributePayload, NewAttribute, NewAttributeValue, UpdateAttribute};
-use repos::{AttributeValuesRepo, ReposFactory};
+use repos::{AttributeValuesRepo, AttributeValuesSearchTerms, ReposFactory};
 use services::types::ServiceFuture;
 use services::Service;
 use stq_types::AttributeId;
@@ -22,6 +22,8 @@ pub trait AttributesService {
     fn create_attribute(&self, payload: CreateAttributePayload) -> ServiceFuture<Attribute>;
     /// Updates specific attribute
     fn update_attribute(&self, attribute_id: AttributeId, payload: UpdateAttribute) -> ServiceFuture<Attribute>;
+    /// Deletes specific attribute
+    fn delete_attribute(&self, attribute_id: AttributeId) -> ServiceFuture<()>;
 }
 
 impl<
@@ -92,6 +94,40 @@ impl<
             attributes_repo
                 .update(attribute_id, payload)
                 .map_err(|e| e.context("Service Attributes, update endpoint error occurred.").into())
+        })
+    }
+    /// Deletes specific attribute
+    fn delete_attribute(&self, attribute_id: AttributeId) -> ServiceFuture<()> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
+
+            let attribute_values = attribute_values_repo.find_many(AttributeValuesSearchTerms {
+                attr_id: Some(attribute_id),
+                ..Default::default()
+            })?;
+            if !attribute_values.is_empty() {
+                return Err(format_err!(
+                    "Can not delete attribute - attribute has {} attribute values",
+                    attribute_values.len()
+                ));
+            }
+
+            let cat_attrs = category_attrs_repo.find_all_attributes_by_attribute_id(attribute_id)?;
+            if !cat_attrs.is_empty() {
+                return Err(format_err!(
+                    "Can not delete attribute - attribute is used in {} categories",
+                    cat_attrs.len()
+                ));
+            }
+
+            attributes_repo.delete(attribute_id)?;
+
+            Ok(())
         })
     }
 }

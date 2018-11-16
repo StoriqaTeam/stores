@@ -881,6 +881,9 @@ impl<
                     }),
             ),
 
+            // DELETE /attributes/<attribute_id>
+            (&Delete, Some(Route::Attribute(attribute_id))) => serialize_future(service.delete_attribute(attribute_id)),
+
             // GET /categories/<category_id>
             (&Get, Some(Route::Category(category_id))) => serialize_future(service.get_category(category_id)),
 

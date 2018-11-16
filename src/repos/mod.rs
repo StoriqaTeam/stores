@@ -1,6 +1,7 @@
 //! Repos is a module responsible for interacting with postgres db
 #[macro_use]
 pub mod acl;
+pub mod attribute_values;
 pub mod attributes;
 pub mod base_products;
 pub mod categories;
@@ -18,6 +19,7 @@ pub mod user_roles;
 pub mod wizard_stores;
 
 pub use self::acl::*;
+pub use self::attribute_values::*;
 pub use self::attributes::*;
 pub use self::base_products::*;
 pub use self::categories::*;

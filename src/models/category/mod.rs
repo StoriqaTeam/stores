@@ -22,6 +22,7 @@ pub struct RawCategory {
     pub parent_id: Option<CategoryId>,
     pub level: i32,
     pub meta_field: Option<serde_json::Value>,
+    pub is_active: bool,
 }
 
 /// Used to insert a category into the table
@@ -32,6 +33,7 @@ pub struct InsertCategory {
     pub parent_id: CategoryId,
     pub level: i32,
     pub meta_field: Option<serde_json::Value>,
+    pub is_active: bool,
 }
 
 /// Payload for creating categories
@@ -58,6 +60,7 @@ pub struct UpdateCategory {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Category {
     pub id: CategoryId,
+    pub is_active: bool,
     pub name: serde_json::Value,
     pub meta_field: Option<serde_json::Value>,
     pub level: i32,
@@ -74,6 +77,7 @@ impl Default for Category {
     fn default() -> Self {
         Self {
             id: CategoryId(0),
+            is_active: true,
             name: serde_json::from_str("[{\"lang\" : \"en\", \"text\" : \"root\"}]").unwrap(),
             meta_field: None,
             children: vec![],
@@ -88,6 +92,7 @@ impl<'a> From<&'a RawCategory> for Category {
     fn from(cat: &'a RawCategory) -> Self {
         Self {
             id: cat.id,
+            is_active: cat.is_active,
             name: cat.name.clone(),
             meta_field: cat.meta_field.clone(),
             children: vec![],
@@ -102,8 +107,9 @@ impl From<RawCategory> for Category {
     fn from(cat: RawCategory) -> Self {
         Self {
             id: cat.id,
-            name: cat.name.clone(),
-            meta_field: cat.meta_field.clone(),
+            is_active: cat.is_active,
+            name: cat.name,
+            meta_field: cat.meta_field,
             children: vec![],
             parent_id: cat.parent_id,
             level: cat.level,

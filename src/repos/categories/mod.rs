@@ -49,6 +49,9 @@ pub trait CategoriesRepo {
     /// Updates specific category
     fn update(&self, category_id_arg: CategoryId, payload: UpdateCategory) -> RepoResult<Category>;
 
+    /// Deletes specific categories
+    fn delete_all(&self, category_ids_arg: &[CategoryId]) -> RepoResult<()>;
+
     /// Returns all categories as a tree
     fn get_all_categories(&self) -> RepoResult<Category>;
 
@@ -99,6 +102,7 @@ where
             parent_id: payload_clone.parent_id,
             level: level_,
             meta_field: payload_clone.meta_field,
+            is_active: true,
         });
 
         let created_category = new_category
@@ -147,10 +151,38 @@ where
             })
     }
 
+    /// Deletes specific categories
+    fn delete_all(&self, category_ids_arg: &[CategoryId]) -> RepoResult<()> {
+        debug!("Deleting several({}) categories.", category_ids_arg.len());
+        self.cache.remove();
+
+        categories
+            .filter(id.eq_any(category_ids_arg))
+            .load::<RawCategory>(self.db_conn)
+            .map_err(From::from)
+            .and_then(|raw_cats| {
+                raw_cats
+                    .into_iter()
+                    .map(Category::from)
+                    .try_for_each(|cat| acl::check(&*self.acl, Resource::Categories, Action::Delete, self, Some(&cat)))
+            })?;
+
+        diesel::update(categories)
+            .filter(id.eq_any(category_ids_arg))
+            .set(is_active.eq(false))
+            .execute(self.db_conn)?;
+
+        Ok(())
+    }
+
     fn get_raw_categories(&self) -> RepoResult<Vec<RawCategory>> {
         acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)
-            .and_then(|_| categories.load::<RawCategory>(self.db_conn).map_err(From::from))
-            .map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
+            .and_then(|_| {
+                categories
+                    .filter(is_active.eq(true))
+                    .load::<RawCategory>(self.db_conn)
+                    .map_err(From::from)
+            }).map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
     }
 
     fn get_all_categories(&self) -> RepoResult<Category> {
@@ -179,7 +211,7 @@ where
                         },
                     );
 
-                    let cats = categories.load::<RawCategory>(self.db_conn)?;
+                    let cats = categories.filter(is_active.eq(true)).load::<RawCategory>(self.db_conn)?;
                     let mut root = Category::default();
                     let children = create_tree(&cats, Some(root.id));
                     root.children = children;
@@ -313,6 +345,7 @@ mod tests {
     fn create_mock_category(id_: CategoryId, parent_id_: CategoryId, level_: i32) -> Category {
         Category {
             id: id_,
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
@@ -359,6 +392,7 @@ mod tests {
         Category {
             // root category
             id: root_id,
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_1],
@@ -372,6 +406,7 @@ mod tests {
     fn test_get_intermediate_category_child_level() {
         let lvl1_category = Category {
             id: CategoryId(1000),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
@@ -387,6 +422,7 @@ mod tests {
     fn test_get_leaf_category_child_level() {
         let lvl3_category = Category {
             id: CategoryId(1000),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],

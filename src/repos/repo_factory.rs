@@ -11,6 +11,7 @@ use repos::*;
 
 pub trait ReposFactory<C: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static>: Clone + Send + 'static {
     fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<AttributesRepo + 'a>;
+    fn create_attribute_values_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<AttributeValuesRepo + 'a>;
     fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoriesRepo + 'a>;
     fn create_category_attrs_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoryAttrsRepo + 'a>;
     fn create_base_product_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<BaseProductsRepo + 'a>;
@@ -102,6 +103,10 @@ where
     fn create_attributes_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<AttributesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
         Box::new(AttributesRepoImpl::new(db_conn, acl, self.attribute_cache.clone())) as Box<AttributesRepo>
+    }
+    fn create_attribute_values_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<AttributeValuesRepo + 'a> {
+        let acl = self.get_acl(db_conn, user_id);
+        Box::new(AttributeValuesRepoImpl::new(db_conn, acl)) as Box<AttributeValuesRepo>
     }
     fn create_categories_repo<'a>(&self, db_conn: &'a C, user_id: Option<UserId>) -> Box<CategoriesRepo + 'a> {
         let acl = self.get_acl(db_conn, user_id);
@@ -251,6 +256,9 @@ pub mod tests {
         fn create_attributes_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<AttributesRepo + 'a> {
             Box::new(AttributesRepoMock::default()) as Box<AttributesRepo>
         }
+        fn create_attribute_values_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<AttributeValuesRepo + 'a> {
+            Box::new(AttributeValuesRepoMock::default()) as Box<AttributeValuesRepo>
+        }
         fn create_categories_repo<'a>(&self, _db_conn: &'a C, _user_id: Option<UserId>) -> Box<CategoriesRepo + 'a> {
             Box::new(CategoriesRepoMock::default()) as Box<CategoriesRepo>
         }
@@ -342,6 +350,60 @@ pub mod tests {
                 name: payload.name.unwrap(),
                 value_type: AttributeType::Str,
                 meta_field: None,
+            })
+        }
+
+        fn delete(&self, _attribute_id_arg: AttributeId) -> RepoResult<()> {
+            Ok(())
+        }
+    }
+
+    #[derive(Clone, Default)]
+    pub struct AttributeValuesRepoMock;
+
+    impl AttributeValuesRepo for AttributeValuesRepoMock {
+        fn create(&self, new_attribute: NewAttributeValue) -> RepoResult<AttributeValue> {
+            Ok(AttributeValue {
+                id: AttributeValueId(1),
+                attr_id: new_attribute.attr_id,
+                code: new_attribute.code,
+                translations: new_attribute.translations,
+            })
+        }
+
+        fn find(&self, attr_id: AttributeId, code: AttributeValueCode) -> RepoResult<Option<AttributeValue>> {
+            Ok(Some(AttributeValue {
+                id: AttributeValueId(1),
+                attr_id,
+                code,
+                translations: None,
+            }))
+        }
+
+        fn find_many(&self, _search_terms: AttributeValuesSearchTerms) -> RepoResult<Vec<AttributeValue>> {
+            Ok(vec![AttributeValue {
+                id: AttributeValueId(1),
+                attr_id: AttributeId(1),
+                code: AttributeValueCode("XXL".to_string()),
+                translations: None,
+            }])
+        }
+
+        fn update(&self, id: AttributeValueId, update: UpdateAttributeValue) -> RepoResult<AttributeValue> {
+            Ok(AttributeValue {
+                id,
+                attr_id: AttributeId(1),
+                code: update.code.unwrap_or(AttributeValueCode("XXL".to_string())),
+                translations: update.translations,
+            })
+        }
+
+        fn delete(&self, id: AttributeValueId) -> RepoResult<AttributeValue> {
+            Ok(AttributeValue {
+                id,
+                attr_id: AttributeId(1),
+                code: AttributeValueCode("XXL".to_string()),
+                translations: None,
             })
         }
     }
@@ -595,6 +657,7 @@ pub mod tests {
         fn find(&self, id_arg: CategoryId) -> RepoResult<Option<Category>> {
             Ok(Some(Category {
                 id: id_arg,
+                is_active: true,
                 name: serde_json::from_str("{}").unwrap(),
                 meta_field: None,
                 children: vec![],
@@ -608,6 +671,7 @@ pub mod tests {
         fn create(&self, payload: NewCategory) -> RepoResult<Category> {
             Ok(Category {
                 id: CategoryId(1),
+                is_active: true,
                 name: payload.name,
                 meta_field: None,
                 children: vec![],
@@ -621,6 +685,7 @@ pub mod tests {
         fn update(&self, category_id_arg: CategoryId, payload: UpdateCategory) -> RepoResult<Category> {
             Ok(Category {
                 id: category_id_arg,
+                is_active: true,
                 name: payload.name.unwrap(),
                 meta_field: None,
                 children: vec![],
@@ -628,6 +693,11 @@ pub mod tests {
                 parent_id: Some(CategoryId(0)),
                 attributes: vec![],
             })
+        }
+
+        /// Deletes specific categories
+        fn delete_all(&self, _category_ids_arg: &[CategoryId]) -> RepoResult<()> {
+            Ok(())
         }
 
         /// Returns all categories as a tree
@@ -643,6 +713,7 @@ pub mod tests {
     fn create_mock_categories() -> Category {
         let cat_3 = Category {
             id: CategoryId(3),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![],
@@ -652,6 +723,7 @@ pub mod tests {
         };
         let cat_2 = Category {
             id: CategoryId(2),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_3],
@@ -661,6 +733,7 @@ pub mod tests {
         };
         let cat_1 = Category {
             id: CategoryId(1),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_2],
@@ -670,6 +743,7 @@ pub mod tests {
         };
         Category {
             id: CategoryId(0),
+            is_active: true,
             name: serde_json::from_str("{}").unwrap(),
             meta_field: None,
             children: vec![cat_1],
@@ -683,6 +757,7 @@ pub mod tests {
         vec![
             RawCategory {
                 id: CategoryId(1),
+                is_active: true,
                 name: serde_json::from_str("{}").unwrap(),
                 parent_id: Some(CategoryId(0)),
                 level: 1,
@@ -690,6 +765,7 @@ pub mod tests {
             },
             RawCategory {
                 id: CategoryId(2),
+                is_active: true,
                 name: serde_json::from_str("{}").unwrap(),
                 parent_id: Some(CategoryId(1)),
                 level: 2,
@@ -697,6 +773,7 @@ pub mod tests {
             },
             RawCategory {
                 id: CategoryId(3),
+                is_active: true,
                 name: serde_json::from_str("{}").unwrap(),
                 parent_id: Some(CategoryId(2)),
                 level: 3,
@@ -718,6 +795,14 @@ pub mod tests {
             }])
         }
 
+        fn find_all_attributes_by_attribute_id(&self, attribute_id_arg: AttributeId) -> RepoResult<Vec<CatAttr>> {
+            Ok(vec![CatAttr {
+                id: 1,
+                cat_id: CategoryId(1),
+                attr_id: attribute_id_arg,
+            }])
+        }
+
         /// Creates new category_attribute
         fn create(&self, _payload: NewCatAttr) -> RepoResult<()> {
             Ok(())
@@ -725,6 +810,11 @@ pub mod tests {
 
         /// Delete attr from category
         fn delete(&self, _payload: OldCatAttr) -> RepoResult<()> {
+            Ok(())
+        }
+
+        /// Deletes specific categories
+        fn delete_all_by_category_ids(&self, _category_ids_arg: &[CategoryId]) -> RepoResult<()> {
             Ok(())
         }
     }
@@ -935,6 +1025,11 @@ pub mod tests {
             }
 
             Ok(result)
+        }
+
+        /// Search many products by search terms
+        fn search(&self, _search_terms: BaseProductsSearchTerms) -> RepoResult<Vec<BaseProduct>> {
+            Ok(vec![])
         }
 
         /// Returns list of base_products, limited by `from` and `count` parameters
@@ -1163,64 +1258,82 @@ pub mod tests {
         /// Find product attributes by product ID
         fn find_all_attributes(&self, product_id_arg: ProductId) -> RepoResult<Vec<ProdAttr>> {
             Ok(vec![ProdAttr {
-                id: 1,
+                id: ProdAttrId(1),
                 prod_id: product_id_arg,
                 base_prod_id: BaseProductId(1),
                 attr_id: AttributeId(1),
-                value: AttributeValue("value".to_string()),
+                value: AttributeValueCode("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
+                attr_value_id: None,
             }])
         }
 
         /// Find product attributes by product ID
         fn find_all_attributes_by_base(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<ProdAttr>> {
             Ok(vec![ProdAttr {
-                id: 1,
+                id: ProdAttrId(1),
                 prod_id: ProductId(1),
                 base_prod_id: base_product_id_arg,
                 attr_id: AttributeId(1),
-                value: AttributeValue("value".to_string()),
+                value: AttributeValueCode("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
+                attr_value_id: None,
+            }])
+        }
+
+        fn find_many(&self, _search_terms: ProductAttrsSearchTerms) -> RepoResult<Vec<ProdAttr>> {
+            Ok(vec![ProdAttr {
+                id: ProdAttrId(1),
+                prod_id: ProductId(1),
+                base_prod_id: BaseProductId(1),
+                attr_id: AttributeId(1),
+                value: AttributeValueCode("value".to_string()),
+                value_type: AttributeType::Str,
+                meta_field: None,
+                attr_value_id: None,
             }])
         }
 
         /// Creates new product_attribute
         fn create(&self, payload: NewProdAttr) -> RepoResult<ProdAttr> {
             Ok(ProdAttr {
-                id: 1,
+                id: ProdAttrId(1),
                 prod_id: payload.prod_id,
                 base_prod_id: payload.base_prod_id,
                 attr_id: payload.attr_id,
                 value: payload.value,
                 value_type: payload.value_type,
                 meta_field: payload.meta_field,
+                attr_value_id: None,
             })
         }
 
         /// Updates specific product_attribute
         fn update(&self, payload: UpdateProdAttr) -> RepoResult<ProdAttr> {
             Ok(ProdAttr {
-                id: 1,
+                id: ProdAttrId(1),
                 prod_id: payload.prod_id,
                 base_prod_id: payload.base_prod_id,
                 attr_id: payload.attr_id,
                 value: payload.value,
                 value_type: AttributeType::Str,
                 meta_field: payload.meta_field,
+                attr_value_id: None,
             })
         }
 
         fn delete(&self, id: i32) -> RepoResult<ProdAttr> {
             Ok(ProdAttr {
-                id,
+                id: ProdAttrId(id),
                 prod_id: ProductId(1),
                 base_prod_id: BaseProductId(1),
                 attr_id: AttributeId(1),
-                value: AttributeValue("value".to_string()),
+                value: AttributeValueCode("value".to_string()),
                 value_type: AttributeType::Str,
                 meta_field: None,
+                attr_value_id: None,
             })
         }
 

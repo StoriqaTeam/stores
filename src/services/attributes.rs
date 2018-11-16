@@ -4,9 +4,11 @@ use diesel::pg::Pg;
 use diesel::Connection;
 use failure::Error as FailureError;
 use r2d2::ManageConnection;
+use stq_static_resources::language::{Language, Translation};
+use stq_types::newtypes::AttributeValueCode;
 
-use models::{Attribute, NewAttribute, UpdateAttribute};
-use repos::ReposFactory;
+use models::{Attribute, CreateAttributePayload, NewAttribute, NewAttributeValue, UpdateAttribute};
+use repos::{AttributeValuesRepo, AttributeValuesSearchTerms, ReposFactory};
 use services::types::ServiceFuture;
 use services::Service;
 use stq_types::AttributeId;
@@ -17,9 +19,11 @@ pub trait AttributesService {
     /// Returns all attributes
     fn list_attributes(&self) -> ServiceFuture<Vec<Attribute>>;
     /// Creates new attribute
-    fn create_attribute(&self, payload: NewAttribute) -> ServiceFuture<Attribute>;
+    fn create_attribute(&self, payload: CreateAttributePayload) -> ServiceFuture<Attribute>;
     /// Updates specific attribute
     fn update_attribute(&self, attribute_id: AttributeId, payload: UpdateAttribute) -> ServiceFuture<Attribute>;
+    /// Deletes specific attribute
+    fn delete_attribute(&self, attribute_id: AttributeId) -> ServiceFuture<()>;
 }
 
 impl<
@@ -55,14 +59,28 @@ impl<
     }
 
     /// Creates new attribute
-    fn create_attribute(&self, new_attribute: NewAttribute) -> ServiceFuture<Attribute> {
+    fn create_attribute(&self, create_attribute_payload: CreateAttributePayload) -> ServiceFuture<Attribute> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
             let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
-            conn.transaction::<(Attribute), FailureError, _>(move || attributes_repo.create(new_attribute))
-                .map_err(|e| e.context("Service Attributes, create endpoint error occurred.").into())
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
+            conn.transaction::<(Attribute), FailureError, _>(move || {
+                let meta_field = if let Some(meta_field) = &create_attribute_payload.meta_field {
+                    Some(serde_json::to_value(&meta_field)?)
+                } else {
+                    None
+                };
+                let new_attribute = NewAttribute {
+                    name: create_attribute_payload.name.clone(),
+                    value_type: create_attribute_payload.value_type.clone(),
+                    meta_field,
+                };
+                let created_attribute = attributes_repo.create(new_attribute)?;
+                create_attribute_values(&*attribute_values_repo, created_attribute.id, create_attribute_payload)?;
+                Ok(created_attribute)
+            }).map_err(|e| e.context("Service Attributes, create endpoint error occurred.").into())
         })
     }
 
@@ -78,6 +96,101 @@ impl<
                 .map_err(|e| e.context("Service Attributes, update endpoint error occurred.").into())
         })
     }
+    /// Deletes specific attribute
+    fn delete_attribute(&self, attribute_id: AttributeId) -> ServiceFuture<()> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let attributes_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let category_attrs_repo = repo_factory.create_category_attrs_repo(&*conn, user_id);
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
+
+            let attribute_values = attribute_values_repo.find_many(AttributeValuesSearchTerms {
+                attr_id: Some(attribute_id),
+                ..Default::default()
+            })?;
+            if !attribute_values.is_empty() {
+                return Err(format_err!(
+                    "Can not delete attribute - attribute has {} attribute values",
+                    attribute_values.len()
+                ));
+            }
+
+            let cat_attrs = category_attrs_repo.find_all_attributes_by_attribute_id(attribute_id)?;
+            if !cat_attrs.is_empty() {
+                return Err(format_err!(
+                    "Can not delete attribute - attribute is used in {} categories",
+                    cat_attrs.len()
+                ));
+            }
+
+            attributes_repo.delete(attribute_id)?;
+
+            Ok(())
+        })
+    }
+}
+
+fn create_attribute_values(
+    attribute_values_repo: &AttributeValuesRepo,
+    attribute_id: AttributeId,
+    create_attribute_payload: CreateAttributePayload,
+) -> Result<(), FailureError> {
+    let meta = create_attribute_payload
+        .meta_field
+        .ok_or(format_err!("Can not create attribute values without meta_field"))?;
+    match (meta.values, meta.translated_values) {
+        (Some(codes), None) => create_attribute_values_from_codes(attribute_values_repo, attribute_id, codes),
+        (None, Some(translated_values)) => {
+            create_attribute_values_from_translations(attribute_values_repo, attribute_id, translated_values)
+        }
+        _ => Err(format_err!("Either values or translated_values should be in meta field")),
+    }
+}
+
+fn create_attribute_values_from_codes(
+    attribute_values_repo: &AttributeValuesRepo,
+    attr_id: AttributeId,
+    codes: Vec<String>,
+) -> Result<(), FailureError> {
+    for code in codes {
+        let new_attribute_value = NewAttributeValue {
+            attr_id,
+            code: AttributeValueCode(code),
+            translations: None,
+        };
+        let _ = attribute_values_repo.create(new_attribute_value)?;
+    }
+    Ok(())
+}
+
+fn create_attribute_values_from_translations(
+    attribute_values_repo: &AttributeValuesRepo,
+    attr_id: AttributeId,
+    translations: Vec<Vec<Translation>>,
+) -> Result<(), FailureError> {
+    for translation in translations {
+        let (code, value_translations) = extract_code_and_serialize_translations(translation)?;
+        let new_attribute_value = NewAttributeValue {
+            attr_id,
+            code,
+            translations: Some(value_translations),
+        };
+        let _ = attribute_values_repo.create(new_attribute_value)?;
+    }
+    Ok(())
+}
+
+fn extract_code_and_serialize_translations(
+    translations: Vec<Translation>,
+) -> Result<(AttributeValueCode, serde_json::Value), FailureError> {
+    let en_translation = translations
+        .iter()
+        .find(|t| t.lang == Language::En)
+        .ok_or(format_err!("Default {} language is missing in translations", Language::En))?;
+    let serialized_translations = serde_json::to_value(&translations)?;
+    Ok((AttributeValueCode(en_translation.text.clone()), serialized_translations))
 }
 
 #[cfg(test)]
@@ -94,11 +207,15 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    pub fn create_new_attribute(name: &str) -> NewAttribute {
-        NewAttribute {
+    pub fn create_new_attribute(name: &str) -> CreateAttributePayload {
+        CreateAttributePayload {
             name: serde_json::from_str(name).unwrap(),
             value_type: AttributeType::Str,
-            meta_field: None,
+            meta_field: Some(AttributeMetaField {
+                values: Some(vec!["45".to_string(), "46".to_string()]),
+                translated_values: None,
+                ui_element: serde_json::Value::Null,
+            }),
         }
     }
 

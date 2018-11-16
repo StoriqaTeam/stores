@@ -12,11 +12,15 @@ use stores_lib::models::*;
 use stq_http::request_util::Currency as CurrencyHeader;
 use stq_static_resources::*;
 
-pub fn create_new_attribute(name: &str) -> NewAttribute {
-    NewAttribute {
+pub fn create_new_attribute(name: &str) -> CreateAttributePayload {
+    CreateAttributePayload {
         name: serde_json::from_str(name).unwrap(),
         value_type: AttributeType::Str,
-        meta_field: None,
+        meta_field: Some(AttributeMetaField {
+            values: Some(vec!["45".to_string(), "46".to_string()]),
+            translated_values: None,
+            ui_element: serde_json::Value::Null,
+        }),
     }
 }
 

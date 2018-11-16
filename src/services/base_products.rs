@@ -541,6 +541,7 @@ impl<
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
             let attr_repo = repo_factory.create_attributes_repo(&*conn, user_id);
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
 
             conn.transaction::<BaseProduct, FailureError, _>(move || {
@@ -567,6 +568,7 @@ impl<
                         &*prod_attr_repo,
                         &*attr_repo,
                         &*custom_attributes_repo,
+                        &*attribute_values_repo,
                         &product,
                         base_prod.id,
                         variant.attributes,

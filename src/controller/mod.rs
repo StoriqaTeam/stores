@@ -36,6 +36,7 @@ use models::*;
 use repos::repo_factory::*;
 use repos::CouponSearch;
 use sentry_integration::log_and_capture_error;
+use services::attribute_values::{AttributeValuesService, NewAttributeValuePayload};
 use services::attributes::AttributesService;
 use services::base_products::BaseProductsService;
 use services::categories::CategoriesService;
@@ -789,18 +790,71 @@ impl<
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(service.get_attribute(attribute_id)),
 
+            // GET /attributes/<attribute_id>/values
+            (&Get, Some(Route::AttributeValues(attribute_id, None))) => serialize_future(service.get_attribute_values(attribute_id)),
+
+            // POST /attributes/<attribute_id>/values
+            (&Post, Some(Route::AttributeValues(attribute_id, None))) => serialize_future(
+                parse_body::<NewAttributeValuePayload>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: NewAttributeValuePayload")
+                            .context(Error::Parse)
+                            .into()
+                    }).map(move |payload| NewAttributeValue {
+                        attr_id: attribute_id,
+                        code: payload.code,
+                        translations: payload.translations,
+                    }).and_then(move |new_attribute| {
+                        new_attribute
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: NewAttribute")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.create_attribute_value(new_attribute))
+                    }),
+            ),
+
+            // PUT /attributes/<attribute_id>/values/<attribute_value_code>
+            (&Put, Some(Route::AttributeValues(attribute_id, Some(attribute_value_code)))) => serialize_future(
+                parse_body::<UpdateAttributeValue>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: UpdateAttributeValue")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |update| {
+                        update
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateAttributeValue")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_attribute_value(attribute_id, attribute_value_code, update))
+                    }),
+            ),
+
+            // DELETE /attributes/<attribute_id>/values/<attribute_value_code>
+            (&Delete, Some(Route::AttributeValues(attribute_id, Some(attribute_value_code)))) => {
+                serialize_future(service.delete_attribute_value(attribute_id, attribute_value_code))
+            }
+
             // GET /attributes
             (&Get, Some(Route::Attributes)) => serialize_future(service.list_attributes()),
 
             // POST /attributes
             (&Post, Some(Route::Attributes)) => serialize_future(
-                parse_body::<NewAttribute>(req.body())
-                    .map_err(|e| e.context("Parsing body failed, target: NewAttribute").context(Error::Parse).into())
-                    .and_then(move |new_attribute| {
+                parse_body::<CreateAttributePayload>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: CreateAttributePayload")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_attribute| {
                         new_attribute
                             .validate()
                             .map_err(|e| {
-                                format_err!("Validation failed, target: NewAttribute")
+                                format_err!("Validation failed, target: CreateAttributePayload")
                                     .context(Error::Validate(e))
                                     .into()
                             }).into_future()
@@ -827,8 +881,14 @@ impl<
                     }),
             ),
 
+            // DELETE /attributes/<attribute_id>
+            (&Delete, Some(Route::Attribute(attribute_id))) => serialize_future(service.delete_attribute(attribute_id)),
+
             // GET /categories/<category_id>
             (&Get, Some(Route::Category(category_id))) => serialize_future(service.get_category(category_id)),
+
+            // DELETE /categories/<category_id>
+            (&Delete, Some(Route::Category(category_id))) => serialize_future(service.delete_category(category_id)),
 
             // POST /categories
             (&Post, Some(Route::Categories)) => serialize_future(

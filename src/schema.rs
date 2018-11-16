@@ -8,6 +8,15 @@ table! {
 }
 
 table! {
+    attribute_values (id) {
+        id -> Int4,
+        attr_id -> Int4,
+        code -> Varchar,
+        translations -> Nullable<Jsonb>,
+    }
+}
+
+table! {
     base_products (id) {
         id -> Int4,
         store_id -> Int4,
@@ -44,6 +53,7 @@ table! {
         parent_id -> Nullable<Int4>,
         level -> Int4,
         meta_field -> Nullable<Jsonb>,
+        is_active -> Bool,
     }
 }
 
@@ -125,6 +135,7 @@ table! {
         value_type -> Varchar,
         meta_field -> Nullable<Varchar>,
         base_prod_id -> Int4,
+        attr_value_id -> Nullable<Int4>,
     }
 }
 
@@ -228,6 +239,7 @@ table! {
     }
 }
 
+joinable!(attribute_values -> attributes (attr_id));
 joinable!(base_products -> categories (category_id));
 joinable!(base_products -> stores (store_id));
 joinable!(cat_attr_values -> attributes (attr_id));
@@ -241,6 +253,7 @@ joinable!(custom_attributes -> attributes (attribute_id));
 joinable!(custom_attributes -> base_products (base_product_id));
 joinable!(moderator_product_comments -> base_products (base_product_id));
 joinable!(moderator_store_comments -> stores (store_id));
+joinable!(prod_attr_values -> attribute_values (attr_value_id));
 joinable!(prod_attr_values -> attributes (attr_id));
 joinable!(prod_attr_values -> base_products (base_prod_id));
 joinable!(prod_attr_values -> products (prod_id));
@@ -249,6 +262,7 @@ joinable!(used_coupons -> coupons (coupon_id));
 
 allow_tables_to_appear_in_same_query!(
     attributes,
+    attribute_values,
     base_products,
     cat_attr_values,
     categories,

@@ -8,7 +8,7 @@ use failure::Error as FailureError;
 use failure::Fail;
 use std::sync::Arc;
 use stq_cache::cache::CacheSingle;
-use stq_types::{CategoryId, UserId};
+use stq_types::{AttributeId, CategoryId, UserId};
 
 use models::authorization::*;
 use models::{CatAttr, Category, NewCatAttr, OldCatAttr};
@@ -33,11 +33,17 @@ pub trait CategoryAttrsRepo {
     /// Find category attributes by category ID
     fn find_all_attributes(&self, category_id_arg: CategoryId) -> RepoResult<Vec<CatAttr>>;
 
+    /// Find category attributes by attribute ID
+    fn find_all_attributes_by_attribute_id(&self, attribute_id_arg: AttributeId) -> RepoResult<Vec<CatAttr>>;
+
     /// Creates new category_attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<()>;
 
     /// Delete attr from category
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()>;
+
+    /// Deletes specific categories
+    fn delete_all_by_category_ids(&self, category_ids_arg: &[CategoryId]) -> RepoResult<()>;
 }
 
 impl<'a, C, T> CategoryAttrsRepoImpl<'a, C, T>
@@ -67,6 +73,17 @@ where
             }).map_err(|e: FailureError| e.context("List all category attributes error occurred").into())
     }
 
+    /// Find category attributes by attribute ID
+    fn find_all_attributes_by_attribute_id(&self, attribute_id_arg: AttributeId) -> RepoResult<Vec<CatAttr>> {
+        let query = cat_attr_values.filter(attr_id.eq(attribute_id_arg)).order(id);
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|cat_attrs_res: Vec<CatAttr>| {
+                acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
+            }).map_err(|e: FailureError| e.context("Find category attributes by attribute ID error occurred").into())
+    }
+
     /// Creates new category attribute
     fn create(&self, payload: NewCatAttr) -> RepoResult<()> {
         debug!("Create new category attribute {:?}.", payload);
@@ -84,7 +101,7 @@ where
 
     /// Delete category attribute
     fn delete(&self, payload: OldCatAttr) -> RepoResult<()> {
-        debug!("Delete category attributewith payload {:?}.", payload);
+        debug!("Delete category attribute with payload {:?}.", payload);
         acl::check(&*self.acl, Resource::CategoryAttrs, Action::Delete, self, None)?;
         self.cache.remove();
         let filtered = cat_attr_values
@@ -95,6 +112,28 @@ where
             .get_result::<CatAttr>(self.db_conn)
             .map(|_| ())
             .map_err(|e| e.context(format!("Delete category attribute: {:?} error occurred", payload)).into())
+    }
+
+    /// Deletes specific categories
+    fn delete_all_by_category_ids(&self, category_ids_arg: &[CategoryId]) -> RepoResult<()> {
+        debug!("Delete categories attribute({}).", category_ids_arg.len());
+        self.cache.remove();
+
+        cat_attr_values
+            .filter(cat_id.eq_any(category_ids_arg))
+            .load::<CatAttr>(self.db_conn)
+            .map_err(From::from)
+            .and_then(|cat_attrs| {
+                cat_attrs
+                    .into_iter()
+                    .try_for_each(|cat_attr| acl::check(&*self.acl, Resource::CategoryAttrs, Action::Delete, self, Some(&cat_attr)))
+            })?;
+
+        diesel::delete(cat_attr_values)
+            .filter(cat_id.eq_any(category_ids_arg))
+            .execute(self.db_conn)?;
+
+        Ok(())
     }
 }
 

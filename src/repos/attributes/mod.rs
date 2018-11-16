@@ -44,6 +44,9 @@ pub trait AttributesRepo {
 
     /// Updates specific attribute
     fn update(&self, attribute_id_arg: AttributeId, payload: UpdateAttribute) -> RepoResult<Attribute>;
+
+    /// Deletes specific attribute
+    fn delete(&self, attribute_id_arg: AttributeId) -> RepoResult<()>;
 }
 
 impl<'a, C, T> AttributesRepoImpl<'a, C, T>
@@ -133,6 +136,19 @@ where
                     attribute_id_arg, payload
                 )).into()
             })
+    }
+
+    /// Deletes specific attribute
+    fn delete(&self, attribute_id_arg: AttributeId) -> RepoResult<()> {
+        debug!("Deleting attribute with id {}", attribute_id_arg);
+        let attribute: Option<Attribute> = attributes.find(attribute_id_arg).get_result(self.db_conn).optional()?;
+        let attribute = attribute.ok_or(format_err!("Attribute {} not found", attribute_id_arg))?;
+
+        acl::check(&*self.acl, Resource::Attributes, Action::Delete, self, Some(&attribute))?;
+
+        diesel::delete(attributes.filter(id.eq(attribute_id_arg))).get_result::<Attribute>(self.db_conn)?;
+
+        Ok(())
     }
 }
 

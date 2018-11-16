@@ -845,13 +845,16 @@ impl<
 
             // POST /attributes
             (&Post, Some(Route::Attributes)) => serialize_future(
-                parse_body::<NewAttribute>(req.body())
-                    .map_err(|e| e.context("Parsing body failed, target: NewAttribute").context(Error::Parse).into())
-                    .and_then(move |new_attribute| {
+                parse_body::<CreateAttributePayload>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: CreateAttributePayload")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |new_attribute| {
                         new_attribute
                             .validate()
                             .map_err(|e| {
-                                format_err!("Validation failed, target: NewAttribute")
+                                format_err!("Validation failed, target: CreateAttributePayload")
                                     .context(Error::Validate(e))
                                     .into()
                             }).into_future()

@@ -13,7 +13,10 @@ use stq_types::{AttributeId, AttributeValueCode, BaseProductId, ProductId, Produ
 use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
-use repos::{AttributeValuesRepo, AttributeValuesSearchTerms, AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult, ReposFactory, StoresRepo};
+use repos::{
+    AttributeValuesRepo, AttributeValuesSearchTerms, AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo,
+    RepoResult, ReposFactory, StoresRepo,
+};
 use services::Service;
 
 pub trait ProductsService {
@@ -176,7 +179,6 @@ impl<
             let NewProductWithAttributes { mut product, attributes } = payload;
 
             conn.transaction::<Product, FailureError, _>(move || {
-
                 // fill currency id taken from base_product first
                 let base_product_id = product
                     .base_product_id
@@ -303,17 +305,21 @@ impl<
                         ..Default::default()
                     })?;
 
-                    let attr_values = pr_attrs.into_iter().map(|pr_attr| AttrValue {
-                        translations: values.iter().find(|val| Some(val.id) == pr_attr.attr_value_id).and_then(|val| val.translations.clone()),
-                        attr_id: pr_attr.attr_id,
-                        attr_value_id: pr_attr.attr_value_id,
-                        value: pr_attr.value,
-                        meta_field: pr_attr.meta_field,
-                    }).collect();
+                    let attr_values = pr_attrs
+                        .into_iter()
+                        .map(|pr_attr| AttrValue {
+                            translations: values
+                                .iter()
+                                .find(|val| Some(val.id) == pr_attr.attr_value_id)
+                                .and_then(|val| val.translations.clone()),
+                            attr_id: pr_attr.attr_id,
+                            attr_value_id: pr_attr.attr_value_id,
+                            value: pr_attr.value,
+                            meta_field: pr_attr.meta_field,
+                        }).collect();
 
                     Ok(attr_values)
-                })
-                .map_err(|e| e.context("Service Product, find_attributes endpoint error occurred.").into())
+                }).map_err(|e| e.context("Service Product, find_attributes endpoint error occurred.").into())
         })
     }
 }
@@ -346,7 +352,7 @@ pub fn create_product_attributes_values(
 ) -> Result<(), FailureError> {
     // deleting old attributes for this product
     prod_attr_repo.delete_all_attributes(product_arg.id)?;
-    let attribute_values = fill_attr_value_id(attribute_values)?;
+    let attribute_values = fill_attr_value(attribute_values_repo, attribute_values)?;
     check_products_attribute_values_are_unique(prod_attr_repo, custom_attributes_repo, base_product_arg, attribute_values.clone())?;
 
     for attr_value in attribute_values {
@@ -359,7 +365,7 @@ pub fn create_product_attributes_values(
             attr_value.value,
             attr.value_type,
             attr_value.meta_field,
-            attr_value.attr_value_id,//todo
+            attr_value.attr_value_id,
         );
         prod_attr_repo.create(new_prod_attr)?;
     }
@@ -367,10 +373,18 @@ pub fn create_product_attributes_values(
     Ok(())
 }
 
-fn fill_attr_value_id(
-    attribute_values: Vec<AttrValue>
-) -> Result<Vec<AttrValue>, FailureError> {
-    Ok(attribute_values)
+fn fill_attr_value(attribute_values_repo: &AttributeValuesRepo, attribute_values: Vec<AttrValue>) -> Result<Vec<AttrValue>, FailureError> {
+    attribute_values
+        .into_iter()
+        .map(|attr_value| {
+            attribute_values_repo
+                .find(attr_value.attr_id.clone(), attr_value.value.clone())
+                .map(|attribute_value| AttrValue {
+                    attr_value_id: Some(attribute_value.id),
+                    translations: attribute_value.translations,
+                    ..attr_value
+                })
+        }).collect()
 }
 
 fn check_products_attribute_values_are_unique(

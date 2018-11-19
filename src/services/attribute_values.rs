@@ -9,7 +9,7 @@ use errors::Error;
 use repos::ReposFactory;
 use services::types::ServiceFuture;
 use services::Service;
-use stq_types::{AttributeId, AttributeValueCode};
+use stq_types::{AttributeId, AttributeValueCode, AttributeValueId};
 
 use models::attributes::attribute_values::AttributeValue;
 use models::attributes::attribute_values::NewAttributeValue;
@@ -18,6 +18,7 @@ use repos::{AttributeValuesSearchTerms, ProductAttrsRepo, ProductAttrsSearchTerm
 
 pub trait AttributeValuesService {
     fn create_attribute_value(&self, new_attribute_value: NewAttributeValue) -> ServiceFuture<AttributeValue>;
+    fn get_attribute_value(&self, attr_value_id: AttributeValueId) -> ServiceFuture<Option<AttributeValue>>;
     fn get_attribute_values(&self, attr_id: AttributeId) -> ServiceFuture<Vec<AttributeValue>>;
     fn update_attribute_value(
         &self,
@@ -48,6 +49,17 @@ impl<
             let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
             conn.transaction::<(AttributeValue), FailureError, _>(move || attribute_values_repo.create(new_attribute_value))
                 .map_err(|e| e.context("AttributeValuesService, create_attribute_value error occurred.").into())
+        })
+    }
+
+    fn get_attribute_value(&self, attr_value_id: AttributeValueId) -> ServiceFuture<Option<AttributeValue>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        self.spawn_on_pool(move |conn| {
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
+            attribute_values_repo
+                .get(attr_value_id)
+                .map_err(|e| e.context("AttributeValuesService, get_attribute_value error occurred.").into())
         })
     }
 

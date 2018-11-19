@@ -7,6 +7,7 @@ pub enum Route {
     Healthcheck,
     Attributes,
     Attribute(AttributeId),
+    AttributeValue(AttributeValueId),
     AttributeValues(AttributeId, Option<AttributeValueCode>),
     BaseProducts,
     BaseProductsCount,
@@ -361,6 +362,14 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<AttributeId>().ok())
             .map(Route::Attribute)
+    });
+
+    // AttributeValue/:attribute_value_id
+    router.add_route_with_params(r"^/attributes/values/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|id| id.parse::<AttributeValueId>().ok())
+            .map(|attr_value_id| Route::AttributeValue(attr_value_id))
     });
 
     // Attributes/:attribute_id/values route

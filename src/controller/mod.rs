@@ -790,6 +790,9 @@ impl<
             // GET /attributes/<attribute_id>
             (&Get, Some(Route::Attribute(attribute_id))) => serialize_future(service.get_attribute(attribute_id)),
 
+            // GET /attributes/values/<attribute_value_id>
+            (&Get, Some(Route::AttributeValue(attribute_value_id))) => serialize_future(service.get_attribute_value(attribute_value_id)),
+
             // GET /attributes/<attribute_id>/values
             (&Get, Some(Route::AttributeValues(attribute_id, None))) => serialize_future(service.get_attribute_values(attribute_id)),
 

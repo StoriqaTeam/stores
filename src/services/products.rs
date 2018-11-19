@@ -14,8 +14,7 @@ use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
 use repos::{
-    AttributeValuesRepo, AttributeValuesSearchTerms, AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo,
-    RepoResult, ReposFactory, StoresRepo,
+    AttributeValuesRepo, AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult, ReposFactory, StoresRepo,
 };
 use services::Service;
 
@@ -296,22 +295,12 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
-            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
             prod_attr_repo
                 .find_all_attributes(product_id)
                 .and_then(|pr_attrs| {
-                    let values = attribute_values_repo.find_many(AttributeValuesSearchTerms {
-                        ids: Some(pr_attrs.iter().map(|pr_attr| pr_attr.attr_value_id).flatten().collect()),
-                        ..Default::default()
-                    })?;
-
                     let attr_values = pr_attrs
                         .into_iter()
                         .map(|pr_attr| AttrValue {
-                            translations: values
-                                .iter()
-                                .find(|val| Some(val.id) == pr_attr.attr_value_id)
-                                .and_then(|val| val.translations.clone()),
                             attr_id: pr_attr.attr_id,
                             attr_value_id: pr_attr.attr_value_id,
                             value: pr_attr.value,
@@ -386,7 +375,6 @@ fn fill_attr_value(attribute_values_repo: &AttributeValuesRepo, attribute_values
                 ))?;
             Ok(AttrValue {
                 attr_value_id: Some(attribute_value.id),
-                translations: attribute_value.translations,
                 ..attr_value
             })
         }).collect()
@@ -492,7 +480,6 @@ pub mod tests {
                 value: AttributeValueCode("String".to_string()),
                 meta_field: None,
                 attr_value_id: None,
-                translations: None,
             }],
         }
     }

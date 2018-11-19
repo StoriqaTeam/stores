@@ -320,7 +320,15 @@ impl<
                         }
                     }
                 }
-                stores_repo.update(store_id, payload)
+
+                conn.transaction::<Store, FailureError, _>(move || {
+                    let store = stores_repo.update(store_id, payload)?;
+
+                    match store.status {
+                        ModerationStatus::Decline => stores_repo.update_moderation_status(store_id, ModerationStatus::Draft),
+                        _ => Ok(store),
+                    }
+                })
             }.map_err(|e| e.context("Service Stores, update endpoint error occurred.").into())
         })
     }

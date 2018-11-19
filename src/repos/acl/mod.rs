@@ -114,6 +114,18 @@ impl ApplicationAcl {
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Draft)
                 ),
+                permission!(
+                    Resource::BaseProducts,
+                    Action::Update,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Decline)
+                ),
+                permission!(
+                    Resource::BaseProducts,
+                    Action::Update,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Published)
+                ),
                 permission!(Resource::Categories, Action::Read),
                 permission!(Resource::CategoryAttrs, Action::Read),
                 permission!(Resource::CurrencyExchange, Action::Read),
@@ -141,6 +153,18 @@ impl ApplicationAcl {
                     Action::Update,
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Draft)
+                ),
+                permission!(
+                    Resource::Stores,
+                    Action::Update,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Decline)
+                ),
+                permission!(
+                    Resource::Stores,
+                    Action::Update,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Published)
                 ),
                 permission!(Resource::UserRoles, Action::Read, Scope::Owned),
                 permission!(Resource::WizardStores, Action::All, Scope::Owned),
@@ -231,7 +255,10 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for ApplicationAcl {
         if acls.count() > 0 {
             Ok(true)
         } else {
-            error!("Denied request from user {} to do {} on {}.", user_id, action, resource);
+            error!(
+                "Denied request from user {} to do {} on {} by rule: {}.",
+                user_id, action, resource, rule
+            );
             Ok(false)
         }
     }
@@ -247,26 +274,30 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for UnauthorizedAcl 
         resource: Resource,
         action: Action,
         _scope_checker: &CheckScope<Scope, T>,
-        _rule: Rule,
+        rule: Rule,
         _obj: Option<&T>,
     ) -> Result<bool, FailureError> {
         if action == Action::Read {
             match resource {
                 Resource::Categories
-                | Resource::Stores
                 | Resource::Products
-                | Resource::BaseProducts
                 | Resource::ProductAttrs
                 | Resource::Attributes
+                | Resource::AttributeValues
                 | Resource::CurrencyExchange
                 | Resource::WizardStores
                 | Resource::ModeratorProductComments
                 | Resource::ModeratorStoreComments
                 | Resource::CategoryAttrs => Ok(true),
+
+                Resource::Stores | Resource::BaseProducts => match rule {
+                    Rule::Any => Ok(true),
+                    Rule::ModerationStatus(status) => Ok(status == ModerationStatus::Published),
+                },
                 _ => Ok(false),
             }
         } else {
-            error!("Denied unauthorized request to do {} on {}.", action, resource);
+            error!("Denied unauthorized request to do {} on {} by rule: {}.", action, resource, rule);
             Ok(false)
         }
     }

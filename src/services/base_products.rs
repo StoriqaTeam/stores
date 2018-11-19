@@ -600,7 +600,7 @@ impl<
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+            conn.transaction::<BaseProduct, FailureError, _>(move || {
                 let old_prod = base_products_repo.find(base_product_id, Visibility::Active)?;
                 if let Some(old_prod) = old_prod {
                     let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
@@ -618,7 +618,11 @@ impl<
                         // updating currency of base_products variants
                         products_repo.update_currency(currency, updated_prod.id)?;
                     }
-                    Ok(updated_prod)
+
+                    match updated_prod.status {
+                        ModerationStatus::Decline => base_products_repo.update_moderation_status(updated_prod.id, ModerationStatus::Draft),
+                        _ => Ok(updated_prod),
+                    }
                 } else {
                     Err(Error::NotFound.into())
                 }

@@ -22,6 +22,8 @@ use models::{
     ModeratorBaseProductSearchTerms, MostDiscountProducts, MostViewedProducts, NewBaseProduct, Ordering, PaginationParams, ProdAttr,
     Product, ProductWithAttributes, RawProduct, Store, UpdateBaseProduct, Visibility,
 };
+
+use errors;
 use repos::acl;
 use repos::legacy_acl::*;
 use repos::types::{RepoAcl, RepoResult};
@@ -109,6 +111,12 @@ pub trait BaseProductsRepo {
 
     /// Set moderation status for base_product_ids
     fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Set moderation status for base_product_ids from store manager
+    fn update_moderation_statuses(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Set moderation status for base_product_id from store manager
+    fn update_moderation_status(&self, base_product_id: BaseProductId, status: ModerationStatus) -> RepoResult<BaseProduct>;
 
     /// Getting all base products with variants
     fn get_all_catalog(&self) -> RepoResult<Vec<CatalogWithAttributes>>;
@@ -751,6 +759,53 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     base_product_ids
                 )).into()
             })
+    }
+
+    /// Set moderation status for base_product_ids from store manager
+    fn update_moderation_statuses(
+        &self,
+        base_product_ids: Vec<BaseProductId>,
+        status_arg: ModerationStatus,
+    ) -> RepoResult<Vec<BaseProduct>> {
+        let query = base_products.filter(id.eq_any(base_product_ids.clone()));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|bs: Vec<BaseProduct>| {
+                for base in &bs {
+                    acl::check_with_rule(
+                        &*self.acl,
+                        Resource::BaseProducts,
+                        Action::Update,
+                        self,
+                        Rule::ModerationStatus(base.status),
+                        Some(&base),
+                    )?;
+                }
+                Ok(bs)
+            }).and_then(|_| {
+                let filter = base_products.filter(id.eq_any(base_product_ids.clone()));
+                let query = diesel::update(filter).set(status.eq(status_arg));
+
+                query.get_results(self.db_conn).map_err(From::from)
+            }).map_err(|e: FailureError| {
+                e.context(format!(
+                    "Update moderation status for base_products {:?} error occurred",
+                    base_product_ids
+                )).into()
+            })
+    }
+
+    /// Set moderation status for base_product_id from store manager
+    fn update_moderation_status(&self, base_product_id_arg: BaseProductId, status_arg: ModerationStatus) -> RepoResult<BaseProduct> {
+        let mut results = self.update_moderation_statuses(vec![base_product_id_arg], status_arg)?;
+
+        if let Some(base_product) = results.pop() {
+            Ok(base_product)
+        } else {
+            Err(errors::Error::NotFound.into())
+        }
     }
 
     /// Getting all base products with variants

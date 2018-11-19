@@ -19,6 +19,7 @@ use schema::attribute_values::dsl::*;
 
 pub trait AttributeValuesRepo {
     fn create(&self, new_attribute: NewAttributeValue) -> RepoResult<AttributeValue>;
+    fn get(&self, attribute_value_id: AttributeValueId) -> RepoResult<Option<AttributeValue>>;
     fn find(&self, attr_id: AttributeId, code: AttributeValueCode) -> RepoResult<Option<AttributeValue>>;
     fn find_many(&self, search_terms: AttributeValuesSearchTerms) -> RepoResult<Vec<AttributeValue>>;
     fn update(&self, id: AttributeValueId, update: UpdateAttributeValue) -> RepoResult<AttributeValue>;
@@ -63,6 +64,12 @@ where
                 e.context(format!("Create new attribute_value {:?} error occurred", new_attribute_value))
                     .into()
             })
+    }
+
+    fn get(&self, attribute_value_id: AttributeValueId) -> RepoResult<Option<AttributeValue>> {
+        let res = attribute_values.find(attribute_value_id).get_result(self.db_conn).optional()?;
+        acl::check(&*self.acl, Resource::AttributeValues, Action::Read, self, res.as_ref())?;
+        Ok(res)
     }
 
     fn find(&self, attr_id_arg: AttributeId, code_arg: AttributeValueCode) -> RepoResult<Option<AttributeValue>> {

@@ -19,6 +19,7 @@ use repos::{AttributeValuesSearchTerms, ProductAttrsRepo, ProductAttrsSearchTerm
 pub trait AttributeValuesService {
     fn create_attribute_value(&self, new_attribute_value: NewAttributeValue) -> ServiceFuture<AttributeValue>;
     fn get_attribute_value(&self, attr_value_id: AttributeValueId) -> ServiceFuture<Option<AttributeValue>>;
+    fn delete_attribute_value(&self, attr_value_id: AttributeValueId) -> ServiceFuture<AttributeValue>;
     fn get_attribute_values(&self, attr_id: AttributeId) -> ServiceFuture<Vec<AttributeValue>>;
     fn update_attribute_value(
         &self,
@@ -26,7 +27,7 @@ pub trait AttributeValuesService {
         code: AttributeValueCode,
         update: UpdateAttributeValue,
     ) -> ServiceFuture<AttributeValue>;
-    fn delete_attribute_value(&self, attr_id: AttributeId, code: AttributeValueCode) -> ServiceFuture<AttributeValue>;
+    fn delete_attribute_value_by_code(&self, attr_id: AttributeId, code: AttributeValueCode) -> ServiceFuture<AttributeValue>;
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -60,6 +61,24 @@ impl<
             attribute_values_repo
                 .get(attr_value_id)
                 .map_err(|e| e.context("AttributeValuesService, get_attribute_value error occurred.").into())
+        })
+    }
+
+    fn delete_attribute_value(&self, attr_value_id: AttributeValueId) -> ServiceFuture<AttributeValue> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let attribute_values_repo = repo_factory.create_attribute_values_repo(&*conn, user_id);
+            let prod_attr_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
+            conn.transaction::<(AttributeValue), FailureError, _>(move || {
+                let attribute_value = attribute_values_repo
+                    .get(attr_value_id)?
+                    .ok_or(format_err!("Attribute value {} not found", attr_value_id,))?;
+                validate_delete_attribute_value(&attribute_value, &*prod_attr_repo)?;
+
+                attribute_values_repo.delete(attribute_value.id)
+            }).map_err(|e| e.context("AttributeValuesService, delete_attribute_value error occurred.").into())
         })
     }
 
@@ -98,7 +117,7 @@ impl<
         })
     }
 
-    fn delete_attribute_value(&self, attr_id: AttributeId, code: AttributeValueCode) -> ServiceFuture<AttributeValue> {
+    fn delete_attribute_value_by_code(&self, attr_id: AttributeId, code: AttributeValueCode) -> ServiceFuture<AttributeValue> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 

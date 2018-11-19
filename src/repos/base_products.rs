@@ -547,7 +547,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Returns most viewed list of base_products, limited by `from` and `count` parameters
     fn most_viewed(&self, search_product: MostViewedProducts, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
-        acl::check_with_rule(&*self.acl, Resource::BaseProducts, Action::Read, self, Rule::Any, None)
+        acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
             .and_then(|_| {
                 debug!("Querying for most viewed base products.");
 
@@ -594,7 +594,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Returns most discount list of base_products, limited by `from` and `count` parameters
     fn most_discount(&self, search_product: MostDiscountProducts, count: i32, offset: i32) -> RepoResult<Vec<BaseProductWithVariants>> {
-        acl::check_with_rule(&*self.acl, Resource::BaseProducts, Action::Read, self, Rule::Any, None)
+        acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
             .and_then(|_| {
                 debug!("Querying for most discount products.");
 

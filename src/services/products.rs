@@ -480,7 +480,6 @@ pub mod tests {
                 value: AttributeValueCode("String".to_string()),
                 meta_field: None,
                 attr_value_id: None,
-                translations: None,
             }],
         }
     }

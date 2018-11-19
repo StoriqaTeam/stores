@@ -793,8 +793,8 @@ impl<
             // GET /attributes/values/<attribute_value_id>
             (&Get, Some(Route::AttributeValue(attribute_value_id))) => serialize_future(service.get_attribute_value(attribute_value_id)),
 
-            // POST /attributes/values/<attribute_value_id>
-            (&Post, Some(Route::AttributeValue(attribute_value_id))) => {
+            // DELETE /attributes/values/<attribute_value_id>
+            (&Delete, Some(Route::AttributeValue(attribute_value_id))) => {
                 serialize_future(service.delete_attribute_value(attribute_value_id))
             }
 

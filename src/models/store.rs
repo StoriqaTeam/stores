@@ -281,3 +281,9 @@ pub struct ModeratorStoreSearchTerms {
     pub store_manager_ids: Option<Vec<UserId>>,
     pub state: Option<ModerationStatus>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ModeratorStoreSearchResults {
+    pub stores: Vec<Store>,
+    pub total_count: u32,
+}

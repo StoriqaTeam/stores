@@ -156,3 +156,9 @@ pub struct ModeratorBaseProductSearchTerms {
     pub store_id: Option<i32>,
     pub state: Option<ModerationStatus>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ModeratorBaseProductSearchResults {
+    pub base_products: Vec<BaseProduct>,
+    pub total_count: u32,
+}

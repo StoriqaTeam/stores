@@ -7,6 +7,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
+use diesel::sql_types::{Bool, VarChar};
 use diesel::Connection;
 use failure::Error as FailureError;
 
@@ -14,7 +15,9 @@ use stq_static_resources::{ModerationStatus, Translation};
 use stq_types::{StoreId, UserId};
 
 use models::authorization::*;
-use models::{Direction, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, Store, UpdateStore, Visibility};
+use models::{
+    Direction, ModeratorStoreSearchResults, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, Store, UpdateStore, Visibility,
+};
 use repos::acl;
 use repos::legacy_acl::*;
 use repos::types::{RepoAcl, RepoResult};
@@ -63,7 +66,11 @@ pub trait StoresRepo {
     fn vendor_code_exists(&self, store_id: StoreId, vendor_code: &str) -> RepoResult<Option<bool>>;
 
     /// Search stores limited by pagination parameters
-    fn moderator_search(&self, pagination_params: PaginationParams<StoreId>, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>>;
+    fn moderator_search(
+        &self,
+        pagination_params: PaginationParams<StoreId>,
+        term: ModeratorStoreSearchTerms,
+    ) -> RepoResult<ModeratorStoreSearchResults>;
 
     /// Set moderation status for specific store
     fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Store>;
@@ -327,7 +334,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Search stores limited by pagination parameters
-    fn moderator_search(&self, pagination_params: PaginationParams<StoreId>, term: ModeratorStoreSearchTerms) -> RepoResult<Vec<Store>> {
+    fn moderator_search(
+        &self,
+        pagination_params: PaginationParams<StoreId>,
+        term: ModeratorStoreSearchTerms,
+    ) -> RepoResult<ModeratorStoreSearchResults> {
         let PaginationParams {
             direction,
             limit,
@@ -335,6 +346,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             skip,
             start,
         } = pagination_params;
+
+        let total_count_query = stores.filter(is_active.eq(true).and(by_moderator_search_terms(&term))).count();
 
         let mut query = stores.filter(is_active.eq(true)).into_boxed();
 
@@ -353,17 +366,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             query = query.limit(limit);
         }
 
-        if let Some(term_name) = &term.name {
-            query = query.filter(sql(format!("name::text ILIKE '%{}%'", term_name).as_ref()));
-        }
-
-        if let Some(ref store_manager_ids) = &term.store_manager_ids {
-            query = query.filter(user_id.eq_any(store_manager_ids));
-        }
-
-        if let Some(term_state) = &term.state {
-            query = query.filter(status.eq(term_state));
-        }
+        query = query.filter(by_moderator_search_terms(&term));
 
         query = match ordering {
             Ordering::Ascending => query.order(id.asc()),
@@ -385,7 +388,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 }
 
-                Ok(results)
+                total_count_query
+                    .get_result::<i64>(self.db_conn)
+                    .map(move |total_count| ModeratorStoreSearchResults {
+                        stores: results,
+                        total_count: total_count as u32,
+                    }).map_err(From::from)
             }).map_err(|e: FailureError| {
                 e.context(format!(
                     "moderator search for stores error occurred (pagination params: {:?}, search terms: {:?})",
@@ -437,4 +445,23 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             }
         }
     }
+}
+
+fn by_moderator_search_terms(term: &ModeratorStoreSearchTerms) -> Box<BoxableExpression<stores, Pg, SqlType = Bool>> {
+    let mut expr: Box<BoxableExpression<stores, Pg, SqlType = Bool>> = Box::new(id.eq(id));
+
+    if let Some(term_name) = term.name.clone() {
+        let ilike_expr = sql("name::text ILIKE concat('%', $1, '%')").bind::<VarChar, _>(term_name);
+        expr = Box::new(expr.and(ilike_expr));
+    }
+
+    if let Some(store_manager_ids) = term.store_manager_ids.clone() {
+        expr = Box::new(expr.and(user_id.eq_any(store_manager_ids)));
+    }
+
+    if let Some(term_state) = term.state.clone() {
+        expr = Box::new(expr.and(status.eq(term_state)));
+    }
+
+    expr
 }

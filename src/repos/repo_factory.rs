@@ -1243,8 +1243,11 @@ pub mod tests {
             &self,
             _pagination_params: PaginationParams<BaseProductId>,
             _term: ModeratorBaseProductSearchTerms,
-        ) -> RepoResult<Vec<BaseProduct>> {
-            Ok(vec![])
+        ) -> RepoResult<ModeratorBaseProductSearchResults> {
+            Ok(ModeratorBaseProductSearchResults {
+                total_count: 0,
+                base_products: vec![],
+            })
         }
 
         fn set_moderation_status(
@@ -1478,7 +1481,7 @@ pub mod tests {
             &self,
             pagination_params: PaginationParams<StoreId>,
             _term: ModeratorStoreSearchTerms,
-        ) -> RepoResult<Vec<Store>> {
+        ) -> RepoResult<ModeratorStoreSearchResults> {
             let mut stores = vec![];
             let PaginationParams { limit, skip, start, .. } = pagination_params;
             let from_id = start.unwrap_or(StoreId(1));
@@ -1486,7 +1489,10 @@ pub mod tests {
                 let store = create_store(StoreId(i), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
                 stores.push(store);
             }
-            Ok(stores)
+            Ok(ModeratorStoreSearchResults {
+                total_count: stores.len() as u32,
+                stores,
+            })
         }
         fn set_moderation_status(&self, store_id_arg: StoreId, _status_arg: ModerationStatus) -> RepoResult<Store> {
             let store = create_store(store_id_arg, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());

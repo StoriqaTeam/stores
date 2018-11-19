@@ -13,7 +13,8 @@ use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
 use errors::Error;
 use models::{
-    Category, Direction, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, SearchStore, Store, UpdateStore, Visibility,
+    Category, Direction, ModeratorStoreSearchResults, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, SearchStore, Store,
+    UpdateStore, Visibility,
 };
 use repos::remove_unused_categories;
 use repos::ReposFactory;
@@ -57,7 +58,7 @@ pub trait StoresService {
         skip: i64,
         count: i64,
         term: ModeratorStoreSearchTerms,
-    ) -> ServiceFuture<Vec<Store>>;
+    ) -> ServiceFuture<ModeratorStoreSearchResults>;
     /// Set moderation status for specific store
     fn set_store_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store>;
 }
@@ -343,7 +344,7 @@ impl<
         skip: i64,
         count: i64,
         term: ModeratorStoreSearchTerms,
-    ) -> ServiceFuture<Vec<Store>> {
+    ) -> ServiceFuture<ModeratorStoreSearchResults> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 

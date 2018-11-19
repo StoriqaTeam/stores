@@ -99,7 +99,7 @@ pub trait BaseProductsService {
         skip: i64,
         count: i64,
         term: ModeratorBaseProductSearchTerms,
-    ) -> ServiceFuture<Vec<BaseProduct>>;
+    ) -> ServiceFuture<ModeratorBaseProductSearchResults>;
     /// Set moderation status for base_product_ids
     fn set_moderation_status_base_product(
         &self,
@@ -696,7 +696,7 @@ impl<
         skip: i64,
         count: i64,
         term: ModeratorBaseProductSearchTerms,
-    ) -> ServiceFuture<Vec<BaseProduct>> {
+    ) -> ServiceFuture<ModeratorBaseProductSearchResults> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
 

@@ -371,6 +371,15 @@ pub mod tests {
             })
         }
 
+        fn get(&self, attribute_value_id: AttributeValueId) -> RepoResult<Option<AttributeValue>> {
+            Ok(Some(AttributeValue {
+                id: attribute_value_id,
+                attr_id: AttributeId(1),
+                code: AttributeValueCode("Code".to_string()),
+                translations: None,
+            }))
+        }
+
         fn find(&self, attr_id: AttributeId, code: AttributeValueCode) -> RepoResult<Option<AttributeValue>> {
             Ok(Some(AttributeValue {
                 id: AttributeValueId(1),

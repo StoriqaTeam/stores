@@ -7,7 +7,7 @@ use r2d2::ManageConnection;
 use stq_static_resources::language::{Language, Translation};
 use stq_types::newtypes::AttributeValueCode;
 
-use models::{Attribute, CreateAttributePayload, NewAttribute, NewAttributeValue, UpdateAttribute};
+use models::{Attribute, CreateAttributePayload, CreateAttributeWithAttribute, NewAttribute, NewAttributeValue, UpdateAttribute};
 use repos::{AttributeValuesRepo, AttributeValuesSearchTerms, ReposFactory};
 use services::types::ServiceFuture;
 use services::Service;
@@ -137,16 +137,34 @@ fn create_attribute_values(
     attribute_id: AttributeId,
     create_attribute_payload: CreateAttributePayload,
 ) -> Result<(), FailureError> {
-    let meta = create_attribute_payload
-        .meta_field
-        .ok_or(format_err!("Can not create attribute values without meta_field"))?;
-    match (meta.values, meta.translated_values) {
-        (Some(codes), None) => create_attribute_values_from_codes(attribute_values_repo, attribute_id, codes),
-        (None, Some(translated_values)) => {
-            create_attribute_values_from_translations(attribute_values_repo, attribute_id, translated_values)
-        }
-        _ => Err(format_err!("Either values or translated_values should be in meta field")),
+    if let Some(attribute_values) = create_attribute_payload.values {
+        return create_attribute_values_from_values(attribute_values_repo, attribute_id, attribute_values);
+    } else if let Some(meta) = create_attribute_payload.meta_field {
+        return match (meta.values, meta.translated_values) {
+            (Some(codes), None) => create_attribute_values_from_codes(attribute_values_repo, attribute_id, codes),
+            (None, Some(translated_values)) => {
+                create_attribute_values_from_translations(attribute_values_repo, attribute_id, translated_values)
+            }
+            _ => Err(format_err!("Either values or translated_values should be in meta field")),
+        };
     }
+    Ok(())
+}
+
+fn create_attribute_values_from_values(
+    attribute_values_repo: &AttributeValuesRepo,
+    attr_id: AttributeId,
+    values: Vec<CreateAttributeWithAttribute>,
+) -> Result<(), FailureError> {
+    for value in values {
+        let new_attribute_value = NewAttributeValue {
+            attr_id,
+            code: value.code,
+            translations: value.translations,
+        };
+        let _ = attribute_values_repo.create(new_attribute_value)?;
+    }
+    Ok(())
 }
 
 fn create_attribute_values_from_codes(

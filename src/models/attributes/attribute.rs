@@ -41,6 +41,13 @@ pub struct CreateAttributePayload {
     pub name: serde_json::Value,
     pub value_type: AttributeType,
     pub meta_field: Option<AttributeMetaField>,
+    pub values: Option<Vec<CreateAttributeWithAttribute>>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, Validate, PartialEq)]
+pub struct CreateAttributeWithAttribute {
+    #[validate(custom = "validate_translation")]
+    pub translations: Option<serde_json::Value>,
+    pub code: AttributeValueCode,
 }
 
 /// Payload for updating attributes

@@ -21,6 +21,7 @@ pub fn create_new_attribute(name: &str) -> CreateAttributePayload {
             translated_values: None,
             ui_element: serde_json::Value::Null,
         }),
+        values: None,
     }
 }
 

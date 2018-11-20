@@ -342,9 +342,21 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             start,
         } = pagination_params;
 
-        let total_count_query = stores.filter(is_active.eq(true).and(by_moderator_search_terms(&term))).count();
+        let total_count_query = stores
+            .filter(
+                is_active
+                    .eq(true)
+                    .and(by_moderator_search_terms(&term))
+                    .and(status.ne(ModerationStatus::Draft)),
+            ).count();
 
-        let mut query = stores.filter(is_active.eq(true)).into_boxed();
+        let mut query = stores
+            .filter(
+                is_active
+                    .eq(true)
+                    .and(by_moderator_search_terms(&term))
+                    .and(status.ne(ModerationStatus::Draft)),
+            ).into_boxed();
 
         if let Some(from_id) = start {
             query = match direction {
@@ -360,8 +372,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         if limit > 0 {
             query = query.limit(limit);
         }
-
-        query = query.filter(by_moderator_search_terms(&term));
 
         query = match ordering {
             Ordering::Ascending => query.order(id.asc()),
@@ -470,7 +480,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 }
 
 fn by_moderator_search_terms(term: &ModeratorStoreSearchTerms) -> Box<BoxableExpression<stores, Pg, SqlType = Bool>> {
-    let mut expr: Box<BoxableExpression<stores, Pg, SqlType = Bool>> = Box::new(id.eq(id));
+    let mut expr: Box<BoxableExpression<stores, Pg, SqlType = Bool>> = Box::new(true.into_sql::<Bool>());
 
     if let Some(term_name) = term.name.clone() {
         let ilike_expr = sql("name::text ILIKE concat('%', $1, '%')").bind::<VarChar, _>(term_name);
@@ -481,7 +491,7 @@ fn by_moderator_search_terms(term: &ModeratorStoreSearchTerms) -> Box<BoxableExp
         expr = Box::new(expr.and(user_id.eq_any(store_manager_ids)));
     }
 
-    if let Some(term_state) = term.state.clone() {
+    if let Some(term_state) = term.state.clone().map(ModerationStatus::from) {
         expr = Box::new(expr.and(status.eq(term_state)));
     }
 

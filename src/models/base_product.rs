@@ -4,7 +4,7 @@ use std::time::SystemTime;
 use serde_json;
 use validator::Validate;
 
-use stq_static_resources::{Currency, ModerationStatus};
+use stq_static_resources::{Currency, ModerationStatus, ModerationStatusForModerator};
 use stq_types::{AttributeId, BaseProductId, CategoryId, ProductId, ProductPrice, StoreId};
 
 use models::validation_rules::*;
@@ -154,7 +154,7 @@ impl CatalogWithAttributes {
 pub struct ModeratorBaseProductSearchTerms {
     pub name: Option<String>,
     pub store_id: Option<i32>,
-    pub state: Option<ModerationStatus>,
+    pub state: Option<ModerationStatusForModerator>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

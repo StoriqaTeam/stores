@@ -234,6 +234,7 @@ pub mod tests {
                 translated_values: None,
                 ui_element: serde_json::Value::Null,
             }),
+            values: Some(vec![])
         }
     }
 

@@ -872,7 +872,7 @@ fn by_moderator_search_terms(term: &ModeratorBaseProductSearchTerms) -> Box<Boxa
     let mut expr: Box<BoxableExpression<base_products, Pg, SqlType = Bool>> = Box::new(true.into_sql::<Bool>());
 
     if let Some(term_name) = term.name.clone() {
-        let ilike_expr = sql("name::text ILIKE concat('%', $1, '%')").bind::<VarChar, _>(term_name);
+        let ilike_expr = sql("name::text ILIKE concat('%', ").bind::<VarChar, _>(term_name).sql(", '%')");
         expr = Box::new(expr.and(ilike_expr));
     }
 

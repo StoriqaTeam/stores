@@ -8,7 +8,7 @@ pub enum Route {
     Attributes,
     Attribute(AttributeId),
     AttributeValue(AttributeValueId),
-    AttributeValues(AttributeId, Option<AttributeValueCode>),
+    AttributeValues(AttributeId),
     BaseProducts,
     BaseProductsCount,
     BaseProductWithVariants,
@@ -377,14 +377,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
         params
             .get(0)
             .and_then(|id| id.parse::<AttributeId>().ok())
-            .map(|attr_id| Route::AttributeValues(attr_id, None))
-    });
-
-    // Attributes/:attribute_id/values/:attribute_value_code route
-    router.add_route_with_params(r"^/attributes/(\d+)/values/(.+)$", |params| {
-        let attr_id = params.get(0).and_then(|id| id.parse::<AttributeId>().ok())?;
-        let attr_value_code = params.get(1).map(|id| id.to_string()).map(AttributeValueCode);
-        Some(Route::AttributeValues(attr_id, attr_value_code))
+            .map(|attr_id| Route::AttributeValues(attr_id))
     });
 
     // Categories Routes

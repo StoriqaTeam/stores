@@ -125,7 +125,7 @@ where
     }
 
     fn delete(&self, id_arg: AttributeValueId) -> RepoResult<AttributeValue> {
-        let res = attribute_values.find(id_arg).get_result(self.db_conn)?;
+        let res: AttributeValue = attribute_values.find(id_arg).get_result(self.db_conn)?;
         acl::check(&*self.acl, Resource::AttributeValues, Action::Delete, self, Some(&res))?;
 
         diesel::delete(attribute_values.filter(id.eq(id_arg)))

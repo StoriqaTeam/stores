@@ -241,6 +241,7 @@ impl ApplicationAcl {
             StoresRole::PlatformAdmin,
             vec![
                 permission!(Resource::Attributes),
+                permission!(Resource::AttributeValues),
                 permission!(Resource::Categories),
                 permission!(Resource::CategoryAttrs),
             ],

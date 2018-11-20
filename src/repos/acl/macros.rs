@@ -8,7 +8,7 @@ macro_rules! permission {
             resource: $resource,
             action: Action::All,
             scope: Scope::All,
-            rule: Rule::Any,
+            rule: None,
         }
     };
     ($resource:expr, $action:expr) => {
@@ -16,7 +16,7 @@ macro_rules! permission {
             resource: $resource,
             action: $action,
             scope: Scope::All,
-            rule: Rule::Any,
+            rule: None,
         }
     };
     ($resource:expr, $action:expr, $scope:expr) => {
@@ -24,7 +24,7 @@ macro_rules! permission {
             resource: $resource,
             action: $action,
             scope: $scope,
-            rule: Rule::Any,
+            rule: None,
         }
     };
     ($resource:expr, $action:expr, $scope:expr, $rules:expr) => {
@@ -32,7 +32,7 @@ macro_rules! permission {
             resource: $resource,
             action: $action,
             scope: $scope,
-            rule: $rules,
+            rule: Some($rules),
         }
     };
 }

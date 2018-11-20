@@ -28,7 +28,7 @@ pub fn check<T>(
     scope_checker: &CheckScope<Scope, T>,
     obj: Option<&T>,
 ) -> Result<(), FailureError> {
-    acl.allows(resource, action, scope_checker, Rule::Any, obj).and_then(|allowed| {
+    acl.allows(resource, action, scope_checker, None, obj).and_then(|allowed| {
         if allowed {
             Ok(())
         } else {
@@ -47,7 +47,7 @@ pub fn check_with_rule<T>(
     rule: Rule,
     obj: Option<&T>,
 ) -> Result<(), FailureError> {
-    acl.allows(resource, action, scope_checker, rule, obj).and_then(|allowed| {
+    acl.allows(resource, action, scope_checker, Some(rule), obj).and_then(|allowed| {
         if allowed {
             Ok(())
         } else {
@@ -107,7 +107,7 @@ impl ApplicationAcl {
                     Scope::All,
                     Rule::ModerationStatus(ModerationStatus::Published)
                 ),
-                permission!(Resource::BaseProducts, Action::Read, Scope::Owned),
+                permission!(Resource::BaseProducts, Action::Read, Scope::Owned, Rule::Any),
                 permission!(
                     Resource::BaseProducts,
                     Action::Update,
@@ -147,7 +147,7 @@ impl ApplicationAcl {
                     Scope::All,
                     Rule::ModerationStatus(ModerationStatus::Published)
                 ),
-                permission!(Resource::Stores, Action::Read, Scope::Owned),
+                permission!(Resource::Stores, Action::Read, Scope::Owned, Rule::Any),
                 permission!(
                     Resource::Stores,
                     Action::Update,
@@ -260,7 +260,7 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for ApplicationAcl {
         resource: Resource,
         action: Action,
         scope_checker: &CheckScope<Scope, T>,
-        rule: Rule,
+        rule: Option<Rule>,
         obj: Option<&T>,
     ) -> Result<bool, FailureError> {
         let empty: Vec<Permission> = Vec::new();
@@ -271,16 +271,22 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for ApplicationAcl {
             .iter()
             .flat_map(|role| hashed_acls.get(role).unwrap_or(&empty))
             .filter(|permission| {
-                (permission.resource == resource)
-                    && ((permission.action == action) || (permission.action == Action::All))
-                    && ((permission.rule == rule) || (permission.rule == Rule::Any))
+                let check_result =
+                    (permission.resource == resource) && ((permission.action == action) || (permission.action == Action::All));
+
+                let check_rule = match (rule, permission.rule) {
+                    (Some(rule), Some(permission_rule)) => ((permission_rule == rule) || (permission_rule == Rule::Any)),
+                    _ => true,
+                };
+
+                check_result && check_rule
             }).filter(|permission| scope_checker.is_in_scope(*user_id, &permission.scope, obj));
 
         if acls.count() > 0 {
             Ok(true)
         } else {
             error!(
-                "Denied request from user {} to do {} on {} by rule: {}.",
+                "Denied request from user {} to do {} on {} by rule: {:?}.",
                 user_id, action, resource, rule
             );
             Ok(false)
@@ -298,7 +304,7 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for UnauthorizedAcl 
         resource: Resource,
         action: Action,
         _scope_checker: &CheckScope<Scope, T>,
-        rule: Rule,
+        rule: Option<Rule>,
         _obj: Option<&T>,
     ) -> Result<bool, FailureError> {
         if action == Action::Read {
@@ -315,13 +321,16 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for UnauthorizedAcl 
                 | Resource::CategoryAttrs => Ok(true),
 
                 Resource::Stores | Resource::BaseProducts => match rule {
-                    Rule::Any => Ok(true),
-                    Rule::ModerationStatus(status) => Ok(status == ModerationStatus::Published),
+                    Some(value) => match value {
+                        Rule::Any => Ok(true),
+                        Rule::ModerationStatus(status) => Ok(status == ModerationStatus::Published),
+                    },
+                    _ => Ok(false),
                 },
                 _ => Ok(false),
             }
         } else {
-            error!("Denied unauthorized request to do {} on {} by rule: {}.", action, resource, rule);
+            error!("Denied unauthorized request to do {} on {} by rule: {:?}.", action, resource, rule);
             Ok(false)
         }
     }
@@ -418,35 +427,37 @@ mod tests {
         let resource = create_store(UserId(1));
 
         assert_eq!(
-            acl.allows(Resource::Stores, Action::All, &s, Rule::Any, Some(&resource)).unwrap(),
+            acl.allows(Resource::Stores, Action::All, &s, Some(Rule::Any), Some(&resource))
+                .unwrap(),
             true,
             "ACL does not allow all actions on store for superuser."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Read, &s, Rule::Any, Some(&resource)).unwrap(),
+            acl.allows(Resource::Stores, Action::Read, &s, Some(Rule::Any), Some(&resource))
+                .unwrap(),
             true,
             "ACL does not allow read action on store for superuser."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Create, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Create, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true,
             "ACL does not allow  create actions on store for superuser."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Update, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Update, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true,
             "ACL does not allow update actions on store for superuser."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Delete, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Delete, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true,
             "ACL does not allow  delete actions on store for superuser."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Moderate, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Moderate, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true,
             "ACL does not allow moderate actions on store for superuser."
@@ -461,17 +472,19 @@ mod tests {
         let resource = create_store(user_id);
 
         assert_eq!(
-            acl.allows(Resource::Stores, Action::All, &s, Rule::Any, Some(&resource)).unwrap(),
+            acl.allows(Resource::Stores, Action::All, &s, Some(Rule::Any), Some(&resource))
+                .unwrap(),
             false,
             "ACL allows all actions on store for ordinary_user."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Read, &s, Rule::Any, Some(&resource)).unwrap(),
+            acl.allows(Resource::Stores, Action::Read, &s, Some(Rule::Any), Some(&resource))
+                .unwrap(),
             true,
             "ACL does not allow read action on store for ordinary_user."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Create, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Create, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true,
             "ACL does not allow create actions on store for ordinary_user."
@@ -481,20 +494,20 @@ mod tests {
                 Resource::Stores,
                 Action::Update,
                 &s,
-                Rule::ModerationStatus(ModerationStatus::Draft),
+                Some(Rule::ModerationStatus(ModerationStatus::Draft)),
                 Some(&resource)
             ).unwrap(),
             true,
             "ACL does not allow update actions on store for ordinary_user."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Delete, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Delete, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true,
             "ACL does not allow delete actions on store for ordinary_user."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Moderate, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Moderate, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             false,
             "ACL allows moderate actions on store for ordinary_user."
@@ -508,7 +521,8 @@ mod tests {
         let resource = create_store(UserId(1));
 
         assert_eq!(
-            acl.allows(Resource::Stores, Action::All, &s, Rule::Any, Some(&resource)).unwrap(),
+            acl.allows(Resource::Stores, Action::All, &s, Some(Rule::Any), Some(&resource))
+                .unwrap(),
             false,
             "ACL allows all actions on store for moderator."
         );
@@ -517,32 +531,32 @@ mod tests {
                 Resource::Stores,
                 Action::Read,
                 &s,
-                Rule::ModerationStatus(ModerationStatus::Moderation),
+                Some(Rule::ModerationStatus(ModerationStatus::Moderation)),
                 Some(&resource)
             ).unwrap(),
             true,
             "ACL does not allow read action on store for moderator."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Create, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Create, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             false,
             "ACL allows create actions on store for moderator."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Update, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Update, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             false,
             "ACL allows update actions on store for moderator."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Delete, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Delete, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             false,
             "ACL allows delete actions on store for moderator."
         );
         assert_eq!(
-            acl.allows(Resource::Stores, Action::Moderate, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::Stores, Action::Moderate, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true,
             "ACL does not allow moderate actions on store for moderator."
@@ -564,17 +578,17 @@ mod tests {
         };
 
         assert_eq!(
-            acl.allows(Resource::UserRoles, Action::All, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::UserRoles, Action::All, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(Resource::UserRoles, Action::Read, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::UserRoles, Action::Read, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true
         );
         assert_eq!(
-            acl.allows(Resource::UserRoles, Action::Create, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::UserRoles, Action::Create, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             true
         );
@@ -595,17 +609,17 @@ mod tests {
         };
 
         assert_eq!(
-            acl.allows(Resource::UserRoles, Action::All, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::UserRoles, Action::All, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             false
         );
         assert_eq!(
-            acl.allows(Resource::UserRoles, Action::Read, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::UserRoles, Action::Read, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             false
         );
         assert_eq!(
-            acl.allows(Resource::UserRoles, Action::Create, &s, Rule::Any, Some(&resource))
+            acl.allows(Resource::UserRoles, Action::Create, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
             false
         );

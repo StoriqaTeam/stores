@@ -325,7 +325,7 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for UnauthorizedAcl 
                         Rule::Any => Ok(true),
                         Rule::ModerationStatus(status) => Ok(status == ModerationStatus::Published),
                     },
-                    _ => Ok(false),
+                    _ => Ok(true),
                 },
                 _ => Ok(false),
             }

@@ -6,5 +6,5 @@ pub struct Permission {
     pub resource: Resource,
     pub action: Action,
     pub scope: Scope,
-    pub rule: Rule,
+    pub rule: Option<Rule>,
 }

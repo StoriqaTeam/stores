@@ -101,7 +101,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .into_boxed(),
         };
 
-        acl::check_with_rule(&*self.acl, Resource::Stores, Action::Read, self, Rule::Any, None)
+        acl::check(&*self.acl, Resource::Stores, Action::Read, self, None)
             .and_then(|_| query.count().get_result(self.db_conn).map_err(From::from))
             .map_err(|e| FailureError::from(e).context("Count stores error occurred").into())
     }
@@ -144,16 +144,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query_store
             .get_result::<Store>(self.db_conn)
             .map_err(From::from)
-            .and_then(|store| {
-                acl::check_with_rule(
-                    &*self.acl,
-                    Resource::Stores,
-                    Action::Create,
-                    self,
-                    Rule::ModerationStatus(store.status),
-                    Some(&store),
-                ).and_then(|_| Ok(store))
-            }).map_err(|e: FailureError| e.context(format!("Create store {:?} error occurred.", payload)).into())
+            .and_then(|store| acl::check(&*self.acl, Resource::Stores, Action::Create, self, Some(&store)).and_then(|_| Ok(store)))
+            .map_err(|e: FailureError| e.context(format!("Create store {:?} error occurred.", payload)).into())
     }
 
     /// Returns list of stores, limited by `from` and `count` parameters
@@ -221,7 +213,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn deactivate(&self, store_id_arg: StoreId) -> RepoResult<Store> {
         debug!("Deactivate store with id {}.", store_id_arg);
         self.execute_query(stores.find(store_id_arg))
-            .and_then(|store: Store| acl::check_with_rule(&*self.acl, Resource::Stores, Action::Delete, self, Rule::Any, Some(&store)))
+            .and_then(|store: Store| acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store)))
             .and_then(|_| {
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
@@ -243,7 +235,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|store_res: Option<Store>| {
                 if let Some(store_res) = store_res {
-                    acl::check_with_rule(&*self.acl, Resource::Stores, Action::Delete, self, Rule::Any, Some(&store_res))?;
+                    acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store_res))?;
                     let filter = stores.filter(user_id.eq(user_id_arg));
                     let query = diesel::update(filter).set(is_active.eq(false));
                     self.execute_query(query).map(Some).map_err(From::from)

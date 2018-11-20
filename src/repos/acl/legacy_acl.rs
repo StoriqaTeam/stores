@@ -17,7 +17,7 @@ pub trait Acl<Resource, Action, Scope, Rule, Error, T> {
         resource: Resource,
         action: Action,
         scope_checker: &CheckScope<Scope, T>,
-        rule: Rule,
+        rule: Option<Rule>,
         obj: Option<&T>,
     ) -> Result<bool, Error>;
 }
@@ -33,7 +33,7 @@ impl<Resource, Action, Scope, Rule, Error, T> Acl<Resource, Action, Scope, Rule,
         resource: Resource,
         action: Action,
         scope_checker: &CheckScope<Scope, T>,
-        rule: Rule,
+        rule: Option<Rule>,
         obj: Option<&T>,
     ) -> Result<bool, Error> {
         Ok(true)
@@ -51,7 +51,7 @@ impl<Resource, Action, Scope, Rule, Error, T> Acl<Resource, Action, Scope, Rule,
         resource: Resource,
         action: Action,
         scope_checker: &CheckScope<Scope, T>,
-        rule: Rule,
+        rule: Option<Rule>,
         obj: Option<&T>,
     ) -> Result<bool, Error> {
         Ok(false)

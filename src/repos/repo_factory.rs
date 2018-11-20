@@ -1260,13 +1260,13 @@ pub mod tests {
 
         fn update_moderation_statuses(
             &self,
-            base_product_ids: Vec<BaseProductId>,
-            status: ModerationStatus,
+            _base_product_ids: Vec<BaseProductId>,
+            _status: ModerationStatus,
         ) -> RepoResult<Vec<BaseProduct>> {
             Ok(vec![])
         }
 
-        fn update_moderation_status(&self, base_product_id: BaseProductId, status: ModerationStatus) -> RepoResult<BaseProduct> {
+        fn update_moderation_status(&self, _base_product_id: BaseProductId, status: ModerationStatus) -> RepoResult<BaseProduct> {
             Ok(BaseProduct {
                 id: BaseProductId(1),
                 is_active: false,
@@ -1529,7 +1529,7 @@ pub mod tests {
             Ok(store)
         }
 
-        fn update_moderation_status(&self, store_id_arg: StoreId, status: ModerationStatus) -> RepoResult<Store> {
+        fn update_moderation_status(&self, store_id_arg: StoreId, _status: ModerationStatus) -> RepoResult<Store> {
             let store = create_store(store_id_arg, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             Ok(store)
         }

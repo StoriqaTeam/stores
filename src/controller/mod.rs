@@ -798,11 +798,30 @@ impl<
                 serialize_future(service.delete_attribute_value(attribute_value_id))
             }
 
+            // PUT /attributes/values/<attribute_value_id>
+            (&Put, Some(Route::AttributeValue(attribute_value_id))) => serialize_future(
+                parse_body::<UpdateAttributeValue>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: UpdateAttributeValue")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |update| {
+                        update
+                            .validate()
+                            .map_err(|e| {
+                                format_err!("Validation failed, target: UpdateAttributeValue")
+                                    .context(Error::Validate(e))
+                                    .into()
+                            }).into_future()
+                            .and_then(move |_| service.update_attribute_value(attribute_value_id, update))
+                    }),
+            ),
+
             // GET /attributes/<attribute_id>/values
-            (&Get, Some(Route::AttributeValues(attribute_id, None))) => serialize_future(service.get_attribute_values(attribute_id)),
+            (&Get, Some(Route::AttributeValues(attribute_id))) => serialize_future(service.get_attribute_values(attribute_id)),
 
             // POST /attributes/<attribute_id>/values
-            (&Post, Some(Route::AttributeValues(attribute_id, None))) => serialize_future(
+            (&Post, Some(Route::AttributeValues(attribute_id))) => serialize_future(
                 parse_body::<NewAttributeValuePayload>(req.body())
                     .map_err(|e| {
                         e.context("Parsing body failed, target: NewAttributeValuePayload")
@@ -823,30 +842,6 @@ impl<
                             .and_then(move |_| service.create_attribute_value(new_attribute))
                     }),
             ),
-
-            // PUT /attributes/<attribute_id>/values/<attribute_value_code>
-            (&Put, Some(Route::AttributeValues(attribute_id, Some(attribute_value_code)))) => serialize_future(
-                parse_body::<UpdateAttributeValue>(req.body())
-                    .map_err(|e| {
-                        e.context("Parsing body failed, target: UpdateAttributeValue")
-                            .context(Error::Parse)
-                            .into()
-                    }).and_then(move |update| {
-                        update
-                            .validate()
-                            .map_err(|e| {
-                                format_err!("Validation failed, target: UpdateAttributeValue")
-                                    .context(Error::Validate(e))
-                                    .into()
-                            }).into_future()
-                            .and_then(move |_| service.update_attribute_value(attribute_id, attribute_value_code, update))
-                    }),
-            ),
-
-            // DELETE /attributes/<attribute_id>/values/<attribute_value_code>
-            (&Delete, Some(Route::AttributeValues(attribute_id, Some(attribute_value_code)))) => {
-                serialize_future(service.delete_attribute_value_by_code(attribute_id, attribute_value_code))
-            }
 
             // GET /attributes
             (&Get, Some(Route::Attributes)) => serialize_future(service.list_attributes()),

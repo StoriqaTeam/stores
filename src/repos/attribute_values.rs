@@ -100,6 +100,7 @@ where
 
         attribute_values
             .filter(query)
+            .order_by(id)
             .get_results(self.db_conn)
             .map_err(From::from)
             .and_then(|results: Vec<AttributeValue>| {

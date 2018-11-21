@@ -1292,6 +1292,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status: status_arg,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             })
         }
 

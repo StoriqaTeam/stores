@@ -447,6 +447,7 @@ pub mod tests {
     use stq_types::*;
 
     use tokio_core::reactor::Core;
+    use uuid::Uuid;
 
     use models::*;
     use repos::repo_factory::tests::*;
@@ -469,6 +470,7 @@ pub mod tests {
             pre_order: false,
             pre_order_days: 0,
             kafka_update_no: 0,
+            uuid: Uuid::new_v4(),
         }
     }
 
@@ -495,6 +497,7 @@ pub mod tests {
             price: ProductPrice(0f64),
             pre_order: Some(false),
             pre_order_days: Some(0),
+            uuid: Uuid::new_v4(),
         }
     }
 

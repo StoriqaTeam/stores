@@ -236,6 +236,7 @@ pub mod tests {
                 ui_element: serde_json::Value::Null,
             }),
             values: Some(vec![]),
+            uuid: uuid::Uuid::new_v4(),
         }
     }
 

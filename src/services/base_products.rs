@@ -918,6 +918,7 @@ pub mod tests {
 
     use serde_json;
     use tokio_core::reactor::Core;
+    use uuid::Uuid;
 
     use stq_static_resources::Currency;
     use stq_types::*;
@@ -937,6 +938,7 @@ pub mod tests {
             currency: Currency::STQ,
             category_id: CategoryId(3),
             slug: Some("slug".to_string()),
+            uuid: Uuid::new_v4(),
         }
     }
 

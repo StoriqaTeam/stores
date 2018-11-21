@@ -211,6 +211,7 @@ pub mod tests {
     use serde_json;
     use std::sync::Arc;
     use tokio_core::reactor::Core;
+    use uuid::Uuid;
 
     use models::*;
     use repos::repo_factory::tests::*;
@@ -223,6 +224,7 @@ pub mod tests {
             name: serde_json::from_str(name).unwrap(),
             meta_field: None,
             parent_id: CategoryId(1),
+            uuid: Uuid::new_v4(),
         }
     }
 

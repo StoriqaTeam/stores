@@ -22,6 +22,7 @@ pub fn create_new_attribute(name: &str) -> CreateAttributePayload {
             ui_element: serde_json::Value::Null,
         }),
         values: None,
+        uuid: uuid::Uuid::new_v4(),
     }
 }
 

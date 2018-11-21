@@ -398,6 +398,7 @@ pub mod tests {
 
     use serde_json;
     use tokio_core::reactor::Core;
+    use uuid::Uuid;
 
     use stq_types::*;
 
@@ -432,6 +433,7 @@ pub mod tests {
             route: None,
             street_number: None,
             place_id: None,
+            uuid: Uuid::new_v4(),
         }
     }
 

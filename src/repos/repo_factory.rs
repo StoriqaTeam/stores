@@ -325,6 +325,7 @@ pub mod tests {
                 name: serde_json::from_str("{}").unwrap(),
                 value_type: AttributeType::Str,
                 meta_field: None,
+                uuid: uuid::Uuid::new_v4(),
             }))
         }
 
@@ -340,6 +341,7 @@ pub mod tests {
                 name: payload.name,
                 value_type: AttributeType::Str,
                 meta_field: None,
+                uuid: uuid::Uuid::new_v4(),
             })
         }
 
@@ -350,6 +352,7 @@ pub mod tests {
                 name: payload.name.unwrap(),
                 value_type: AttributeType::Str,
                 meta_field: None,
+                uuid: uuid::Uuid::new_v4(),
             })
         }
 
@@ -771,6 +774,7 @@ pub mod tests {
                 parent_id: Some(CategoryId(0)),
                 level: 1,
                 meta_field: None,
+                uuid: uuid::Uuid::new_v4(),
             },
             RawCategory {
                 id: CategoryId(2),
@@ -779,6 +783,7 @@ pub mod tests {
                 parent_id: Some(CategoryId(1)),
                 level: 2,
                 meta_field: None,
+                uuid: uuid::Uuid::new_v4(),
             },
             RawCategory {
                 id: CategoryId(3),
@@ -787,6 +792,7 @@ pub mod tests {
                 parent_id: Some(CategoryId(2)),
                 level: 3,
                 meta_field: None,
+                uuid: uuid::Uuid::new_v4(),
             },
         ]
     }
@@ -1003,6 +1009,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             }))
         }
 
@@ -1028,6 +1035,7 @@ pub mod tests {
                     slug: "slug".to_string(),
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
+                    uuid: uuid::Uuid::new_v4(),
                 };
 
                 result.push(val);
@@ -1063,6 +1071,7 @@ pub mod tests {
                     slug: "slug".to_string(),
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
+                    uuid: uuid::Uuid::new_v4(),
                 };
                 base_products.push(base_product);
             }
@@ -1098,6 +1107,7 @@ pub mod tests {
                     slug: "slug".to_string(),
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
+                    uuid: uuid::Uuid::new_v4(),
                 };
                 base_products.push(base_product);
             }
@@ -1133,6 +1143,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             })
         }
 
@@ -1156,6 +1167,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             })
         }
 
@@ -1179,6 +1191,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             }))
         }
 
@@ -1202,6 +1215,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             })
         }
 
@@ -1224,6 +1238,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             }])
         }
 
@@ -1285,6 +1300,7 @@ pub mod tests {
                 slug: "slug".to_string(),
                 status,
                 kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
             })
         }
 
@@ -1570,6 +1586,7 @@ pub mod tests {
             street_number: None,
             place_id: None,
             kafka_update_no: 0,
+            uuid: uuid::Uuid::new_v4(),
         }
     }
 
@@ -1600,6 +1617,7 @@ pub mod tests {
             route: None,
             street_number: None,
             place_id: None,
+            uuid: uuid::Uuid::new_v4(),
         }
     }
 
@@ -1809,6 +1827,7 @@ pub mod tests {
             pre_order: false,
             pre_order_days: 0,
             kafka_update_no: 0,
+            uuid: uuid::Uuid::new_v4(),
         }
     }
 }

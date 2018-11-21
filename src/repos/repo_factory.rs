@@ -1250,12 +1250,34 @@ pub mod tests {
             })
         }
 
-        fn set_moderation_status(
+        fn set_moderation_statuses(
             &self,
             _base_product_ids: Vec<BaseProductId>,
             _status_arg: ModerationStatus,
         ) -> RepoResult<Vec<BaseProduct>> {
             Ok(vec![])
+        }
+
+        fn set_moderation_status(&self, base_product_id_arg: BaseProductId, status_arg: ModerationStatus) -> RepoResult<BaseProduct> {
+            Ok(BaseProduct {
+                id: base_product_id_arg,
+                is_active: false,
+                store_id: StoreId(1),
+                name: serde_json::from_str("{}").unwrap(),
+                short_description: serde_json::from_str("{}").unwrap(),
+                long_description: None,
+                seo_title: None,
+                seo_description: None,
+                currency: Currency::STQ,
+                category_id: CategoryId(3),
+                views: 1,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+                rating: 0f64,
+                slug: "slug".to_string(),
+                status: status_arg,
+                kafka_update_no: 0,
+            })
         }
 
         fn update_moderation_statuses(
@@ -1266,9 +1288,9 @@ pub mod tests {
             Ok(vec![])
         }
 
-        fn update_moderation_status(&self, _base_product_id: BaseProductId, status: ModerationStatus) -> RepoResult<BaseProduct> {
+        fn update_moderation_status(&self, base_product_id_arg: BaseProductId, status: ModerationStatus) -> RepoResult<BaseProduct> {
             Ok(BaseProduct {
-                id: BaseProductId(1),
+                id: base_product_id_arg,
                 is_active: false,
                 store_id: StoreId(1),
                 name: serde_json::from_str("{}").unwrap(),

@@ -101,12 +101,19 @@ pub trait BaseProductsService {
         term: ModeratorBaseProductSearchTerms,
     ) -> ServiceFuture<ModeratorBaseProductSearchResults>;
     /// Set moderation status for base_product_ids
-    fn set_moderation_status_base_product(
+    fn set_moderation_status_base_products(
         &self,
         base_product_ids: Vec<BaseProductId>,
         status: ModerationStatus,
     ) -> ServiceFuture<Vec<BaseProduct>>;
-    /// Flattens categories
+    /// Set moderation status for base_product_id
+    fn set_moderation_status_base_product(&self, base_product_id: BaseProductId, status: ModerationStatus) -> ServiceFuture<BaseProduct>;
+    /// Set moderation status for base_product_id from store manager
+    fn update_moderation_status_base_product(&self, base_product_id: BaseProductId, status: ModerationStatus)
+        -> ServiceFuture<BaseProduct>;
+    /// send base product to moderation from store manager
+    fn send_base_product_to_moderation(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
+    // Flattens categories
     fn flatten_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
     /// Remove categories not 3rd level
     fn remove_non_third_level_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
@@ -729,7 +736,7 @@ impl<
     }
 
     /// Set moderation status for base_product_ids
-    fn set_moderation_status_base_product(
+    fn set_moderation_status_base_products(
         &self,
         base_product_ids: Vec<BaseProductId>,
         status: ModerationStatus,
@@ -741,11 +748,90 @@ impl<
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
             base_products_repo
-                .set_moderation_status(base_product_ids, status)
+                .set_moderation_statuses(base_product_ids, status)
                 .map_err(|e: FailureError| {
-                    e.context("Service base_products, set_moderation_status endpoint error occurred.")
+                    e.context("Service base_products, set_moderation_status_base_products endpoint error occurred.")
                         .into()
                 })
+        })
+    }
+
+    /// Set moderation status for base_product_id
+    fn set_moderation_status_base_product(&self, base_product_id: BaseProductId, status: ModerationStatus) -> ServiceFuture<BaseProduct> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        debug!("Set moderation status {} for base_product {}", status, base_product_id);
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+
+            match status {
+                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published => base_products_repo
+                    .set_moderation_status(base_product_id, status)
+                    .map_err(|e: FailureError| {
+                        e.context("Service base_products, set_moderation_status_base_product endpoint error occurred.")
+                            .into()
+                    }),
+                ModerationStatus::Draft | ModerationStatus::Moderation => {
+                    Err(format_err!("Base product status: {} not valid for set", status)
+                        .context(Error::Validate(
+                            validation_errors!({"base_products": ["base_products" => "Base product new status is not valid"]}),
+                        )).into())
+                }
+            }
+        })
+    }
+
+    /// Set moderation status for base_product_id from store manager
+    fn update_moderation_status_base_product(
+        &self,
+        base_product_id: BaseProductId,
+        status: ModerationStatus,
+    ) -> ServiceFuture<BaseProduct> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        debug!("Update moderation status {} for base_product {}", status, base_product_id);
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+            base_products_repo
+                .update_moderation_status(base_product_id, status)
+                .map_err(|e: FailureError| {
+                    e.context("Service base_products, update_moderation_status_base_product endpoint error occurred.")
+                        .into()
+                })
+        })
+    }
+
+    /// Send base product to moderation from store manager
+    fn send_base_product_to_moderation(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        debug!("Send base product: {} to moderation", base_product_id);
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+            let base_product = base_products_repo.find(base_product_id, Visibility::Active)?;
+
+            let status = match base_product {
+                Some(value) => value.status,
+                None => return Err(Error::NotFound.into()),
+            };
+
+            match status {
+                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published | ModerationStatus::Moderation => {
+                    Err(format_err!("Base product can not be sent to moderation")
+                        .context(Error::Validate(
+                            validation_errors!({"base_products": ["base_products" => "Base product can not be sent to moderation"]}),
+                        )).into())
+                }
+                ModerationStatus::Draft => base_products_repo
+                    .update_moderation_status(base_product_id, ModerationStatus::Moderation)
+                    .map_err(|e: FailureError| {
+                        e.context("Service base_products, send_base_product_to_moderation endpoint error occurred.")
+                            .into()
+                    }),
+            }
         })
     }
 

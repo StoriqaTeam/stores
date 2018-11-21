@@ -110,7 +110,10 @@ pub trait BaseProductsRepo {
     ) -> RepoResult<ModeratorBaseProductSearchResults>;
 
     /// Set moderation status for base_product_ids
-    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+    fn set_moderation_statuses(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Set moderation status for base_product_id
+    fn set_moderation_status(&self, base_product_id: BaseProductId, status: ModerationStatus) -> RepoResult<BaseProduct>;
 
     /// Set moderation status for base_product_ids from store manager
     fn update_moderation_statuses(&self, base_product_ids: Vec<BaseProductId>, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
@@ -716,7 +719,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Set moderation status for base_product
-    fn set_moderation_status(&self, base_product_ids: Vec<BaseProductId>, status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+    fn set_moderation_statuses(&self, base_product_ids: Vec<BaseProductId>, status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
         let query = base_products.filter(id.eq_any(base_product_ids.clone()));
 
         query
@@ -745,6 +748,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     base_product_ids
                 )).into()
             })
+    }
+
+    fn set_moderation_status(&self, base_product_id_arg: BaseProductId, status_arg: ModerationStatus) -> RepoResult<BaseProduct> {
+        let mut results = self.set_moderation_statuses(vec![base_product_id_arg], status_arg)?;
+
+        if let Some(base_product) = results.pop() {
+            Ok(base_product)
+        } else {
+            Err(errors::Error::NotFound.into())
+        }
     }
 
     /// Set moderation status for base_product_ids from store manager

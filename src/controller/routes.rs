@@ -26,7 +26,6 @@ pub enum Route {
     BaseProductWithVariant(BaseProductId),
     BaseProductCustomAttributes(BaseProductId),
     BaseProductPublish,
-    BaseProductDraft,
     Categories,
     Category(CategoryId),
     CategoryAttrs,
@@ -77,12 +76,11 @@ pub enum Route {
     StoreProductsCount(StoreId),
     StorePublish(StoreId),
     StoreDraft(StoreId),
-    StoreHide(StoreId),
     StoreModerate,
     StoreModeration(StoreId),
     BaseProductModerate,
     BaseProductModeration(BaseProductId),
-    BaseProductHide(BaseProductId),
+    BaseProductDraft(BaseProductId),
     Roles,
     RoleById {
         id: RoleId,
@@ -170,13 +168,6 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<StoreId>().ok())
             .map(Route::StoreModeration)
-    });
-
-    router.add_route_with_params(r"^/stores/(\d+)/hide$", |params| {
-        params
-            .get(0)
-            .and_then(|string_id| string_id.parse::<StoreId>().ok())
-            .map(Route::StoreHide)
     });
 
     // Products Routes
@@ -313,11 +304,11 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::BaseProductModeration)
     });
 
-    router.add_route_with_params(r"^/base_products/(\d+)/hide$", |params| {
+    router.add_route_with_params(r"^/base_products/(\d+)/draft$", |params| {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<BaseProductId>().ok())
-            .map(Route::BaseProductHide)
+            .map(Route::BaseProductDraft)
     });
 
     // Attributes Routes
@@ -498,9 +489,6 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // BaseProducts/publish route
     router.add_route(r"^/base_products/publish$", || Route::BaseProductPublish);
-
-    // BaseProducts/draft route
-    router.add_route(r"^/base_products/draft$", || Route::BaseProductDraft);
 
     router.add_route(r"^/roles$", || Route::Roles);
     router.add_route_with_params(r"^/roles/by-user-id/(\d+)$", |params| {

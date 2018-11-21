@@ -21,6 +21,7 @@ use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
 use repos::{CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
+use services::check_change_status;
 use services::check_vendor_code;
 use services::create_product_attributes_values;
 use services::Service;
@@ -114,7 +115,7 @@ pub trait BaseProductsService {
     /// send base product to moderation from store manager
     fn send_base_product_to_moderation(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
     /// Hide base product from search. For store manager
-    fn hide_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
+    fn set_base_product_moderation_status_draft(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
     // Flattens categories
     fn flatten_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
     /// Remove categories not 3rd level
@@ -766,20 +767,25 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+            let base_product = base_products_repo.find(base_product_id, Visibility::Active)?;
 
-            match status {
-                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published => base_products_repo
+            let current_status = match base_product {
+                Some(value) => value.status,
+                None => return Err(Error::NotFound.into()),
+            };
+
+            if check_change_status(current_status, status) {
+                base_products_repo
                     .set_moderation_status(base_product_id, status)
                     .map_err(|e: FailureError| {
                         e.context("Service base_products, set_moderation_status_base_product endpoint error occurred.")
                             .into()
-                    }),
-                ModerationStatus::Draft | ModerationStatus::Moderation => {
-                    Err(format_err!("Base product status: {} not valid for set", status)
-                        .context(Error::Validate(
-                            validation_errors!({"base_products": ["base_products" => "Base product new status is not valid"]}),
-                        )).into())
-                }
+                    })
+            } else {
+                Err(format_err!("Base product status: {} not valid for set", status)
+                    .context(Error::Validate(
+                        validation_errors!({"base_products": ["base_products" => "Base product new status is not valid"]}),
+                    )).into())
             }
         })
     }
@@ -820,25 +826,26 @@ impl<
                 None => return Err(Error::NotFound.into()),
             };
 
-            match status {
-                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published | ModerationStatus::Moderation => Err(
-                    format_err!("Base product with id: {}, cannot be sent to moderation", base_product_id)
-                        .context(Error::Validate(
-                            validation_errors!({"base_products": ["base_products" => "Base product can not be sent to moderation"]}),
-                        )).into(),
-                ),
-                ModerationStatus::Draft => base_products_repo
+            if check_change_status(status, ModerationStatus::Moderation) {
+                base_products_repo
                     .update_moderation_status(base_product_id, ModerationStatus::Moderation)
                     .map_err(|e: FailureError| {
                         e.context("Service base_products, send_base_product_to_moderation endpoint error occurred.")
                             .into()
-                    }),
+                    })
+            } else {
+                Err(
+                    format_err!("Base product with id: {}, cannot be sent to moderation", base_product_id)
+                        .context(Error::Validate(
+                            validation_errors!({"base_products": ["base_products" => "Base product can not be sent to moderation"]}),
+                        )).into(),
+                )
             }
         })
     }
 
     /// Hide base product from search. For store manager
-    fn hide_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct> {
+    fn set_base_product_moderation_status_draft(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         info!("Hide base product: {}", base_product_id);
@@ -852,22 +859,21 @@ impl<
                 None => return Err(Error::NotFound.into()),
             };
 
-            match status {
-                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Draft | ModerationStatus::Moderation => {
-                    Err(format_err!(
-                        "Base product with id: {}, cannot be hided when the store in status: {}",
-                        base_product_id,
-                        status
-                    ).context(Error::Validate(
-                        validation_errors!({"base_products": ["base_products" => "Base product cannot be hided"]}),
-                    )).into())
-                }
-                ModerationStatus::Published => base_products_repo
-                    .update_moderation_status(base_product_id, ModerationStatus::Moderation)
+            if check_change_status(status, ModerationStatus::Draft) {
+                base_products_repo
+                    .update_moderation_status(base_product_id, ModerationStatus::Draft)
                     .map_err(|e: FailureError| {
                         e.context("Service base_products, hide_base_product endpoint error occurred.")
                             .into()
-                    }),
+                    })
+            } else {
+                Err(format_err!(
+                    "Base product with id: {}, cannot be hided when the store in status: {}",
+                    base_product_id,
+                    status
+                ).context(Error::Validate(
+                    validation_errors!({"base_products": ["base_products" => "Base product cannot be hided"]}),
+                )).into())
             }
         })
     }

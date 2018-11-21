@@ -69,7 +69,7 @@ pub trait StoresService {
     fn send_store_to_moderation(&self, store_id: StoreId) -> ServiceFuture<Store>;
 
     /// Hide store from search. For store manager.
-    fn hide_store(&self, store_id: StoreId) -> ServiceFuture<Store>;
+    fn set_store_moderation_status_draft(&self, store_id: StoreId) -> ServiceFuture<Store>;
 }
 
 impl<
@@ -394,15 +394,22 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
+            let store = stores_repo.find(store_id, Visibility::Active)?;
 
-            match status {
-                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published => stores_repo
+            let current_status = match store {
+                Some(value) => value.status,
+                None => return Err(Error::NotFound.into()),
+            };
+
+            if check_change_status(current_status, status) {
+                stores_repo
                     .set_moderation_status(store_id, status)
-                    .map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into()),
-                ModerationStatus::Draft | ModerationStatus::Moderation => Err(format_err!("Store status: {} not valid for set", status)
+                    .map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into())
+            } else {
+                Err(format_err!("Store status: {} not valid for set", status)
                     .context(Error::Validate(
                         validation_errors!({"stores": ["stores" => "Store new status is not valid"]}),
-                    )).into()),
+                    )).into())
             }
         })
     }
@@ -437,25 +444,24 @@ impl<
                 None => return Err(Error::NotFound.into()),
             };
 
-            match status {
-                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published | ModerationStatus::Moderation => {
-                    Err(format_err!("Store with id: {}, cannot be sent to moderation", store_id)
-                        .context(Error::Validate(
-                            validation_errors!({"stores": ["stores" => "Store can not be sent to moderation"]}),
-                        )).into())
-                }
-                ModerationStatus::Draft => stores_repo
+            if check_change_status(status, ModerationStatus::Moderation) {
+                stores_repo
                     .update_moderation_status(store_id, ModerationStatus::Moderation)
                     .map_err(|e: FailureError| {
                         e.context("Service stores, send_store_to_moderation endpoint error occurred.")
                             .into()
-                    }),
+                    })
+            } else {
+                Err(format_err!("Store with id: {}, cannot be sent to moderation", store_id)
+                    .context(Error::Validate(
+                        validation_errors!({"stores": ["stores" => "Store can not be sent to moderation"]}),
+                    )).into())
             }
         })
     }
 
     /// Hide store from search. For store manager.
-    fn hide_store(&self, store_id: StoreId) -> ServiceFuture<Store> {
+    fn set_store_moderation_status_draft(&self, store_id: StoreId) -> ServiceFuture<Store> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         info!("Hide store: {}", store_id);
@@ -469,18 +475,38 @@ impl<
                 None => return Err(Error::NotFound.into()),
             };
 
-            match status {
-                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Draft | ModerationStatus::Moderation => Err(
+            if check_change_status(status, ModerationStatus::Draft) {
+                stores_repo
+                    .update_moderation_status(store_id, ModerationStatus::Draft)
+                    .map_err(|e: FailureError| e.context("Service stores, hide_store endpoint error occurred.").into())
+            } else {
+                Err(
                     format_err!("Store with id: {}, cannot be hided when the store in status: {}", store_id, status)
                         .context(Error::Validate(
                             validation_errors!({"stores": ["stores" => "Store cannot be hided"]}),
                         )).into(),
-                ),
-                ModerationStatus::Published => stores_repo
-                    .update_moderation_status(store_id, ModerationStatus::Draft)
-                    .map_err(|e: FailureError| e.context("Service stores, hide_store endpoint error occurred.").into()),
+                )
             }
         })
+    }
+}
+
+pub fn check_change_status(current_status: ModerationStatus, new_status: ModerationStatus) -> bool {
+    match (current_status, new_status) {
+        (ModerationStatus::Draft, ModerationStatus::Moderation) => true,
+        (ModerationStatus::Moderation, ModerationStatus::Published) => true,
+        (ModerationStatus::Published, ModerationStatus::Moderation) => true,
+        (ModerationStatus::Moderation, ModerationStatus::Blocked) => true,
+        (ModerationStatus::Blocked, ModerationStatus::Moderation) => true,
+        (ModerationStatus::Moderation, ModerationStatus::Decline) => true,
+        (ModerationStatus::Decline, ModerationStatus::Moderation) => true,
+        (ModerationStatus::Published, ModerationStatus::Draft) => true,
+        (ModerationStatus::Decline, ModerationStatus::Draft) => true,
+        (_, _) => {
+            debug!("change status from {} to {} unreachable.", current_status, new_status);
+
+            false
+        }
     }
 }
 

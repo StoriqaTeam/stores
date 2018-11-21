@@ -310,9 +310,7 @@ impl<
             }
 
             // POST /stores/<store_id>/draft
-            (&Post, Some(Route::StoreDraft(store_id))) => {
-                serialize_future(service.set_store_moderation_status(store_id, ModerationStatus::Draft))
-            }
+            (&Post, Some(Route::StoreDraft(store_id))) => serialize_future(service.set_store_moderation_status_draft(store_id)),
 
             // GET /products/<product_id>
             (&Get, Some(Route::Product(product_id))) => serialize_future(service.get_product(product_id)),
@@ -661,16 +659,9 @@ impl<
             ),
 
             // POST /base_products/draft
-            (&Post, Some(Route::BaseProductDraft)) => serialize_future(
-                parse_body::<Vec<BaseProductId>>(req.body())
-                    .map_err(|e| {
-                        e.context("Parsing body failed, target: Vec<BaseProductId>")
-                            .context(Error::Parse)
-                            .into()
-                    }).and_then(move |base_product_ids| {
-                        service.set_moderation_status_base_products(base_product_ids, ModerationStatus::Draft)
-                    }),
-            ),
+            (&Post, Some(Route::BaseProductDraft(base_product_id))) => {
+                serialize_future(service.set_base_product_moderation_status_draft(base_product_id))
+            }
 
             // POST /custom_attributes
             (&Post, Some(Route::CustomAttributes)) => serialize_future(

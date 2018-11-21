@@ -1,6 +1,7 @@
 //! EAV model attributes
 use serde_json;
 use stq_static_resources::Translation;
+use uuid::Uuid;
 use validator::Validate;
 
 use stq_static_resources::AttributeType;
@@ -16,6 +17,7 @@ pub struct Attribute {
     pub name: serde_json::Value,
     pub value_type: AttributeType,
     pub meta_field: Option<serde_json::Value>,
+    pub uuid: Uuid,
 }
 
 /// Payload for creating attributes
@@ -26,6 +28,7 @@ pub struct NewAttribute {
     pub name: serde_json::Value,
     pub value_type: AttributeType,
     pub meta_field: Option<serde_json::Value>,
+    pub uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -42,7 +45,9 @@ pub struct CreateAttributePayload {
     pub value_type: AttributeType,
     pub meta_field: Option<AttributeMetaField>,
     pub values: Option<Vec<CreateAttributeWithAttribute>>,
+    pub uuid: Uuid,
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone, Validate, PartialEq)]
 pub struct CreateAttributeWithAttribute {
     #[validate(custom = "validate_translation")]

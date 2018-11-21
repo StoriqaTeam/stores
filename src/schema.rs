@@ -4,6 +4,7 @@ table! {
         name -> Jsonb,
         value_type -> Varchar,
         meta_field -> Nullable<Jsonb>,
+        uuid -> Uuid,
     }
 }
 
@@ -35,6 +36,7 @@ table! {
         status -> Varchar,
         kafka_update_no -> Int4,
         currency -> Varchar,
+        uuid -> Uuid,
     }
 }
 
@@ -54,6 +56,7 @@ table! {
         level -> Int4,
         meta_field -> Nullable<Jsonb>,
         is_active -> Bool,
+        uuid -> Uuid,
     }
 }
 
@@ -156,6 +159,7 @@ table! {
         kafka_update_no -> Int4,
         pre_order -> Bool,
         pre_order_days -> Int4,
+        uuid -> Uuid,
     }
 }
 
@@ -194,6 +198,7 @@ table! {
         place_id -> Nullable<Varchar>,
         kafka_update_no -> Int4,
         country_code -> Nullable<Varchar>,
+        uuid -> Uuid,
     }
 }
 

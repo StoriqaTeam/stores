@@ -2,6 +2,7 @@
 use std::time::SystemTime;
 
 use serde_json;
+use uuid::Uuid;
 use validator::Validate;
 
 use stq_static_resources::{Currency, ModerationStatus, ModerationStatusForModerator};
@@ -34,6 +35,7 @@ pub struct BaseProduct {
     pub status: ModerationStatus,
     pub kafka_update_no: i32,
     pub currency: Currency,
+    pub uuid: Uuid,
 }
 
 /// Payload for creating base_products
@@ -55,6 +57,7 @@ pub struct NewBaseProduct {
     pub category_id: CategoryId,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
+    pub uuid: Uuid,
 }
 
 /// Payload for creating base product with variants

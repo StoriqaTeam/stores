@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 
 use serde_json;
+use uuid::Uuid;
 use validator::Validate;
 
 use stq_static_resources::{Currency, ModerationStatus};
@@ -34,6 +35,7 @@ pub struct RawProduct {
     pub kafka_update_no: i32,
     pub pre_order: bool,
     pub pre_order_days: i32,
+    pub uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -89,6 +91,7 @@ pub struct NewProduct {
     pub currency: Currency,
     pub pre_order: Option<bool>,
     pub pre_order_days: Option<i32>,
+    pub uuid: Uuid,
 }
 
 /// Payload for creating products
@@ -108,6 +111,7 @@ pub struct NewProductWithoutCurrency {
     pub price: ProductPrice,
     pub pre_order: Option<bool>,
     pub pre_order_days: Option<i32>,
+    pub uuid: Uuid,
 }
 
 impl From<(NewProductWithoutCurrency, Currency)> for NewProduct {
@@ -123,6 +127,7 @@ impl From<(NewProductWithoutCurrency, Currency)> for NewProduct {
             currency: other.1,
             pre_order: other.0.pre_order,
             pre_order_days: other.0.pre_order_days,
+            uuid: other.0.uuid,
         }
     }
 }

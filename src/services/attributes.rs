@@ -76,6 +76,7 @@ impl<
                     name: create_attribute_payload.name.clone(),
                     value_type: create_attribute_payload.value_type.clone(),
                     meta_field,
+                    uuid: create_attribute_payload.uuid,
                 };
                 let created_attribute = attributes_repo.create(new_attribute)?;
                 create_attribute_values(&*attribute_values_repo, created_attribute.id, create_attribute_payload)?;

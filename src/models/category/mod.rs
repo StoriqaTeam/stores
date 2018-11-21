@@ -4,6 +4,7 @@
 pub mod category_attribute;
 
 use serde_json;
+use uuid::Uuid;
 use validator::Validate;
 
 use stq_types::CategoryId;
@@ -23,6 +24,7 @@ pub struct RawCategory {
     pub level: i32,
     pub meta_field: Option<serde_json::Value>,
     pub is_active: bool,
+    pub uuid: Uuid,
 }
 
 /// Used to insert a category into the table
@@ -34,6 +36,7 @@ pub struct InsertCategory {
     pub level: i32,
     pub meta_field: Option<serde_json::Value>,
     pub is_active: bool,
+    pub uuid: Uuid,
 }
 
 /// Payload for creating categories
@@ -43,6 +46,7 @@ pub struct NewCategory {
     pub name: serde_json::Value,
     pub parent_id: CategoryId,
     pub meta_field: Option<serde_json::Value>,
+    pub uuid: Uuid,
 }
 
 /// Payload for updating categories

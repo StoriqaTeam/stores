@@ -314,6 +314,9 @@ impl<
                 serialize_future(service.set_store_moderation_status(store_id, ModerationStatus::Draft))
             }
 
+            // POST /stores/<store_id>/hide
+            (&Post, Some(Route::StoreHide(store_id))) => serialize_future(service.hide_store(store_id)),
+
             // GET /products/<product_id>
             (&Get, Some(Route::Product(product_id))) => serialize_future(service.get_product(product_id)),
 
@@ -671,6 +674,9 @@ impl<
                         service.set_moderation_status_base_products(base_product_ids, ModerationStatus::Draft)
                     }),
             ),
+
+            // POST /base_products/<base_product_id>/hide
+            (&Post, Some(Route::BaseProductHide(base_product_id))) => serialize_future(service.hide_base_product(base_product_id)),
 
             // POST /custom_attributes
             (&Post, Some(Route::CustomAttributes)) => serialize_future(

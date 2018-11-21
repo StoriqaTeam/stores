@@ -290,3 +290,9 @@ pub struct ModeratorStoreSearchResults {
     pub stores: Vec<Store>,
     pub total_count: u32,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StoreModerate {
+    pub store_id: StoreId,
+    pub status: ModerationStatus,
+}

@@ -165,3 +165,9 @@ pub struct ModeratorBaseProductSearchResults {
     pub base_products: Vec<BaseProduct>,
     pub total_count: u32,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BaseProductModerate {
+    pub base_product_id: BaseProductId,
+    pub status: ModerationStatus,
+}

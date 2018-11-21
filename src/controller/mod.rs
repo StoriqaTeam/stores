@@ -188,6 +188,16 @@ impl<
                     }).and_then(move |cart_products| service.find_by_cart(cart_products)),
             ),
 
+            // POST /stores/moderate
+            (&Post, Some(Route::StoreModerate)) => serialize_future(
+                parse_body::<StoreModerate>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: StoreModerate").context(Error::Parse).into())
+                    .and_then(move |store_moderate| service.set_store_moderation_status(store_moderate.store_id, store_moderate.status)),
+            ),
+
+            // POST /stores/moderation
+            (&Post, Some(Route::StoreModeration(store_id))) => serialize_future(service.send_store_to_moderation(store_id)),
+
             // POST /stores/search
             (&Post, Some(Route::StoresSearch)) => {
                 if let (Some(offset), Some(count)) = parse_query!(req.query().unwrap_or_default(), "offset" => i32, "count" => i32) {
@@ -463,6 +473,23 @@ impl<
                     }),
             ),
 
+            // POST /base_products/moderate
+            (&Post, Some(Route::BaseProductModerate)) => serialize_future(
+                parse_body::<BaseProductModerate>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: BaseProductModerate")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |base_product_moderate| {
+                        service.set_moderation_status_base_product(base_product_moderate.base_product_id, base_product_moderate.status)
+                    }),
+            ),
+
+            // POST /base_products/moderation
+            (&Post, Some(Route::BaseProductModeration(base_product_id))) => {
+                serialize_future(service.send_base_product_to_moderation(base_product_id))
+            }
+
             // POST /base_products/with_variants
             (&Post, Some(Route::BaseProductWithVariants)) => serialize_future(
                 parse_body::<NewBaseProductWithVariants>(req.body())
@@ -629,7 +656,7 @@ impl<
                             .context(Error::Parse)
                             .into()
                     }).and_then(move |base_product_ids| {
-                        service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Published)
+                        service.set_moderation_status_base_products(base_product_ids, ModerationStatus::Published)
                     }),
             ),
 
@@ -641,7 +668,7 @@ impl<
                             .context(Error::Parse)
                             .into()
                     }).and_then(move |base_product_ids| {
-                        service.set_moderation_status_base_product(base_product_ids, ModerationStatus::Draft)
+                        service.set_moderation_status_base_products(base_product_ids, ModerationStatus::Draft)
                     }),
             ),
 

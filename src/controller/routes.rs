@@ -77,6 +77,10 @@ pub enum Route {
     StoreProductsCount(StoreId),
     StorePublish(StoreId),
     StoreDraft(StoreId),
+    StoreModerate,
+    StoreModeration(StoreId),
+    BaseProductModerate,
+    BaseProductModeration(BaseProductId),
     Roles,
     RoleById {
         id: RoleId,
@@ -155,6 +159,16 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Stores auto complete route
     router.add_route(r"^/stores/auto_complete$", || Route::StoresAutoComplete);
+
+    // Change moderation status by moderator
+    router.add_route(r"^stores/moderate$", || Route::StoreModerate);
+
+    router.add_route_with_params(r"^/stores/(\d+)/moderation$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<StoreId>().ok())
+            .map(Route::StoreModeration)
+    });
 
     // Products Routes
     router.add_route(r"^/products$", || Route::Products);
@@ -279,6 +293,16 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // BaseProducts search filters count route
     router.add_route(r"^/base_products/search/filters/count$", || Route::BaseProductsSearchFiltersCount);
+
+    // Change moderation status by moderator
+    router.add_route(r"^base_products/moderate$", || Route::BaseProductModerate);
+
+    router.add_route_with_params(r"^/base_products/(\d+)/moderation$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<BaseProductId>().ok())
+            .map(Route::BaseProductModeration)
+    });
 
     // Attributes Routes
     router.add_route(r"^/attributes$", || Route::Attributes);

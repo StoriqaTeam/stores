@@ -61,6 +61,12 @@ pub trait StoresService {
     ) -> ServiceFuture<ModeratorStoreSearchResults>;
     /// Set moderation status for specific store
     fn set_store_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store>;
+
+    /// Set moderation status for specific store from store manager
+    fn update_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store>;
+
+    /// Send store to moderation from store manager
+    fn send_store_to_moderation(&self, store_id: StoreId) -> ServiceFuture<Store>;
 }
 
 impl<
@@ -381,13 +387,67 @@ impl<
     fn set_store_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store> {
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
-        debug!("Set moderation status {} for store {}", status, &store_id);
+        debug!("Set moderation status {} for store {}", status, store_id);
 
         self.spawn_on_pool(move |conn| {
             let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
-            stores_repo
-                .set_moderation_status(store_id, status)
-                .map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into())
+
+            match status {
+                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published => stores_repo
+                    .set_moderation_status(store_id, status)
+                    .map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into()),
+                ModerationStatus::Draft | ModerationStatus::Moderation => Err(format_err!("Store status: {} not valid for set", status)
+                    .context(Error::Validate(
+                        validation_errors!({"stores": ["stores" => "Store new status is not valid"]}),
+                    )).into()),
+            }
+        })
+    }
+
+    /// Set moderation status for specific store from store manager
+    fn update_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<Store> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        debug!("Update moderation status {} for store {}", status, store_id);
+
+        self.spawn_on_pool(move |conn| {
+            let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
+            stores_repo.update_moderation_status(store_id, status).map_err(|e: FailureError| {
+                e.context("Service stores, update_moderation_status endpoint error occurred.")
+                    .into()
+            })
+        })
+    }
+
+    /// Send store to moderation from store manager
+    fn send_store_to_moderation(&self, store_id: StoreId) -> ServiceFuture<Store> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        debug!("Send store: {} to moderation", store_id);
+
+        self.spawn_on_pool(move |conn| {
+            let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
+            let store = stores_repo.find(store_id, Visibility::Active)?;
+
+            let status = match store {
+                Some(value) => value.status,
+                None => return Err(Error::NotFound.into()),
+            };
+
+            match status {
+                ModerationStatus::Blocked | ModerationStatus::Decline | ModerationStatus::Published | ModerationStatus::Moderation => {
+                    Err(format_err!("Store can not be sent to moderation")
+                        .context(Error::Validate(
+                            validation_errors!({"stores": ["stores" => "Store can not be sent to moderation"]}),
+                        )).into())
+                }
+                ModerationStatus::Draft => stores_repo
+                    .update_moderation_status(store_id, ModerationStatus::Moderation)
+                    .map_err(|e: FailureError| {
+                        e.context("Service stores, send_store_to_moderation endpoint error occurred.")
+                            .into()
+                    }),
+            }
         })
     }
 }

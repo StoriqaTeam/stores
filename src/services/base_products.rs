@@ -113,6 +113,12 @@ pub trait BaseProductsService {
     fn send_base_product_to_moderation(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
     /// Hide base product from search. For store manager
     fn set_base_product_moderation_status_draft(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
+    // Check that you can change the moderation status
+    fn validate_change_moderation_status_base_product(
+        &self,
+        base_product_id: BaseProductId,
+        status: ModerationStatus,
+    ) -> ServiceFuture<bool>;
     // Flattens categories
     fn flatten_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
     /// Remove categories not 3rd level
@@ -835,6 +841,29 @@ impl<
                 e.context("Service base_products, set_base_product_moderation_status_draft endpoint error occurred.")
                     .into()
             })
+        })
+    }
+
+    // Check that you can change the moderation status
+    fn validate_change_moderation_status_base_product(
+        &self,
+        base_product_id: BaseProductId,
+        status: ModerationStatus,
+    ) -> ServiceFuture<bool> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        info!("Check change moderation status base product: {}", base_product_id);
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+            let base_product = base_products_repo.find(base_product_id, Visibility::Active)?;
+
+            let current_status = match base_product {
+                Some(value) => value.status,
+                None => return Err(Error::NotFound.into()),
+            };
+
+            Ok(check_change_status(current_status, status))
         })
     }
 

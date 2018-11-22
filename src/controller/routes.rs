@@ -76,11 +76,13 @@ pub enum Route {
     StoreProductsCount(StoreId),
     StorePublish(StoreId),
     StoreDraft(StoreId),
+    StoreValidateChangeModerationStatus,
     StoreModerate,
     StoreModeration(StoreId),
     BaseProductModerate,
     BaseProductModeration(BaseProductId),
     BaseProductDraft(BaseProductId),
+    BaseProductValidateChangeModerationStatus,
     Roles,
     RoleById {
         id: RoleId,
@@ -162,6 +164,11 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Change moderation status by moderator
     router.add_route(r"^stores/moderate$", || Route::StoreModerate);
+
+    // Check that you can change the moderation status
+    router.add_route(r"^stores/validate_change_moderation_status$", || {
+        Route::StoreValidateChangeModerationStatus
+    });
 
     router.add_route_with_params(r"^/stores/(\d+)/moderation$", |params| {
         params
@@ -296,6 +303,11 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Change moderation status by moderator
     router.add_route(r"^base_products/moderate$", || Route::BaseProductModerate);
+
+    // Check that you can change the moderation status
+    router.add_route(r"^base_products/validate_change_moderation_status$", || {
+        Route::BaseProductValidateChangeModerationStatus
+    });
 
     router.add_route_with_params(r"^/base_products/(\d+)/moderation$", |params| {
         params

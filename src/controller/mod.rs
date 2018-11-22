@@ -195,6 +195,15 @@ impl<
                     .and_then(move |store_moderate| service.set_store_moderation_status(store_moderate.store_id, store_moderate.status)),
             ),
 
+            // POST /stores/validate_change_moderation_status
+            (&Post, Some(Route::StoreValidateChangeModerationStatus)) => serialize_future(
+                parse_body::<StoreModerate>(req.body())
+                    .map_err(|e| e.context("Parsing body failed, target: StoreModerate").context(Error::Parse).into())
+                    .and_then(move |store_moderate| {
+                        service.validate_change_moderation_status_store(store_moderate.store_id, store_moderate.status)
+                    }),
+            ),
+
             // POST /stores/moderation
             (&Post, Some(Route::StoreModeration(store_id))) => serialize_future(service.send_store_to_moderation(store_id)),
 
@@ -480,6 +489,21 @@ impl<
                             .into()
                     }).and_then(move |base_product_moderate| {
                         service.set_moderation_status_base_product(base_product_moderate.base_product_id, base_product_moderate.status)
+                    }),
+            ),
+
+            // POST /base_products/validate_change_moderation_status
+            (&Post, Some(Route::BaseProductValidateChangeModerationStatus)) => serialize_future(
+                parse_body::<BaseProductModerate>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: BaseProductModerate")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |base_product_moderate| {
+                        service.validate_change_moderation_status_base_product(
+                            base_product_moderate.base_product_id,
+                            base_product_moderate.status,
+                        )
                     }),
             ),
 

@@ -67,6 +67,9 @@ pub trait StoresService {
 
     /// Hide store from search. For store manager.
     fn set_store_moderation_status_draft(&self, store_id: StoreId) -> ServiceFuture<Store>;
+
+    // Check that you can change the moderation status
+    fn validate_change_moderation_status_store(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<bool>;
 }
 
 impl<
@@ -480,6 +483,25 @@ impl<
                 e.context("Service stores, set_store_moderation_status_draft endpoint error occurred.")
                     .into()
             })
+        })
+    }
+
+    // Check that you can change the moderation status
+    fn validate_change_moderation_status_store(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<bool> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        info!("Check change moderation status store: {}", store_id);
+
+        self.spawn_on_pool(move |conn| {
+            let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
+            let store = stores_repo.find(store_id, Visibility::Active)?;
+
+            let current_status = match store {
+                Some(value) => value.status,
+                None => return Err(Error::NotFound.into()),
+            };
+
+            Ok(check_change_status(current_status, status))
         })
     }
 }

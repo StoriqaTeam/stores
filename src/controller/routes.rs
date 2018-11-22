@@ -163,10 +163,10 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/stores/auto_complete$", || Route::StoresAutoComplete);
 
     // Change moderation status by moderator
-    router.add_route(r"^stores/moderate$", || Route::StoreModerate);
+    router.add_route(r"^/stores/moderate$", || Route::StoreModerate);
 
     // Check that you can change the moderation status
-    router.add_route(r"^stores/validate_change_moderation_status$", || {
+    router.add_route(r"^/stores/validate_change_moderation_status$", || {
         Route::StoreValidateChangeModerationStatus
     });
 
@@ -302,10 +302,10 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/base_products/search/filters/count$", || Route::BaseProductsSearchFiltersCount);
 
     // Change moderation status by moderator
-    router.add_route(r"^base_products/moderate$", || Route::BaseProductModerate);
+    router.add_route(r"^/base_products/moderate$", || Route::BaseProductModerate);
 
     // Check that you can change the moderation status
-    router.add_route(r"^base_products/validate_change_moderation_status$", || {
+    router.add_route(r"^/base_products/validate_change_moderation_status$", || {
         Route::BaseProductValidateChangeModerationStatus
     });
 

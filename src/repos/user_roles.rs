@@ -2,6 +2,8 @@
 //! users and roles. I.e. this table is for user has-many roles
 //! relationship
 
+use std::collections::HashSet;
+
 use diesel;
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -38,6 +40,9 @@ pub trait UserRolesRepo {
 
     /// Delete user roles by user id
     fn delete_by_user_id(&self, user_id_arg: UserId) -> RepoResult<Vec<UserRole>>;
+
+    /// Returns collection user_id
+    fn get_user_ids_by_role(&self, role_name: StoresRole) -> RepoResult<HashSet<UserId>>;
 }
 
 /// Implementation of UserRoles trait
@@ -161,6 +166,21 @@ where
                 e.context(format!("Delete user {} role {:?} error occurred", user_id_arg, name_arg))
                     .into()
             })
+    }
+
+    /// Returns collection user_id
+    fn get_user_ids_by_role(&self, role_name: StoresRole) -> RepoResult<HashSet<UserId>> {
+        info!("List user ids for role {:?}.", role_name);
+        let query = user_roles.filter(name.eq(&role_name));
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|results: Vec<UserRole>| {
+                for user_role in results.iter() {
+                    acl::check(&*self.acl, Resource::UserRoles, Action::Read, self, Some(&user_role))?;
+                }
+                Ok(results.into_iter().map(|user_role| user_role.user_id).collect::<HashSet<UserId>>())
+            }).map_err(|e: FailureError| e.context(format!("List user ids for role {:?}. error occurred.", role_name)).into())
     }
 }
 

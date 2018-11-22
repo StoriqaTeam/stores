@@ -13,7 +13,7 @@ services:
       - stq_cargo_cache:/usr/local/cargo
     environment:
       - DATABASE_URL=postgresql://stores:stores@stores-pg/stores
-      - "RUST_LOG=stores=debug"
+      - "RUST_LOG=stores=debug,stq_http=debug"
     ports:
       - "8000"
     expose:

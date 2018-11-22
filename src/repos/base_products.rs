@@ -121,6 +121,9 @@ pub trait BaseProductsRepo {
     /// Set moderation status for base_product_id from store manager
     fn update_moderation_status(&self, base_product_id: BaseProductId, status: ModerationStatus) -> RepoResult<BaseProduct>;
 
+    /// Set moderation status for base_products by store. For store manager
+    fn update_moderation_status_by_store(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+
     /// Getting all base products with variants
     fn get_all_catalog(&self) -> RepoResult<Vec<CatalogWithAttributes>>;
 }
@@ -798,13 +801,38 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Set moderation status for base_product_id from store manager
     fn update_moderation_status(&self, base_product_id_arg: BaseProductId, status_arg: ModerationStatus) -> RepoResult<BaseProduct> {
-        let mut results = self.update_moderation_statuses(vec![base_product_id_arg], status_arg)?;
+        self.update_moderation_statuses(vec![base_product_id_arg], status_arg)
+            .and_then(|mut results| {
+                if let Some(base_product) = results.pop() {
+                    Ok(base_product)
+                } else {
+                    Err(errors::Error::NotFound.into())
+                }
+            }).map_err(|e: FailureError| {
+                e.context(format!(
+                    "Update moderation status for base_product {} error occurred",
+                    base_product_id_arg
+                )).into()
+            })
+    }
 
-        if let Some(base_product) = results.pop() {
-            Ok(base_product)
-        } else {
-            Err(errors::Error::NotFound.into())
-        }
+    /// Set moderation status for base_products by store. For store manager
+    fn update_moderation_status_by_store(&self, store_id_arg: StoreId, status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+        let query = base_products.filter(store_id.eq(store_id_arg));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|results: Vec<BaseProduct>| {
+                let ids = results.into_iter().map(|p| p.id).collect();
+
+                self.update_moderation_statuses(ids, status_arg)
+            }).map_err(|e: FailureError| {
+                e.context(format!(
+                    "Update moderation status for base_products by store_id {} error occurred",
+                    store_id_arg
+                )).into()
+            })
     }
 
     /// Getting all base products with variants

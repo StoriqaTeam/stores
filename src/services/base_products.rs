@@ -633,6 +633,8 @@ impl<
             conn.transaction::<BaseProduct, FailureError, _>(move || {
                 let old_prod = base_products_repo.find(base_product_id, Visibility::Active)?;
                 if let Some(old_prod) = old_prod {
+                    // validate
+                    validate_base_product_update(&*base_products_repo, old_prod.store_id.clone(), old_prod.id, &payload)?;
                     let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
                     if let Some(new_cat_id) = payload.category_id {
                         // updating product categories of the store
@@ -1025,6 +1027,30 @@ fn validate_base_product(base_products_repo: &BaseProductsRepo, payload: &NewBas
             ).context(Error::Validate(
                 validation_errors!({"base_products": ["base_products" => "Base product with such slug already exists"]}),
             )).into());
+        }
+    }
+    Ok(())
+}
+
+fn validate_base_product_update(
+    base_products_repo: &BaseProductsRepo,
+    store_id: StoreId,
+    base_product_id: BaseProductId,
+    payload: &UpdateBaseProduct,
+) -> Result<(), FailureError> {
+    if let Some(base_product_slug) = payload.slug.clone() {
+        let base_product_with_same_slug =
+            base_products_repo.find_by_slug(store_id, BaseProductSlug(base_product_slug.clone()), Visibility::Active)?;
+        if let Some(base_product_with_same_slug) = base_product_with_same_slug {
+            if base_product_with_same_slug.id != base_product_id {
+                return Err(format_err!(
+                    "Base product with slug {} in store with id {} already exists",
+                    base_product_slug,
+                    store_id
+                ).context(Error::Validate(
+                    validation_errors!({"base_products": ["base_products" => "Base product with such slug already exists"]}),
+                )).into());
+            }
         }
     }
     Ok(())

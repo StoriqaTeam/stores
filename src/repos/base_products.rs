@@ -224,8 +224,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .filter(slug.eq(&base_product_slug))
-            .inner_join(Stores::stores)
-            .filter(Stores::id.eq(store_id_arg))
+            .filter(store_id.eq(store_id_arg))
             .first(self.db_conn)
             .optional()
             .map_err(From::from)

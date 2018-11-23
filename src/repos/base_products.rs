@@ -14,7 +14,7 @@ use failure::Error as FailureError;
 use failure::Fail;
 
 use stq_static_resources::ModerationStatus;
-use stq_types::{BaseProductId, CategoryId, ProductId, StoreId, UserId};
+use stq_types::{BaseProductId, BaseProductSlug, CategoryId, ProductId, StoreId, UserId};
 
 use models::authorization::*;
 use models::{
@@ -53,6 +53,14 @@ pub trait BaseProductsRepo {
     /// Find specific base_product by ID
     fn find(&self, base_product_id: BaseProductId, visibility: Visibility) -> RepoResult<Option<BaseProduct>>;
 
+    /// Find specific base_product by slug
+    fn find_by_slug(
+        &self,
+        store_id: StoreId,
+        base_product_slug: BaseProductSlug,
+        visibility: Visibility,
+    ) -> RepoResult<Option<BaseProduct>>;
+
     /// Find base_products by ids
     fn find_many(&self, base_product_ids: Vec<BaseProductId>) -> RepoResult<Vec<BaseProduct>>;
 
@@ -89,6 +97,9 @@ pub trait BaseProductsRepo {
 
     /// Update views on specific base_product
     fn update_views(&self, base_product_id: BaseProductId) -> RepoResult<Option<BaseProduct>>;
+
+    /// Update views on specific base_product by slug
+    fn update_views_by_slug(&self, store_id: StoreId, base_product_slug: BaseProductSlug) -> RepoResult<Option<BaseProduct>>;
 
     /// Deactivates specific base_product
     fn deactivate(&self, base_product_id: BaseProductId) -> RepoResult<BaseProduct>;
@@ -188,6 +199,51 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(base_product)
             }).map_err(|e: FailureError| {
                 e.context(format!("Find base product by id: {} error occurred", base_product_id_arg))
+                    .into()
+            })
+    }
+
+    /// Find specific base_product by slug
+    fn find_by_slug(
+        &self,
+        store_id_arg: StoreId,
+        base_product_slug: BaseProductSlug,
+        visibility: Visibility,
+    ) -> RepoResult<Option<BaseProduct>> {
+        debug!(
+            "Find in base products with slug {}, visibility = {:?}",
+            base_product_slug, visibility
+        );
+
+        let query = match visibility {
+            Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => base_products
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
+
+        query
+            .filter(slug.eq(&base_product_slug))
+            .inner_join(Stores::stores)
+            .filter(Stores::id.eq(store_id_arg))
+            .first(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .and_then(|base_product: Option<BaseProduct>| {
+                if let Some(ref base_product) = base_product {
+                    acl::check_with_rule(
+                        &*self.acl,
+                        Resource::BaseProducts,
+                        Action::Read,
+                        self,
+                        Rule::ModerationStatus(base_product.status),
+                        Some(base_product),
+                    )?;
+                };
+
+                Ok(base_product)
+            }).map_err(|e: FailureError| {
+                e.context(format!("Find base product by slug: {} error occurred", base_product_slug))
                     .into()
             })
     }
@@ -414,6 +470,25 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .map_err(|e: FailureError| {
                 e.context(format!("Updating views of base product with id {} failed", base_product_id_arg))
+                    .into()
+            })
+    }
+
+    /// Update views on specific base_product by slug
+    fn update_views_by_slug(&self, store_id_arg: StoreId, base_product_slug: BaseProductSlug) -> RepoResult<Option<BaseProduct>> {
+        debug!("Updating views of base product with slug {}.", base_product_slug);
+        let filter = base_products
+            .filter(slug.eq(&base_product_slug))
+            .filter(is_active.eq(true))
+            .filter(status.eq(ModerationStatus::Published))
+            .filter(store_id.eq(&store_id_arg));
+        let query = diesel::update(filter).set(views.eq(views + 1));
+        query
+            .get_result::<BaseProduct>(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .map_err(|e: FailureError| {
+                e.context(format!("Updating views of base product with slug {} failed", base_product_slug))
                     .into()
             })
     }

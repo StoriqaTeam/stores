@@ -12,7 +12,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 
 use stq_static_resources::{ModerationStatus, Translation};
-use stq_types::{StoreId, UserId};
+use stq_types::{StoreId, StoreSlug, UserId};
 
 use models::authorization::*;
 use models::{
@@ -37,6 +37,9 @@ pub trait StoresRepo {
 
     /// Find specific store by ID
     fn find(&self, store_id: StoreId, visibility: Visibility) -> RepoResult<Option<Store>>;
+
+    /// Find specific store by slug
+    fn find_by_slug(&self, store_slug: StoreSlug, visibility: Visibility) -> RepoResult<Option<Store>>;
 
     /// Returns list of stores, limited by `from` and `count` parameters
     fn list(&self, from: StoreId, count: i32, visibility: Visibility) -> RepoResult<Vec<Store>>;
@@ -135,6 +138,37 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
                 Ok(store)
             }).map_err(|e: FailureError| e.context(format!("Find store with id: {} error occurred", store_id_arg)).into())
+    }
+
+    /// Find specific store by slug
+    fn find_by_slug(&self, store_slug: StoreSlug, visibility: Visibility) -> RepoResult<Option<Store>> {
+        debug!("Find in stores with slug {}, visibility = {:?}", store_slug, visibility);
+
+        let query = match visibility {
+            Visibility::Active => stores.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => stores
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
+
+        query
+            .filter(slug.eq(&store_slug))
+            .first(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .and_then(|store: Option<Store>| {
+                if let Some(ref store) = store {
+                    acl::check_with_rule(
+                        &*self.acl,
+                        Resource::Stores,
+                        Action::Read,
+                        self,
+                        Rule::ModerationStatus(store.status),
+                        Some(store),
+                    )?;
+                };
+                Ok(store)
+            }).map_err(|e: FailureError| e.context(format!("Find store with slug: {} error occurred", store_slug)).into())
     }
 
     /// Creates new store

@@ -118,6 +118,12 @@ impl<
                 serialize_future(service.get_store(store_id, visibility))
             }
 
+            // GET /stores/by-slug/<store_slug>
+            (&Get, Some(Route::StoreBySlug(store_slug))) => {
+                let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
+                serialize_future(service.get_store_by_slug(store_slug, visibility))
+            }
+
             // GET /stores
             (&Get, Some(Route::Stores)) => {
                 let params = parse_query!(
@@ -409,9 +415,20 @@ impl<
                 serialize_future(service.get_base_product(base_product_id, visibility))
             }
 
+            // GET /store/by-slug/<store_slug>/base_products/by-slug/<base_product_slug>
+            (&Get, Some(Route::BaseProductBySlug(store_slug, base_product_slug))) => {
+                let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
+                serialize_future(service.get_base_product_by_slug(StoreIdentifier::Slug(store_slug), base_product_slug, visibility))
+            }
+
             // GET /base_products/<base_product_id>/update_view
             (&Get, Some(Route::BaseProductWithViewsUpdate(base_product_id))) => {
                 serialize_future(service.get_base_product_with_views_update(base_product_id))
+            }
+
+            // GET /store/by-slug/<store_slug>/base_products/by-slug/<base_product_slug>/update_view
+            (&Get, Some(Route::BaseProductBySlugWithViewsUpdate(store_slug, base_product_slug))) => {
+                serialize_future(service.get_base_product_by_slug_with_views_update(StoreIdentifier::Slug(store_slug), base_product_slug))
             }
 
             // GET /base_products/<base_product_id>/custom_attributes

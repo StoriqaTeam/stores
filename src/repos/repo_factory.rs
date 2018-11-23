@@ -989,6 +989,40 @@ pub mod tests {
             Ok(1)
         }
 
+        /// Find specific base_product by slug
+        fn find_by_slug(
+            &self,
+            _store_id: StoreId,
+            _base_product_slug: BaseProductSlug,
+            _visibility: Visibility,
+        ) -> RepoResult<Option<BaseProduct>> {
+            Ok(None)
+        }
+
+        /// Update views on specific base_product by slug
+        fn update_views_by_slug(&self, store_id: StoreId, base_product_slug: BaseProductSlug) -> RepoResult<Option<BaseProduct>> {
+            Ok(Some(BaseProduct {
+                id: MOCK_BASE_PRODUCT_ID,
+                is_active: true,
+                store_id: store_id,
+                name: serde_json::from_str("{}").unwrap(),
+                short_description: serde_json::from_str("{}").unwrap(),
+                long_description: None,
+                seo_title: None,
+                seo_description: None,
+                currency: Currency::STQ,
+                category_id: CategoryId(1),
+                views: 1,
+                created_at: SystemTime::now(),
+                updated_at: SystemTime::now(),
+                rating: 0f64,
+                slug: base_product_slug,
+                status: ModerationStatus::Published,
+                kafka_update_no: 0,
+                uuid: uuid::Uuid::new_v4(),
+            }))
+        }
+
         /// Find specific base_product by ID
         fn find(&self, base_product_id: BaseProductId, _visibility: Visibility) -> RepoResult<Option<BaseProduct>> {
             Ok(Some(BaseProduct {
@@ -1006,7 +1040,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1032,7 +1066,7 @@ pub mod tests {
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
                     rating: 0f64,
-                    slug: "slug".to_string(),
+                    slug: BaseProductSlug("slug".to_string()),
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
                     uuid: uuid::Uuid::new_v4(),
@@ -1068,7 +1102,7 @@ pub mod tests {
                     rating: 0f64,
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
-                    slug: "slug".to_string(),
+                    slug: BaseProductSlug("slug".to_string()),
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
                     uuid: uuid::Uuid::new_v4(),
@@ -1104,7 +1138,7 @@ pub mod tests {
                     created_at: SystemTime::now(),
                     updated_at: SystemTime::now(),
                     rating: 0f64,
-                    slug: "slug".to_string(),
+                    slug: BaseProductSlug("slug".to_string()),
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
                     uuid: uuid::Uuid::new_v4(),
@@ -1140,7 +1174,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1164,7 +1198,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1188,7 +1222,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1212,7 +1246,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1235,7 +1269,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1289,7 +1323,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status: status_arg,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1320,7 +1354,7 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
                 rating: 0f64,
-                slug: "slug".to_string(),
+                slug: BaseProductSlug("slug".to_string()),
                 status,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
@@ -1493,6 +1527,11 @@ pub mod tests {
 
         fn find(&self, store_id: StoreId, _visibility: Visibility) -> RepoResult<Option<Store>> {
             let store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
+            Ok(Some(store))
+        }
+
+        fn find_by_slug(&self, _store_slug: StoreSlug, _visibility: Visibility) -> RepoResult<Option<Store>> {
+            let store = create_store(MOCK_STORE_ID, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             Ok(Some(store))
         }
 

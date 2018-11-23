@@ -10,7 +10,7 @@ use futures::future::*;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, CategoryId, ExchangeRate, ProductId, StoreId};
+use stq_types::{BaseProductId, BaseProductSlug, CategoryId, ExchangeRate, ProductId, StoreId, StoreIdentifier};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -20,7 +20,7 @@ use repos::clear_child_categories;
 use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
-use repos::{CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
+use repos::{BaseProductsRepo, CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
 use services::check_vendor_code;
 use services::create_product_attributes_values;
 use services::Service;
@@ -63,8 +63,21 @@ pub trait BaseProductsService {
     fn search_base_products_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
     /// Returns product by ID
     fn get_base_product(&self, base_product_id: BaseProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<BaseProduct>>;
+    /// Returns product by Slug
+    fn get_base_product_by_slug(
+        &self,
+        store_identifier: StoreIdentifier,
+        base_product_slug: BaseProductSlug,
+        visibility: Option<Visibility>,
+    ) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base product by ID with update views
     fn get_base_product_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
+    /// Returns base product by Slug with update views
+    fn get_base_product_by_slug_with_views_update(
+        &self,
+        store_identifier: StoreIdentifier,
+        base_product_slug: BaseProductSlug,
+    ) -> ServiceFuture<Option<BaseProduct>>;
     /// Returns base_product by product ID
     fn get_base_product_by_product(
         &self,
@@ -519,6 +532,8 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
             conn.transaction::<(BaseProduct), FailureError, _>(move || {
+                //validate
+                validate_base_product(&*base_products_repo, &payload)?;
                 // create base_product
                 let base_prod = base_products_repo.create(payload)?;
 
@@ -552,6 +567,8 @@ impl<
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
 
             conn.transaction::<BaseProduct, FailureError, _>(move || {
+                //validate base_product
+                validate_base_product(&*base_products_repo, &new_base_product)?;
                 // create base_product
                 let base_prod = base_products_repo.create(new_base_product)?;
                 let base_prod_id = base_prod.id;
@@ -903,6 +920,82 @@ impl<
             Box::new(future::ok(None))
         }
     }
+
+    fn get_base_product_by_slug(
+        &self,
+        store_identifier: StoreIdentifier,
+        base_product_slug: BaseProductSlug,
+        visibility: Option<Visibility>,
+    ) -> ServiceFuture<Option<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        debug!(
+            "Get base product by slug = {:?} with visibility = {:?}",
+            base_product_slug, visibility
+        );
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+            let store_id = match store_identifier {
+                StoreIdentifier::Id(store_id) => store_id,
+                StoreIdentifier::Slug(store_slug) => stores_repo
+                    .find_by_slug(store_slug.clone(), visibility)?
+                    .map(|store| store.id)
+                    .ok_or(format_err!("Store with slug \"{}\" not found", store_slug).context(Error::NotFound))?,
+            };
+            base_products_repo
+                .find_by_slug(store_id, base_product_slug, visibility)
+                .map_err(|e| {
+                    e.context("Service BaseProduct, get_base_product_by_slug endpoint error occurred.")
+                        .into()
+                })
+        })
+    }
+
+    fn get_base_product_by_slug_with_views_update(
+        &self,
+        store_identifier: StoreIdentifier,
+        base_product_slug: BaseProductSlug,
+    ) -> ServiceFuture<Option<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+            let store_id = match store_identifier {
+                StoreIdentifier::Id(store_id) => store_id,
+                StoreIdentifier::Slug(store_slug) => stores_repo
+                    .find_by_slug(store_slug.clone(), Visibility::Published)?
+                    .map(|store| store.id)
+                    .ok_or(format_err!("Store with slug {} not found", store_slug))?,
+            };
+            base_products_repo.update_views_by_slug(store_id, base_product_slug).map_err(|e| {
+                e.context("Service BaseProduct, get_base_product_by_slug_with_views_update endpoint error occurred.")
+                    .into()
+            })
+        })
+    }
+}
+
+fn validate_base_product(base_products_repo: &BaseProductsRepo, payload: &NewBaseProduct) -> Result<(), FailureError> {
+    if let Some(base_product_slug) = payload.slug.clone() {
+        let base_product_with_same_slug =
+            base_products_repo.find_by_slug(payload.store_id, BaseProductSlug(base_product_slug.clone()), Visibility::Active)?;
+        if base_product_with_same_slug.is_some() {
+            return Err(format_err!(
+                "Base product with slug {} in store with id {} already exists",
+                base_product_slug,
+                payload.store_id
+            ).context(Error::Validate(
+                validation_errors!({"base_products": ["base_products" => "Base product with such slug already exists"]}),
+            )).into());
+        }
+    }
+    Ok(())
 }
 
 fn calculate_customer_price(

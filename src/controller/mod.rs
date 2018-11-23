@@ -820,6 +820,7 @@ impl<
             ) => serialize_future(service.delete_used_coupon(coupon_id, user_id_arg)),
 
             (&Get, Some(Route::RolesByUserId { user_id })) => serialize_future({ service.get_roles(user_id) }),
+            (&Get, Some(Route::UserIdByRole { role })) => serialize_future({ service.get_user_ids_by_role(role) }),
             (&Post, Some(Route::Roles)) => {
                 serialize_future({ parse_body::<NewUserRole>(req.body()).and_then(move |data| service.create_user_role(data)) })
             }

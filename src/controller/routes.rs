@@ -90,6 +90,9 @@ pub enum Route {
     RolesByUserId {
         user_id: UserId,
     },
+    UserIdByRole {
+        role: StoresRole,
+    },
     WizardStores,
 }
 
@@ -508,6 +511,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse().ok())
             .map(|user_id| Route::RolesByUserId { user_id })
+    });
+
+    router.add_route_with_params(r"^/roles/by-role/(\S+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse().ok())
+            .map(|role| Route::UserIdByRole { role })
     });
     router.add_route_with_params(r"^/roles/by-id/([a-zA-Z0-9-]+)$", |params| {
         params

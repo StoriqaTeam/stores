@@ -185,6 +185,7 @@ pub mod tests {
 
     use errors::Error as MyError;
     use std::collections::HashMap;
+    use std::collections::HashSet;
     use std::error::Error;
     use std::fmt;
     use std::sync::Arc;
@@ -1517,6 +1518,10 @@ pub mod tests {
                 created_at: SystemTime::now(),
                 updated_at: SystemTime::now(),
             })
+        }
+
+        fn get_user_ids_by_role(&self, _role_name: StoresRole) -> RepoResult<HashSet<UserId>> {
+            Ok(HashSet::new())
         }
     }
 

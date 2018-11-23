@@ -7,7 +7,7 @@ use futures::future::*;
 use r2d2::ManageConnection;
 
 use stq_static_resources::ModerationStatus;
-use stq_types::{StoreId, UserId};
+use stq_types::{StoreId, StoreSlug, UserId};
 
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
@@ -35,6 +35,8 @@ pub trait StoresService {
     fn store_auto_complete(&self, name: String, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
     /// Returns store by ID
     fn get_store(&self, store_id: StoreId, visibility: Option<Visibility>) -> ServiceFuture<Option<Store>>;
+    /// Returns store by slug
+    fn get_store_by_slug(&self, store_slug: StoreSlug, visibility: Option<Visibility>) -> ServiceFuture<Option<Store>>;
     /// Returns products count
     fn get_store_products_count(&self, store_id: StoreId, visibility: Option<Visibility>) -> ServiceFuture<i32>;
     /// Deactivates specific store
@@ -193,6 +195,20 @@ impl<
             stores_repo
                 .find(store_id, visibility)
                 .map_err(|e| e.context("Service Stores, get endpoint error occurred.").into())
+        })
+    }
+
+    /// Returns store by slug
+    fn get_store_by_slug(&self, store_slug: StoreSlug, visibility: Option<Visibility>) -> ServiceFuture<Option<Store>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let visibility = visibility.unwrap_or(Visibility::Published);
+
+        self.spawn_on_pool(move |conn| {
+            let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+            stores_repo
+                .find_by_slug(store_slug, visibility)
+                .map_err(|e| e.context("Service Stores, get_store_by_slug endpoint error occurred.").into())
         })
     }
 
@@ -531,6 +547,7 @@ pub mod tests {
 
     use serde_json;
     use tokio_core::reactor::Core;
+    use uuid::Uuid;
 
     use stq_types::*;
 
@@ -565,6 +582,7 @@ pub mod tests {
             route: None,
             street_number: None,
             place_id: None,
+            uuid: Uuid::new_v4(),
         }
     }
 

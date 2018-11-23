@@ -24,6 +24,7 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         currency: Currency::STQ,
         category_id: CategoryId(12),
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
+        uuid: uuid::Uuid::new_v4(),
     }
 }
 pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProduct {
@@ -43,6 +44,7 @@ pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProdu
         pre_order: false,
         pre_order_days: 0,
         kafka_update_no: 0,
+        uuid: uuid::Uuid::new_v4(),
     }
 }
 
@@ -64,6 +66,7 @@ pub fn create_new_product(base_product_id: BaseProductId) -> NewProductWithoutCu
         price: ProductPrice(1f64),
         pre_order: Some(false),
         pre_order_days: Some(0),
+        uuid: uuid::Uuid::new_v4(),
     }
 }
 

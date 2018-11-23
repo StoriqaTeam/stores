@@ -2,6 +2,7 @@
 use std::time::SystemTime;
 
 use serde_json;
+use uuid::Uuid;
 use validator::Validate;
 
 use stq_static_resources::{ModerationStatus, ModerationStatusForModerator};
@@ -47,6 +48,7 @@ pub struct Store {
     pub place_id: Option<String>,
     pub kafka_update_no: i32,
     pub country_code: Option<Alpha3>,
+    pub uuid: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -102,6 +104,7 @@ pub struct NewStore {
     pub street_number: Option<String>,
     pub place_id: Option<String>,
     pub country_code: Option<Alpha3>,
+    pub uuid: Uuid,
 }
 
 /// Payload for updating users

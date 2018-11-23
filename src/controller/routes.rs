@@ -21,7 +21,9 @@ pub enum Route {
     BaseProductsSearchFiltersAttributes,
     BaseProductsSearchFiltersCount,
     BaseProduct(BaseProductId),
+    BaseProductBySlug(StoreSlug, BaseProductSlug),
     BaseProductWithViewsUpdate(BaseProductId),
+    BaseProductBySlugWithViewsUpdate(StoreSlug, BaseProductSlug),
     BaseProductByProduct(ProductId),
     BaseProductWithVariant(BaseProductId),
     BaseProductCustomAttributes(BaseProductId),
@@ -70,6 +72,7 @@ pub enum Route {
     StoresCart,
     StoresSlugExists,
     Store(StoreId),
+    StoreBySlug(StoreSlug),
     StoreCount,
     StoreByUser(UserId),
     StoreProducts(StoreId),
@@ -112,6 +115,11 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(StoreId)
             .map(Route::Store)
+    });
+
+    // Stores/by-slug/:slug route
+    router.add_route_with_params(r"^/stores/by-slug/([^/]+)$", |params| {
+        params.get(0).map(|slug| slug.to_string()).map(StoreSlug).map(Route::StoreBySlug)
     });
 
     // Stores/by_user_id/:id route
@@ -234,6 +242,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::BaseProduct)
     });
 
+    // Stores /by-slug/:store-slug/base_products/by-slug/:slug route
+    router.add_route_with_params(r"^/stores/by-slug/(.+?)/base_products/by-slug/([^/]+)$", |params| {
+        let store_slug = params.get(0).map(|slug| slug.to_string()).map(StoreSlug)?;
+        let base_product_slug = params.get(1).map(|slug| slug.to_string()).map(BaseProductSlug)?;
+        Some(Route::BaseProductBySlug(store_slug, base_product_slug))
+    });
+
     // Base products/:id/custom_attributes route
     router.add_route_with_params(r"^/base_products/(\d+)/custom_attributes$", |params| {
         params
@@ -250,6 +265,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(BaseProductId)
             .map(Route::BaseProductWithViewsUpdate)
+    });
+
+    // Stores /by-slug/:store-slug/base_products/by-slug/:slug/update_view route
+    router.add_route_with_params(r"^/stores/by-slug/(.+?)/base_products/by-slug/(.+?)/update_view$", |params| {
+        let store_slug = params.get(0).map(|slug| slug.to_string()).map(StoreSlug)?;
+        let base_product_slug = params.get(1).map(|slug| slug.to_string()).map(BaseProductSlug)?;
+        Some(Route::BaseProductBySlugWithViewsUpdate(store_slug, base_product_slug))
     });
 
     // Base products count route

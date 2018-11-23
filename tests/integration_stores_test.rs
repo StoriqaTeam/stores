@@ -38,6 +38,7 @@ fn create_new_store(name: &str, short_description: &str) -> NewStore {
         route: None,
         street_number: None,
         place_id: None,
+        uuid: uuid::Uuid::new_v4(),
     }
 }
 

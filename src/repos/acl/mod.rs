@@ -385,6 +385,7 @@ mod tests {
             street_number: None,
             place_id: None,
             kafka_update_no: 0,
+            uuid: uuid::Uuid::new_v4(),
         }
     }
 

@@ -103,6 +103,7 @@ where
             level: level_,
             meta_field: payload_clone.meta_field,
             is_active: true,
+            uuid: payload.uuid,
         });
 
         let created_category = new_category

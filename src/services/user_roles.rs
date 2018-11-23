@@ -1,5 +1,7 @@
 //! UserRoles Services, presents CRUD operations with user_roles
 
+use std::collections::HashSet;
+
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
@@ -16,14 +18,21 @@ use services::Service;
 pub trait UserRolesService {
     /// Returns role by user ID
     fn get_roles(&self, user_id: UserId) -> ServiceFuture<Vec<StoresRole>>;
+
     /// Creates new user_role
     fn create_user_role(&self, payload: NewUserRole) -> ServiceFuture<UserRole>;
+
     /// Remove user_role
     fn delete_user_role(&self, user_role: RemoveUserRole) -> ServiceFuture<UserRole>;
+
     /// Deletes roles for user
     fn delete_user_role_by_user_id(&self, user_id_arg: UserId) -> ServiceFuture<Vec<UserRole>>;
+
     /// Deletes role for user by id
     fn delete_user_role_by_id(&self, id_arg: RoleId) -> ServiceFuture<UserRole>;
+
+    /// Returns collection user_id
+    fn get_user_ids_by_role(&self, role_name: StoresRole) -> ServiceFuture<HashSet<UserId>>;
 }
 
 impl<
@@ -92,6 +101,20 @@ impl<
             user_roles_repo
                 .delete_by_id(id_arg)
                 .map_err(|e: FailureError| e.context("Service user_roles, delete_by_id endpoint error occurred.").into())
+        })
+    }
+
+    /// Returns collection user_id
+    fn get_user_ids_by_role(&self, role_name: StoresRole) -> ServiceFuture<HashSet<UserId>> {
+        let current_uid = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let user_roles_repo = repo_factory.create_user_roles_repo(&*conn, current_uid);
+            user_roles_repo.get_user_ids_by_role(role_name).map_err(|e: FailureError| {
+                e.context("Service user_roles, get_user_ids_by_role endpoint error occurred.")
+                    .into()
+            })
         })
     }
 }

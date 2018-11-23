@@ -1361,6 +1361,9 @@ pub mod tests {
             })
         }
 
+        fn update_moderation_status_by_store(&self, _store_id_arg: StoreId, _status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+            Ok(vec![])
+        }
         fn get_all_catalog(&self) -> RepoResult<Vec<CatalogWithAttributes>> {
             Ok(vec![])
         }

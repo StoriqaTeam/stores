@@ -28,7 +28,6 @@ pub enum Route {
     BaseProductWithVariant(BaseProductId),
     BaseProductCustomAttributes(BaseProductId),
     BaseProductPublish,
-    BaseProductDraft,
     Categories,
     Category(CategoryId),
     CategoryAttrs,
@@ -80,10 +79,13 @@ pub enum Route {
     StoreProductsCount(StoreId),
     StorePublish(StoreId),
     StoreDraft(StoreId),
+    StoreValidateChangeModerationStatus,
     StoreModerate,
     StoreModeration(StoreId),
     BaseProductModerate,
     BaseProductModeration(BaseProductId),
+    BaseProductDraft(BaseProductId),
+    BaseProductValidateChangeModerationStatus,
     Roles,
     RoleById {
         id: RoleId,
@@ -169,7 +171,12 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/stores/auto_complete$", || Route::StoresAutoComplete);
 
     // Change moderation status by moderator
-    router.add_route(r"^stores/moderate$", || Route::StoreModerate);
+    router.add_route(r"^/stores/moderate$", || Route::StoreModerate);
+
+    // Check that you can change the moderation status
+    router.add_route(r"^/stores/validate_change_moderation_status$", || {
+        Route::StoreValidateChangeModerationStatus
+    });
 
     router.add_route_with_params(r"^/stores/(\d+)/moderation$", |params| {
         params
@@ -317,13 +324,25 @@ pub fn create_route_parser() -> RouteParser<Route> {
     router.add_route(r"^/base_products/search/filters/count$", || Route::BaseProductsSearchFiltersCount);
 
     // Change moderation status by moderator
-    router.add_route(r"^base_products/moderate$", || Route::BaseProductModerate);
+    router.add_route(r"^/base_products/moderate$", || Route::BaseProductModerate);
+
+    // Check that you can change the moderation status
+    router.add_route(r"^/base_products/validate_change_moderation_status$", || {
+        Route::BaseProductValidateChangeModerationStatus
+    });
 
     router.add_route_with_params(r"^/base_products/(\d+)/moderation$", |params| {
         params
             .get(0)
             .and_then(|string_id| string_id.parse::<BaseProductId>().ok())
             .map(Route::BaseProductModeration)
+    });
+
+    router.add_route_with_params(r"^/base_products/(\d+)/draft$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<BaseProductId>().ok())
+            .map(Route::BaseProductDraft)
     });
 
     // Attributes Routes
@@ -504,9 +523,6 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // BaseProducts/publish route
     router.add_route(r"^/base_products/publish$", || Route::BaseProductPublish);
-
-    // BaseProducts/draft route
-    router.add_route(r"^/base_products/draft$", || Route::BaseProductDraft);
 
     router.add_route(r"^/roles$", || Route::Roles);
     router.add_route_with_params(r"^/roles/by-user-id/(\d+)$", |params| {

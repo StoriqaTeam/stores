@@ -950,6 +950,9 @@ impl<
             // GET /categories/<category_id>
             (&Get, Some(Route::Category(category_id))) => serialize_future(service.get_category(category_id)),
 
+            // GET /categories/by-slug/<category_slug>
+            (&Get, Some(Route::CategoryBySlug(category_slug))) => serialize_future(service.get_category_by_slug(category_slug)),
+
             // DELETE /categories/<category_id>
             (&Delete, Some(Route::Category(category_id))) => serialize_future(service.delete_category(category_id)),
 

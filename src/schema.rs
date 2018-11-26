@@ -57,6 +57,7 @@ table! {
         meta_field -> Nullable<Jsonb>,
         is_active -> Bool,
         uuid -> Uuid,
+        slug -> Varchar,
     }
 }
 

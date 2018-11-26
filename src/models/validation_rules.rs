@@ -29,12 +29,13 @@ pub fn validate_phone(phone: &str) -> Result<(), ValidationError> {
     }
 }
 
-pub fn validate_slug(phone: &str) -> Result<(), ValidationError> {
+pub fn validate_slug<T: AsRef<str>>(val: T) -> Result<(), ValidationError> {
+    let val = val.as_ref();
     lazy_static! {
         static ref SLUG_VALIDATION_RE: Regex = Regex::new(r"^[a-z0-9]+(?:-[a-z0-9]+)*$").unwrap();
     }
 
-    if SLUG_VALIDATION_RE.is_match(phone) {
+    if SLUG_VALIDATION_RE.is_match(val) {
         Ok(())
     } else {
         Err(ValidationError {

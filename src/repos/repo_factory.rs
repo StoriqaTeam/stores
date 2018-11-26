@@ -677,6 +677,22 @@ pub mod tests {
                 level: 0,
                 parent_id: Some(CategoryId(id_arg.0 - 1)),
                 attributes: vec![],
+                slug: CategorySlug("1".to_string()),
+            }))
+        }
+
+        /// Find specific category by id
+        fn find_by_slug(&self, slug: CategorySlug) -> RepoResult<Option<Category>> {
+            Ok(Some(Category {
+                id: CategoryId(2),
+                is_active: true,
+                name: serde_json::from_str("{}").unwrap(),
+                meta_field: None,
+                children: vec![],
+                level: 0,
+                parent_id: Some(CategoryId(1)),
+                attributes: vec![],
+                slug,
             }))
         }
 
@@ -691,6 +707,7 @@ pub mod tests {
                 level: 0,
                 parent_id: Some(CategoryId(0)),
                 attributes: vec![],
+                slug: CategorySlug("1".to_string()),
             })
         }
 
@@ -705,6 +722,7 @@ pub mod tests {
                 level: 0,
                 parent_id: Some(CategoryId(0)),
                 attributes: vec![],
+                slug: CategorySlug("1".to_string()),
             })
         }
 
@@ -733,6 +751,7 @@ pub mod tests {
             level: 3,
             parent_id: Some(CategoryId(2)),
             attributes: vec![],
+            slug: CategorySlug("3".to_string()),
         };
         let cat_2 = Category {
             id: CategoryId(2),
@@ -743,6 +762,7 @@ pub mod tests {
             level: 2,
             parent_id: Some(CategoryId(1)),
             attributes: vec![],
+            slug: CategorySlug("2".to_string()),
         };
         let cat_1 = Category {
             id: CategoryId(1),
@@ -753,6 +773,7 @@ pub mod tests {
             level: 1,
             parent_id: Some(CategoryId(0)),
             attributes: vec![],
+            slug: CategorySlug("1".to_string()),
         };
         Category {
             id: CategoryId(0),
@@ -763,6 +784,7 @@ pub mod tests {
             level: 0,
             parent_id: None,
             attributes: vec![],
+            slug: CategorySlug("0".to_string()),
         }
     }
 
@@ -776,6 +798,7 @@ pub mod tests {
                 level: 1,
                 meta_field: None,
                 uuid: uuid::Uuid::new_v4(),
+                slug: CategorySlug("1".to_string()),
             },
             RawCategory {
                 id: CategoryId(2),
@@ -785,6 +808,7 @@ pub mod tests {
                 level: 2,
                 meta_field: None,
                 uuid: uuid::Uuid::new_v4(),
+                slug: CategorySlug("2".to_string()),
             },
             RawCategory {
                 id: CategoryId(3),
@@ -794,6 +818,7 @@ pub mod tests {
                 level: 3,
                 meta_field: None,
                 uuid: uuid::Uuid::new_v4(),
+                slug: CategorySlug("3".to_string()),
             },
         ]
     }

@@ -11,7 +11,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use std::sync::Arc;
 use stq_cache::cache::CacheSingle;
-use stq_types::{CategoryId, UserId};
+use stq_types::{CategoryId, CategorySlug, UserId};
 
 use models::authorization::*;
 use models::{Attribute, CatAttr, Category, InsertCategory, NewCategory, RawCategory, UpdateCategory};
@@ -42,6 +42,9 @@ where
 pub trait CategoriesRepo {
     /// Find specific category by id
     fn find(&self, id_arg: CategoryId) -> RepoResult<Option<Category>>;
+
+    /// Find specific category by slug
+    fn find_by_slug(&self, slug_arg: CategorySlug) -> RepoResult<Option<Category>>;
 
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category>;
@@ -81,6 +84,13 @@ where
         self.get_all_categories().map(|root| get_category(&root, id_arg))
     }
 
+    /// Find specific category by slug
+    fn find_by_slug(&self, slug_arg: CategorySlug) -> RepoResult<Option<Category>> {
+        debug!("Find in categories with slug {}.", slug_arg);
+        acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)?;
+        self.get_all_categories().map(|root| get_category_by_slug(&root, &slug_arg))
+    }
+
     /// Creates new category
     fn create(&self, payload: NewCategory) -> RepoResult<Category> {
         debug!("Create new category {:?}.", payload);
@@ -103,7 +113,8 @@ where
             level: level_,
             meta_field: payload_clone.meta_field,
             is_active: true,
-            uuid: payload.uuid,
+            uuid: payload_clone.uuid,
+            slug: payload_clone.slug,
         });
 
         let created_category = new_category
@@ -288,6 +299,17 @@ pub fn get_category(cat: &Category, cat_id: CategoryId) -> Option<Category> {
     }
 }
 
+pub fn get_category_by_slug(cat: &Category, cat_slug: &CategorySlug) -> Option<Category> {
+    if cat.slug == *cat_slug {
+        Some(cat.clone())
+    } else {
+        cat.children
+            .iter()
+            .filter_map(|cat_child| get_category_by_slug(cat_child, cat_slug))
+            .next()
+    }
+}
+
 pub fn get_child_category_level(parent_cat: Category) -> RepoResult<i32> {
     if parent_cat.level < Category::MAX_LEVEL_NESTING {
         Ok(parent_cat.level + 1)
@@ -353,6 +375,7 @@ mod tests {
             level: level_,
             parent_id: Some(parent_id_),
             attributes: vec![],
+            slug: CategorySlug("1".to_string()),
         }
     }
 
@@ -400,6 +423,7 @@ mod tests {
             level: 0,
             parent_id: None,
             attributes: vec![],
+            slug: CategorySlug("1".to_string()),
         }
     }
 
@@ -414,6 +438,7 @@ mod tests {
             level: 1,
             parent_id: None,
             attributes: vec![],
+            slug: CategorySlug("1".to_string()),
         };
         let level_ = get_child_category_level(lvl1_category);
         assert_eq!(Some(2), level_.ok());
@@ -430,6 +455,7 @@ mod tests {
             level: 3,
             parent_id: None,
             attributes: vec![],
+            slug: CategorySlug("1".to_string()),
         };
         let level_ = get_child_category_level(lvl3_category);
         assert!(level_.is_err());

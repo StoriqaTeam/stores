@@ -7,7 +7,7 @@ use serde_json;
 use uuid::Uuid;
 use validator::Validate;
 
-use stq_types::CategoryId;
+use stq_types::{CategoryId, CategorySlug};
 
 pub use self::category_attribute::*;
 use models::validation_rules::*;
@@ -25,6 +25,7 @@ pub struct RawCategory {
     pub meta_field: Option<serde_json::Value>,
     pub is_active: bool,
     pub uuid: Uuid,
+    pub slug: CategorySlug,
 }
 
 /// Used to insert a category into the table
@@ -37,6 +38,7 @@ pub struct InsertCategory {
     pub meta_field: Option<serde_json::Value>,
     pub is_active: bool,
     pub uuid: Uuid,
+    pub slug: Option<CategorySlug>,
 }
 
 /// Payload for creating categories
@@ -47,6 +49,8 @@ pub struct NewCategory {
     pub parent_id: CategoryId,
     pub meta_field: Option<serde_json::Value>,
     pub uuid: Uuid,
+    #[validate(custom = "validate_slug")]
+    pub slug: Option<CategorySlug>,
 }
 
 /// Payload for updating categories
@@ -59,6 +63,8 @@ pub struct UpdateCategory {
     pub parent_id: Option<CategoryId>,
     #[validate(range(min = "1", max = "3"))]
     pub level: Option<i32>,
+    #[validate(custom = "validate_slug")]
+    pub slug: Option<CategorySlug>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -71,6 +77,7 @@ pub struct Category {
     pub parent_id: Option<CategoryId>,
     pub children: Vec<Category>,
     pub attributes: Vec<Attribute>,
+    pub slug: CategorySlug,
 }
 
 impl Category {
@@ -88,6 +95,7 @@ impl Default for Category {
             level: 0,
             parent_id: None,
             attributes: vec![],
+            slug: CategorySlug(String::default()),
         }
     }
 }
@@ -103,6 +111,7 @@ impl<'a> From<&'a RawCategory> for Category {
             parent_id: cat.parent_id,
             level: cat.level,
             attributes: vec![],
+            slug: cat.slug.clone(),
         }
     }
 }
@@ -118,6 +127,7 @@ impl From<RawCategory> for Category {
             parent_id: cat.parent_id,
             level: cat.level,
             attributes: vec![],
+            slug: cat.slug,
         }
     }
 }

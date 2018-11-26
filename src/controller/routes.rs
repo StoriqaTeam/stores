@@ -30,6 +30,7 @@ pub enum Route {
     BaseProductPublish,
     Categories,
     Category(CategoryId),
+    CategoryBySlug(CategorySlug),
     CategoryAttrs,
     CategoryAttr(CategoryId),
     CurrencyExchange,
@@ -457,6 +458,11 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<CategoryId>().ok())
             .map(Route::Category)
+    });
+
+    // Categories/by-slug/:slug route
+    router.add_route_with_params(r"^/categories/by-slug/(.+)$", |params| {
+        params.get(0).map(|slug| Route::CategoryBySlug(CategorySlug(slug.to_string())))
     });
 
     // Categories Attributes Routes

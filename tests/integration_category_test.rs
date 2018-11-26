@@ -7,7 +7,7 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
-use stq_types::CategoryId;
+use stq_types::{CategoryId, CategorySlug};
 
 use stores_lib::models::*;
 
@@ -17,6 +17,7 @@ pub fn create_new_category(name: &str) -> NewCategory {
         meta_field: None,
         parent_id: CategoryId(1),
         uuid: uuid::Uuid::new_v4(),
+        slug: None,
     }
 }
 
@@ -26,6 +27,7 @@ pub fn create_update_category(name: &str) -> UpdateCategory {
         meta_field: None,
         parent_id: Some(CategoryId(1)),
         level: Some(3),
+        slug: Some(CategorySlug(name.to_string())),
     }
 }
 

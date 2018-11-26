@@ -6,19 +6,21 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
-use stq_types::CategoryId;
+use stq_types::{CategoryId, CategorySlug};
 
 use super::types::ServiceFuture;
 use errors::Error;
 use models::{Attribute, NewCatAttr, OldCatAttr};
 use models::{Category, NewCategory, UpdateCategory};
 use repos::types::RepoResult;
-use repos::{BaseProductsRepo, BaseProductsSearchTerms, ReposFactory};
+use repos::{BaseProductsRepo, BaseProductsSearchTerms, CategoriesRepo, ReposFactory};
 use services::Service;
 
 pub trait CategoriesService {
     /// Returns category by ID
     fn get_category(&self, category_id: CategoryId) -> ServiceFuture<Option<Category>>;
+    /// Returns category by slug
+    fn get_category_by_slug(&self, category_slug: CategorySlug) -> ServiceFuture<Option<Category>>;
     /// Creates new category
     fn create_category(&self, payload: NewCategory) -> ServiceFuture<Category>;
     /// Updates specific category
@@ -54,6 +56,19 @@ impl<
         })
     }
 
+    /// Returns category by slug
+    fn get_category_by_slug(&self, category_slug: CategorySlug) -> ServiceFuture<Option<Category>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+            categories_repo
+                .find_by_slug(category_slug)
+                .map_err(|e| e.context("Service Categories, get by slug endpoint error occurred.").into())
+        })
+    }
+
     /// Creates new category
     fn create_category(&self, new_category: NewCategory) -> ServiceFuture<Category> {
         let user_id = self.dynamic_context.user_id;
@@ -61,8 +76,10 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-            conn.transaction::<(Category), FailureError, _>(move || categories_repo.create(new_category))
-                .map_err(|e| e.context("Service Categories, create endpoint error occurred.").into())
+            conn.transaction::<(Category), FailureError, _>(move || {
+                validate_category_create(&*categories_repo, &new_category)?;
+                categories_repo.create(new_category)
+            }).map_err(|e| e.context("Service Categories, create endpoint error occurred.").into())
         })
     }
 
@@ -74,9 +91,10 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-            categories_repo
-                .update(category_id, payload)
-                .map_err(|e| e.context("Service Categories, update endpoint error occurred.").into())
+            conn.transaction::<(Category), FailureError, _>(move || {
+                validate_category_update(&*categories_repo, category_id, &payload)?;
+                categories_repo.update(category_id, payload)
+            }).map_err(|e| e.context("Service Categories, update endpoint error occurred.").into())
         })
     }
 
@@ -177,6 +195,36 @@ impl<
     }
 }
 
+fn validate_category_create(categories_repo: &CategoriesRepo, category: &NewCategory) -> Result<(), FailureError> {
+    if let Some(slug) = category.slug.clone() {
+        if let Some(category_with_same_slug) = categories_repo.find_by_slug(slug)? {
+            return Err(format_err!("Category {:?} already has the same slug.", category_with_same_slug)
+                .context(Error::Validate(
+                    validation_errors!({"category_slug": ["category_slug" => "Existing category has the same slug."]}),
+                )).into());
+        }
+    }
+    Ok(())
+}
+
+fn validate_category_update(
+    categories_repo: &CategoriesRepo,
+    category_id: CategoryId,
+    category: &UpdateCategory,
+) -> Result<(), FailureError> {
+    if let Some(slug) = category.slug.clone() {
+        if let Some(category_with_same_slug) = categories_repo.find_by_slug(slug)? {
+            if category_with_same_slug.id != category_id {
+                return Err(format_err!("Category {:?} already has the same slug.", category_with_same_slug)
+                    .context(Error::Validate(
+                        validation_errors!({"category_slug": ["category_slug" => "Existing category has the same slug."]}),
+                    )).into());
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate_category_delete(category_ids: &[CategoryId], base_products_repo: &BaseProductsRepo) -> Result<(), FailureError> {
     let base_prods_search_terms = BaseProductsSearchTerms {
         category_ids: Some(category_ids.to_vec()),
@@ -217,7 +265,7 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    use stq_types::CategoryId;
+    use stq_types::{CategoryId, CategorySlug};
 
     pub fn create_new_categories(name: &str) -> NewCategory {
         NewCategory {
@@ -225,6 +273,7 @@ pub mod tests {
             meta_field: None,
             parent_id: CategoryId(1),
             uuid: Uuid::new_v4(),
+            slug: None,
         }
     }
 
@@ -234,6 +283,7 @@ pub mod tests {
             meta_field: None,
             parent_id: Some(CategoryId(1)),
             level: Some(0),
+            slug: None,
         }
     }
 

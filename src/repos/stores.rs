@@ -77,9 +77,6 @@ pub trait StoresRepo {
 
     /// Set moderation status for specific store
     fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Store>;
-
-    /// Set moderation status for specific store from store manager
-    fn update_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Store>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
@@ -464,33 +461,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query.get_result(self.db_conn).map_err(From::from)
             }).map_err(|e: FailureError| {
                 e.context(format!("Set moderation status for store {:?} error occurred", store_id_arg))
-                    .into()
-            })
-    }
-
-    /// Set moderation status for specific store from store manager
-    fn update_moderation_status(&self, store_id_arg: StoreId, status_arg: ModerationStatus) -> RepoResult<Store> {
-        let query = stores.find(store_id_arg);
-
-        query
-            .get_result(self.db_conn)
-            .map_err(From::from)
-            .and_then(|s: Store| {
-                acl::check_with_rule(
-                    &*self.acl,
-                    Resource::Stores,
-                    Action::Update,
-                    self,
-                    Rule::ModerationStatus(s.status),
-                    Some(&s),
-                )
-            }).and_then(|_| {
-                let filter = stores.filter(id.eq(store_id_arg));
-                let query = diesel::update(filter).set(status.eq(status_arg));
-
-                query.get_result(self.db_conn).map_err(From::from)
-            }).map_err(|e: FailureError| {
-                e.context(format!("Update moderation status for store {:?} error occurred", store_id_arg))
                     .into()
             })
     }

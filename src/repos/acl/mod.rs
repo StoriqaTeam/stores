@@ -126,6 +126,18 @@ impl ApplicationAcl {
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Published)
                 ),
+                permission!(
+                    Resource::BaseProducts,
+                    Action::Moderate,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Draft)
+                ),
+                permission!(
+                    Resource::BaseProducts,
+                    Action::Moderate,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Published)
+                ),
                 permission!(Resource::Categories, Action::Read),
                 permission!(Resource::CategoryAttrs, Action::Read),
                 permission!(Resource::CurrencyExchange, Action::Read),
@@ -166,6 +178,18 @@ impl ApplicationAcl {
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Published)
                 ),
+                permission!(
+                    Resource::Stores,
+                    Action::Moderate,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Draft)
+                ),
+                permission!(
+                    Resource::Stores,
+                    Action::Moderate,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Published)
+                ),
                 permission!(Resource::UserRoles, Action::Read, Scope::Owned),
                 permission!(Resource::WizardStores, Action::All, Scope::Owned),
                 permission!(Resource::WizardStores, Action::Read),
@@ -183,57 +207,11 @@ impl ApplicationAcl {
             StoresRole::Moderator,
             vec![
                 permission!(Resource::BaseProducts, Action::Moderate),
-                permission!(
-                    Resource::BaseProducts,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Moderation)
-                ),
-                permission!(
-                    Resource::BaseProducts,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Published)
-                ),
-                permission!(
-                    Resource::BaseProducts,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Decline)
-                ),
-                permission!(
-                    Resource::BaseProducts,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Blocked)
-                ),
+                permission!(Resource::BaseProducts, Action::Read, Scope::All, Rule::Any),
                 permission!(Resource::ModeratorProductComments),
                 permission!(Resource::ModeratorStoreComments),
                 permission!(Resource::Stores, Action::Moderate),
-                permission!(
-                    Resource::Stores,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Moderation)
-                ),
-                permission!(
-                    Resource::Stores,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Published)
-                ),
-                permission!(
-                    Resource::Stores,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Decline)
-                ),
-                permission!(
-                    Resource::Stores,
-                    Action::Read,
-                    Scope::All,
-                    Rule::ModerationStatus(ModerationStatus::Blocked)
-                ),
+                permission!(Resource::Stores, Action::Read, Scope::All, Rule::Any),
             ],
         );
 

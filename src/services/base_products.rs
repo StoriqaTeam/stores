@@ -652,7 +652,7 @@ impl<
                     }
 
                     match updated_prod.status {
-                        ModerationStatus::Decline => base_products_repo.update_moderation_status(updated_prod.id, ModerationStatus::Draft),
+                        ModerationStatus::Decline => base_products_repo.set_moderation_status(updated_prod.id, ModerationStatus::Draft),
                         _ => Ok(updated_prod),
                     }
                 } else {
@@ -829,7 +829,7 @@ impl<
                 };
 
                 if check_change_status(status, ModerationStatus::Moderation) {
-                    base_products_repo.update_moderation_status(base_product_id, ModerationStatus::Moderation)
+                    base_products_repo.set_moderation_status(base_product_id, ModerationStatus::Moderation)
                 } else {
                     Err(
                         format_err!("Base product with id: {}, cannot be sent to moderation", base_product_id)
@@ -1161,7 +1161,7 @@ pub fn set_base_product_moderation_status_draft(
     };
 
     if check_change_status(status, ModerationStatus::Draft) {
-        base_products_repo.update_moderation_status(base_product_id, ModerationStatus::Draft)
+        base_products_repo.set_moderation_status(base_product_id, ModerationStatus::Draft)
     } else {
         Err(format_err!(
             "Base product with id: {}, cannot be hided when the store in status: {}",

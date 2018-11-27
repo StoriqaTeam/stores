@@ -350,7 +350,7 @@ impl<
                     let store = stores_repo.update(store_id, payload)?;
 
                     match store.status {
-                        ModerationStatus::Decline => stores_repo.update_moderation_status(store_id, ModerationStatus::Draft),
+                        ModerationStatus::Decline => stores_repo.set_moderation_status(store_id, ModerationStatus::Draft),
                         _ => Ok(store),
                     }
                 })
@@ -447,7 +447,7 @@ impl<
                 };
 
                 if check_change_status(status, ModerationStatus::Moderation) {
-                    stores_repo.update_moderation_status(store_id, ModerationStatus::Moderation)
+                    stores_repo.set_moderation_status(store_id, ModerationStatus::Moderation)
                 } else {
                     Err(format_err!("Store with id: {}, cannot be sent to moderation", store_id)
                         .context(Error::Validate(
@@ -481,7 +481,7 @@ impl<
                     };
 
                     let update_store = if check_change_status(status, ModerationStatus::Draft) {
-                        stores_repo.update_moderation_status(store_id, ModerationStatus::Draft)
+                        stores_repo.set_moderation_status(store_id, ModerationStatus::Draft)
                     } else {
                         Err(
                             format_err!("Store with id: {}, cannot be hided when the store in status: {}", store_id, status)

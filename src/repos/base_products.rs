@@ -725,20 +725,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         } = pagination_params;
 
         let total_count_query = base_products
-            .filter(
-                is_active
-                    .eq(true)
-                    .and(by_moderator_search_terms(&term))
-                    .and(status.ne(ModerationStatus::Draft)),
-            ).count();
+            .filter(is_active.eq(true).and(by_moderator_search_terms(&term)))
+            .count();
 
         let mut query = base_products
-            .filter(
-                is_active
-                    .eq(true)
-                    .and(by_moderator_search_terms(&term))
-                    .and(status.ne(ModerationStatus::Draft)),
-            ).into_boxed();
+            .filter(is_active.eq(true).and(by_moderator_search_terms(&term)))
+            .into_boxed();
 
         if let Some(from_id) = start {
             query = match direction {
@@ -936,7 +928,7 @@ fn by_moderator_search_terms(term: &ModeratorBaseProductSearchTerms) -> Box<Boxa
         expr = Box::new(expr.and(store_id.eq(term_store_id)));
     }
 
-    if let Some(term_state) = term.state.clone().map(ModerationStatus::from) {
+    if let Some(term_state) = term.state.clone() {
         expr = Box::new(expr.and(status.eq(term_state)));
     }
 

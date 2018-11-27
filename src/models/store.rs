@@ -5,7 +5,7 @@ use serde_json;
 use uuid::Uuid;
 use validator::Validate;
 
-use stq_static_resources::{ModerationStatus, ModerationStatusForModerator};
+use stq_static_resources::ModerationStatus;
 use stq_types::{Alpha3, CategoryId, StoreId, UserId};
 
 use models::validation_rules::*;
@@ -282,7 +282,7 @@ impl StoreWithBaseProducts {
 pub struct ModeratorStoreSearchTerms {
     pub name: Option<String>,
     pub store_manager_ids: Option<Vec<UserId>>,
-    pub state: Option<ModerationStatusForModerator>,
+    pub state: Option<ModerationStatus>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -373,21 +373,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             start,
         } = pagination_params;
 
-        let total_count_query = stores
-            .filter(
-                is_active
-                    .eq(true)
-                    .and(by_moderator_search_terms(&term))
-                    .and(status.ne(ModerationStatus::Draft)),
-            ).count();
+        let total_count_query = stores.filter(is_active.eq(true).and(by_moderator_search_terms(&term))).count();
 
-        let mut query = stores
-            .filter(
-                is_active
-                    .eq(true)
-                    .and(by_moderator_search_terms(&term))
-                    .and(status.ne(ModerationStatus::Draft)),
-            ).into_boxed();
+        let mut query = stores.filter(is_active.eq(true).and(by_moderator_search_terms(&term))).into_boxed();
 
         if let Some(from_id) = start {
             query = match direction {
@@ -495,7 +483,7 @@ fn by_moderator_search_terms(term: &ModeratorStoreSearchTerms) -> Box<BoxableExp
         expr = Box::new(expr.and(user_id.eq_any(store_manager_ids)));
     }
 
-    if let Some(term_state) = term.state.clone().map(ModerationStatus::from) {
+    if let Some(term_state) = term.state.clone() {
         expr = Box::new(expr.and(status.eq(term_state)));
     }
 

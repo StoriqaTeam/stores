@@ -38,7 +38,6 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         category_id: Some(CategoryId(12)),
         rating: None,
         slug: None,
-        status: None,
     }
 }
 

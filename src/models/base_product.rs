@@ -88,16 +88,6 @@ pub struct UpdateBaseProduct {
     pub rating: Option<f64>,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
-    pub status: Option<ModerationStatus>,
-}
-
-impl UpdateBaseProduct {
-    pub fn update_status(status: ModerationStatus) -> Self {
-        Self {
-            status: Some(status),
-            ..Default::default()
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

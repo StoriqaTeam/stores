@@ -135,7 +135,6 @@ pub struct UpdateStore {
     pub rating: Option<f64>,
     pub country: Option<String>,
     pub product_categories: Option<serde_json::Value>,
-    pub status: Option<ModerationStatus>,
     pub administrative_area_level_1: Option<String>,
     pub administrative_area_level_2: Option<String>,
     pub locality: Option<String>,

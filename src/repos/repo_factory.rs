@@ -1705,7 +1705,6 @@ pub mod tests {
             country: None,
             country_code: None,
             product_categories: None,
-            status: None,
             administrative_area_level_1: None,
             administrative_area_level_2: None,
             locality: None,

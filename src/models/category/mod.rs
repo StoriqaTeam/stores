@@ -7,7 +7,7 @@ use serde_json;
 use uuid::Uuid;
 use validator::Validate;
 
-use stq_types::{CategoryId, CategorySlug};
+use stq_types::{BaseProductId, CategoryId, CategorySlug};
 
 pub use self::category_attribute::*;
 use models::validation_rules::*;
@@ -130,4 +130,12 @@ impl From<RawCategory> for Category {
             slug: cat.slug,
         }
     }
+}
+
+/// Payload for replace category
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CategoryReplacePayload {
+    pub current_category: CategoryId,
+    pub new_category: CategoryId,
+    pub base_product_ids: Option<Vec<BaseProductId>>,
 }

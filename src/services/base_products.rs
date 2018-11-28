@@ -31,6 +31,7 @@ const MAX_PRODUCTS_SEARCH_COUNT: i32 = 1000;
 pub trait BaseProductsService {
     /// Returns base product count
     fn base_product_count(&self, visibility: Option<Visibility>) -> ServiceFuture<i64>;
+
     /// Find product by name limited by `count` and `offset` parameters
     fn search_base_products_by_name(
         self,
@@ -38,6 +39,7 @@ pub trait BaseProductsService {
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+
     /// Find product by views limited by `count` and `offset` parameters
     fn search_base_products_most_viewed(
         &self,
@@ -45,6 +47,7 @@ pub trait BaseProductsService {
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+
     /// Find product by discount pattern limited by `count` and `offset` parameters
     fn search_base_products_most_discount(
         self,
@@ -52,18 +55,25 @@ pub trait BaseProductsService {
         count: i32,
         offset: i32,
     ) -> ServiceFuture<Vec<BaseProductWithVariants>>;
+
     /// auto complete limited by `count` and `offset` parameters
     fn base_products_auto_complete(&self, name: AutoCompleteProductName, count: i32, offset: i32) -> ServiceFuture<Vec<String>>;
+
     /// search filters
     fn search_base_products_filters_price(self, search_prod: SearchProductsByName) -> ServiceFuture<RangeFilter>;
+
     /// search filters
     fn search_base_products_filters_category(self, search_prod: SearchProductsByName) -> ServiceFuture<Category>;
+
     /// search filters
     fn search_base_products_attributes(&self, search_prod: SearchProductsByName) -> ServiceFuture<Option<Vec<AttributeFilter>>>;
+
     /// search filters
     fn search_base_products_filters_count(&self, search_prod: SearchProductsByName) -> ServiceFuture<i32>;
+
     /// Returns product by ID
     fn get_base_product(&self, base_product_id: BaseProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<BaseProduct>>;
+
     /// Returns product by Slug
     fn get_base_product_by_slug(
         &self,
@@ -71,28 +81,36 @@ pub trait BaseProductsService {
         base_product_slug: BaseProductSlug,
         visibility: Option<Visibility>,
     ) -> ServiceFuture<Option<BaseProduct>>;
+
     /// Returns base product by ID with update views
     fn get_base_product_with_views_update(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
+
     /// Returns base product by Slug with update views
     fn get_base_product_by_slug_with_views_update(
         &self,
         store_identifier: StoreIdentifier,
         base_product_slug: BaseProductSlug,
     ) -> ServiceFuture<Option<BaseProduct>>;
+
     /// Returns base_product by product ID
     fn get_base_product_by_product(
         &self,
         product_id: ProductId,
         visibility: Option<Visibility>,
     ) -> ServiceFuture<Option<BaseProductWithVariants>>;
+
     /// Deactivates specific product
     fn deactivate_base_product(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
+
     /// Creates base product
     fn create_base_product(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct>;
+
     /// Creates base product with variants
     fn create_base_product_with_variants(&self, payload: NewBaseProductWithVariants) -> ServiceFuture<BaseProduct>;
+
     /// Lists base products limited by `from` and `count` parameters
     fn list_base_products(&self, from: BaseProductId, count: i32, visibility: Option<Visibility>) -> ServiceFuture<Vec<BaseProduct>>;
+
     /// Returns list of base_products by store id and exclude base_product_id_arg, limited by 10
     fn get_base_products_of_the_store(
         &self,
@@ -102,10 +120,13 @@ pub trait BaseProductsService {
         count: i32,
         visibility: Option<Visibility>,
     ) -> ServiceFuture<Vec<BaseProduct>>;
+
     /// Updates base product
     fn update_base_product(&self, base_product_id: BaseProductId, payload: UpdateBaseProduct) -> ServiceFuture<BaseProduct>;
+
     /// Cart
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>>;
+
     /// Search base products limited by `from`, `skip` and `count` parameters
     fn moderator_search_base_product(
         &self,
@@ -114,30 +135,41 @@ pub trait BaseProductsService {
         count: i64,
         term: ModeratorBaseProductSearchTerms,
     ) -> ServiceFuture<ModeratorBaseProductSearchResults>;
+
     /// Set moderation status for base_product_ids. For moderator
     fn set_moderation_status_base_products(
         &self,
         base_product_ids: Vec<BaseProductId>,
         status: ModerationStatus,
     ) -> ServiceFuture<Vec<BaseProduct>>;
+
     /// Set moderation status for base_product_id
     fn set_moderation_status_base_product(&self, base_product_id: BaseProductId, status: ModerationStatus) -> ServiceFuture<BaseProduct>;
+
     /// send base product to moderation from store manager
     fn send_base_product_to_moderation(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
+
     /// Hide base product from search. For store manager
     fn set_base_product_moderation_status_draft(&self, base_product_id: BaseProductId) -> ServiceFuture<BaseProduct>;
+
     // Check that you can change the moderation status
     fn validate_change_moderation_status_base_product(
         &self,
         base_product_id: BaseProductId,
         status: ModerationStatus,
     ) -> ServiceFuture<bool>;
+
     // Flattens categories
     fn flatten_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
+
     /// Remove categories not 3rd level
     fn remove_non_third_level_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
+
     /// Create currency map
     fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
+
+    /// Replace category in all base products
+    fn replace_category(&self, payload: CategoryReplacePayload) -> ServiceFuture<Vec<BaseProduct>>;
 }
 
 impl<
@@ -1011,6 +1043,39 @@ impl<
                 e.context("Service BaseProduct, get_base_product_by_slug_with_views_update endpoint error occurred.")
                     .into()
             })
+        })
+    }
+
+    /// Replace category in all base products
+    fn replace_category(&self, payload: CategoryReplacePayload) -> ServiceFuture<Vec<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        info!("Replace category in base products");
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
+                let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+
+                conn.transaction::<Vec<BaseProduct>, FailureError, _>(move || {
+                    let update_products = base_products_repo.replace_category(payload.clone())?;
+
+                    for base_product in update_products.iter() {
+                        let store = stores_repo.find(base_product.store_id, Visibility::Active)?;
+
+                        if let Some(store) = store {
+                            let update_store = UpdateStore::update_product_categories(
+                                store.product_categories.clone(),
+                                payload.current_category,
+                                payload.new_category,
+                            );
+                            stores_repo.update(store.id, update_store)?;
+                        }
+                    }
+
+                    Ok(update_products)
+                })
+            }.map_err(|e: FailureError| e.context("Service base_products, replace_category endpoint error occurred.").into())
         })
     }
 }

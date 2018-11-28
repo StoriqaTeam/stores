@@ -126,12 +126,21 @@ impl ApplicationAcl {
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Published)
                 ),
+                // Store manager can sent base product to moderation `Draft -> Moderation`
                 permission!(
                     Resource::BaseProducts,
                     Action::Moderate,
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Draft)
                 ),
+                // Store manager can modified moderation status base product from `Decline -> Draft`
+                permission!(
+                    Resource::BaseProducts,
+                    Action::Moderate,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Decline)
+                ),
+                // Store manager can modified moderation status base product from `Published -> Draft`
                 permission!(
                     Resource::BaseProducts,
                     Action::Moderate,
@@ -178,12 +187,21 @@ impl ApplicationAcl {
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Published)
                 ),
+                // Store manager can sent store to moderation `Draft -> Moderation`
                 permission!(
                     Resource::Stores,
                     Action::Moderate,
                     Scope::Owned,
                     Rule::ModerationStatus(ModerationStatus::Draft)
                 ),
+                // Store manager can modified moderation status store from `Decline -> Draft`
+                permission!(
+                    Resource::Stores,
+                    Action::Moderate,
+                    Scope::Owned,
+                    Rule::ModerationStatus(ModerationStatus::Decline)
+                ),
+                // Store manager can modified moderation status store from `Published -> Draft`
                 permission!(
                     Resource::Stores,
                     Action::Moderate,

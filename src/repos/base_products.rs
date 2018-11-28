@@ -16,17 +16,14 @@ use failure::Fail;
 use stq_static_resources::ModerationStatus;
 use stq_types::{BaseProductId, BaseProductSlug, CategoryId, ProductId, StoreId, UserId};
 
-use models::authorization::*;
-use models::{
-    Attribute, BaseProduct, BaseProductWithVariants, CatalogWithAttributes, Direction, ElasticProduct, ModeratorBaseProductSearchResults,
-    ModeratorBaseProductSearchTerms, MostDiscountProducts, MostViewedProducts, NewBaseProduct, Ordering, PaginationParams, ProdAttr,
-    Product, ProductWithAttributes, RawProduct, Store, UpdateBaseProduct, Visibility,
-};
+use models::*;
 
 use errors;
-use repos::acl;
-use repos::legacy_acl::*;
-use repos::types::{RepoAcl, RepoResult};
+use repos::{
+    acl,
+    legacy_acl::*,
+    types::{RepoAcl, RepoResult},
+};
 use schema::attributes::dsl as DslAttributes;
 use schema::base_products::dsl::*;
 use schema::prod_attr_values::dsl as DslProdAttr;
@@ -128,6 +125,9 @@ pub trait BaseProductsRepo {
 
     /// Set moderation status for base_products by store. For store manager
     fn update_moderation_status_by_store(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+
+    /// Replace category in base products
+    fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>>;
 
     /// Getting all base products with variants
     fn get_all_catalog(&self) -> RepoResult<Vec<CatalogWithAttributes>>;
@@ -814,6 +814,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn set_moderation_status(&self, base_product_id_arg: BaseProductId, status_arg: ModerationStatus) -> RepoResult<BaseProduct> {
+        debug!(
+            "Update moderation status base product {}. New status {:?}.",
+            base_product_id_arg, status_arg
+        );
         let mut results = self.set_moderation_statuses(vec![base_product_id_arg], status_arg)?;
 
         if let Some(base_product) = results.pop() {
@@ -825,6 +829,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Set moderation status for base_products by store. For store manager
     fn update_moderation_status_by_store(&self, store_id_arg: StoreId, status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+        debug!(
+            "Update moderation status base products by store_id {}. New status {:?}.",
+            store_id_arg, status_arg
+        );
+
         let query = base_products.filter(store_id.eq(store_id_arg));
 
         query
@@ -840,6 +849,45 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     store_id_arg
                 )).into()
             })
+    }
+
+    /// Replace category in all base products
+    fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Replace category in base products.");
+
+        let mut query = base_products.filter(category_id.eq(payload.current_category.clone())).into_boxed();
+
+        if let Some(base_product_ids) = payload.base_product_ids.clone() {
+            query = query.filter(id.eq_any(base_product_ids));
+        }
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|bs: Vec<BaseProduct>| {
+                for base in &bs {
+                    acl::check_with_rule(
+                        &*self.acl,
+                        Resource::BaseProducts,
+                        Action::Update,
+                        self,
+                        Rule::ModerationStatus(base.status),
+                        Some(&base),
+                    )?;
+                }
+                Ok(bs)
+            }).and_then(|_| {
+                let mut query = diesel::update(base_products)
+                    .set(category_id.eq(payload.new_category))
+                    .filter(category_id.eq(payload.current_category))
+                    .into_boxed();
+
+                if let Some(base_product_ids) = payload.base_product_ids {
+                    query = query.filter(id.eq_any(base_product_ids));
+                }
+
+                query.get_results(self.db_conn).map_err(From::from)
+            }).map_err(|e: FailureError| e.context("Replace category in base products error occurred").into())
     }
 
     /// Getting all base products with variants

@@ -497,6 +497,16 @@ impl<
                     }),
             ),
 
+            // POST /base_products/replace_category
+            (&Post, Some(Route::BaseProductsCategoryReplace)) => serialize_future(
+                parse_body::<CategoryReplacePayload>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: CategoryReplacePayload")
+                            .context(Error::Parse)
+                            .into()
+                    }).and_then(move |payload| service.replace_category(payload)),
+            ),
+
             // POST /base_products/moderate
             (&Post, Some(Route::BaseProductModerate)) => serialize_future(
                 parse_body::<BaseProductModerate>(req.body())

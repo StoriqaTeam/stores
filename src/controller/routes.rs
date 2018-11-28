@@ -30,6 +30,7 @@ pub enum Route {
     BaseProductPublish,
     Categories,
     Category(CategoryId),
+    BaseProductsCategoryReplace,
     CategoryBySlug(CategorySlug),
     CategoryAttrs,
     CategoryAttr(CategoryId),
@@ -348,6 +349,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<BaseProductId>().ok())
             .map(Route::BaseProductDraft)
     });
+
+    // CategoryReplace
+    router.add_route(r"^/base_products/replace_category$", || Route::BaseProductsCategoryReplace);
 
     // Attributes Routes
     router.add_route(r"^/attributes$", || Route::Attributes);

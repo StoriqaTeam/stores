@@ -1265,6 +1265,10 @@ pub mod tests {
             category_id: CategoryId(3),
             slug: Some("slug".to_string()),
             uuid: Uuid::new_v4(),
+            length_cm: Some(60),
+            width_cm: Some(40),
+            height_cm: Some(20),
+            weight_g: Some(150),
         }
     }
 
@@ -1279,6 +1283,10 @@ pub mod tests {
             category_id: None,
             rating: None,
             slug: None,
+            length_cm: None,
+            width_cm: None,
+            height_cm: None,
+            weight_g: None,
         }
     }
 

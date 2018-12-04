@@ -11,7 +11,7 @@ use stq_types::{BaseProductId, ProductId, UserId};
 
 use super::acl;
 use models::authorization::*;
-use models::{BaseProduct, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
+use models::{BaseProductRaw, NewProdAttr, ProdAttr, Store, UpdateProdAttr};
 use repos::legacy_acl::*;
 use repos::types::{RepoAcl, RepoResult};
 use schema::base_products::dsl as BaseProducts;
@@ -249,7 +249,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     BaseProducts::base_products
                         .filter(BaseProducts::id.eq(prod_attr.base_prod_id))
                         .inner_join(Stores::stores)
-                        .get_result::<(BaseProduct, Store)>(self.db_conn)
+                        .get_result::<(BaseProductRaw, Store)>(self.db_conn)
                         .map(|(_, s)| s.user_id == user_id)
                         .ok()
                         .unwrap_or(false)

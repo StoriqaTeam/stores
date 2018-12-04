@@ -24,6 +24,10 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         category_id: CategoryId(12),
         slug: Some(rand::thread_rng().gen_ascii_chars().take(10).collect::<String>().to_lowercase()),
         uuid: uuid::Uuid::new_v4(),
+        length_cm: Some(60),
+        width_cm: Some(40),
+        height_cm: Some(20),
+        weight_g: Some(100),
     }
 }
 
@@ -38,6 +42,10 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         category_id: Some(CategoryId(12)),
         rating: None,
         slug: None,
+        length_cm: Some(60),
+        width_cm: Some(40),
+        height_cm: Some(20),
+        weight_g: Some(100),
     }
 }
 

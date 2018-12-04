@@ -10,12 +10,12 @@ use stq_static_resources::{Currency, ModerationStatus};
 use stq_types::{BaseProductId, CategoryId, ExchangeRate, ProductId, ProductPrice, Quantity, StoreId};
 
 use models::validation_rules::*;
-use models::{AttrValue, Attribute, AttributeFilter, BaseProduct, ProdAttr, RangeFilter};
+use models::{AttrValue, Attribute, AttributeFilter, BaseProductRaw, ProdAttr, RangeFilter};
 use schema::products;
 
 /// Payload for querying products
 #[derive(Debug, Serialize, Deserialize, Associations, Queryable, Clone, Identifiable)]
-#[belongs_to(BaseProduct)]
+#[belongs_to(BaseProductRaw, foreign_key = "base_product_id")]
 #[table_name = "products"]
 pub struct RawProduct {
     pub id: ProductId,

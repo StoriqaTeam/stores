@@ -1046,6 +1046,11 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: Some(60),
+                width_cm: Some(40),
+                height_cm: Some(20),
+                volume_cubic_cm: Some(48000),
+                weight_g: Some(100),
             }))
         }
 
@@ -1070,6 +1075,11 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: Some(60),
+                width_cm: Some(40),
+                height_cm: Some(20),
+                volume_cubic_cm: Some(48000),
+                weight_g: Some(100),
             }))
         }
 
@@ -1096,6 +1106,11 @@ pub mod tests {
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
                     uuid: uuid::Uuid::new_v4(),
+                    length_cm: Some(60),
+                    width_cm: Some(40),
+                    height_cm: Some(20),
+                    volume_cubic_cm: Some(48000),
+                    weight_g: Some(100),
                 };
 
                 result.push(val);
@@ -1132,6 +1147,11 @@ pub mod tests {
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
                     uuid: uuid::Uuid::new_v4(),
+                    length_cm: Some(60),
+                    width_cm: Some(40),
+                    height_cm: Some(20),
+                    volume_cubic_cm: Some(48000),
+                    weight_g: Some(100),
                 };
                 base_products.push(base_product);
             }
@@ -1168,6 +1188,11 @@ pub mod tests {
                     status: ModerationStatus::Published,
                     kafka_update_no: 0,
                     uuid: uuid::Uuid::new_v4(),
+                    length_cm: Some(60),
+                    width_cm: Some(40),
+                    height_cm: Some(20),
+                    volume_cubic_cm: Some(48000),
+                    weight_g: Some(100),
                 };
                 base_products.push(base_product);
             }
@@ -1204,6 +1229,14 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: payload.length_cm.clone(),
+                width_cm: payload.width_cm.clone(),
+                height_cm: payload.height_cm.clone(),
+                volume_cubic_cm: match (payload.length_cm, payload.width_cm, payload.height_cm) {
+                    (Some(l), Some(w), Some(h)) => Some(l * w * h),
+                    _ => None,
+                },
+                weight_g: payload.weight_g,
             })
         }
 
@@ -1228,6 +1261,14 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: payload.length_cm.clone(),
+                width_cm: payload.width_cm.clone(),
+                height_cm: payload.height_cm.clone(),
+                volume_cubic_cm: match (payload.length_cm, payload.width_cm, payload.height_cm) {
+                    (Some(l), Some(w), Some(h)) => Some(l * w * h),
+                    _ => None,
+                },
+                weight_g: payload.weight_g,
             })
         }
 
@@ -1252,6 +1293,11 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: Some(60),
+                width_cm: Some(40),
+                height_cm: Some(20),
+                volume_cubic_cm: Some(48000),
+                weight_g: Some(100),
             }))
         }
 
@@ -1276,6 +1322,11 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: Some(60),
+                width_cm: Some(40),
+                height_cm: Some(20),
+                volume_cubic_cm: Some(48000),
+                weight_g: Some(100),
             })
         }
 
@@ -1299,6 +1350,11 @@ pub mod tests {
                 status: ModerationStatus::Published,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: Some(60),
+                width_cm: Some(40),
+                height_cm: Some(20),
+                volume_cubic_cm: Some(48000),
+                weight_g: Some(100),
             }])
         }
 
@@ -1353,6 +1409,11 @@ pub mod tests {
                 status: status_arg,
                 kafka_update_no: 0,
                 uuid: uuid::Uuid::new_v4(),
+                length_cm: Some(60),
+                width_cm: Some(40),
+                height_cm: Some(20),
+                volume_cubic_cm: Some(48000),
+                weight_g: Some(100),
             })
         }
 

@@ -10,7 +10,7 @@ use failure::Error as FailureError;
 use stq_static_resources::Currency;
 use stq_types::{BaseProductId, ProductId, UserId};
 
-use models::{BaseProduct, NewProduct, RawProduct, Store, UpdateProduct};
+use models::{BaseProductRaw, NewProduct, RawProduct, Store, UpdateProduct};
 use repos::legacy_acl::*;
 use schema::base_products::dsl as BaseProducts;
 use schema::products::dsl::*;
@@ -256,7 +256,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     BaseProducts::base_products
                         .filter(BaseProducts::id.eq(product.base_product_id))
                         .inner_join(Stores::stores)
-                        .get_result::<(BaseProduct, Store)>(self.db_conn)
+                        .get_result::<(BaseProductRaw, Store)>(self.db_conn)
                         .map(|(_, s)| s.user_id == user_id)
                         .ok()
                         .unwrap_or(false)

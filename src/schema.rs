@@ -37,6 +37,10 @@ table! {
         kafka_update_no -> Int4,
         currency -> Varchar,
         uuid -> Uuid,
+        length_cm -> Int4,
+        width_cm -> Int4,
+        height_cm -> Int4,
+        weight_g -> Int4,
     }
 }
 

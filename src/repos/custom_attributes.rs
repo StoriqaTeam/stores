@@ -9,7 +9,7 @@ use failure::Error as FailureError;
 use stq_types::{BaseProductId, CustomAttributeId, UserId};
 
 use models::authorization::*;
-use models::{BaseProduct, CustomAttribute, NewCustomAttribute, Store};
+use models::{BaseProductRaw, CustomAttribute, NewCustomAttribute, Store};
 use repos::acl;
 use repos::legacy_acl::CheckScope;
 use repos::types::{RepoAcl, RepoResult};
@@ -155,7 +155,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     BaseProducts::base_products
                         .filter(BaseProducts::id.eq(custom_attribute.base_product_id))
                         .inner_join(Stores::stores)
-                        .get_result::<(BaseProduct, Store)>(self.db_conn)
+                        .get_result::<(BaseProductRaw, Store)>(self.db_conn)
                         .map(|(_, s)| s.user_id == user_id)
                         .ok()
                         .unwrap_or(false)

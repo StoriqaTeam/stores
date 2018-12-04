@@ -265,7 +265,7 @@ pub mod tests {
     use repos::repo_factory::tests::*;
     use services::*;
 
-    use stq_types::{CategoryId, CategorySlug};
+    use stq_types::CategoryId;
 
     pub fn create_new_categories(name: &str) -> NewCategory {
         NewCategory {

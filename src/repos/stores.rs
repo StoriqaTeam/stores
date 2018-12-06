@@ -10,14 +10,12 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_types::{Bool, VarChar};
 use diesel::Connection;
 use failure::Error as FailureError;
+use failure::Fail;
 
 use stq_static_resources::{ModerationStatus, Translation};
 use stq_types::{StoreId, StoreSlug, UserId};
 
-use models::authorization::*;
-use models::{
-    Direction, ModeratorStoreSearchResults, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, Store, UpdateStore, Visibility,
-};
+use models::*;
 use repos::acl;
 use repos::legacy_acl::*;
 use repos::types::{RepoAcl, RepoResult};
@@ -77,6 +75,9 @@ pub trait StoresRepo {
 
     /// Set moderation status for specific store
     fn set_moderation_status(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Store>;
+
+    /// Updates service store fields as root
+    fn update_service_fields(&self, store_id: StoreId, payload: ServiceUpdateStore) -> RepoResult<Store>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
@@ -451,6 +452,20 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Set moderation status for store {:?} error occurred", store_id_arg))
                     .into()
             })
+    }
+
+    /// Updates service store fields as root
+    fn update_service_fields(&self, store_id_arg: StoreId, payload: ServiceUpdateStore) -> RepoResult<Store> {
+        debug!("Updating service store fields with id {} and payload {:?}.", store_id_arg, payload);
+        let filtered = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
+        let query = diesel::update(filtered).set(&payload);
+
+        query.get_result::<Store>(self.db_conn).map_err(|e| {
+            e.context(format!(
+                "Updating service store fields with id {} and payload {:?} error occurred.",
+                store_id_arg, payload
+            )).into()
+        })
     }
 }
 

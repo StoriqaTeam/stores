@@ -134,7 +134,6 @@ pub struct UpdateStore {
     pub slogan: Option<String>,
     pub rating: Option<f64>,
     pub country: Option<String>,
-    pub product_categories: Option<serde_json::Value>,
     pub administrative_area_level_1: Option<String>,
     pub administrative_area_level_2: Option<String>,
     pub locality: Option<String>,
@@ -146,7 +145,13 @@ pub struct UpdateStore {
     pub country_code: Option<Alpha3>,
 }
 
-impl UpdateStore {
+#[derive(Default, Serialize, Deserialize, Insertable, AsChangeset, Debug)]
+#[table_name = "stores"]
+pub struct ServiceUpdateStore {
+    pub product_categories: Option<serde_json::Value>,
+}
+
+impl ServiceUpdateStore {
     pub fn update_product_categories(
         product_categories: Option<serde_json::Value>,
         old_cat_id: CategoryId,
@@ -179,7 +184,7 @@ impl UpdateStore {
 
         Self {
             product_categories,
-            ..UpdateStore::default()
+            ..ServiceUpdateStore::default()
         }
     }
 
@@ -206,7 +211,7 @@ impl UpdateStore {
 
         Self {
             product_categories,
-            ..UpdateStore::default()
+            ..ServiceUpdateStore::default()
         }
     }
 
@@ -235,7 +240,7 @@ impl UpdateStore {
 
         Self {
             product_categories,
-            ..UpdateStore::default()
+            ..ServiceUpdateStore::default()
         }
     }
 }

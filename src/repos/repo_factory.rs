@@ -1639,6 +1639,12 @@ pub mod tests {
             Ok(store)
         }
 
+        fn update_service_fields(&self, store_id_arg: StoreId, payload: ServiceUpdateStore) -> RepoResult<Store> {
+            let store = create_store(store_id_arg, serde_json::from_str("{}").unwrap());
+
+            Ok(store)
+        }
+
         fn deactivate(&self, store_id: StoreId) -> RepoResult<Store> {
             let mut store = create_store(store_id, serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             store.is_active = false;
@@ -1765,7 +1771,6 @@ pub mod tests {
             rating: None,
             country: None,
             country_code: None,
-            product_categories: None,
             administrative_area_level_1: None,
             administrative_area_level_2: None,
             locality: None,

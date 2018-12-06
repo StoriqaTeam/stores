@@ -605,7 +605,6 @@ pub mod tests {
             rating: None,
             country: None,
             country_code: None,
-            product_categories: None,
             administrative_area_level_1: None,
             administrative_area_level_2: None,
             locality: None,

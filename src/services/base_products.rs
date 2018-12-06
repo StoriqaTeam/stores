@@ -495,7 +495,7 @@ impl<
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
-            conn.transaction::<(BaseProduct), FailureError, _>(move || {
+            conn.transaction::<BaseProduct, FailureError, _>(move || {
                 let prod = base_products_repo.deactivate(base_product_id)?;
                 let _ = products_repo.deactivate_by_base_product(base_product_id)?;
                 // update product categories of the store
@@ -503,8 +503,9 @@ impl<
                 if let Some(store) = store {
                     let category_root = categories_repo.get_all_categories()?;
                     let cat = get_first_level_category(prod.category_id, category_root)?;
-                    let update_store = UpdateStore::delete_category_from_product_categories(store.product_categories.clone(), cat.id);
-                    stores_repo.update(store.id, update_store)?;
+                    let service_update_store =
+                        ServiceUpdateStore::delete_category_from_product_categories(store.product_categories.clone(), cat.id);
+                    let _ = stores_repo.update_service_fields(store.id, service_update_store)?;
                 };
                 Ok(prod)
             }).map_err(|e: FailureError| {
@@ -576,7 +577,7 @@ impl<
                 let base_prod = base_products_repo.create(payload)?;
 
                 // update product categories of the store
-                update_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
+                add_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
 
                 Ok(base_prod)
             }).map_err(|e| e.context("Service BaseProduct, create endpoint error occurred.").into())
@@ -613,7 +614,7 @@ impl<
                 let store_id = base_prod.store_id;
 
                 // update product categories of the store
-                update_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
+                add_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
 
                 let variants = variants.into_iter().map(move |mut variant| {
                     variant.product.base_product_id = Some(base_prod_id);
@@ -670,14 +671,7 @@ impl<
                     let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
                     if let Some(new_cat_id) = payload.category_id {
                         // updating product categories of the store
-                        let old_cat_id = old_prod.category_id;
-                        let old_prod_store_id = old_prod.store_id;
-                        let store = stores_repo.find(old_prod_store_id, Visibility::Active)?;
-                        if let Some(store) = store {
-                            let update_store =
-                                UpdateStore::update_product_categories(store.product_categories.clone(), old_cat_id, new_cat_id);
-                            stores_repo.update(store.id, update_store)?;
-                        }
+                        let _ = update_product_categories(&*stores_repo, old_prod.store_id, old_prod.category_id, new_cat_id)?;
                     } else if let Some(currency) = payload.currency {
                         // updating currency of base_products variants
                         products_repo.update_currency(currency, updated_prod.id)?;
@@ -1061,16 +1055,12 @@ impl<
                     let update_products = base_products_repo.replace_category(payload.clone())?;
 
                     for base_product in update_products.iter() {
-                        let store = stores_repo.find(base_product.store_id, Visibility::Active)?;
-
-                        if let Some(store) = store {
-                            let update_store = UpdateStore::update_product_categories(
-                                store.product_categories.clone(),
-                                payload.current_category,
-                                payload.new_category,
-                            );
-                            stores_repo.update(store.id, update_store)?;
-                        }
+                        let _ = update_product_categories(
+                            &*stores_repo,
+                            base_product.store_id,
+                            payload.current_category,
+                            payload.new_category,
+                        )?;
                     }
 
                     Ok(update_products)
@@ -1196,8 +1186,8 @@ fn get_first_level_category(third_level_category_id: CategoryId, root: Category)
         })
 }
 
-/// Update product categories of the store
-fn update_product_categories(
+/// Add product categories of the store
+fn add_product_categories(
     stores_repo: &StoresRepo,
     categories_repo: &CategoriesRepo,
     store_id_arg: StoreId,
@@ -1207,8 +1197,25 @@ fn update_product_categories(
     if let Some(store) = store {
         let category_root = categories_repo.get_all_categories()?;
         let cat = get_first_level_category(category_id_arg, category_root)?;
-        let update_store = UpdateStore::add_category_to_product_categories(store.product_categories.clone(), cat.id);
-        stores_repo.update(store.id, update_store)?;
+        let service_update_store = ServiceUpdateStore::add_category_to_product_categories(store.product_categories.clone(), cat.id);
+        let _ = stores_repo.update_service_fields(store.id, service_update_store)?;
+    }
+
+    Ok(())
+}
+
+/// Update product categories of store
+fn update_product_categories(
+    stores_repo: &StoresRepo,
+    store_id_arg: StoreId,
+    old_category: CategoryId,
+    new_category: CategoryId,
+) -> RepoResult<()> {
+    let store = stores_repo.find(store_id_arg, Visibility::Active)?;
+    if let Some(store) = store {
+        let service_update_store =
+            ServiceUpdateStore::update_product_categories(store.product_categories.clone(), old_category, new_category);
+        let _ = stores_repo.update_service_fields(store.id, service_update_store)?;
     }
 
     Ok(())

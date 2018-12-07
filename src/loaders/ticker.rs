@@ -1,5 +1,5 @@
 use diesel::{pg::PgConnection, r2d2::ConnectionManager};
-use failure::Error as FailureError;
+use failure::{Error as FailureError, Fail};
 use futures::{future, Future, Stream};
 use futures_cpupool::CpuPool;
 use models::currency_exchange::NewCurrencyExchange;
@@ -128,12 +128,20 @@ fn update_currency_pairs(ctx: TickerContext) -> impl Future<Item = (), Error = F
         ..
     } = ctx.clone();
 
+    info!("Getting currency pairs from EXMO API...");
     http_client
         .get(api_endpoint_url.as_str())
         .send()
         .map_err(FailureError::from)
-        .and_then(|mut res| res.json::<HashMap<String, ExmoCurrencyPairPayload>>().map_err(FailureError::from))
-        .and_then(extract_rates)
+        .and_then(|mut res| {
+            res.json::<serde_json::Value>()
+                .map_err(|e| e.context("Received an invalid JSON from EXMO API").into())
+                .and_then(|value| {
+                    info!("Received a JSON response from EXMO API: {:?}", value);
+                    serde_json::from_value::<HashMap<String, ExmoCurrencyPairPayload>>(value)
+                        .map_err(|e| e.context("Unrecognized JSON response").into())
+                })
+        }).and_then(extract_rates)
         .map(NewCurrencyExchange::from)
         .and_then(|rates| update_rates_in_db(ctx, rates))
 }

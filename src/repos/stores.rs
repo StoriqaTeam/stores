@@ -78,6 +78,9 @@ pub trait StoresRepo {
 
     /// Updates service store fields as root
     fn update_service_fields(&self, store_id: StoreId, payload: ServiceUpdateStore) -> RepoResult<Store>;
+
+    /// Delete store by id
+    fn delete(&self, store_id: StoreId) -> RepoResult<()>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> StoresRepoImpl<'a, T> {
@@ -466,6 +469,18 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 store_id_arg, payload
             )).into()
         })
+    }
+
+    /// Delete store by id
+    fn delete(&self, store_id_arg: StoreId) -> RepoResult<()> {
+        debug!("Delete store with id {} .", store_id_arg);
+        let filtered = stores.filter(id.eq(store_id_arg));
+        let query = diesel::delete(filtered);
+
+        query
+            .get_result::<Store>(self.db_conn)
+            .map_err(|e| e.context(format!("Delete store with id {} error occurred.", store_id_arg)).into())
+            .map(|_| ())
     }
 }
 

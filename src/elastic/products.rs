@@ -116,10 +116,10 @@ impl ProductsElasticImpl {
         };
 
         let variant_attr_filter = json!({
-            "nested":{  
+            "nested":{
                 "path":"variants.attrs",
-                "query":{  
-                    "bool":{  
+                "query":{
+                    "bool":{
                         "should": attr_filters
                     }
                 }
@@ -162,7 +162,7 @@ impl ProductsElasticImpl {
                     range_map.insert("lte".to_string(), json!(max));
                 }
                 let variant_price_filter = json!({
-                    "range":{  
+                    "range":{
                         "variants.price":range_map
                     }
                 });
@@ -172,7 +172,7 @@ impl ProductsElasticImpl {
 
         let mut variants_filters: Vec<serde_json::Value> = vec![];
         let variant_exists = json!({
-                "exists":{  
+                "exists":{
                     "field":"variants"
                 }
         });
@@ -241,24 +241,24 @@ impl ProductsElasticImpl {
                         }
                     ),
                     ProductsSorting::PriceDesc => json!({
-                            "variants.price" : {
-                                "mode" :  "max",
-                                "order" : "desc",
-                                "nested": {
-                                    "path": "variants"
-                                }
+                        "variants.price" : {
+                            "mode" :  "max",
+                            "order" : "desc",
+                            "nested": {
+                                "path": "variants"
                             }
-                        }),
+                        }
+                    }),
                     ProductsSorting::Views => json!({ "views" : { "order" : "desc"} }),
                     ProductsSorting::Discount => json!({
-                            "variants.discount" : {
-                                "mode" :  "max",
-                                "order" : "desc",
-                                "nested": {
-                                    "path": "variants"
-                                }
+                        "variants.discount" : {
+                            "mode" :  "max",
+                            "order" : "desc",
+                            "nested": {
+                                "path": "variants"
                             }
-                        }),
+                        }
+                    }),
                 };
                 sorting.push(sort);
             }
@@ -316,21 +316,21 @@ impl ProductsElastic for ProductsElasticImpl {
             .and_then(|options| options.sort_by)
             .map(|sort_by| match sort_by {
                 ProductsSorting::PriceAsc => json!(
-                        [{"variants.price" : "asc"}]
-                    ),
+                    [{"variants.price" : "asc"}]
+                ),
                 ProductsSorting::PriceDesc => json!(
-                        [{"variants.price" : "desc"}]
-                        ),
+                [{"variants.price" : "desc"}]
+                ),
                 ProductsSorting::Views => json!([]),
                 ProductsSorting::Discount => json!(
-                        [{"variants.discount" : "desc"}]
-                    ),
+                    [{"variants.discount" : "desc"}]
+                ),
             }).unwrap_or_else(|| serde_json::Value::Array(vec![]));
 
         let variants = json!({
-            "nested":{  
+            "nested":{
                 "path":"variants",
-                "query":{  
+                "query":{
                     "bool": variants_map
                 },
                 "inner_hits": {
@@ -398,9 +398,9 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut filters: Vec<serde_json::Value> = vec![];
         let variants_map = ProductsElasticImpl::create_variants_map_filters(&prod.options);
         let variants = json!({
-            "nested":{  
+            "nested":{
                 "path":"variants",
-                "query":{  
+                "query":{
                     "bool": variants_map
                 },
                 "inner_hits": {
@@ -463,27 +463,27 @@ impl ProductsElastic for ProductsElasticImpl {
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
         let discount_exists = json!({
-                "nested": {
-                    "path": "variants",
-                    "query": {
-                        "bool": {
-                            "filter": {
-                                "exists": {
-                                    "field": "variants.discount"
-                                }
+            "nested": {
+                "path": "variants",
+                "query": {
+                    "bool": {
+                        "filter": {
+                            "exists": {
+                                "field": "variants.discount"
                             }
                         }
                     }
                 }
-            });
+            }
+        });
 
         query_map.insert("must".to_string(), discount_exists);
 
         let mut filters: Vec<serde_json::Value> = vec![];
         let variants = json!({
-            "nested":{  
+            "nested":{
                 "path":"variants",
-                "query":{  
+                "query":{
                     "bool": {
                         "filter": [
                             { "exists": {
@@ -527,7 +527,7 @@ impl ProductsElastic for ProductsElasticImpl {
             "query": {
                 "bool" : query_map
             },
-            "sort" : [{ 
+            "sort" : [{
                 "variants.discount" : {
                     "mode" :  "max",
                     "order" : "desc",
@@ -582,10 +582,10 @@ impl ProductsElastic for ProductsElasticImpl {
                 "completion" : {
                     "field" : "suggest_2",
                     "size" : count,
-                    "skip_duplicates": true, 
+                    "skip_duplicates": true,
                     "fuzzy": true,
                     "contexts": {
-                        "store_and_status": store 
+                        "store_and_status": store
                     }
                 }
             }
@@ -770,8 +770,8 @@ impl ProductsElastic for ProductsElasticImpl {
                             "path" : "variants"
                         },
                         "aggs" : {
-                            "min_price" : { 
-                                "min" : { 
+                            "min_price" : {
+                                "min" : {
                                 "script": {
                                             "lang": "painless",
                                             "params": { "cur_map": currency_map },
@@ -783,8 +783,8 @@ impl ProductsElastic for ProductsElasticImpl {
                                         }
                                     }
                             },
-                            "max_price" : { 
-                                "max" : { 
+                            "max_price" : {
+                                "max" : {
                                 "script": {
                                             "lang": "painless",
                                             "params": { "cur_map": currency_map },
@@ -911,10 +911,10 @@ impl ProductsElastic for ProductsElasticImpl {
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
-                "query": {
-                        "bool" : query_map
-                    },
-            }).to_string();
+            "query": {
+                    "bool" : query_map
+                },
+        }).to_string();
 
         let url = format!("http://{}/{}/_count", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();

@@ -1639,7 +1639,7 @@ pub mod tests {
             Ok(store)
         }
 
-        fn update_service_fields(&self, store_id_arg: StoreId, payload: ServiceUpdateStore) -> RepoResult<Store> {
+        fn update_service_fields(&self, store_id_arg: StoreId, _payload: ServiceUpdateStore) -> RepoResult<Store> {
             let store = create_store(store_id_arg, serde_json::from_str("{}").unwrap());
 
             Ok(store)
@@ -1657,6 +1657,10 @@ pub mod tests {
 
         fn get_by_user(&self, _user_id_arg: UserId) -> RepoResult<Option<Store>> {
             Ok(None)
+        }
+
+        fn delete(&self, _store_id_arg: StoreId) -> RepoResult<()> {
+            Ok(())
         }
 
         fn moderator_search(

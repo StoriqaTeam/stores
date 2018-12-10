@@ -69,9 +69,9 @@ impl<T> SearchResponse<T> {
         IntoHits::new(self.hits)
     }
 
-    /** 
+    /**
     Iterate over the documents matched by the search query.
-    
+
     This iterator emits just the `_source` field for the returned hits.
     */
     pub fn documents(&self) -> Documents<T> {
@@ -83,9 +83,9 @@ impl<T> SearchResponse<T> {
         IntoDocuments::new(self.hits)
     }
 
-    /** 
+    /**
     Iterate over the aggregations in the response.
-    
+
     This Iterator transforms the tree-like JSON object into a row/table based format for use with standard iterator adaptors.
     */
     pub fn aggs(&self) -> Aggs {
@@ -263,7 +263,7 @@ impl<T> Hit<T> {
 #[derive(Deserialize, Debug)]
 struct AggsWrapper(Value);
 
-/** 
+/**
 Aggregator that traverses the results from Elasticsearch's aggregations and returns a result row by row in a table-styled fashion.
 */
 #[derive(Debug)]

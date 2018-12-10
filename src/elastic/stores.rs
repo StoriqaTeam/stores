@@ -94,7 +94,7 @@ impl StoresElastic for StoresElasticImpl {
         let mut filters = StoresElasticImpl::create_elastic_filters(search_store.options.clone());
         filters.push(json!({ "term": {"status": "published"}}));
         let product_categories = json!({
-            "nested":{  
+            "nested":{
                 "path": "product_categories",
                 "query": {
                     "bool": {
@@ -151,7 +151,7 @@ impl StoresElastic for StoresElasticImpl {
                 "completion" : {
                     "field" : "suggest_2",
                     "size" : count,
-                    "skip_duplicates": true, 
+                    "skip_duplicates": true,
                     "fuzzy": true,
                     "contexts": {
                         "status": "published"
@@ -321,7 +321,7 @@ impl StoresElastic for StoresElasticImpl {
         let mut filters: Vec<serde_json::Value> = vec![];
         filters.push(json!({ "term": {"status": "published"}}));
         let product_categories = json!({
-            "nested":{  
+            "nested":{
                 "path": "product_categories",
                 "query": {
                     "bool": {
@@ -342,13 +342,13 @@ impl StoresElastic for StoresElasticImpl {
             "query": {
                 "bool" : query_map
             },
-            "aggregations": { 
-                "product_categories" : { 
-                    "nested" : { 
-                        "path" : "product_categories" 
+            "aggregations": {
+                "product_categories" : {
+                    "nested" : {
+                        "path" : "product_categories"
                     },
-                    "aggs" : { 
-                        "category" : { "terms" : { "field" : "product_categories.category_id" } }, 
+                    "aggs" : {
+                        "category" : { "terms" : { "field" : "product_categories.category_id" } },
                     }
                 }
             }

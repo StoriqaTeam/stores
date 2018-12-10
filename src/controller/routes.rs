@@ -74,6 +74,7 @@ pub enum Route {
     StoresCart,
     StoresSlugExists,
     Store(StoreId),
+    StoreDelete(StoreId),
     StoreBySlug(StoreSlug),
     StoreCount,
     StoreByUser(UserId),
@@ -117,6 +118,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(StoreId)
             .map(Route::Store)
+    });
+
+    router.add_route_with_params(r"^/stores/(\d+)/delete$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<StoreId>().ok())
+            .map(Route::StoreDelete)
     });
 
     // Stores/by-slug/:slug route

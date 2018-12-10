@@ -3,7 +3,8 @@ use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
 use diesel::Connection;
 use failure::Error as FailureError;
-use futures::future::*;
+use failure::Fail;
+use futures::{future, Future};
 use r2d2::ManageConnection;
 
 use stq_static_resources::ModerationStatus;
@@ -72,6 +73,9 @@ pub trait StoresService {
 
     // Check that you can change the moderation status
     fn validate_change_moderation_status_store(&self, store_id: StoreId, status: ModerationStatus) -> ServiceFuture<bool>;
+
+    /// Delete store by id
+    fn delete(&self, store_id: StoreId) -> ServiceFuture<()>;
 }
 
 impl<
@@ -509,15 +513,41 @@ impl<
         info!("Check change moderation status store: {}", store_id);
 
         self.spawn_on_pool(move |conn| {
-            let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
-            let store = stores_repo.find(store_id, Visibility::Active)?;
+            {
+                let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
+                let store = stores_repo.find(store_id, Visibility::Active)?;
 
-            let current_status = match store {
-                Some(value) => value.status,
-                None => return Err(Error::NotFound.into()),
-            };
+                let current_status = match store {
+                    Some(value) => value.status,
+                    None => return Err(Error::NotFound.into()),
+                };
 
-            Ok(check_change_status(current_status, status))
+                Ok(check_change_status(current_status, status))
+            }.map_err(|e: FailureError| {
+                e.context("Service stores, validate_change_moderation_status_store endpoint error occurred.")
+                    .into()
+            })
+        })
+    }
+
+    /// Delete store by id
+    fn delete(&self, store_id: StoreId) -> ServiceFuture<()> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        info!("Delete store with: {}", store_id);
+
+        if user_id != Some(UserId(1)) {
+            // can only superadmin with id = 1
+            return Box::new(future::err(Error::Forbidden.context("Cannot delete store").into()));
+        }
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
+
+                stores_repo.delete(store_id)
+            }.map_err(|e: FailureError| e.context("Service stores, delete endpoint error occurred.").into())
         })
     }
 }

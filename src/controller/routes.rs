@@ -62,6 +62,7 @@ pub enum Route {
     Products,
     ProductStoreId,
     Product(ProductId),
+    ProductValidateUpdate(ProductId),
     ProductAttributes(ProductId),
     ProductsByBaseProduct(BaseProductId),
     SellerProductPrice(ProductId),
@@ -83,12 +84,14 @@ pub enum Route {
     StorePublish(StoreId),
     StoreDraft(StoreId),
     StoreValidateChangeModerationStatus,
+    StoreValidateUpdate(StoreId),
     StoreModerate,
     StoreModeration(StoreId),
     BaseProductModerate,
     BaseProductModeration(BaseProductId),
     BaseProductDraft(BaseProductId),
     BaseProductValidateChangeModerationStatus,
+    BaseProductValidateUpdate(BaseProductId),
     Roles,
     RoleById {
         id: RoleId,
@@ -191,6 +194,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
         Route::StoreValidateChangeModerationStatus
     });
 
+    router.add_route_with_params(r"^/stores/(\d+)/validate_update$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<StoreId>().ok())
+            .map(Route::StoreValidateUpdate)
+    });
+
     router.add_route_with_params(r"^/stores/(\d+)/moderation$", |params| {
         params
             .get(0)
@@ -238,6 +248,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(ProductId)
             .map(Route::ProductAttributes)
+    });
+
+    router.add_route_with_params(r"^/products/(\d+)/validate_update$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<ProductId>().ok())
+            .map(Route::ProductValidateUpdate)
     });
 
     // Base products routes
@@ -342,6 +359,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
     // Check that you can change the moderation status
     router.add_route(r"^/base_products/validate_change_moderation_status$", || {
         Route::BaseProductValidateChangeModerationStatus
+    });
+
+    router.add_route_with_params(r"^/base_products/(\d+)/validate_update$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<BaseProductId>().ok())
+            .map(Route::BaseProductValidateUpdate)
     });
 
     router.add_route_with_params(r"^/base_products/(\d+)/moderation$", |params| {

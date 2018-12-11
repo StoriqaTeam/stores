@@ -67,7 +67,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::WizardStores, Action::Read, self, Some(wizard_store))?;
                 };
                 Ok(wizard_store)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Find in wizard stores with user id {} error occurred.", user_id_arg))
                     .into()
             })
@@ -83,7 +84,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|wizard_store| {
                 acl::check(&*self.acl, Resource::WizardStores, Action::Create, self, Some(&wizard_store)).and_then(|_| Ok(wizard_store))
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Create wizard store for user id {:?} error occurred.", user_id_arg))
                     .into()
             })
@@ -98,11 +100,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<WizardStore>(self.db_conn).map_err(From::from)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating wizard store with user_id {} and payload {:?} error occurred.",
                     user_id_arg, payload
-                )).into()
+                ))
+                .into()
             })
     }
 
@@ -115,7 +119,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = wizard_stores.filter(user_id.eq(user_id_arg));
                 let query = diesel::update(filter).set(completed.eq(true));
                 query.get_result::<WizardStore>(self.db_conn).map_err(From::from)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Delete wizard store with user_id {} error occurred.", user_id_arg))
                     .into()
             })

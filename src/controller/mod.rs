@@ -159,7 +159,8 @@ impl<
                         format_err!(
                             "Parsing query parameters failed, action: get products by store, store id: {}",
                             store_id
-                        ).context(Error::Parse)
+                        )
+                        .context(Error::Parse)
                         .into(),
                     ))
                 }
@@ -191,7 +192,8 @@ impl<
                         e.context("Parsing body failed, target: Vec<CartProduct>")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |cart_products| service.find_by_cart(cart_products)),
+                    })
+                    .and_then(move |cart_products| service.find_by_cart(cart_products)),
             ),
 
             // POST /stores/moderate
@@ -209,6 +211,9 @@ impl<
                         service.validate_change_moderation_status_store(store_moderate.store_id, store_moderate.status)
                     }),
             ),
+
+            // GET /stores/:id/validate_update
+            (&Get, Some(Route::StoreValidateUpdate(store_id))) => serialize_future(service.validate_update_store(store_id)),
 
             // POST /stores/moderation
             (&Post, Some(Route::StoreModeration(store_id))) => serialize_future(service.send_store_to_moderation(store_id)),
@@ -279,7 +284,8 @@ impl<
                                 format_err!("Validation failed, target: NewStore")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_store(new_store))
                     }),
             ),
@@ -305,7 +311,8 @@ impl<
                                 format_err!("Validation failed, target: UpdateStore")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.update_store(store_id, update_store))
                     }),
             ),
@@ -380,7 +387,8 @@ impl<
                         e.context("Parsing body failed, target: NewProductWithAttributes")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |new_product| {
+                    })
+                    .and_then(move |new_product| {
                         new_product
                             .product
                             .validate()
@@ -388,7 +396,8 @@ impl<
                                 format_err!("Validation failed, target: NewProductWithAttributes")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_product(new_product))
                     }),
             ),
@@ -400,7 +409,8 @@ impl<
                         e.context("Parsing body failed, target: UpdateProductWithAttributes")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |update_product| {
+                    })
+                    .and_then(move |update_product| {
                         let validation = if let Some(product) = update_product.product.clone() {
                             product
                                 .validate()
@@ -408,7 +418,8 @@ impl<
                                     format_err!("Validation failed, target: UpdateProductWithAttributes")
                                         .context(Error::Validate(e))
                                         .into()
-                                }).into_future()
+                                })
+                                .into_future()
                         } else {
                             future::ok(())
                         };
@@ -488,14 +499,16 @@ impl<
                         e.context("Parsing body failed, target: NewBaseProduct")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |new_base_product| {
+                    })
+                    .and_then(move |new_base_product| {
                         new_base_product
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: NewBaseProduct")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_base_product(new_base_product))
                     }),
             ),
@@ -507,7 +520,8 @@ impl<
                         e.context("Parsing body failed, target: CategoryReplacePayload")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |payload| service.replace_category(payload)),
+                    })
+                    .and_then(move |payload| service.replace_category(payload)),
             ),
 
             // POST /base_products/moderate
@@ -517,7 +531,8 @@ impl<
                         e.context("Parsing body failed, target: BaseProductModerate")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |base_product_moderate| {
+                    })
+                    .and_then(move |base_product_moderate| {
                         service.set_moderation_status_base_product(base_product_moderate.base_product_id, base_product_moderate.status)
                     }),
             ),
@@ -529,13 +544,22 @@ impl<
                         e.context("Parsing body failed, target: BaseProductModerate")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |base_product_moderate| {
+                    })
+                    .and_then(move |base_product_moderate| {
                         service.validate_change_moderation_status_base_product(
                             base_product_moderate.base_product_id,
                             base_product_moderate.status,
                         )
                     }),
             ),
+
+            // GET /base_products/:id/validate_update
+            (&Get, Some(Route::BaseProductValidateUpdate(base_product_id))) => {
+                serialize_future(service.validate_update_base_product(base_product_id))
+            }
+
+            // GET /products/:id/validate_update
+            (&Get, Some(Route::ProductValidateUpdate(product_id))) => serialize_future(service.validate_update_product(product_id)),
 
             // POST /base_products/moderation
             (&Post, Some(Route::BaseProductModeration(base_product_id))) => {
@@ -549,14 +573,16 @@ impl<
                         e.context("Parsing body failed, target: NewBaseProductWithVariants")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |new_base_product| {
+                    })
+                    .and_then(move |new_base_product| {
                         new_base_product
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: NewBaseProductWithVariants")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_base_product_with_variants(new_base_product))
                     }),
             ),
@@ -568,14 +594,16 @@ impl<
                         e.context("Parsing body failed, target: UpdateBaseProduct")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |update_base_product| {
+                    })
+                    .and_then(move |update_base_product| {
                         update_base_product
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: UpdateBaseProduct")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.update_base_product(base_product_id, update_base_product))
                     }),
             ),
@@ -592,7 +620,8 @@ impl<
                                 e.context("Parsing body failed, target: SearchProductsByName")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |prod| service.search_base_products_by_name(prod, count, offset)),
+                            })
+                            .and_then(move |prod| service.search_base_products_by_name(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -612,7 +641,8 @@ impl<
                                 e.context("Parsing body failed, target: AutoCompleteProductName")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |name| service.base_products_auto_complete(name, count, offset)),
+                            })
+                            .and_then(move |name| service.base_products_auto_complete(name, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -632,7 +662,8 @@ impl<
                                 e.context("Parsing body failed, target: MostDiscountProducts")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |prod| service.search_base_products_most_discount(prod, count, offset)),
+                            })
+                            .and_then(move |prod| service.search_base_products_most_discount(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -652,7 +683,8 @@ impl<
                                 e.context("Parsing body failed, target: MostViewedProducts")
                                     .context(Error::Parse)
                                     .into()
-                            }).and_then(move |prod| service.search_base_products_most_viewed(prod, count, offset)),
+                            })
+                            .and_then(move |prod| service.search_base_products_most_viewed(prod, count, offset)),
                     )
                 } else {
                     Box::new(future::err(
@@ -670,7 +702,8 @@ impl<
                         e.context("Parsing body failed, target: SearchProductsByName")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |search_prod| service.search_base_products_filters_price(search_prod)),
+                    })
+                    .and_then(move |search_prod| service.search_base_products_filters_price(search_prod)),
             ),
             // POST /base_products/search/filters/category
             (&Post, Some(Route::BaseProductsSearchFiltersCategory)) => serialize_future(
@@ -679,7 +712,8 @@ impl<
                         e.context("Parsing body failed, target: SearchProductsByName")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |search_prod| service.search_base_products_filters_category(search_prod)),
+                    })
+                    .and_then(move |search_prod| service.search_base_products_filters_category(search_prod)),
             ),
             // POST /base_products/search/filters/attributes
             (&Post, Some(Route::BaseProductsSearchFiltersAttributes)) => serialize_future(
@@ -688,7 +722,8 @@ impl<
                         e.context("Parsing body failed, target: SearchProductsByName")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |search_prod| service.search_base_products_attributes(search_prod)),
+                    })
+                    .and_then(move |search_prod| service.search_base_products_attributes(search_prod)),
             ),
             // POST /base_products/search/filters/count
             (&Post, Some(Route::BaseProductsSearchFiltersCount)) => serialize_future(
@@ -697,7 +732,8 @@ impl<
                         e.context("Parsing body failed, target: SearchProductsByName")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |search_prod| service.search_base_products_filters_count(search_prod)),
+                    })
+                    .and_then(move |search_prod| service.search_base_products_filters_count(search_prod)),
             ),
 
             // POST /base_products/publish
@@ -707,7 +743,8 @@ impl<
                         e.context("Parsing body failed, target: Vec<BaseProductId>")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |base_product_ids| {
+                    })
+                    .and_then(move |base_product_ids| {
                         service.set_moderation_status_base_products(base_product_ids, ModerationStatus::Published)
                     }),
             ),
@@ -724,7 +761,8 @@ impl<
                         e.context("Parsing body failed, target: NewCustomAttribute")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |payload| service.create_custom_attribute(payload)),
+                    })
+                    .and_then(move |payload| service.create_custom_attribute(payload)),
             ),
 
             // GET /custom_attributes
@@ -751,7 +789,8 @@ impl<
                                 format_err!("Validation failed, target: NewCoupon")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_coupon(new_coupon))
                     }),
             ),
@@ -769,7 +808,8 @@ impl<
                         e.context("Parsing body failed, target: CouponsSearchCodePayload")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |payload| service.get_coupon_by_code(payload)),
+                    })
+                    .and_then(move |payload| service.get_coupon_by_code(payload)),
             ),
 
             // POST /coupons/validate/code
@@ -779,7 +819,8 @@ impl<
                         e.context("Parsing body failed, target: CouponsSearchCodePayload")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |payload| service.validate_coupon_by_code(payload)),
+                    })
+                    .and_then(move |payload| service.validate_coupon_by_code(payload)),
             ),
 
             // GET /coupons/:id/validate
@@ -823,7 +864,8 @@ impl<
                                 format_err!("Validation failed, target: UpdateCoupon")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.update_coupon(coupon_id, update_coupon))
                     }),
             ),
@@ -878,14 +920,16 @@ impl<
                         e.context("Parsing body failed, target: UpdateAttributeValue")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |update| {
+                    })
+                    .and_then(move |update| {
                         update
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: UpdateAttributeValue")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.update_attribute_value(attribute_value_id, update))
                     }),
             ),
@@ -900,18 +944,21 @@ impl<
                         e.context("Parsing body failed, target: NewAttributeValuePayload")
                             .context(Error::Parse)
                             .into()
-                    }).map(move |payload| NewAttributeValue {
+                    })
+                    .map(move |payload| NewAttributeValue {
                         attr_id: attribute_id,
                         code: payload.code,
                         translations: payload.translations,
-                    }).and_then(move |new_attribute| {
+                    })
+                    .and_then(move |new_attribute| {
                         new_attribute
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: NewAttribute")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_attribute_value(new_attribute))
                     }),
             ),
@@ -926,14 +973,16 @@ impl<
                         e.context("Parsing body failed, target: CreateAttributePayload")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |new_attribute| {
+                    })
+                    .and_then(move |new_attribute| {
                         new_attribute
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: CreateAttributePayload")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_attribute(new_attribute))
                     }),
             ),
@@ -945,14 +994,16 @@ impl<
                         e.context("Parsing body failed, target: UpdateAttribute")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |update_attribute| {
+                    })
+                    .and_then(move |update_attribute| {
                         update_attribute
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: UpdateAttribute")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.update_attribute(attribute_id, update_attribute))
                     }),
             ),
@@ -980,7 +1031,8 @@ impl<
                                 format_err!("Validation failed, target: NewCategory")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.create_category(new_category))
                     }),
             ),
@@ -992,14 +1044,16 @@ impl<
                         e.context("Parsing body failed, target: UpdateCategory")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |update_category| {
+                    })
+                    .and_then(move |update_category| {
                         update_category
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: UpdateCategory")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.update_category(category_id, update_category))
                     }),
             ),
@@ -1034,7 +1088,8 @@ impl<
                         e.context("Parsing body failed, target: NewCurrencyExchange")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |new_currency_exchange| service.update_currencies(new_currency_exchange)),
+                    })
+                    .and_then(move |new_currency_exchange| service.update_currencies(new_currency_exchange)),
             ),
 
             // GET /wizard_stores
@@ -1050,14 +1105,16 @@ impl<
                         e.context("Parsing body failed, target: UpdateWizardStore")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |update_wizard| {
+                    })
+                    .and_then(move |update_wizard| {
                         update_wizard
                             .validate()
                             .map_err(|e| {
                                 format_err!("Validation failed, target: UpdateWizardStore")
                                     .context(Error::Validate(e))
                                     .into()
-                            }).into_future()
+                            })
+                            .into_future()
                             .and_then(move |_| service.update_wizard_store(update_wizard))
                     }),
             ),
@@ -1077,7 +1134,8 @@ impl<
                         e.context("Parsing body failed, target: NewModeratorProductComments")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |new_comments| service.create_product_comment(new_comments)),
+                    })
+                    .and_then(move |new_comments| service.create_product_comment(new_comments)),
             ),
 
             // GET /moderator_store_comments/<store_id>
@@ -1090,7 +1148,8 @@ impl<
                         e.context("Parsing body failed, target: NewModeratorProductComments")
                             .context(Error::Parse)
                             .into()
-                    }).and_then(move |new_comments| service.create_store_comment(new_comments)),
+                    })
+                    .and_then(move |new_comments| service.create_store_comment(new_comments)),
             ),
 
             // GET /products/<product_id>/seller_price
@@ -1112,7 +1171,8 @@ impl<
                             e.context("Parsing body failed, target: ModeratorStoreSearchTerms")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |payload| service.moderator_search_stores(offset, skip, count, payload)),
+                        })
+                        .and_then(move |payload| service.moderator_search_stores(offset, skip, count, payload)),
                 )
             }
 
@@ -1132,7 +1192,8 @@ impl<
                             e.context("Parsing body failed, target: ModeratorBaseProductSearchTerms")
                                 .context(Error::Parse)
                                 .into()
-                        }).and_then(move |payload| service.moderator_search_base_product(offset, skip, count, payload)),
+                        })
+                        .and_then(move |payload| service.moderator_search_base_product(offset, skip, count, payload)),
                 )
             }
 
@@ -1142,7 +1203,8 @@ impl<
                     .context(Error::NotFound)
                     .into(),
             )),
-        }.map_err(|err| {
+        }
+        .map_err(|err| {
             let wrapper = ErrorMessageWrapper::<Error>::from(&err);
             if wrapper.inner.code == 500 {
                 log_and_capture_error(&err);

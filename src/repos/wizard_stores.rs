@@ -9,7 +9,7 @@ use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_types::UserId;
+use stq_types::{StoreId, UserId};
 
 use models::authorization::*;
 use models::{NewWizardStore, UpdateWizardStore, WizardStore};
@@ -36,6 +36,9 @@ pub trait WizardStoresRepo {
 
     /// Delete specific wizard store
     fn delete(&self, user_id: UserId) -> RepoResult<WizardStore>;
+
+    /// Delete specific wizard store by store_id
+    fn delete_by_store(&self, store_id: StoreId) -> RepoResult<()>;
 
     /// Check if the wizard already exists
     fn wizard_exists(&self, user_id: UserId) -> RepoResult<bool>;
@@ -124,6 +127,30 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Delete wizard store with user_id {} error occurred.", user_id_arg))
                     .into()
             })
+    }
+
+    /// Delete specific wizard store by store_id
+    fn delete_by_store(&self, store_id_arg: StoreId) -> RepoResult<()> {
+        debug!("Delete wizard store with store id {}.", store_id_arg);
+
+        let filtered = wizard_stores.filter(store_id.eq(store_id_arg));
+        let query = diesel::delete(filtered);
+
+        query
+            .get_result::<WizardStore>(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .and_then(|wizard_store: Option<WizardStore>| {
+                if let Some(ref wizard_store) = wizard_store {
+                    acl::check(&*self.acl, Resource::WizardStores, Action::Delete, self, Some(&wizard_store))?;
+                }
+                Ok(wizard_store)
+            })
+            .map_err(|e: FailureError| {
+                e.context(format!("Delete wizard store with store id {} error occurred.", store_id_arg))
+                    .into()
+            })
+            .map(|_| ())
     }
 
     /// Check if the wizard already exists

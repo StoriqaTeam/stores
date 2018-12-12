@@ -965,6 +965,10 @@ pub mod tests {
             })
         }
 
+        fn delete_by_store(&self, store_id_arg: StoreId) -> RepoResult<()> {
+            Ok(())
+        }
+
         fn wizard_exists(&self, user_id: UserId) -> RepoResult<bool> {
             if user_id == MOCK_USER_ID {
                 Ok(false)

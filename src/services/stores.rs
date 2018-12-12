@@ -556,16 +556,20 @@ impl<
 
         info!("Delete store with: {}", store_id);
 
-        if user_id != Some(UserId(1)) {
-            // can only superadmin with id = 1
+        if !self.dynamic_context.is_super_admin() {
+            // can only super admin with id = 1
             return Box::new(future::err(Error::Forbidden.context("Cannot delete store").into()));
         }
 
         self.spawn_on_pool(move |conn| {
             {
                 let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
+                let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&conn, user_id);
+                conn.transaction::<(), FailureError, _>(move || {
+                    let _ = wizard_stores_repo.delete_by_store(store_id)?;
 
-                stores_repo.delete(store_id)
+                    stores_repo.delete(store_id)
+                })
             }
             .map_err(|e: FailureError| e.context("Service stores, delete endpoint error occurred.").into())
         })

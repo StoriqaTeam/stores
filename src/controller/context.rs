@@ -86,4 +86,8 @@ impl DynamicContext {
             correlation_token,
         }
     }
+
+    pub fn is_super_admin(&self) -> bool {
+        self.user_id == Some(UserId(1))
+    }
 }

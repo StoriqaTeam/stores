@@ -133,8 +133,9 @@ impl From<(NewProductWithoutCurrency, Currency)> for NewProduct {
 }
 
 /// Payload for creating products and attributes
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Validate)]
 pub struct NewProductWithAttributes {
+    #[validate]
     pub product: NewProductWithoutCurrency,
     pub attributes: Vec<AttrValue>,
 }

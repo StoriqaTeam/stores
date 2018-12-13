@@ -69,7 +69,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Find specific product by ID
     fn find(&self, product_id_arg: ProductId) -> RepoResult<Option<RawProduct>> {
         debug!("Find in products with id {}.", product_id_arg);
-        let query = products.find(product_id_arg).filter(is_active.eq(true)).order(id);
+        let query = products.find(product_id_arg).filter(is_active.eq(true));
         query
             .get_result(self.db_conn)
             .optional()

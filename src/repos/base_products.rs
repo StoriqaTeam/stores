@@ -625,9 +625,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .into_iter()
                     .zip(variants)
                     .map(|(base, vars)| {
-                        let mut vars: Vec<Product> = vars.into_iter().map(Product::from).collect();
-                        vars.sort_by(|a, b| a.product.id.cmp(&b.product.id));
-
+                        let vars = vars.into_iter().map(Product::from).collect();
                         BaseProductWithVariants::new(BaseProduct::from(base), vars)
                     })
                     .collect())

@@ -14,11 +14,12 @@ use stq_cache::cache::CacheSingle;
 use stq_types::{CategoryId, CategorySlug, UserId};
 
 use models::authorization::*;
-use models::{Attribute, CatAttr, Category, InsertCategory, NewCategory, RawCategory, UpdateCategory};
+use models::{Attribute, BaseProductRaw, CatAttr, Category, InsertCategory, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
 use repos::legacy_acl::CheckScope;
 use repos::types::{RepoAcl, RepoResult};
 use schema::attributes::dsl as Attributes;
+use schema::base_products::dsl as BaseProducts;
 use schema::cat_attr_values::dsl as CategoryAttributes;
 use schema::categories::dsl::*;
 
@@ -229,7 +230,15 @@ where
                         },
                     );
 
-                    let cats = categories.filter(is_active.eq(true)).load::<RawCategory>(self.db_conn)?;
+                    let data: Vec<(RawCategory, Option<BaseProductRaw>)> = categories
+                        .filter(is_active.eq(true))
+                        .left_join(BaseProducts::base_products.on(BaseProducts::is_active.eq(true)))
+                        .load(self.db_conn)?;
+
+                    let cats: Vec<RawCategory> = data
+                        .into_iter()
+                        .filter_map(|(cat, bp)| if cat.level != 3 { Some(cat) } else { bp.map(|_| cat) })
+                        .collect();
                     let mut root = Category::default();
                     let children = create_tree(&cats, Some(root.id));
                     root.children = children;

@@ -36,11 +36,12 @@ pub struct BaseProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManag
     pub acl: Box<RepoAcl<BaseProduct>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct BaseProductsSearchTerms {
     pub is_active: Option<bool>,
     pub category_id: Option<CategoryId>,
     pub category_ids: Option<Vec<CategoryId>>,
+    pub store_id: Option<StoreId>,
 }
 
 pub trait BaseProductsRepo {
@@ -291,6 +292,10 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         if let Some(category_ids_filter) = search_terms.category_ids {
             query = Box::new(query.and(category_id.eq_any(category_ids_filter)));
+        }
+
+        if let Some(store_id_filter) = search_terms.store_id {
+            query = Box::new(query.and(store_id.eq(store_id_filter)));
         }
 
         base_products

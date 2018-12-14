@@ -965,7 +965,7 @@ pub mod tests {
             })
         }
 
-        fn delete_by_store(&self, store_id_arg: StoreId) -> RepoResult<()> {
+        fn delete_by_store(&self, _store_id_arg: StoreId) -> RepoResult<()> {
             Ok(())
         }
 
@@ -1803,6 +1803,15 @@ pub mod tests {
             let mut products = vec![];
             let product = create_product(MOCK_PRODUCT_ID, base_id);
             products.push(product);
+            Ok(products)
+        }
+
+        fn find_with_base_ids(&self, base_ids: Vec<BaseProductId>) -> RepoResult<Vec<RawProduct>> {
+            let mut products = vec![];
+            for base_id in base_ids {
+                let product = create_product(MOCK_PRODUCT_ID, base_id);
+                products.push(product);
+            }
             Ok(products)
         }
 

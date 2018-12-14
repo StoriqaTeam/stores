@@ -65,6 +65,7 @@ pub enum Route {
     ProductValidateUpdate(ProductId),
     ProductAttributes(ProductId),
     ProductsByBaseProduct(BaseProductId),
+    ProductsByStore(StoreId),
     SellerProductPrice(ProductId),
     Stores,
     StoresSearch,

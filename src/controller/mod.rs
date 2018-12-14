@@ -345,6 +345,9 @@ impl<
                 serialize_future(service.find_products_with_base_id(base_product_id))
             }
 
+            // GET /products/by_store/<store_id> route
+            (&Get, Some(Route::ProductsByStore(store_id))) => serialize_future(service.find_products_with_store_id(store_id)),
+
             // GET /products/<product_id>/attributes route
             (&Get, Some(Route::ProductAttributes(product_id))) => serialize_future(service.find_products_attributes(product_id)),
 

@@ -54,8 +54,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 acl::check(&*self.acl, Resource::CouponScopeBaseProducts, Action::Create, self, Some(&value))?;
 
                 Ok(value)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Add coupon scope for base product: {:?} error occurred", payload))
                     .into()
             })
@@ -79,8 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
 
                 Ok(results)
-            })
-            .map_err(|e: FailureError| e.context("Search records coupon scope for base products failed.").into())
+            }).map_err(|e: FailureError| e.context("Search records coupon scope for base products failed.").into())
     }
 
     /// Delete coupon for scope base products
@@ -101,8 +99,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!(
                     "Delete record coupon scope for base product, coupon_id: {} and base_product_id: {} error occurred",
                     id_arg, base_product_arg
-                ))
-                .into()
+                )).into()
             })
     }
 }

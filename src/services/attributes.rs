@@ -81,8 +81,7 @@ impl<
                 let created_attribute = attributes_repo.create(new_attribute)?;
                 create_attribute_values(&*attribute_values_repo, created_attribute.id, create_attribute_payload)?;
                 Ok(created_attribute)
-            })
-            .map_err(|e| e.context("Service Attributes, create endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service Attributes, create endpoint error occurred.").into())
         })
     }
 

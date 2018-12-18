@@ -195,8 +195,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
 
                 Ok(base_product)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find base product by id: {} error occurred", base_product_id_arg))
                     .into()
             })
@@ -241,8 +240,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
 
                 Ok(base_product)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find base product by slug: {} error occurred", base_product_slug))
                     .into()
             })
@@ -269,8 +267,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 }
                 Ok(results)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find many base products error occurred")).into())
+            }).map_err(|e: FailureError| e.context(format!("Find many base products error occurred")).into())
     }
 
     /// Search many products by search terms
@@ -303,8 +300,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(result))?;
                 }
                 Ok(results)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find many base products by search terms error occurred")).into())
+            }).map_err(|e: FailureError| e.context(format!("Find many base products by search terms error occurred")).into())
     }
 
     /// Counts products by store id
@@ -340,8 +336,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|base_prod| {
                 acl::check(&*self.acl, Resource::BaseProducts, Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
-            })
-            .map_err(|e: FailureError| e.context(format!("Creates new base_product {:?} error occurred", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Creates new base_product {:?} error occurred", payload)).into())
     }
 
     /// Returns list of base_products, limited by `from` and `count` parameters
@@ -377,13 +372,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 }
                 Ok(base_products_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find in base products with ids from {} count {} error occurred",
                     from, count
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -432,13 +425,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 }
                 Ok(base_products_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find in base products with store id {} skip {:?} from {} count {}.",
                     store_id_arg, skip_base_product_id, from, count
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -456,8 +447,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Rule::ModerationStatus(base_product.status),
                     Some(&base_product),
                 )
-            })
-            .and_then(|_| {
+            }).and_then(|_| {
                 let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
@@ -466,13 +456,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .get_result::<BaseProductRaw>(self.db_conn)
                     .map(BaseProduct::from)
                     .map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating base product with id {} and payload {:?} failed.",
                     base_product_id_arg, payload
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -525,8 +513,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = base_products.filter(id.eq(base_product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query::<BaseProductRaw, _>(query).map(BaseProduct::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate base product with id {} failed", base_product_id_arg))
                     .into()
             })
@@ -548,16 +535,14 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
 
                 Ok(results)
-            })
-            .and_then(|_| {
+            }).and_then(|_| {
                 let filtered = base_products.filter(store_id.eq(store_id_arg)).filter(is_active.eq(true));
                 let query_update = diesel::update(filtered).set(is_active.eq(false));
                 query_update
                     .get_results::<BaseProductRaw>(self.db_conn)
                     .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
                     .map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate base products by store_id {} failed", store_id_arg))
                     .into()
             })
@@ -599,8 +584,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         let n = hashed_ids[&bp.id];
                         tree_map.insert(n, bp);
                         tree_map
-                    })
-                    .into_iter()
+                    }).into_iter()
                     .map(|(_, base_product)| base_product)
                     .collect::<Vec<BaseProductRaw>>();
 
@@ -612,8 +596,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         } else {
                             p.variants.iter().map(|variant| variant.prod_id).collect()
                         }
-                    })
-                    .collect::<Vec<ProductId>>();
+                    }).collect::<Vec<ProductId>>();
 
                 let variants = RawProduct::belonging_to(&base_products_list)
                     .get_results(self.db_conn)?
@@ -627,10 +610,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|(base, vars)| {
                         let vars = vars.into_iter().map(Product::from).collect();
                         BaseProductWithVariants::new(BaseProduct::from(base), vars)
-                    })
-                    .collect())
-            })
-            .map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
+                    }).collect())
+            }).map_err(|e: FailureError| e.context("Convert data from elastic to PG models failed").into())
     }
 
     /// Returns most viewed list of base_products, limited by `from` and `count` parameters
@@ -676,10 +657,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(|(base, vars)| {
                         let vars = vars.into_iter().map(Product::from).collect();
                         BaseProductWithVariants::new(BaseProduct::from(base), vars)
-                    })
-                    .collect())
-            })
-            .map_err(|e: FailureError| e.context("Querying for most viewed base products failed").into())
+                    }).collect())
+            }).map_err(|e: FailureError| e.context("Querying for most viewed base products failed").into())
     }
 
     /// Returns most discount list of base_products, limited by `from` and `count` parameters
@@ -741,8 +720,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         let n = hashed_ids[&bp.id];
                         tree_map.insert(n, bp);
                         tree_map
-                    })
-                    .into_iter()
+                    }).into_iter()
                     .map(|(_, base_product)| base_product)
                     .collect::<Vec<BaseProduct>>();
 
@@ -751,8 +729,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .zip(variants)
                     .map(|(base, var)| BaseProductWithVariants::new(base, vec![Product::from(var)]))
                     .collect())
-            })
-            .map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
+            }).map_err(|e: FailureError| e.context("Querying for most discount base products failed").into())
     }
 
     /// Search base product limited by pagination parameters
@@ -818,15 +795,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(move |total_count| ModeratorBaseProductSearchResults {
                         base_products: base_products_res,
                         total_count: total_count as u32,
-                    })
-                    .map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+                    }).map_err(From::from)
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "moderator search for base_products error occurred (pagination params: {:?}, search terms: {:?})",
                     pagination_params, term
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -850,8 +824,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 }
                 Ok(bs)
-            })
-            .and_then(|_| {
+            }).and_then(|_| {
                 let filter = base_products.filter(id.eq_any(base_product_ids.clone()));
                 let query = diesel::update(filter).set(status.eq(status_arg));
 
@@ -859,13 +832,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .get_results::<BaseProductRaw>(self.db_conn)
                     .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
                     .map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Set moderation status for base_product {:?} error occurred",
                     base_product_ids
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -900,13 +871,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let ids = results.into_iter().map(|p| p.id).collect();
 
                 self.set_moderation_statuses(ids, status_arg)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Update moderation status for base_products by store_id {} error occurred",
                     store_id_arg
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -936,8 +905,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 }
                 Ok(bs)
-            })
-            .and_then(|_| {
+            }).and_then(|_| {
                 let mut query = diesel::update(base_products)
                     .set(category_id.eq(payload.new_category))
                     .filter(category_id.eq(payload.current_category))
@@ -951,8 +919,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .get_results::<BaseProductRaw>(self.db_conn)
                     .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
                     .map_err(From::from)
-            })
-            .map_err(|e: FailureError| e.context("Replace category in base products error occurred").into())
+            }).map_err(|e: FailureError| e.context("Replace category in base products error occurred").into())
     }
 
     /// Getting all base products with variants
@@ -1004,8 +971,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                         Ok(CatalogWithAttributes::new(base, variants_attributes))
                     })
-            })
-            .collect::<RepoResult<Vec<_>>>()
+            }).collect::<RepoResult<Vec<_>>>()
     }
 }
 

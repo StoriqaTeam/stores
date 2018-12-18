@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.stores
     container_name: stores
     working_dir: /app
-    command: ["sh", "-c", "/utils/wait_for_it.sh stores-pg:5432 ; /utils/wait_for_it.sh stores-es:9200 ; diesel migration run ; cargo run --bin stores"]
+    command: ["sh", "-c", "/utils/wait_for_it.sh stores-pg:5432 ; /utils/wait_for_it.sh stores-es:9200 ; diesel migration run ; cargo run --locked --bin stores"]
     volumes:
       - ..:/app
       - stq_cargo_cache:/usr/local/cargo

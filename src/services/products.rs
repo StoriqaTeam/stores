@@ -67,8 +67,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }
-            .map_err(|e: FailureError| e.context("Service Product, get_product endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get_product endpoint error occurred.").into())
         })
     }
 
@@ -90,8 +89,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }
-            .map_err(|e: FailureError| e.context("Service Product, get endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get endpoint error occurred.").into())
         })
     }
 
@@ -121,8 +119,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }
-            .map_err(|e: FailureError| e.context("Service Product, get_store_id endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, get_store_id endpoint error occurred.").into())
         })
     }
 
@@ -139,8 +136,7 @@ impl<
                 prod_attr_repo.delete_all_attributes(result_product.id)?;
 
                 Ok(result_product.into())
-            })
-            .map_err(|e| e.context("Service Product, deactivate endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service Product, deactivate endpoint error occurred.").into())
         })
     }
 
@@ -161,12 +157,10 @@ impl<
                     .map(|raw_product| {
                         calculate_customer_price(&*currency_exchange, &raw_product, currency)
                             .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
-                    })
-                    .collect::<RepoResult<Vec<Product>>>();
+                    }).collect::<RepoResult<Vec<Product>>>();
 
                 products
-            }
-            .map_err(|e: FailureError| e.context("Service Product, list endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, list endpoint error occurred.").into())
         })
     }
 
@@ -213,8 +207,7 @@ impl<
                 )?;
 
                 Ok(result_product)
-            })
-            .map_err(|e| e.context("Service Product, create endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service Product, create endpoint error occurred.").into())
         })
     }
 
@@ -270,8 +263,7 @@ impl<
                 }
 
                 Ok(result_product)
-            })
-            .map_err(|e| e.context("Service Product, update endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service Product, update endpoint error occurred.").into())
         })
     }
 
@@ -292,12 +284,10 @@ impl<
                     .map(|raw_product| {
                         calculate_customer_price(&*currency_exchange, &raw_product, currency)
                             .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
-                    })
-                    .collect::<RepoResult<Vec<Product>>>();
+                    }).collect::<RepoResult<Vec<Product>>>();
 
                 result_products
-            }
-            .map_err(|e: FailureError| e.context("Service Product, find_with_base_id endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Product, find_with_base_id endpoint error occurred.").into())
         })
     }
 
@@ -318,12 +308,10 @@ impl<
                             attr_value_id: pr_attr.attr_value_id,
                             value: pr_attr.value,
                             meta_field: pr_attr.meta_field,
-                        })
-                        .collect();
+                        }).collect();
 
                     Ok(attr_values)
-                })
-                .map_err(|e| e.context("Service Product, find_attributes endpoint error occurred.").into())
+                }).map_err(|e| e.context("Service Product, find_attributes endpoint error occurred.").into())
         })
     }
 
@@ -417,8 +405,7 @@ fn fill_attr_value(attribute_values_repo: &AttributeValuesRepo, attribute_values
                 attr_value_id: Some(attribute_value.id),
                 ..attr_value
             })
-        })
-        .collect()
+        }).collect()
 }
 
 fn check_products_attribute_values_are_unique(
@@ -456,8 +443,7 @@ fn check_products_attribute_values_are_unique(
         Err(format_err!("Product with attributes {:?} already exists", new_product_attributes)
             .context(Error::Validate(
                 validation_errors!({"attributes": ["attributes" => "Product with this attributes already exists"]}),
-            ))
-            .into())
+            )).into())
     } else {
         Ok(())
     }
@@ -473,8 +459,7 @@ pub fn check_vendor_code(stores_repo: &StoresRepo, store_id: StoreId, vendor_cod
             format_err!("Vendor code '{}' already exists for store with id {}.", vendor_code, store_id)
                 .context(Error::Validate(
                     validation_errors!({"vendor_code": ["vendor_code" => "Vendor code already exists."]}),
-                ))
-                .into(),
+                )).into(),
         )
     } else {
         Ok(())

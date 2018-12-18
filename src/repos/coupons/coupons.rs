@@ -72,8 +72,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 acl::check(&*self.acl, Resource::Coupons, Action::Create, self, Some(&value))?;
 
                 Ok(value)
-            })
-            .map_err(|e: FailureError| e.context(format!("Creates new coupon: {:?} error occurred", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Creates new coupon: {:?} error occurred", payload)).into())
     }
 
     /// List all coupons
@@ -90,8 +89,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
 
                 Ok(values)
-            })
-            .map_err(|e: FailureError| e.context("List all coupons").into())
+            }).map_err(|e: FailureError| e.context("List all coupons").into())
     }
 
     /// Get coupon
@@ -108,8 +106,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
 
                 Ok(value)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find coupon by id: {} error occurred", id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find coupon by id: {} error occurred", id_arg)).into())
     }
 
     /// Get coupon by code
@@ -128,13 +125,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
 
                 Ok(value)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find in coupon with by coupon code: {} and store id: {}.",
                     code_arg, store_id_arg
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -157,8 +152,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
 
                 Ok(values)
-            })
-            .map_err(|e: FailureError| e.context("Search coupons failed.").into())
+            }).map_err(|e: FailureError| e.context("Search coupons failed.").into())
     }
 
     /// Update coupon
@@ -175,13 +169,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let query = diesel::update(filtered).set(&payload);
 
                 query.get_result::<Coupon>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updates specific coupon: id: {}, payload: {:?},  error occurred",
                     id_arg, payload
-                ))
-                .into()
+                )).into()
             })
     }
 

@@ -26,7 +26,7 @@ pipeline:
     when:
       event: pull_request
   test:
-    image: rust:1.31-stretch
+    image: rust:1.30-stretch
     environment:
     - RUN_MODE=k8s
     - DATABASE_HOST=db-postgresql
@@ -48,7 +48,7 @@ pipeline:
     - wget -q https://s3.eu-central-1.amazonaws.com/dumpster.stq/diesel -O /usr/local/cargo/bin/diesel
     - chmod +x /usr/local/cargo/bin/diesel
     - diesel migration run
-    - cargo test --all
+    - cargo test --locked
     when:
       event: pull_request
 
@@ -58,20 +58,20 @@ pipeline:
 
 # Regular branches
   build:
-    image: rust:1.31-stretch
+    image: rust:1.30-stretch
     environment:
     - CARGO_HOME=deps
     commands:
-    - cargo build --all --release --locked
+    - cargo build --release --locked
     when:
       event: tag
 # Releases
   build:
-    image: rust:1.31-stretch
+    image: rust:1.30-stretch
     environment:
     - CARGO_HOME=deps
     commands:
-    - cargo build --all
+    - cargo build --locked
     when:
       event: push
 

@@ -60,8 +60,7 @@ where
             .map_err(From::from)
             .and_then(|attr_value| {
                 acl::check(&*self.acl, Resource::AttributeValues, Action::Create, self, Some(&attr_value)).and_then(|_| Ok(attr_value))
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Create new attribute_value {:?} error occurred", new_attribute_value))
                     .into()
             })
@@ -109,8 +108,7 @@ where
                     acl::check(&*self.acl, Resource::AttributeValues, Action::Read, self, Some(result))?;
                 }
                 Ok(results)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find many attribute values by search terms error occurred"))
                     .into()
             })

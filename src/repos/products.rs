@@ -26,9 +26,17 @@ pub struct ProductsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager =
     pub acl: Box<RepoAcl<RawProduct>>,
 }
 
+#[derive(Debug, Default)]
+pub struct ProductFilters {
+    pub is_active: Option<bool>,
+}
+
 pub trait ProductsRepo {
     /// Find specific product by ID
     fn find(&self, product_id: ProductId) -> RepoResult<Option<RawProduct>>;
+
+    /// Find specific product by ID with additional filters
+    fn find_by_filters(&self, product_id: ProductId, filters: ProductFilters) -> RepoResult<Option<RawProduct>>;
 
     /// Find specific product by IDs
     fn find_many(&self, product_ids: Vec<ProductId>) -> RepoResult<Vec<RawProduct>>;
@@ -70,8 +78,9 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductsRepo for ProductsRepoImpl<'a, T> {
     /// Find specific product by ID
+    // TODO: use `find_by_filters`
     fn find(&self, product_id_arg: ProductId) -> RepoResult<Option<RawProduct>> {
-        debug!("Find in products with id {}.", product_id_arg);
+        debug!("Find in product with id {}.", product_id_arg);
         let query = products.find(product_id_arg).filter(is_active.eq(true));
         query
             .get_result(self.db_conn)
@@ -83,6 +92,30 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 };
                 Ok(product)
             }).map_err(|e: FailureError| e.context(format!("Find product with id: {} error occurred", product_id_arg)).into())
+    }
+
+    /// Find specific product by ID with additional filters
+    fn find_by_filters(&self, product_id_arg: ProductId, filters_arg: ProductFilters) -> RepoResult<Option<RawProduct>> {
+        debug!("Find in product with id {} by filters {:?}.", product_id_arg, filters_arg);
+        let mut query = products.find(product_id_arg).into_boxed();
+
+        if let Some(filter_is_active) = filters_arg.is_active {
+            query = query.filter(is_active.eq(filter_is_active));
+        }
+
+        query
+            .get_result(self.db_conn)
+            .optional()
+            .map_err(From::from)
+            .and_then(|product: Option<RawProduct>| {
+                if let Some(ref product) = product {
+                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(product))?;
+                };
+                Ok(product)
+            }).map_err(|e: FailureError| {
+                e.context(format!("Find product with id: {} by filters error occurred", product_id_arg))
+                    .into()
+            })
     }
 
     /// Find specific product by IDs

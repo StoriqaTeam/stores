@@ -20,7 +20,7 @@ use repos::clear_child_categories;
 use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
-use repos::{BaseProductsRepo, CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
+use repos::{BaseProductsRepo, BaseProductsSearchTerms, CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
 use services::create_product_attributes_values;
 use services::Service;
 use services::{check_can_update_by_status, check_change_status, check_vendor_code};
@@ -72,6 +72,9 @@ pub trait BaseProductsService {
 
     /// Returns product by ID
     fn get_base_product(&self, base_product_id: BaseProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<BaseProduct>>;
+
+    /// Returns product by ID
+    fn get_base_product_without_filters(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
 
     /// Returns product by Slug
     fn get_base_product_by_slug(
@@ -427,6 +430,26 @@ impl<
             base_products_repo
                 .find(base_product_id, visibility)
                 .map_err(|e| e.context("Service BaseProduct, get_base_product endpoint error occurred.").into())
+        })
+    }
+
+    /// Returns product by ID
+    fn get_base_product_without_filters(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        debug!("Get base product by id = {:?}", base_product_id);
+
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            let base_product_filters = BaseProductsSearchTerms::default();
+
+            base_products_repo
+                .find_by_filters(base_product_id, base_product_filters)
+                .map_err(|e| {
+                    e.context("Service BaseProduct, get_product_without_filters endpoint error occurred.")
+                        .into()
+                })
         })
     }
 

@@ -14,8 +14,8 @@ use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
 use repos::{
-    AttributeValuesRepo, AttributesRepo, BaseProductsSearchTerms, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult,
-    ReposFactory, StoresRepo,
+    AttributeValuesRepo, AttributesRepo, BaseProductsSearchTerms, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo,
+    ProductFilters, RepoResult, ReposFactory, StoresRepo,
 };
 use services::check_can_update_by_status;
 use services::Service;
@@ -23,6 +23,8 @@ use services::Service;
 pub trait ProductsService {
     /// Returns product by ID
     fn get_product(&self, product_id: ProductId) -> ServiceFuture<Option<Product>>;
+    /// Return product by ID
+    fn get_product_without_filters(&self, product_id: ProductId) -> ServiceFuture<Option<Product>>;
     /// Returns product seller price by ID
     fn get_product_seller_price(&self, product_id: ProductId) -> ServiceFuture<Option<ProductSellerPrice>>;
     /// Returns store_id by ID
@@ -71,6 +73,31 @@ impl<
                     Ok(None)
                 }
             }.map_err(|e: FailureError| e.context("Service Product, get_product endpoint error occurred.").into())
+        })
+    }
+
+    /// Return product
+    fn get_product_without_filters(&self, product_id: ProductId) -> ServiceFuture<Option<Product>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let currency = self.dynamic_context.currency;
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                let product_filters = ProductFilters::default();
+
+                let raw_product = products_repo.find_by_filters(product_id, product_filters)?;
+                if let Some(raw_product) = raw_product {
+                    let customer_price = calculate_customer_price(&*currency_exchange, &raw_product, currency)?;
+                    let result_product = Product::new(raw_product, customer_price);
+
+                    Ok(Some(result_product))
+                } else {
+                    Ok(None)
+                }
+            }.map_err(|e: FailureError| e.context("Service Product, get_order_product endpoint error occurred.").into())
         })
     }
 

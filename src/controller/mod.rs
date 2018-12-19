@@ -336,6 +336,9 @@ impl<
             // GET /products/<product_id>
             (&Get, Some(Route::Product(product_id))) => serialize_future(service.get_product(product_id)),
 
+            // GET /products/<product_id>/without_filters
+            (&Get, Some(Route::ProductWithoutFilters(product_id))) => serialize_future(service.get_product_without_filters(product_id)),
+
             // GET /products/by_base_product/<base_product_id> route
             (&Get, Some(Route::ProductsByBaseProduct(base_product_id))) => {
                 serialize_future(service.find_products_with_base_id(base_product_id))
@@ -429,6 +432,11 @@ impl<
             (&Get, Some(Route::BaseProduct(base_product_id))) => {
                 let visibility = parse_query!(req.query().unwrap_or_default(), "visibility" => Visibility);
                 serialize_future(service.get_base_product(base_product_id, visibility))
+            }
+
+            // GET /base_products/<base_product_id>/without_filters
+            (&Get, Some(Route::BaseProductWithoutFilters(base_product_id))) => {
+                serialize_future(service.get_base_product_without_filters(base_product_id))
             }
 
             // GET /store/by-slug/<store_slug>/base_products/by-slug/<base_product_slug>

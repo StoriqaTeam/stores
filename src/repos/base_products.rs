@@ -61,7 +61,8 @@ pub trait BaseProductsRepo {
 
     /// Find base_products by ids
     fn find_many(&self, base_product_ids: Vec<BaseProductId>) -> RepoResult<Vec<BaseProduct>>;
-
+    /// Find specific base product by ID and filters
+    fn find_by_filters(&self, base_product_id: BaseProductId, filters: BaseProductsSearchTerms) -> RepoResult<Option<BaseProduct>>;
     /// Search many products by search terms
     fn search(&self, search_terms: BaseProductsSearchTerms) -> RepoResult<Vec<BaseProduct>>;
 
@@ -164,6 +165,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     /// Find specific base_product by ID
+    // TODO: Use method `find_by_filters`
     fn find(&self, base_product_id_arg: BaseProductId, visibility: Visibility) -> RepoResult<Option<BaseProduct>> {
         debug!(
             "Find in base products with id {}, visibility = {:?}",
@@ -269,6 +271,30 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
                 Ok(results)
             }).map_err(|e: FailureError| e.context(format!("Find many base products error occurred")).into())
+    }
+
+    /// Find specific base product by ID and filters
+    fn find_by_filters(&self, base_product_id_arg: BaseProductId, filters_arg: BaseProductsSearchTerms) -> RepoResult<Option<BaseProduct>> {
+        debug!("Find in base product with id {}, filters = {:?}", base_product_id_arg, filters_arg);
+
+        acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)?;
+        let mut query = base_products.filter(id.eq(base_product_id_arg)).into_boxed();
+
+        if let Some(filter_is_active) = filters_arg.is_active {
+            query = query.filter(is_active.eq(filter_is_active));
+        }
+
+        query
+            .first::<BaseProductRaw>(self.db_conn)
+            .map(BaseProduct::from)
+            .optional()
+            .map_err(From::from)
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Find base product by id: {}, filters = {:?} error occurred",
+                    base_product_id_arg, filters_arg
+                )).into()
+            })
     }
 
     /// Search many products by search terms

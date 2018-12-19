@@ -21,6 +21,7 @@ pub enum Route {
     BaseProductsSearchFiltersAttributes,
     BaseProductsSearchFiltersCount,
     BaseProduct(BaseProductId),
+    BaseProductWithoutFilters(BaseProductId),
     BaseProductBySlug(StoreSlug, BaseProductSlug),
     BaseProductWithViewsUpdate(BaseProductId),
     BaseProductBySlugWithViewsUpdate(StoreSlug, BaseProductSlug),
@@ -62,6 +63,7 @@ pub enum Route {
     Products,
     ProductStoreId,
     Product(ProductId),
+    ProductWithoutFilters(ProductId),
     ProductValidateUpdate(ProductId),
     ProductAttributes(ProductId),
     ProductsByBaseProduct(BaseProductId),
@@ -224,6 +226,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .map(Route::Product)
     });
 
+    router.add_route_with_params(r"^/products/(\d+)/without_filters$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<ProductId>().ok())
+            .map(Route::ProductWithoutFilters)
+    });
+
     // Products/:id route
     router.add_route_with_params(r"^/products/(\d+)/seller_price$", |params| {
         params
@@ -277,6 +286,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(BaseProductId)
             .map(Route::BaseProduct)
+    });
+
+    router.add_route_with_params(r"^/base_products/(\d+)/without_filters$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<BaseProductId>().ok())
+            .map(Route::BaseProductWithoutFilters)
     });
 
     // Stores /by-slug/:store-slug/base_products/by-slug/:slug route

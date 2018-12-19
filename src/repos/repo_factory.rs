@@ -1128,6 +1128,14 @@ pub mod tests {
             Ok(vec![])
         }
 
+        fn find_by_filters(
+            &self,
+            _base_product_id_arg: BaseProductId,
+            _filters_arg: BaseProductsSearchTerms,
+        ) -> RepoResult<Option<BaseProduct>> {
+            Ok(None)
+        }
+
         /// Returns list of base_products, limited by `from` and `count` parameters
         fn list(&self, from: BaseProductId, count: i32, _visibility: Visibility) -> RepoResult<Vec<BaseProduct>> {
             let mut base_products = vec![];
@@ -1796,6 +1804,11 @@ pub mod tests {
     impl ProductsRepo for ProductsRepoMock {
         fn find(&self, product_id: ProductId) -> RepoResult<Option<RawProduct>> {
             let product = create_product(product_id, MOCK_BASE_PRODUCT_ID);
+            Ok(Some(product))
+        }
+
+        fn find_by_filters(&self, product_id_arg: ProductId, _filters_arg: ProductFilters) -> RepoResult<Option<RawProduct>> {
+            let product = create_product(product_id_arg, MOCK_BASE_PRODUCT_ID);
             Ok(Some(product))
         }
 

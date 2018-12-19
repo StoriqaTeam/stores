@@ -174,8 +174,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
-            })
-            .map_err(|e: FailureError| e.context(format!("Find in products with ids error occurred.")).into())
+            }).map_err(|e: FailureError| e.context(format!("Find in products with ids error occurred.")).into())
     }
 
     /// Updates specific product

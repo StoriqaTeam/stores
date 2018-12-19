@@ -309,8 +309,7 @@ impl<
                     .search(BaseProductsSearchTerms {
                         store_id: Some(store_id),
                         ..Default::default()
-                    })?
-                    .into_iter()
+                    })?.into_iter()
                     .map(|p| p.id)
                     .collect();
 
@@ -321,12 +320,10 @@ impl<
                     .map(|raw_product| {
                         calculate_customer_price(&*currency_exchange, &raw_product, currency)
                             .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
-                    })
-                    .collect::<RepoResult<Vec<Product>>>();
+                    }).collect::<RepoResult<Vec<Product>>>();
 
                 result_products
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service Product, find_products_with_store_id endpoint error occurred.")
                     .into()
             })

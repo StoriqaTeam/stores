@@ -285,8 +285,7 @@ impl<'a> Aggs<'a> {
                             .and_then(|child| child.get("buckets"))
                             .and_then(Value::as_array)
                             .map(|array| (key.as_ref(), array.iter()))
-                    })
-                    .collect(),
+                    }).collect(),
                 None => Vec::new(),
             }
         };

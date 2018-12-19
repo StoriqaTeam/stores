@@ -81,8 +81,7 @@ where
                         self.cache.set(id_arg, attribute.clone());
                     };
                     Ok(attribute)
-                })
-                .map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occurred", id_arg)).into())
+                }).map_err(|e: FailureError| e.context(format!("Find attribute by id: {} error occurred", id_arg)).into())
         }
     }
 
@@ -99,8 +98,7 @@ where
                     acl::check(&*self.acl, Resource::Attributes, Action::Read, self, Some(&attribute))?;
                 }
                 Ok(attributes_vec)
-            })
-            .map_err(|e: FailureError| e.context("List all attributes").into())
+            }).map_err(|e: FailureError| e.context("List all attributes").into())
     }
 
     /// Creates new attribute
@@ -115,8 +113,7 @@ where
                     self.cache.set(attribute.id, attribute.clone());
                     Ok(attribute)
                 })
-            })
-            .map_err(|e: FailureError| e.context(format!("Creates new attribute: {:?} error occurred", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Creates new attribute: {:?} error occurred", payload)).into())
     }
 
     /// Updates specific attribute
@@ -133,13 +130,11 @@ where
                 let filter = attributes.filter(id.eq(attribute_id_arg));
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<Attribute>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updates specific attribute: id: {}, payload: {:?},  error occurred",
                     attribute_id_arg, payload
-                ))
-                .into()
+                )).into()
             })
     }
 

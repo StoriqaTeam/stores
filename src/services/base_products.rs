@@ -217,8 +217,7 @@ impl<
                     products_el
                         .search_by_name(search_product, count, offset)
                         .map(|el_products| (el_products, currency_map))
-                })
-                .and_then({
+                }).and_then({
                     move |(el_products, currency_map)| {
                         service.spawn_on_pool(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
@@ -227,8 +226,7 @@ impl<
                             Ok(base_products)
                         })
                     }
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_base_products_by_name endpoint error occurred.")
                         .into()
                 }),
@@ -254,8 +252,7 @@ impl<
                 let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
                 calculate_customer_price(&mut base_products, currencies_map, currency);
                 Ok(base_products)
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service BaseProduct, search_base_products_most_viewed endpoint error occurred.")
                     .into()
             })
@@ -281,8 +278,7 @@ impl<
                 .and_then(move |options| {
                     search_product.options = options;
                     products_el.search_most_discount(search_product, count, offset)
-                })
-                .and_then({
+                }).and_then({
                     move |el_products| {
                         self.spawn_on_pool(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
@@ -294,8 +290,7 @@ impl<
                             Ok(base_products)
                         })
                     }
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_base_products_most_discount endpoint error occurred.")
                         .into()
                 }),
@@ -326,8 +321,7 @@ impl<
                 .and_then(move |options| {
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_base_products_filters_price endpoint error occurred.")
                         .into()
                 }),
@@ -344,8 +338,7 @@ impl<
                 .and_then(move |options| {
                     search_prod.options = options;
                     products_el.count(search_prod)
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_base_products_filters_count endpoint error occurred.")
                         .into()
                 }),
@@ -373,8 +366,7 @@ impl<
                     } else {
                         Ok(root)
                     }
-                }
-                .map_err(|e: FailureError| {
+                }.map_err(|e: FailureError| {
                     e.context("Service BaseProduct, search_base_products_filters_category endpoint with empty name option error occurred.")
                         .into()
                 })
@@ -415,8 +407,7 @@ impl<
                         }
                     }
                     Box::new(future::ok(None))
-                })
-                .map_err(|e| {
+                }).map_err(|e| {
                     e.context("Service BaseProduct, search_base_products_attributes endpoint error occurred.")
                         .into()
                 }),
@@ -489,8 +480,7 @@ impl<
                     };
                 }
                 Ok(None)
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service BaseProduct, get_base_product_by_product endpoint error occurred.")
                     .into()
             })
@@ -520,8 +510,7 @@ impl<
                     let _ = stores_repo.update_service_fields(store.id, service_update_store)?;
                 };
                 Ok(prod)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context("Service BaseProduct, deactivate_base_product endpoint error occurred.")
                     .into()
             })
@@ -593,8 +582,7 @@ impl<
                 add_product_categories(&*stores_repo, &*categories_repo, base_prod.store_id, base_prod.category_id)?;
 
                 Ok(base_prod)
-            })
-            .map_err(|e| e.context("Service BaseProduct, create endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service BaseProduct, create endpoint error occurred.").into())
         })
     }
 
@@ -658,12 +646,10 @@ impl<
                     .map(|attribute_id| {
                         let new_custom_attribute = NewCustomAttribute::new(attribute_id, base_prod.id);
                         custom_attributes_repo.create(new_custom_attribute)
-                    })
-                    .collect::<RepoResult<Vec<_>>>()?;
+                    }).collect::<RepoResult<Vec<_>>>()?;
 
                 Ok(base_prod)
-            })
-            .map_err(|e| {
+            }).map_err(|e| {
                 e.context("Service BaseProduct, create with variants and attributes endpoint error occurred.")
                     .into()
             })
@@ -700,8 +686,7 @@ impl<
                 } else {
                     Err(Error::NotFound.into())
                 }
-            })
-            .map_err(|e| e.context("Service BaseProduct, update endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service BaseProduct, update endpoint error occurred.").into())
         })
     }
 
@@ -739,8 +724,7 @@ impl<
                                 .context(Error::NotFound)
                                 .into())
                         }
-                    })
-                    .collect::<RepoResult<Vec<BaseProductWithVariants>>>()?;
+                    }).collect::<RepoResult<Vec<BaseProductWithVariants>>>()?;
 
                 let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
                 calculate_customer_price(&mut base_products, currencies_map, currency);
@@ -764,10 +748,8 @@ impl<
                                 .context(Error::NotFound)
                                 .into())
                         }
-                    })
-                    .collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
-            }
-            .map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occurred.").into())
+                    }).collect::<RepoResult<Vec<StoreWithBaseProducts>>>()
+            }.map_err(|e| e.context("Service BaseProduct, find_by_cart endpoint error occurred.").into())
         })
     }
 
@@ -849,11 +831,9 @@ impl<
                     Err(format_err!("Base product status: {} not valid for set", status)
                         .context(Error::Validate(
                             validation_errors!({"base_products": ["base_products" => "Base product new status is not valid"]}),
-                        ))
-                        .into())
+                        )).into())
                 }
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service base_products, set_moderation_status_base_product endpoint error occurred.")
                     .into()
             })
@@ -883,12 +863,10 @@ impl<
                         format_err!("Base product with id: {}, cannot be sent to moderation", base_product_id)
                             .context(Error::Validate(
                                 validation_errors!({"base_products": ["base_products" => "Base product can not be sent to moderation"]}),
-                            ))
-                            .into(),
+                            )).into(),
                     )
                 }
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service base_products, send_base_product_to_moderation endpoint error occurred.")
                     .into()
             })
@@ -906,8 +884,7 @@ impl<
                 let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
 
                 set_base_product_moderation_status_draft(&*base_products_repo, base_product_id)
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service base_products, set_base_product_moderation_status_draft endpoint error occurred.")
                     .into()
             })
@@ -1090,8 +1067,7 @@ impl<
 
                     Ok(update_products)
                 })
-            }
-            .map_err(|e: FailureError| e.context("Service base_products, replace_category endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service base_products, replace_category endpoint error occurred.").into())
         })
     }
 
@@ -1124,11 +1100,9 @@ fn validate_base_product(base_products_repo: &BaseProductsRepo, payload: &NewBas
                 "Base product with slug {} in store with id {} already exists",
                 base_product_slug,
                 payload.store_id
-            )
-            .context(Error::Validate(
+            ).context(Error::Validate(
                 validation_errors!({"base_products": ["base_products" => "Base product with such slug already exists"]}),
-            ))
-            .into());
+            )).into());
         }
     }
     Ok(())
@@ -1149,11 +1123,9 @@ fn validate_base_product_update(
                     "Base product with slug {} in store with id {} already exists",
                     base_product_slug,
                     store_id
-                )
-                .context(Error::Validate(
+                ).context(Error::Validate(
                     validation_errors!({"base_products": ["base_products" => "Base product with such slug already exists"]}),
-                ))
-                .into());
+                )).into());
             }
         }
     }
@@ -1288,11 +1260,9 @@ pub fn set_base_product_moderation_status_draft(
             "Base product with id: {}, cannot be hided when the store in status: {}",
             base_product_id,
             status
-        )
-        .context(Error::Validate(
+        ).context(Error::Validate(
             validation_errors!({"base_products": ["base_products" => "Base product cannot be hided"]}),
-        ))
-        .into())
+        )).into())
     }
 }
 

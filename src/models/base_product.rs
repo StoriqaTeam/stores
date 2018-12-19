@@ -194,13 +194,13 @@ pub struct UpdateBaseProduct {
     pub rating: Option<f64>,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
-    #[validate(range(min = "1", max = "200"))]
+    #[validate(range(min = "0", max = "1000"))]
     pub length_cm: Option<i32>,
-    #[validate(range(min = "1", max = "200"))]
+    #[validate(range(min = "0", max = "1000"))]
     pub width_cm: Option<i32>,
-    #[validate(range(min = "1", max = "200"))]
+    #[validate(range(min = "0", max = "1000"))]
     pub height_cm: Option<i32>,
-    #[validate(range(min = "1", max = "100000"))]
+    #[validate(range(min = "0", max = "1000000"))]
     pub weight_g: Option<i32>,
 }
 

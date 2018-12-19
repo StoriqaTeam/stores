@@ -142,11 +142,9 @@ impl RocketRetailLoader {
                                     Some(RocketRetailEnvironment::DEFAULT_LANG),
                                     &cluster,
                                 )
-                            })
-                            .collect::<Vec<RocketRetailProduct>>()
+                            }).collect::<Vec<RocketRetailProduct>>()
                     })
-                })
-                .flatten()
+                }).flatten()
                 .collect::<Vec<_>>();
 
             let date = Utc::now().format("%Y-%m-%d %H:%M").to_string();
@@ -158,8 +156,7 @@ impl RocketRetailLoader {
                     offers: catalog_products,
                 },
             })
-        })
-        .and_then(move |catalog| {
+        }).and_then(move |catalog| {
             debug!("Creating XML document");
             let mut data: Vec<u8> = vec![];
             catalog
@@ -167,12 +164,10 @@ impl RocketRetailLoader {
                 .write(&mut data)
                 .map(|_| data)
                 .map_err(|e| e.context("Failed to create xml document for rocket retail.").into())
-        })
-        .and_then(move |data| {
+        }).and_then(move |data| {
             debug!("Initiated S3 upload");
             service_s3.upload(&file_name, data).map_err(From::from)
-        })
-        .then(move |res| {
+        }).then(move |res| {
             let mut busy = service2.busy.lock().expect("Rocket retail loader: poisoned mutex at fetch step");
             *busy = false;
             res

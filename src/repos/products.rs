@@ -39,6 +39,9 @@ pub trait ProductsRepo {
     /// Returns list of products with base id
     fn find_with_base_id(&self, base_id: BaseProductId) -> RepoResult<Vec<RawProduct>>;
 
+    /// Returns list of products with base ids
+    fn find_with_base_ids(&self, base_ids: Vec<BaseProductId>) -> RepoResult<Vec<RawProduct>>;
+
     /// Creates new product
     fn create(&self, payload: NewProduct) -> RepoResult<RawProduct>;
 
@@ -134,7 +137,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
     /// Returns list of products with base id
     fn find_with_base_id(&self, base_id_arg: BaseProductId) -> RepoResult<Vec<RawProduct>> {
-        debug!("Find in products with id {}.", base_id_arg);
+        debug!("Find in products with base product id {}.", base_id_arg);
         let query = products
             .filter(base_product_id.eq(base_id_arg))
             .filter(is_active.eq(true))
@@ -152,6 +155,26 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Find in products with id {} error occurred.", base_id_arg))
                     .into()
             })
+    }
+
+    /// Returns list of products with base ids
+    fn find_with_base_ids(&self, base_ids: Vec<BaseProductId>) -> RepoResult<Vec<RawProduct>> {
+        debug!("Find in products with base ids.");
+
+        let query = products
+            .filter(base_product_id.eq_any(base_ids))
+            .filter(is_active.eq(true))
+            .order_by(id);
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|products_res: Vec<RawProduct>| {
+                for product in &products_res {
+                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
+                }
+                Ok(products_res.clone())
+            }).map_err(|e: FailureError| e.context(format!("Find in products with ids error occurred.")).into())
     }
 
     /// Updates specific product

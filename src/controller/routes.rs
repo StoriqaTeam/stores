@@ -65,6 +65,7 @@ pub enum Route {
     ProductValidateUpdate(ProductId),
     ProductAttributes(ProductId),
     ProductsByBaseProduct(BaseProductId),
+    ProductsByStore(StoreId),
     SellerProductPrice(ProductId),
     Stores,
     StoresSearch,
@@ -239,6 +240,15 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse::<i32>().ok())
             .map(BaseProductId)
             .map(Route::ProductsByBaseProduct)
+    });
+
+    // Products/by_store/:id route
+    router.add_route_with_params(r"^/products/by_store/(\d+)$", |params| {
+        params
+            .get(0)
+            .and_then(|string_id| string_id.parse::<i32>().ok())
+            .map(StoreId)
+            .map(Route::ProductsByStore)
     });
 
     // Products/:id/attributes route

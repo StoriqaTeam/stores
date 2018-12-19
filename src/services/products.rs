@@ -14,7 +14,8 @@ use super::types::ServiceFuture;
 use errors::Error;
 use models::*;
 use repos::{
-    AttributeValuesRepo, AttributesRepo, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult, ReposFactory, StoresRepo,
+    AttributeValuesRepo, AttributesRepo, BaseProductsSearchTerms, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo, RepoResult,
+    ReposFactory, StoresRepo,
 };
 use services::check_can_update_by_status;
 use services::Service;
@@ -36,6 +37,8 @@ pub trait ProductsService {
     fn update_product(&self, product_id: ProductId, payload: UpdateProductWithAttributes) -> ServiceFuture<Product>;
     /// Get by base product id
     fn find_products_with_base_id(&self, base_product_id: BaseProductId) -> ServiceFuture<Vec<Product>>;
+    /// Get by store id
+    fn find_products_with_store_id(&self, store_id: StoreId) -> ServiceFuture<Vec<Product>>;
     /// Get by base product id
     fn find_products_attributes(&self, product_id: ProductId) -> ServiceFuture<Vec<AttrValue>>;
     /// Check that you can update product
@@ -288,6 +291,42 @@ impl<
 
                 result_products
             }.map_err(|e: FailureError| e.context("Service Product, find_with_base_id endpoint error occurred.").into())
+        })
+    }
+
+    fn find_products_with_store_id(&self, store_id: StoreId) -> ServiceFuture<Vec<Product>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let currency = self.dynamic_context.currency;
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+
+                let base_product_ids = base_products_repo
+                    .search(BaseProductsSearchTerms {
+                        store_id: Some(store_id),
+                        ..Default::default()
+                    })?.into_iter()
+                    .map(|p| p.id)
+                    .collect();
+
+                let raw_products = products_repo.find_with_base_ids(base_product_ids)?;
+
+                let result_products = raw_products
+                    .into_iter()
+                    .map(|raw_product| {
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                            .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
+                    }).collect::<RepoResult<Vec<Product>>>();
+
+                result_products
+            }.map_err(|e: FailureError| {
+                e.context("Service Product, find_products_with_store_id endpoint error occurred.")
+                    .into()
+            })
         })
     }
 

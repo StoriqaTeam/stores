@@ -11,14 +11,15 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use std::sync::Arc;
 use stq_cache::cache::CacheSingle;
-use stq_types::{CategoryId, CategorySlug, UserId};
+use stq_types::{AttributeId, CategoryId, CategorySlug, UserId};
 
 use models::authorization::*;
-use models::{Attribute, CatAttr, Category, InsertCategory, NewCategory, RawCategory, UpdateCategory};
+use models::{Attribute, BaseProductRaw, CatAttr, Category, InsertCategory, NewCategory, RawCategory, UpdateCategory};
 use repos::acl;
 use repos::legacy_acl::CheckScope;
 use repos::types::{RepoAcl, RepoResult};
 use schema::attributes::dsl as Attributes;
+use schema::base_products::dsl as BaseProducts;
 use schema::cat_attr_values::dsl as CategoryAttributes;
 use schema::categories::dsl::*;
 
@@ -39,6 +40,8 @@ where
     pub cache: Arc<CategoryCacheImpl<C>>,
 }
 
+const CATEGORY_ID_LEVEL3: i32 = 3;
+
 pub trait CategoriesRepo {
     /// Find specific category by id
     fn find(&self, id_arg: CategoryId) -> RepoResult<Option<Category>>;
@@ -58,6 +61,10 @@ pub trait CategoriesRepo {
     /// Returns all categories as a tree
     fn get_all_categories(&self) -> RepoResult<Category>;
 
+    /// Returns all categories as a tree
+    /// Tree contains only categories where exists products
+    fn get_all_categories_with_products(&self) -> RepoResult<Category>;
+
     /// Returns all raw categories
     fn get_raw_categories(&self) -> RepoResult<Vec<RawCategory>>;
 }
@@ -69,6 +76,30 @@ where
 {
     pub fn new(db_conn: &'a T, acl: Box<RepoAcl<Category>>, cache: Arc<CategoryCacheImpl<C>>) -> Self {
         Self { db_conn, acl, cache }
+    }
+
+    pub fn get_attributes_hash(&self) -> RepoResult<HashMap<AttributeId, Attribute>> {
+        Ok(Attributes::attributes
+            .load::<Attribute>(self.db_conn)?
+            .into_iter()
+            .map(|attr| (attr.id, attr))
+            .collect())
+    }
+
+    pub fn get_categories_hash(&self) -> RepoResult<HashMap<CategoryId, Vec<Attribute>>> {
+        let attrs_hash = self.get_attributes_hash()?;
+
+        Ok(CategoryAttributes::cat_attr_values.load::<CatAttr>(self.db_conn)?.into_iter().fold(
+            HashMap::<CategoryId, Vec<Attribute>>::new(),
+            |mut hash, cat_attr| {
+                {
+                    let cat_with_attrs = hash.entry(cat_attr.cat_id).or_insert_with(Vec::new);
+                    let attribute = &attrs_hash[&cat_attr.attr_id];
+                    cat_with_attrs.push(attribute.clone());
+                }
+                hash
+            },
+        ))
     }
 }
 
@@ -205,12 +236,14 @@ where
             debug!("Get all categories from db request.");
             acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)
                 .and_then(|_| {
+                    // TODO: use `get_attributes_hash`
                     let attrs_hash = Attributes::attributes
                         .load::<Attribute>(self.db_conn)?
                         .into_iter()
                         .map(|attr| (attr.id, attr))
                         .collect::<HashMap<_, _>>();
 
+                    // TODO use `get_categories_hash`
                     let cat_hash = CategoryAttributes::cat_attr_values.load::<CatAttr>(self.db_conn)?.into_iter().fold(
                         HashMap::<CategoryId, Vec<Attribute>>::new(),
                         |mut hash, cat_attr| {
@@ -232,6 +265,39 @@ where
                     Ok(root)
                 }).map_err(|e: FailureError| e.context("Get all categories error occurred").into())
         }
+    }
+
+    /// Returns all categories as a tree
+    /// Tree contains only categories where exists products
+    /// Without use cache!
+    fn get_all_categories_with_products(&self) -> RepoResult<Category> {
+        debug!("Get all categories with products from db request.");
+        acl::check(&*self.acl, Resource::Categories, Action::Read, self, None)
+            .and_then(|_| {
+                let cat_hash = self.get_categories_hash()?;
+
+                let data: Vec<(RawCategory, Option<BaseProductRaw>)> = categories
+                    .filter(is_active.eq(true))
+                    .left_join(BaseProducts::base_products.on(BaseProducts::is_active.eq(true)))
+                    .load(self.db_conn)?;
+
+                let cats: Vec<RawCategory> = data
+                    .into_iter()
+                    .filter_map(|(cat, bp)| {
+                        if cat.level != CATEGORY_ID_LEVEL3 {
+                            Some(cat)
+                        } else {
+                            bp.map(|_| cat)
+                        }
+                    }).collect();
+
+                let mut root = Category::default();
+                let children = create_tree(&cats, Some(root.id));
+                root.children = children;
+                set_attributes(&mut root, &cat_hash);
+
+                Ok(root)
+            }).map_err(|e: FailureError| e.context("Get `get_all_categories_with_products` error occurred").into())
     }
 }
 

@@ -736,6 +736,10 @@ pub mod tests {
             Ok(create_mock_categories())
         }
 
+        fn get_all_categories_with_products(&self) -> RepoResult<Category> {
+            Ok(create_mock_categories())
+        }
+
         fn get_raw_categories(&self) -> RepoResult<Vec<RawCategory>> {
             Ok(create_raw_mock_categories())
         }

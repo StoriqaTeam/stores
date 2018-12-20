@@ -40,7 +40,7 @@ where
     pub cache: Arc<CategoryCacheImpl<C>>,
 }
 
-const CATEGORY_ID_LEVEL3: i32 = 3;
+const CATEGORY_LEVEL3: i32 = 3;
 
 pub trait CategoriesRepo {
     /// Find specific category by id
@@ -278,16 +278,23 @@ where
 
                 let data: Vec<(RawCategory, Option<BaseProductRaw>)> = categories
                     .filter(is_active.eq(true))
-                    .left_join(BaseProducts::base_products.on(BaseProducts::is_active.eq(true)))
+                    .left_join(BaseProducts::base_products)
                     .load(self.db_conn)?;
 
                 let cats: Vec<RawCategory> = data
                     .into_iter()
                     .filter_map(|(cat, bp)| {
-                        if cat.level != CATEGORY_ID_LEVEL3 {
+                        if cat.level != CATEGORY_LEVEL3 {
                             Some(cat)
                         } else {
-                            bp.map(|_| cat)
+                            match bp {
+                                Some(base) => if base.is_active {
+                                    Some(cat)
+                                } else {
+                                    None
+                                },
+                                None => None,
+                            }
                         }
                     }).collect();
 

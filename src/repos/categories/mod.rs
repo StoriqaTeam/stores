@@ -29,7 +29,7 @@ pub mod category_cache;
 pub use self::category_attrs::*;
 pub use self::category_cache::*;
 
-/// Categories repository, responsible for handling categorie_values
+/// Categories repository, responsible for handling categories_values
 pub struct CategoriesRepoImpl<'a, C, T>
 where
     C: CacheSingle<Category>,
@@ -281,7 +281,7 @@ where
                     .left_join(BaseProducts::base_products)
                     .load(self.db_conn)?;
 
-                let cats: Vec<RawCategory> = data
+                let mut cats: Vec<RawCategory> = data
                     .into_iter()
                     .filter_map(|(cat, bp)| {
                         if cat.level != CATEGORY_LEVEL3 {
@@ -297,6 +297,9 @@ where
                             }
                         }
                     }).collect();
+
+                cats.sort();
+                cats.dedup();
 
                 let mut root = Category::default();
                 let children = create_tree(&cats, Some(root.id));

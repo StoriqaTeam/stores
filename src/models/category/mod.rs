@@ -3,6 +3,8 @@
 //! EAV model categories
 pub mod category_attribute;
 
+use std::cmp::Ordering;
+
 use serde_json;
 use uuid::Uuid;
 use validator::Validate;
@@ -26,6 +28,26 @@ pub struct RawCategory {
     pub is_active: bool,
     pub uuid: Uuid,
     pub slug: CategorySlug,
+}
+
+impl Eq for RawCategory {}
+
+impl PartialEq for RawCategory {
+    fn eq(&self, other: &RawCategory) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Ord for RawCategory {
+    fn cmp(&self, other: &RawCategory) -> Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for RawCategory {
+    fn partial_cmp(&self, other: &RawCategory) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 /// Used to insert a category into the table

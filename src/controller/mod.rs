@@ -1029,6 +1029,9 @@ impl<
             // GET /categories
             (&Get, Some(Route::Categories)) => serialize_future(service.get_all_categories()),
 
+            // GET /categories/with_products
+            (&Get, Some(Route::CategoriesWithProducts)) => serialize_future(service.get_all_categories_with_products()),
+
             // GET /categories/<category_id>/attributes
             (&Get, Some(Route::CategoryAttr(category_id))) => serialize_future(service.find_all_attributes_for_category(category_id)),
 

@@ -73,13 +73,18 @@ impl StoresElastic for StoresElasticImpl {
     /// Find specific stores by name limited by `count` parameters
     fn find_by_name(&self, search_store: SearchStore, count: i32, offset: i32) -> RepoFuture<Vec<ElasticStore>> {
         log_elastic_req(&search_store);
-
+        let store_name = search_store.name.to_lowercase();
         let name_query = json!({
             "nested" : {
                     "path" : "name",
                     "query" : {
-                        "match": {
-                            "name.text" : search_store.name
+                        "fuzzy": {
+                            "name.text" : {
+                                "value": store_name,
+                                "boost":1.0,
+                                "fuzziness":2,
+                                "prefix_length":0
+                            }
                         }
                     }
                 }
@@ -87,7 +92,7 @@ impl StoresElastic for StoresElasticImpl {
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        if !search_store.name.is_empty() {
+        if !store_name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 
@@ -144,6 +149,7 @@ impl StoresElastic for StoresElasticImpl {
     /// Auto Complete
     fn auto_complete(&self, name: String, count: i32, _offset: i32) -> RepoFuture<Vec<String>> {
         log_elastic_req(&name);
+        let name = name.to_lowercase();
 
         let suggest = json!({
             "name-suggest" : {
@@ -188,12 +194,13 @@ impl StoresElastic for StoresElasticImpl {
     /// Search count of stores by name
     fn search_count(&self, search_store: SearchStore) -> RepoFuture<i32> {
         log_elastic_req(&search_store);
+        let store_name = search_store.name.to_lowercase();
         let name_query = json!({
             "nested" : {
                     "path" : "name",
                     "query" : {
                         "match": {
-                            "name.text" : search_store.name
+                            "name.text" : store_name
                         }
                     }
                 }
@@ -201,7 +208,7 @@ impl StoresElastic for StoresElasticImpl {
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        if !search_store.name.is_empty() {
+        if !store_name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 
@@ -236,12 +243,13 @@ impl StoresElastic for StoresElasticImpl {
     /// Aggregate countries
     fn aggregate_countries(&self, search_store: SearchStore) -> RepoFuture<Vec<String>> {
         log_elastic_req(&search_store);
+        let store_name = search_store.name.to_lowercase();
         let name_query = json!({
             "nested" : {
                     "path" : "name",
                     "query" : {
                         "match": {
-                            "name.text" : search_store.name
+                            "name.text" : store_name
                         }
                     }
                 }
@@ -249,7 +257,7 @@ impl StoresElastic for StoresElasticImpl {
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        if !search_store.name.is_empty() {
+        if !store_name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 
@@ -301,12 +309,13 @@ impl StoresElastic for StoresElasticImpl {
     /// Aggregate categories
     fn aggregate_categories(&self, search_store: SearchStore) -> RepoFuture<Vec<CategoryId>> {
         log_elastic_req(&search_store);
+        let store_name = search_store.name.to_lowercase();
         let name_query = json!({
             "nested" : {
                     "path" : "name",
                     "query" : {
                         "match": {
-                            "name.text" : search_store.name
+                            "name.text" : store_name
                         }
                     }
                 }
@@ -314,7 +323,7 @@ impl StoresElastic for StoresElasticImpl {
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
 
-        if !search_store.name.is_empty() {
+        if !store_name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 

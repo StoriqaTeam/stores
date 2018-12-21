@@ -271,14 +271,20 @@ impl ProductsElastic for ProductsElasticImpl {
     /// Find specific products by name limited by `count` parameters
     fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>> {
         log_elastic_req(&prod);
+        let product_name = prod.name.to_lowercase();
         let name_query = json!({
             "bool" : {
                 "should" : [
                     {"nested": {
                         "path": "name",
                         "query": {
-                            "match": {
-                                "name.text": prod.name
+                            "fuzzy": {
+                                "name.text": {
+                                    "value": product_name,
+                                    "boost":1.0,
+                                    "fuzziness":2,
+                                    "prefix_length":0
+                                }
                             }
                         }
                     }},
@@ -286,7 +292,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "short_description",
                         "query": {
                             "match": {
-                                "short_description.text": prod.name
+                                "short_description.text": product_name
                             }
                         }
                     }},
@@ -294,7 +300,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "long_description",
                         "query": {
                             "match": {
-                                "long_description.text": prod.name
+                                "long_description.text": product_name
                             }
                         }
                     }}
@@ -303,7 +309,7 @@ impl ProductsElastic for ProductsElasticImpl {
         });
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
-        if !prod.name.is_empty() {
+        if !product_name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 
@@ -560,6 +566,7 @@ impl ProductsElastic for ProductsElasticImpl {
 
     fn auto_complete(&self, name: AutoCompleteProductName, count: i32, _offset: i32) -> RepoFuture<Vec<String>> {
         log_elastic_req(&name);
+        let product_name = name.name.to_lowercase();
 
         let store = if let Some(store_id) = name.store_id {
             if let Some(status) = name.status {
@@ -570,6 +577,7 @@ impl ProductsElastic for ProductsElasticImpl {
             }
         } else {
             if let Some(status) = name.status {
+                let status = format!("{}", status);
                 json!([status])
             } else {
                 json!([])
@@ -578,7 +586,7 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let suggest = json!({
             "name-suggest" : {
-                "prefix" : name.name,
+                "prefix" : product_name,
                 "completion" : {
                     "field" : "suggest_2",
                     "size" : count,
@@ -618,6 +626,7 @@ impl ProductsElastic for ProductsElasticImpl {
     /// Find all categories ids where prod exist
     fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<CategoryId>> {
         log_elastic_req(&name);
+        let name = name.to_lowercase();
         let name_query = json!({
             "bool" : {
                 "should" : [
@@ -701,6 +710,7 @@ impl ProductsElastic for ProductsElasticImpl {
 
     fn aggregate_price(&self, prod: SearchProductsByName) -> RepoFuture<RangeFilter> {
         log_elastic_req(&prod);
+        let product_name = prod.name.to_lowercase();
 
         let name_query = json!({
             "bool" : {
@@ -709,7 +719,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "name",
                         "query": {
                             "match": {
-                                "name.text": prod.name
+                                "name.text": product_name
                             }
                         }
                     }},
@@ -717,7 +727,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "short_description",
                         "query": {
                             "match": {
-                                "short_description.text": prod.name
+                                "short_description.text": product_name
                             }
                         }
                     }},
@@ -725,7 +735,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "long_description",
                         "query": {
                             "match": {
-                                "long_description.text": prod.name
+                                "long_description.text": product_name
                             }
                         }
                     }}
@@ -734,7 +744,7 @@ impl ProductsElastic for ProductsElasticImpl {
         });
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
-        if !prod.name.is_empty() {
+        if !product_name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 
@@ -850,6 +860,7 @@ impl ProductsElastic for ProductsElasticImpl {
 
     fn count(&self, prod: SearchProductsByName) -> RepoFuture<i32> {
         log_elastic_req(&prod);
+        let product_name = prod.name.to_lowercase();
 
         let name_query = json!({
             "bool" : {
@@ -858,7 +869,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "name",
                         "query": {
                             "match": {
-                                "name.text": prod.name
+                                "name.text": product_name
                             }
                         }
                     }},
@@ -866,7 +877,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "short_description",
                         "query": {
                             "match": {
-                                "short_description.text": prod.name
+                                "short_description.text": product_name
                             }
                         }
                     }},
@@ -874,7 +885,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         "path": "long_description",
                         "query": {
                             "match": {
-                                "long_description.text": prod.name
+                                "long_description.text": product_name
                             }
                         }
                     }}
@@ -883,7 +894,7 @@ impl ProductsElastic for ProductsElasticImpl {
         });
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
-        if !prod.name.is_empty() {
+        if !product_name.is_empty() {
             query_map.insert("must".to_string(), name_query);
         }
 

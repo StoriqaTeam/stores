@@ -272,41 +272,7 @@ impl ProductsElastic for ProductsElasticImpl {
     fn search_by_name(&self, prod: SearchProductsByName, count: i32, offset: i32) -> RepoFuture<Vec<ElasticProduct>> {
         log_elastic_req(&prod);
         let product_name = prod.name.to_lowercase();
-        let name_query = json!({
-            "bool" : {
-                "should" : [
-                    {"nested": {
-                        "path": "name",
-                        "query": {
-                            "fuzzy": {
-                                "name.text": {
-                                    "value": product_name,
-                                    "boost":1.0,
-                                    "fuzziness":2,
-                                    "prefix_length":0
-                                }
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "short_description",
-                        "query": {
-                            "match": {
-                                "short_description.text": product_name
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "long_description",
-                        "query": {
-                            "match": {
-                                "long_description.text": product_name
-                            }
-                        }
-                    }}
-                ]
-            }
-        });
+        let name_query = fuzzy_search_by_name_query(&product_name);
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
         if !product_name.is_empty() {
@@ -627,36 +593,7 @@ impl ProductsElastic for ProductsElasticImpl {
     fn aggregate_categories(&self, name: String) -> RepoFuture<Vec<CategoryId>> {
         log_elastic_req(&name);
         let name = name.to_lowercase();
-        let name_query = json!({
-            "bool" : {
-                "should" : [
-                    {"nested": {
-                        "path": "name",
-                        "query": {
-                            "match": {
-                                "name.text": name
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "short_description",
-                        "query": {
-                            "match": {
-                                "short_description.text": name
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "long_description",
-                        "query": {
-                            "match": {
-                                "long_description.text": name
-                            }
-                        }
-                    }}
-                ]
-            }
-        });
+        let name_query = fuzzy_search_by_name_query(&name);
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
         if !name.is_empty() {
@@ -712,36 +649,7 @@ impl ProductsElastic for ProductsElasticImpl {
         log_elastic_req(&prod);
         let product_name = prod.name.to_lowercase();
 
-        let name_query = json!({
-            "bool" : {
-                "should" : [
-                    {"nested": {
-                        "path": "name",
-                        "query": {
-                            "match": {
-                                "name.text": product_name
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "short_description",
-                        "query": {
-                            "match": {
-                                "short_description.text": product_name
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "long_description",
-                        "query": {
-                            "match": {
-                                "long_description.text": product_name
-                            }
-                        }
-                    }}
-                ]
-            }
-        });
+        let name_query = fuzzy_search_by_name_query(&product_name);
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
         if !product_name.is_empty() {
@@ -862,36 +770,7 @@ impl ProductsElastic for ProductsElasticImpl {
         log_elastic_req(&prod);
         let product_name = prod.name.to_lowercase();
 
-        let name_query = json!({
-            "bool" : {
-                "should" : [
-                    {"nested": {
-                        "path": "name",
-                        "query": {
-                            "match": {
-                                "name.text": product_name
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "short_description",
-                        "query": {
-                            "match": {
-                                "short_description.text": product_name
-                            }
-                        }
-                    }},
-                    {"nested": {
-                        "path": "long_description",
-                        "query": {
-                            "match": {
-                                "long_description.text": product_name
-                            }
-                        }
-                    }}
-                ]
-            }
-        });
+        let name_query = fuzzy_search_by_name_query(&product_name);
 
         let mut query_map = serde_json::Map::<String, serde_json::Value>::new();
         if !product_name.is_empty() {
@@ -944,4 +823,39 @@ impl ProductsElastic for ProductsElasticImpl {
                 }),
         )
     }
+}
+
+fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
+    json!({
+        "bool" : {
+            "should" : [
+                {"nested": {
+                    "path": "name",
+                    "query": {
+                        "multi_match":{
+                            "query":name,
+                            "fields":["name.text.fuzzy_search","name.text.substring_search"],
+                            "type":"most_fields"
+                        }
+                    }
+                }},
+                {"nested": {
+                    "path": "short_description",
+                    "query": {
+                        "match": {
+                            "short_description.text": name
+                        }
+                    }
+                }},
+                {"nested": {
+                    "path": "long_description",
+                    "query": {
+                        "match": {
+                            "long_description.text": name
+                        }
+                    }
+                }}
+            ]
+        }
+    })
 }

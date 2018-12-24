@@ -139,9 +139,11 @@ impl<
                                         .context(Error::NotFound)
                                         .into(),
                                 )
-                            }).collect()
+                            })
+                            .collect()
                     })
-                }).map_err(|e| e.context("Service Stores, find_by_name endpoint error occurred.").into()),
+                })
+                .map_err(|e| e.context("Service Stores, find_by_name endpoint error occurred.").into()),
         )
     }
 
@@ -187,7 +189,8 @@ impl<
                         let new_cat = remove_unused_categories(root, &categories_ids);
                         Ok(new_cat)
                     })
-                }).map_err(|e| e.context("Service Stores, search_filters_category endpoint error occurred.").into()),
+                })
+                .map_err(|e| e.context("Service Stores, search_filters_category endpoint error occurred.").into()),
         )
     }
 
@@ -259,7 +262,8 @@ impl<
 
                     Ok(deactive_store)
                 })
-            }.map_err(|e: FailureError| e.context("Service Stores, deactivate endpoint error occurred.").into())
+            }
+            .map_err(|e: FailureError| e.context("Service Stores, deactivate endpoint error occurred.").into())
         })
     }
 
@@ -315,19 +319,22 @@ impl<
                     Err(format_err!("Store already exists. User can have only one store.")
                         .context(Error::Validate(
                             validation_errors!({"store": ["store" => "Current user already has a store."]}),
-                        )).into())
+                        ))
+                        .into())
                 } else {
                     let exists = stores_repo.slug_exists(payload.slug.to_string())?;
                     if exists {
                         Err(format_err!("Store with slug '{}' already exists.", payload.slug)
                             .context(Error::Validate(
                                 validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                            )).into())
+                            ))
+                            .into())
                     } else {
                         stores_repo.create(payload)
                     }
                 }
-            }).map_err(|e| e.context("Service Stores, create endpoint error occurred.").into())
+            })
+            .map_err(|e| e.context("Service Stores, create endpoint error occurred.").into())
         })
     }
 
@@ -348,7 +355,8 @@ impl<
                             return Err(format_err!("Store with slug '{}' already exists.", slug)
                                 .context(Error::Validate(
                                     validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                                )).into());
+                                ))
+                                .into());
                         }
                     }
                 }
@@ -361,7 +369,8 @@ impl<
                         _ => Ok(store),
                     }
                 })
-            }.map_err(|e| e.context("Service Stores, update endpoint error occurred.").into())
+            }
+            .map_err(|e| e.context("Service Stores, update endpoint error occurred.").into())
         })
     }
 
@@ -431,9 +440,11 @@ impl<
                     Err(format_err!("Store status: {} not valid for set", status)
                         .context(Error::Validate(
                             validation_errors!({"stores": ["stores" => "Store new status is not valid"]}),
-                        )).into())
+                        ))
+                        .into())
                 }
-            }.map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into())
+            }
+            .map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into())
         })
     }
 
@@ -459,9 +470,11 @@ impl<
                     Err(format_err!("Store with id: {}, cannot be sent to moderation", store_id)
                         .context(Error::Validate(
                             validation_errors!({"stores": ["stores" => "Store can not be sent to moderation"]}),
-                        )).into())
+                        ))
+                        .into())
                 }
-            }.map_err(|e: FailureError| {
+            }
+            .map_err(|e: FailureError| {
                 e.context("Service stores, send_store_to_moderation endpoint error occurred.")
                     .into()
             })
@@ -494,7 +507,8 @@ impl<
                             format_err!("Store with id: {}, cannot be hided when the store in status: {}", store_id, status)
                                 .context(Error::Validate(
                                     validation_errors!({"stores": ["stores" => "Store cannot be hided"]}),
-                                )).into(),
+                                ))
+                                .into(),
                         )
                     };
 
@@ -502,7 +516,8 @@ impl<
 
                     update_store
                 })
-            }.map_err(|e: FailureError| {
+            }
+            .map_err(|e: FailureError| {
                 e.context("Service stores, set_store_moderation_status_draft endpoint error occurred.")
                     .into()
             })
@@ -526,7 +541,8 @@ impl<
                 };
 
                 Ok(check_change_status(current_status, status))
-            }.map_err(|e: FailureError| {
+            }
+            .map_err(|e: FailureError| {
                 e.context("Service stores, validate_change_moderation_status_store endpoint error occurred.")
                     .into()
             })
@@ -554,7 +570,8 @@ impl<
 
                     stores_repo.delete(store_id)
                 })
-            }.map_err(|e: FailureError| e.context("Service stores, delete endpoint error occurred.").into())
+            }
+            .map_err(|e: FailureError| e.context("Service stores, delete endpoint error occurred.").into())
         })
     }
 

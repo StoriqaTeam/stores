@@ -172,7 +172,8 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
             let app = Application::<Error>::new(controller);
 
             Ok(app)
-        }).unwrap_or_else(|why| {
+        })
+        .unwrap_or_else(|why| {
             error!("Http Server Initialization Error: {}", why);
             process::exit(1);
         });
@@ -183,7 +184,8 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
             .for_each(move |conn| {
                 handle_arc2.spawn(conn.map(|_| ()).map_err(|why| error!("Server Error: {}", why)));
                 Ok(())
-            }).map_err(|_| ()),
+            })
+            .map_err(|_| ()),
     );
 
     info!("Listening on http://{}, threads: {}", address, thread_count);
@@ -196,7 +198,8 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
         info!("Ctrl+C received. Exit");
 
         Ok(())
-    })).unwrap();
+    }))
+    .unwrap();
 }
 
 pub fn start_rocket_retail_loader(config: Config) {
@@ -210,7 +213,8 @@ pub fn start_rocket_retail_loader(config: Config) {
         info!("Ctrl+C received. Exit");
 
         Ok(())
-    })).unwrap();
+    }))
+    .unwrap();
 }
 
 fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Future<Item = (), Error = ()> {
@@ -221,7 +225,8 @@ fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Fu
         .or_else(|e| {
             error!("Error in rocket retail loader: {}.", e);
             futures::future::ok(())
-        }).for_each(|_| futures::future::ok(()))
+        })
+        .for_each(|_| futures::future::ok(()))
 }
 
 pub fn start_ticker(config: Config) -> impl Future<Item = (), Error = FailureError> {

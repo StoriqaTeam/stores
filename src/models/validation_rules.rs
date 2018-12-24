@@ -9,7 +9,7 @@ use validator::validate_length;
 use validator::ValidationError;
 use validator::Validator;
 
-use models::Coupon;
+use models::{Coupon, Store};
 use stq_static_resources::Translation;
 use stq_types::{CouponCode, ProductPrice};
 
@@ -125,12 +125,37 @@ pub fn validate_coupon_code(val: &CouponCode) -> Result<(), ValidationError> {
     check_result
 }
 
-pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
-    let translations = serde_json::from_value::<Vec<Translation>>(text.clone()).map_err(|_| ValidationError {
+fn get_translations(text: &serde_json::Value) -> Result<Vec<Translation>, ValidationError> {
+    serde_json::from_value::<Vec<Translation>>(text.clone()).map_err(|_| ValidationError {
         code: Cow::from("text"),
         message: Some(Cow::from("Invalid json format of text with translation.")),
         params: HashMap::new(),
-    })?;
+    })
+}
+
+pub fn validate_store_short_description(text: &serde_json::Value) -> Result<(), ValidationError> {
+    validate_translation(text)?;
+
+    let translations = get_translations(text)?;
+
+    for t in translations {
+        if t.text.len() > Store::MAX_LENGTH_SHORT_DESCRIPTION {
+            return Err(ValidationError {
+                code: Cow::from("text"),
+                message: Some(Cow::from(format!(
+                    "Text inside translation must be <= {} characters.",
+                    Store::MAX_LENGTH_SHORT_DESCRIPTION
+                ))),
+                params: HashMap::new(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
+    let translations = get_translations(text)?;
 
     for t in translations {
         if t.text.is_empty() {

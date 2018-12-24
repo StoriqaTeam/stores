@@ -180,15 +180,17 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     /// Delete coupon
     fn delete(&self, id_arg: CouponId) -> RepoResult<Coupon> {
         debug!("Delete coupon with id {:?}.", id_arg);
-        let filtered = Coupons::coupons.filter(Coupons::id.eq(&id_arg));
-        let query = diesel::delete(filtered);
+        let query = Coupons::coupons.find(&id_arg);
 
-        acl::check(&*self.acl, Resource::Coupons, Action::Delete, self, None)?;
-
-        query
-            .get_result::<Coupon>(self.db_conn)
+        query.get_result(self.db_conn)
             .map_err(From::from)
-            .map_err(|e: FailureError| e.context(format!("Delete coupon: {:?} error occurred", id_arg)).into())
+            .and_then(|value| acl::check(&*self.acl, Resource::Coupons, Action::Delete, self, Some(&value)))
+            .and_then(|_| {
+                let filtered = Coupons::coupons.filter(Coupons::id.eq(&id_arg));
+                let query = diesel::delete(filtered);
+
+                query.get_result::<Coupon>(self.db_conn).map_err(From::from)
+            }).map_err(|e: FailureError| e.context(format!("Delete coupon: {:?} error occurred", id_arg)).into())
     }
 }
 

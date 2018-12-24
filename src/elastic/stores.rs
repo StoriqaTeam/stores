@@ -101,15 +101,24 @@ impl StoresElastic for StoresElasticImpl {
         filters.push(product_categories);
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
-        let query = json!({
-            "from" : offset, "size" : count,
-            "query": {
-                "bool" : query_map
-            },
-            "sort" : [
-                { "rating" : { "order" : "desc"} }
-            ]
-        }).to_string();
+        let query = if store_name.is_empty() {
+            json!({
+                "from" : offset, "size" : count,
+                "query": {
+                    "bool" : query_map
+                },
+                "sort" : [
+                    { "rating" : { "order" : "desc"} }
+                ]
+            }).to_string()
+        } else {
+            json!({
+                "from" : offset, "size" : count,
+                "query": {
+                    "bool" : query_map
+                }
+            }).to_string()
+        };
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();

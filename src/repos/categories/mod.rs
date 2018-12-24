@@ -11,6 +11,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use std::sync::Arc;
 use stq_cache::cache::CacheSingle;
+use stq_static_resources::ModerationStatus;
 use stq_types::{AttributeId, CategoryId, CategorySlug, UserId};
 
 use models::authorization::*;
@@ -278,24 +279,20 @@ where
 
                 let data: Vec<(RawCategory, Option<BaseProductRaw>)> = categories
                     .filter(is_active.eq(true))
-                    .left_join(BaseProducts::base_products)
-                    .load(self.db_conn)?;
+                    .left_join(
+                        BaseProducts::base_products.on(BaseProducts::is_active.eq(true).and(
+                            BaseProducts::status
+                                .eq(ModerationStatus::Published)
+                                .and(id.eq(BaseProducts::category_id)),
+                        )),
+                    ).load(self.db_conn)?;
 
                 let mut cats: Vec<RawCategory> = data
                     .into_iter()
-                    .filter_map(|(cat, bp)| {
-                        if cat.level != CATEGORY_LEVEL3 {
-                            Some(cat)
-                        } else {
-                            match bp {
-                                Some(base) => if base.is_active {
-                                    Some(cat)
-                                } else {
-                                    None
-                                },
-                                None => None,
-                            }
-                        }
+                    .filter_map(|(cat, base_product)| match (cat.level, base_product) {
+                        (cat_level, Some(_)) if cat_level == CATEGORY_LEVEL3 => Some(cat),
+                        (cat_level, _) if cat_level < CATEGORY_LEVEL3 => Some(cat),
+                        _ => None,
                     }).collect();
 
                 cats.sort();

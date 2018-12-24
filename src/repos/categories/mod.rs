@@ -291,7 +291,7 @@ where
                     .into_iter()
                     .filter_map(|(cat, base_product)| match (cat.level, base_product) {
                         (cat_level, Some(_)) if cat_level == CATEGORY_LEVEL3 => Some(cat),
-                        (cat_level, None) if cat_level < CATEGORY_LEVEL3 => Some(cat),
+                        (cat_level, _) if cat_level < CATEGORY_LEVEL3 => Some(cat),
                         _ => None,
                     }).collect();
 

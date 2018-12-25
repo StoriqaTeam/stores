@@ -190,7 +190,7 @@ impl<
                             coupon_id,
                             base_product_id
                         ).context(Error::Forbidden)
-                        .into())
+                        .into());
                     }
                 }
 

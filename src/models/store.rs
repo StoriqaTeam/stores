@@ -52,8 +52,8 @@ pub struct Store {
 }
 
 impl Store {
-    pub const MAX_LENGTH_SHORT_DESCRIPTION: usize = 170;
-    pub const MAX_LENGTH_LONG_DESCRIPTION: usize = 8000;
+    pub const MAX_LENGTH_SHORT_DESCRIPTION: u64 = 170;
+    pub const MAX_LENGTH_LONG_DESCRIPTION: u64 = 8000;
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

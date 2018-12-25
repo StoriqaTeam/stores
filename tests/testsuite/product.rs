@@ -1,6 +1,3 @@
-extern crate serde_json;
-include!("integration_tests_setup.rs");
-
 use std::str::FromStr;
 use std::time::SystemTime;
 
@@ -8,9 +5,14 @@ use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use futures::Future;
+use rand::Rng;
+
+use stq_http::request_util::read_body;
 use stq_static_resources::Currency;
 use stq_types::*;
 
+use common::*;
 use stores_lib::models::*;
 
 pub fn create_new_base_product(name: &str, short_description: &str) -> NewBaseProduct {
@@ -31,6 +33,7 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         weight_g: Some(100),
     }
 }
+
 pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProduct {
     RawProduct {
         id: id,

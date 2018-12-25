@@ -29,6 +29,9 @@ pub trait CategoriesService {
     fn delete_category(&self, category_id: CategoryId) -> ServiceFuture<()>;
     /// Returns all categories as a tree
     fn get_all_categories(&self) -> ServiceFuture<Category>;
+    /// Returns all categories as a tree
+    /// Tree contains only categories where exists products
+    fn get_all_categories_with_products(&self) -> ServiceFuture<Category>;
     /// Returns all category attributes belonging to category
     fn find_all_attributes_for_category(&self, category_id_arg: CategoryId) -> ServiceFuture<Vec<Attribute>>;
     /// Creates new category attribute
@@ -137,6 +140,21 @@ impl<
             categories_repo
                 .get_all_categories()
                 .map_err(|e| e.context("Service Categories, get_all_categories endpoint error occurred.").into())
+        })
+    }
+
+    /// Returns all categories as a tree
+    /// Tree contains only categories where exists products
+    fn get_all_categories_with_products(&self) -> ServiceFuture<Category> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        self.spawn_on_pool(move |conn| {
+            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+            categories_repo.get_all_categories_with_products().map_err(|e| {
+                e.context("Service Categories, `get_all_categories_with_products` endpoint error occurred.")
+                    .into()
+            })
         })
     }
 

@@ -30,6 +30,7 @@ pub enum Route {
     BaseProductCustomAttributes(BaseProductId),
     BaseProductPublish,
     Categories,
+    CategoriesWithProducts,
     Category(CategoryId),
     BaseProductsCategoryReplace,
     CategoryBySlug(CategorySlug),
@@ -513,6 +514,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Categories Routes
     router.add_route(r"^/categories$", || Route::Categories);
+
+    // Categories only with products Routes
+    router.add_route(r"^/categories/with_products$", || Route::CategoriesWithProducts);
 
     // Categories/:id route
     router.add_route_with_params(r"^/categories/(\d+)$", |params| {

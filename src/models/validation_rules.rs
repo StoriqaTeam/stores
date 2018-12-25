@@ -9,7 +9,7 @@ use validator::validate_length;
 use validator::ValidationError;
 use validator::Validator;
 
-use models::Coupon;
+use models::{Coupon, Store};
 use stq_static_resources::Translation;
 use stq_types::{CouponCode, ProductPrice};
 
@@ -125,12 +125,37 @@ pub fn validate_coupon_code(val: &CouponCode) -> Result<(), ValidationError> {
     check_result
 }
 
-pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
-    let translations = serde_json::from_value::<Vec<Translation>>(text.clone()).map_err(|_| ValidationError {
+fn get_translations(text: &serde_json::Value) -> Result<Vec<Translation>, ValidationError> {
+    serde_json::from_value::<Vec<Translation>>(text.clone()).map_err(|_| ValidationError {
         code: Cow::from("text"),
         message: Some(Cow::from("Invalid json format of text with translation.")),
         params: HashMap::new(),
-    })?;
+    })
+}
+
+pub fn validate_store_short_description(text: &serde_json::Value) -> Result<(), ValidationError> {
+    validate_translation(text)?;
+
+    let translations = get_translations(text)?;
+
+    for t in translations {
+        if t.text.len() > Store::MAX_LENGTH_SHORT_DESCRIPTION {
+            return Err(ValidationError {
+                code: Cow::from("text"),
+                message: Some(Cow::from(format!(
+                    "Text inside translation must be <= {} characters.",
+                    Store::MAX_LENGTH_SHORT_DESCRIPTION
+                ))),
+                params: HashMap::new(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
+    let translations = get_translations(text)?;
 
     for t in translations {
         if t.text.is_empty() {
@@ -153,4 +178,48 @@ pub fn validate_urls(text: &serde_json::Value) -> Result<(), ValidationError> {
     })?;
 
     Ok(())
+}
+
+#[cfg(test)]
+pub mod tests {
+
+    use models::*;
+    use stq_static_resources::*;
+
+    #[test]
+    fn test_store_valid_short_description() {
+        let translations = vec![Translation {
+            lang: Language::En,
+            text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry.".to_string(), // 74
+        }];
+
+        let short_description = serde_json::to_value(&translations).unwrap();
+
+        assert!(match validate_store_short_description(&short_description) {
+            Ok(_) => true,
+            Err(_) => false,
+        });
+    }
+
+    #[test]
+    fn test_store_invalid_short_description() {
+        let translations = vec![Translation {
+            lang: Language::En,
+            text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry.
+            Lorem Ipsum has been the industry's standard dummy text ever since the 1500s,
+            when an unknown printer took a galley of type and scrambled it to make a type specimen book.
+            It has survived not only five centuries, but also the leap into electronic typesetting,
+            remaining essentially unchanged.
+            It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages,
+            and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum"
+                .to_string(),
+        }];
+
+        let short_description = serde_json::to_value(&translations).unwrap();
+
+        assert!(match validate_store_short_description(&short_description) {
+            Ok(_) => false,
+            Err(_) => true,
+        });
+    }
 }

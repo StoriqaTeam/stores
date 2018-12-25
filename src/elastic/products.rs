@@ -297,8 +297,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 ProductsSorting::Discount => json!(
                     [{"variants.discount" : "desc"}]
                 ),
-            })
-            .unwrap_or_else(|| serde_json::Value::Array(vec![]));
+            }).unwrap_or_else(|| serde_json::Value::Array(vec![]));
 
         let variants = json!({
             "nested":{
@@ -340,8 +339,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 "bool" : query_map
             },
             "sort" : sorting
-        })
-        .to_string();
+        }).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
@@ -357,8 +355,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     e.context(format!(
                         "Search product by name error occurred. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
-                    ))
-                    .context(Error::ElasticSearch)
+                    )).context(Error::ElasticSearch)
                     .into()
                 }),
         )
@@ -409,8 +406,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 "bool" : query_map
             },
             "sort" : [{ "views" : { "order" : "desc"} }]
-        })
-        .to_string();
+        }).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
@@ -426,8 +422,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     e.context(format!(
                         "Search most viewed product error occurred. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
-                    ))
-                    .context(Error::ElasticSearch)
+                    )).context(Error::ElasticSearch)
                     .into()
                 }),
         )
@@ -513,8 +508,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     }
                 }
             }]
-        })
-        .to_string();
+        }).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
@@ -530,8 +524,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     e.context(format!(
                         "Search most discount product error occurred. Prod: {:?}, count: {:?}, offset: {:?}",
                         prod, count, offset
-                    ))
-                    .context(Error::ElasticSearch)
+                    )).context(Error::ElasticSearch)
                     .into()
                 }),
         )
@@ -590,8 +583,7 @@ impl ProductsElastic for ProductsElasticImpl {
                     e.context(format!(
                         "Auto complete product name error occurred. Name: {:?}, count: {}, offset: {}",
                         name, count, _offset
-                    ))
-                    .context(Error::ElasticSearch)
+                    )).context(Error::ElasticSearch)
                     .into()
                 }),
         )
@@ -624,8 +616,7 @@ impl ProductsElastic for ProductsElasticImpl {
                 }
             }
         }
-        })
-        .to_string();
+        }).to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();
@@ -646,8 +637,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         }
                     }
                     cats
-                })
-                .map_err(move |e| {
+                }).map_err(move |e| {
                     e.context(format!("Aggregate categories for products error occurred. Name: {:?}", name))
                         .context(Error::ElasticSearch)
                         .into()
@@ -727,8 +717,7 @@ impl ProductsElastic for ProductsElasticImpl {
                             }
                         }
                     }
-            })
-            .to_string()
+            }).to_string()
         } else {
             json!({
                 "size": 0,
@@ -746,8 +735,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         }
                     }
                 }
-            })
-            .to_string()
+            }).to_string()
         };
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Product);
@@ -770,8 +758,7 @@ impl ProductsElastic for ProductsElasticImpl {
                         };
                     }
                     price_filters
-                })
-                .map_err(move |e| {
+                }).map_err(move |e| {
                     e.context(format!("Aggregate price name error occurred. Prod: {:?}", prod))
                         .context(Error::ElasticSearch)
                         .into()
@@ -817,8 +804,7 @@ impl ProductsElastic for ProductsElasticImpl {
             "query": {
                     "bool" : query_map
                 },
-        })
-        .to_string();
+        }).to_string();
 
         let url = format!("http://{}/{}/_count", self.elastic_address, ElasticIndex::Product);
         let mut headers = Headers::new();

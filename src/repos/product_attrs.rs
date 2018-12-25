@@ -80,13 +80,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find specific product_attributes by product id: {} error occurred",
                     product_id_arg
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -103,13 +101,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Find specific product_attributes by base_product id: {} error occurred",
                     base_product_id_arg
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -122,8 +118,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .map_err(From::from)
             .and_then(|prod_attr| {
                 acl::check(&*self.acl, Resource::ProductAttrs, Action::Create, self, Some(&prod_attr)).and_then(|_| Ok(prod_attr))
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Create new product attribute {:?} error occurred", payload))
                     .into()
             })
@@ -146,8 +141,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<ProdAttr>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| e.context(format!("Updating product attribute {:?} error occurred", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Updating product attribute {:?} error occurred", payload)).into())
     }
 
     /// Finds many product attributes by search terms
@@ -173,8 +167,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Read, self, Some(result))?;
                 }
                 Ok(results)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find many product attributes by search terms error occurred"))
                     .into()
             })
@@ -194,13 +187,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Delete all attributes values from product by id {:?} error occurred",
                     product_id_arg
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -223,13 +214,11 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(prod_attrs_res)
-            })
-            .map_err(move |e: FailureError| {
+            }).map_err(move |e: FailureError| {
                 e.context(format!(
                     "Delete all attributes values not in the list {:?} from product by id {:?} error occurred",
                     attr_values, product_id_arg
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -245,8 +234,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|prod_attr: ProdAttr| {
                 acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 Ok(prod_attr)
-            })
-            .map_err(|e: FailureError| e.context(format!("Delete attribute value with id {}", id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Delete attribute value with id {}", id_arg)).into())
     }
 }
 

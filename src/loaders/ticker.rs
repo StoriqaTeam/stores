@@ -118,8 +118,7 @@ pub fn run(ctx: TickerContext) -> impl Future<Item = (), Error = FailureError> {
 
                 future::ok::<_, FailureError>(ctx)
             })
-        })
-        .map(|_| ())
+        }).map(|_| ())
 }
 
 fn update_currency_pairs(ctx: TickerContext) -> impl Future<Item = (), Error = FailureError> {
@@ -142,8 +141,7 @@ fn update_currency_pairs(ctx: TickerContext) -> impl Future<Item = (), Error = F
                     serde_json::from_value::<HashMap<String, ExmoCurrencyPairPayload>>(value)
                         .map_err(|e| e.context("Unrecognized JSON response").into())
                 })
-        })
-        .and_then(extract_rates)
+        }).and_then(extract_rates)
         .map(NewCurrencyExchange::from)
         .and_then(|rates| update_rates_in_db(ctx, rates))
 }
@@ -160,8 +158,7 @@ fn extract_rates(data: HashMap<String, ExmoCurrencyPairPayload>) -> Result<ExmoC
                 }),
                 _ => Err(format_err!("Failed to parse currency pair '{}'", pair_name)),
             }
-        })
-        .collect::<Result<Vec<_>, FailureError>>()
+        }).collect::<Result<Vec<_>, FailureError>>()
         .map(ExmoCurrencyPairs)
 }
 

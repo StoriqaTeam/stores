@@ -189,15 +189,13 @@ impl<
                             "Coupon {} and base product {} do not belong to same store.",
                             coupon_id,
                             base_product_id
-                        )
-                        .context(Error::Forbidden)
+                        ).context(Error::Forbidden)
                         .into());
                     }
                 }
 
                 coupon_scope_base_products_repo.create(payload)
-            })
-            .map_err(|e| {
+            }).map_err(|e| {
                 e.context("Service Coupons, add_base_product_coupon endpoint error occurred.")
                     .into()
             })
@@ -244,8 +242,7 @@ impl<
                         .map(|raw_product| {
                             calculate_customer_price(&*currency_exchange, &raw_product, currency)
                                 .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
-                        })
-                        .collect::<RepoResult<Vec<Product>>>()?;
+                        }).collect::<RepoResult<Vec<Product>>>()?;
 
                     let base = BaseProductWithVariants::new(base_product, result_products);
 
@@ -253,8 +250,7 @@ impl<
                 }
 
                 Ok(results)
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service Coupons, find_base_products_by_coupon endpoint error occurred.")
                     .into()
             })
@@ -332,8 +328,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }
-            .map_err(|e: FailureError| {
+            }.map_err(|e: FailureError| {
                 e.context("Service Coupons, validate_coupon_by_code endpoint error occurred.")
                     .into()
             })
@@ -370,8 +365,7 @@ impl<
                 } else {
                     Ok(None)
                 }
-            }
-            .map_err(|e: FailureError| e.context("Service Coupons, validate_coupon endpoint error occurred.").into())
+            }.map_err(|e: FailureError| e.context("Service Coupons, validate_coupon endpoint error occurred.").into())
         })
     }
 }

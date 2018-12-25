@@ -82,8 +82,7 @@ impl<
             conn.transaction::<(Category), FailureError, _>(move || {
                 validate_category_create(&*categories_repo, &new_category)?;
                 categories_repo.create(new_category)
-            })
-            .map_err(|e| e.context("Service Categories, create endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service Categories, create endpoint error occurred.").into())
         })
     }
 
@@ -98,8 +97,7 @@ impl<
             conn.transaction::<(Category), FailureError, _>(move || {
                 validate_category_update(&*categories_repo, category_id, &payload)?;
                 categories_repo.update(category_id, payload)
-            })
-            .map_err(|e| e.context("Service Categories, update endpoint error occurred.").into())
+            }).map_err(|e| e.context("Service Categories, update endpoint error occurred.").into())
         })
     }
 
@@ -179,8 +177,7 @@ impl<
                             .context(Error::NotFound)
                             .into())
                     }
-                })
-                .collect::<RepoResult<Vec<Attribute>>>()
+                }).collect::<RepoResult<Vec<Attribute>>>()
                 .map_err(|e| e.context("Service Categories, find_all_attributes endpoint error occurred.").into())
         })
     }
@@ -222,8 +219,7 @@ fn validate_category_create(categories_repo: &CategoriesRepo, category: &NewCate
             return Err(format_err!("Category {:?} already has the same slug.", category_with_same_slug)
                 .context(Error::Validate(
                     validation_errors!({"category_slug": ["category_slug" => "Existing category has the same slug."]}),
-                ))
-                .into());
+                )).into());
         }
     }
     Ok(())
@@ -240,8 +236,7 @@ fn validate_category_update(
                 return Err(format_err!("Category {:?} already has the same slug.", category_with_same_slug)
                     .context(Error::Validate(
                         validation_errors!({"category_slug": ["category_slug" => "Existing category has the same slug."]}),
-                    ))
-                    .into());
+                    )).into());
             }
         }
     }
@@ -259,11 +254,9 @@ fn validate_category_delete(category_ids: &[CategoryId], base_products_repo: &Ba
         return Err(format_err!(
             "Category has {} active base products.",
             active_base_prods_with_target_category.len()
-        )
-        .context(Error::Validate(
+        ).context(Error::Validate(
             validation_errors!({"category_id": ["category_id" => "Category has active base products."]}),
-        ))
-        .into());
+        )).into());
     }
     Ok(())
 }

@@ -65,8 +65,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 };
                 Ok(currency_exchange_arg)
-            })
-            .map_err(|e: FailureError| e.context("Find latest currency error occurred").into())
+            }).map_err(|e: FailureError| e.context("Find latest currency error occurred").into())
     }
 
     /// Get latest rates for currency
@@ -93,8 +92,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Some(&currency_exchange_arg),
                 )?;
                 Ok(currency_exchange_arg)
-            })
-            .map_err(|e: FailureError| e.context("Adds latest currency to table error occurred").into())
+            }).map_err(|e: FailureError| e.context("Adds latest currency to table error occurred").into())
     }
 }
 

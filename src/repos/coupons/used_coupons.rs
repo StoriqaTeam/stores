@@ -66,8 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 acl::check(&*self.acl, Resource::UsedCoupons, Action::Create, self, Some(&value))?;
 
                 Ok(value)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Creates new used coupon record: {:?} error occurred", payload))
                     .into()
             })
@@ -87,8 +86,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
 
                 Ok(values)
-            })
-            .map_err(|e: FailureError| e.context("List all used coupons").into())
+            }).map_err(|e: FailureError| e.context("List all used coupons").into())
     }
 
     /// Search used coupons
@@ -111,8 +109,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
 
                 Ok(values)
-            })
-            .map_err(|e: FailureError| e.context("Search used coupons failed.").into())
+            }).map_err(|e: FailureError| e.context("Search used coupons failed.").into())
     }
 
     /// Check user used coupon
@@ -132,8 +129,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|value: Option<UsedCoupon>| match value {
                 Some(_) => Ok(true),
                 None => Ok(false),
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Check coupon_id: {} for user_id: {}.", id_arg, user_id_arg))
                     .into()
             })
@@ -158,8 +154,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!(
                     "Delete used coupon: by coupon_id: {} and user_id: {} error occurred",
                     id_arg, user_id_arg
-                ))
-                .into()
+                )).into()
             })
     }
 }

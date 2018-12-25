@@ -72,8 +72,7 @@ impl<
                 validate_delete_attribute_value(&attribute_value, &*prod_attr_repo)?;
 
                 attribute_values_repo.delete(attribute_value.id)
-            })
-            .map_err(|e| e.context("AttributeValuesService, delete_attribute_value error occurred.").into())
+            }).map_err(|e| e.context("AttributeValuesService, delete_attribute_value error occurred.").into())
         })
     }
 
@@ -86,8 +85,7 @@ impl<
                 .find_many(AttributeValuesSearchTerms {
                     attr_id: Some(attr_id),
                     ..Default::default()
-                })
-                .map_err(|e| e.context("AttributeValuesService, get_attribute_values error occurred.").into())
+                }).map_err(|e| e.context("AttributeValuesService, get_attribute_values error occurred.").into())
         })
     }
 
@@ -113,8 +111,7 @@ fn validate_delete_attribute_value(value: &AttributeValue, prod_attr_repo: &Prod
             format_err!("Attribute value {} is used in {} products.", value.code, prod_attrs.len())
                 .context(Error::Validate(
                     validation_errors!({"attr_id": ["attr_id" => "Attribute value is used in products."]}),
-                ))
-                .into(),
+                )).into(),
         );
     }
     Ok(())

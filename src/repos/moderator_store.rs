@@ -55,8 +55,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ModeratorStoreComments, Action::Read, self, Some(comment))?;
                 };
                 Ok(comment)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find moderator comments for store id {}", store_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find moderator comments for store id {}", store_id_arg)).into())
     }
 
     /// Creates new comment
@@ -69,8 +68,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|comment| {
                 acl::check(&*self.acl, Resource::ModeratorStoreComments, Action::Create, self, None)?;
                 Ok(comment)
-            })
-            .map_err(|e: FailureError| e.context(format!("Create moderator comments for store {:?}.", payload)).into())
+            }).map_err(|e: FailureError| e.context(format!("Create moderator comments for store {:?}.", payload)).into())
     }
 }
 

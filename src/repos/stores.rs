@@ -138,8 +138,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 };
                 Ok(store)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find store with id: {} error occurred", store_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find store with id: {} error occurred", store_id_arg)).into())
     }
 
     /// Find specific store by slug
@@ -170,8 +169,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 };
                 Ok(store)
-            })
-            .map_err(|e: FailureError| e.context(format!("Find store with slug: {} error occurred", store_slug)).into())
+            }).map_err(|e: FailureError| e.context(format!("Find store with slug: {} error occurred", store_slug)).into())
     }
 
     /// Creates new store
@@ -214,8 +212,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 }
                 Ok(stores_res.clone())
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Find in stores from {} count {} error occurred.", from, count))
                     .into()
             })
@@ -234,19 +231,16 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Rule::ModerationStatus(store.status),
                     Some(&store),
                 )
-            })
-            .and_then(|_| {
+            }).and_then(|_| {
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<Store>(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating store with id {} and payload {:?} error occurred.",
                     store_id_arg, payload
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -259,8 +253,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Deactivate store with id {} error occurred.", store_id_arg))
                     .into()
             })
@@ -284,8 +277,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 } else {
                     Ok(None)
                 }
-            })
-            .map_err(|e: FailureError| e.context(format!("Delete store by user id {}.", user_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Delete store by user id {}.", user_id_arg)).into())
     }
 
     /// Get store by user id
@@ -309,8 +301,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     )?;
                 };
                 Ok(store)
-            })
-            .map_err(|e: FailureError| e.context(format!("Get store by user id {}.", user_id_arg)).into())
+            }).map_err(|e: FailureError| e.context(format!("Get store by user id {}.", user_id_arg)).into())
     }
 
     /// Checks slug exists
@@ -337,8 +328,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 diesel::dsl::sql::<(diesel::sql_types::Bool)>(&query_str)
                     .get_result(self.db_conn)
                     .map_err(From::from)
-            })
-            .collect::<RepoResult<Vec<bool>>>();
+            }).collect::<RepoResult<Vec<bool>>>();
 
         res.and_then(|res| Ok(res.into_iter().all(|t| t)))
             .map_err(move |e: FailureError| e.context(format!("Store name exists {:?} error occurred.", name_arg)).into())
@@ -367,8 +357,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 .get_result::<bool>(self.db_conn)
                 .map(Some)
                 .map_err(From::from)
-        }
-        .map_err(move |e: FailureError| {
+        }.map_err(move |e: FailureError| {
             let msg = format!("Vendor code '{}' exists in store '{}' error occurred.", vendor_code, store_id);
             e.context(msg).into()
         })
@@ -432,15 +421,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .map(move |total_count| ModeratorStoreSearchResults {
                         stores: results,
                         total_count: total_count as u32,
-                    })
-                    .map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+                    }).map_err(From::from)
+            }).map_err(|e: FailureError| {
                 e.context(format!(
                     "moderator search for stores error occurred (pagination params: {:?}, search terms: {:?})",
                     pagination_params, term
-                ))
-                .into()
+                )).into()
             })
     }
 
@@ -460,14 +446,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     Rule::ModerationStatus(s.status),
                     Some(&s),
                 )
-            })
-            .and_then(|_| {
+            }).and_then(|_| {
                 let filter = stores.filter(id.eq(store_id_arg));
                 let query = diesel::update(filter).set(status.eq(status_arg));
 
                 query.get_result(self.db_conn).map_err(From::from)
-            })
-            .map_err(|e: FailureError| {
+            }).map_err(|e: FailureError| {
                 e.context(format!("Set moderation status for store {:?} error occurred", store_id_arg))
                     .into()
             })
@@ -483,8 +467,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             e.context(format!(
                 "Updating service store fields with id {} and payload {:?} error occurred.",
                 store_id_arg, payload
-            ))
-            .into()
+            )).into()
         })
     }
 

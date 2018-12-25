@@ -329,6 +329,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
+        filters.push(json!({ "term": {"store_status": "published"}}));
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let sorting = ProductsElasticImpl::create_sorting(prod.options.clone());
@@ -844,14 +846,6 @@ fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
                     "query": {
                         "match": {
                             "short_description.text": name
-                        }
-                    }
-                }},
-                {"nested": {
-                    "path": "long_description",
-                    "query": {
-                        "match": {
-                            "long_description.text": name
                         }
                     }
                 }}

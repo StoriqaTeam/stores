@@ -5,6 +5,7 @@ use hyper::Uri;
 use hyper::{Method, Request};
 
 use stq_http::request_util::read_body;
+use stq_http::request_util::Currency as CurrencyHeader;
 use stq_static_resources::*;
 use stq_types::*;
 
@@ -30,6 +31,7 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         width_cm: Some(40),
         height_cm: Some(20),
         weight_g: Some(100),
+        store_status: Some(ModerationStatus::Moderation),
     }
 }
 
@@ -48,6 +50,7 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         width_cm: Some(40),
         height_cm: Some(20),
         weight_g: Some(100),
+        store_status: Some(ModerationStatus::Published),
     }
 }
 
@@ -69,6 +72,7 @@ fn base_products_crud() {
     req.headers_mut().set(ContentType::json());
     req.headers_mut().set(ContentLength(body.len() as u64));
     req.headers_mut().set(Authorization("1".to_string()));
+    req.headers_mut().set(CurrencyHeader("STQ".to_string()));
     req.set_body(body);
 
     let mut code = context
@@ -76,7 +80,7 @@ fn base_products_crud() {
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
     let value = serde_json::from_str::<BaseProduct>(&code);
-    assert!(value.is_ok());
+    assert!(value.is_ok(), format!("{:?}", value));
 
     let id = value.unwrap().id;
 
@@ -89,7 +93,7 @@ fn base_products_crud() {
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
     let value = serde_json::from_str::<BaseProduct>(&code);
-    assert!(value.is_ok());
+    assert!(value.is_ok(), format!("{:?}", value));
 
     //update
     url = Uri::from_str(&format!("{}/base_products/{}", context.base_url, id)).unwrap();
@@ -108,7 +112,8 @@ fn base_products_crud() {
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
     let value = serde_json::from_str::<BaseProduct>(&code);
-    assert!(value.is_ok());
+    assert!(value.is_ok(), format!("{:?}", value));
+    verify_base_product_updated_values(value.expect("Base product update failed"));
 
     //delete
     url = Uri::from_str(&format!("{}/base_products/{}", context.base_url, id)).unwrap();
@@ -120,5 +125,9 @@ fn base_products_crud() {
         .run(context.client.request(req).and_then(|res| read_body(res.body())))
         .unwrap();
     let value = serde_json::from_str::<BaseProduct>(&code);
-    assert!(value.is_ok());
+    assert!(value.is_ok(), format!("{:?}", value));
+}
+
+fn verify_base_product_updated_values(base_product: BaseProduct) {
+    assert_eq!(base_product.store_status, ModerationStatus::Published);
 }

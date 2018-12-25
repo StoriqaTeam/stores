@@ -128,6 +128,9 @@ pub trait BaseProductsRepo {
     /// Set moderation status for base_products by store. For store manager
     fn update_moderation_status_by_store(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
 
+    /// Set store_status field after store's status was changed
+    fn update_store_status(&self, store_id: StoreId, store_status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+
     /// Replace category in base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>>;
 
@@ -908,6 +911,22 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     store_id_arg
                 )).into()
             })
+    }
+
+    /// Set store_status field after store's status was changed
+    fn update_store_status(&self, store_id_arg: StoreId, store_status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+        debug!(
+            "update_store_status for base product by store_id {}. New status {:?}.",
+            store_id_arg, store_status_arg
+        );
+
+        let filter = base_products.filter(store_id.eq(store_id_arg));
+        let query = diesel::update(filter).set(store_status.eq(store_status_arg));
+
+        query
+            .get_results::<BaseProductRaw>(self.db_conn)
+            .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
+            .map_err(From::from)
     }
 
     /// Replace category in all base products

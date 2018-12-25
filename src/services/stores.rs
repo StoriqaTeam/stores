@@ -418,21 +418,26 @@ impl<
         self.spawn_on_pool(move |conn| {
             {
                 let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
-                let store = stores_repo.find(store_id, Visibility::Active)?;
+                let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
 
-                let current_status = match store {
-                    Some(value) => value.status,
-                    None => return Err(Error::NotFound.into()),
-                };
+                conn.transaction::<Store, FailureError, _>(move || {
+                    let store = stores_repo.find(store_id, Visibility::Active)?;
 
-                if check_change_status(current_status, status) {
+                    let current_status = match store {
+                        Some(value) => value.status,
+                        None => return Err(Error::NotFound.into()),
+                    };
+
+                    if !check_change_status(current_status, status) {
+                        return Err(format_err!("Store status: {} not valid for set", status)
+                            .context(Error::Validate(
+                                validation_errors!({"stores": ["stores" => "Store new status is not valid"]}),
+                            )).into());
+                    }
+
+                    let _ = base_products_repo.update_store_status(store_id, ModerationStatus::Draft)?;
                     stores_repo.set_moderation_status(store_id, status)
-                } else {
-                    Err(format_err!("Store status: {} not valid for set", status)
-                        .context(Error::Validate(
-                            validation_errors!({"stores": ["stores" => "Store new status is not valid"]}),
-                        )).into())
-                }
+                })
             }.map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into())
         })
     }
@@ -446,21 +451,26 @@ impl<
         self.spawn_on_pool(move |conn| {
             {
                 let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
-                let store = stores_repo.find(store_id, Visibility::Active)?;
+                let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
 
-                let status = match store {
-                    Some(value) => value.status,
-                    None => return Err(Error::NotFound.into()),
-                };
+                conn.transaction::<Store, FailureError, _>(move || {
+                    let store = stores_repo.find(store_id, Visibility::Active)?;
 
-                if check_change_status(status, ModerationStatus::Moderation) {
+                    let status = match store {
+                        Some(value) => value.status,
+                        None => return Err(Error::NotFound.into()),
+                    };
+
+                    if !check_change_status(status, ModerationStatus::Moderation) {
+                        return Err(format_err!("Store with id: {}, cannot be sent to moderation", store_id)
+                            .context(Error::Validate(
+                                validation_errors!({"stores": ["stores" => "Store can not be sent to moderation"]}),
+                            )).into());
+                    }
+
+                    let _ = base_products_repo.update_store_status(store_id, ModerationStatus::Moderation)?;
                     stores_repo.set_moderation_status(store_id, ModerationStatus::Moderation)
-                } else {
-                    Err(format_err!("Store with id: {}, cannot be sent to moderation", store_id)
-                        .context(Error::Validate(
-                            validation_errors!({"stores": ["stores" => "Store can not be sent to moderation"]}),
-                        )).into())
-                }
+                })
             }.map_err(|e: FailureError| {
                 e.context("Service stores, send_store_to_moderation endpoint error occurred.")
                     .into()
@@ -498,7 +508,7 @@ impl<
                         )
                     };
 
-                    let _ = base_products_repo.update_moderation_status_by_store(store_id, ModerationStatus::Draft)?;
+                    let _ = base_products_repo.update_store_status(store_id, ModerationStatus::Draft)?;
 
                     update_store
                 })

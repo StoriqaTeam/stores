@@ -587,7 +587,7 @@ impl<
     }
 
     /// Creates new base product
-    fn create_base_product(&self, payload: NewBaseProduct) -> ServiceFuture<BaseProduct> {
+    fn create_base_product(&self, mut payload: NewBaseProduct) -> ServiceFuture<BaseProduct> {
         let user_id = self.dynamic_context.user_id;
 
         let repo_factory = self.static_context.repo_factory.clone();
@@ -598,6 +598,8 @@ impl<
             conn.transaction::<(BaseProduct), FailureError, _>(move || {
                 //validate
                 validate_base_product(&*base_products_repo, &payload)?;
+                //enrich
+                enrich_new_base_product(&*stores_repo, &mut payload)?;
                 // create base_product
                 let base_prod = base_products_repo.create(payload)?;
 
@@ -615,7 +617,7 @@ impl<
 
         let repo_factory = self.static_context.repo_factory.clone();
         let NewBaseProductWithVariants {
-            new_base_product,
+            mut new_base_product,
             variants,
             selected_attributes,
         } = payload;
@@ -633,6 +635,8 @@ impl<
             conn.transaction::<BaseProduct, FailureError, _>(move || {
                 //validate base_product
                 validate_base_product(&*base_products_repo, &new_base_product)?;
+                //enrich base_product
+                enrich_new_base_product(&*stores_repo, &mut new_base_product)?;
                 // create base_product
                 let base_prod = base_products_repo.create(new_base_product)?;
                 let base_prod_id = base_prod.id;
@@ -1155,6 +1159,14 @@ fn validate_base_product_update(
     Ok(())
 }
 
+fn enrich_new_base_product(stores_repo: &StoresRepo, new_base_product: &mut NewBaseProduct) -> Result<(), FailureError> {
+    let store = stores_repo
+        .find(new_base_product.store_id, Visibility::Active)?
+        .ok_or_else(|| format_err!("There is no store with id {}", new_base_product.store_id).context(Error::NotFound))?;
+    new_base_product.store_status = Some(store.status);
+    Ok(())
+}
+
 fn calculate_customer_price(
     base_products: &mut [BaseProductWithVariants],
     currencies_map: Option<HashMap<Currency, ExchangeRate>>,
@@ -1320,6 +1332,7 @@ pub mod tests {
             width_cm: Some(40),
             height_cm: Some(20),
             weight_g: Some(150),
+            store_status: None,
         }
     }
 
@@ -1338,6 +1351,7 @@ pub mod tests {
             width_cm: None,
             height_cm: None,
             weight_g: None,
+            store_status: None,
         }
     }
 

@@ -154,6 +154,27 @@ pub fn validate_store_short_description(text: &serde_json::Value) -> Result<(), 
     Ok(())
 }
 
+pub fn validate_store_long_description(text: &serde_json::Value) -> Result<(), ValidationError> {
+    validate_translation(text)?;
+
+    let translations = get_translations(text)?;
+
+    for t in translations {
+        if t.text.len() > Store::MAX_LENGTH_LONG_DESCRIPTION {
+            return Err(ValidationError {
+                code: Cow::from("text"),
+                message: Some(Cow::from(format!(
+                    "Text inside translation must be <= {} characters.",
+                    Store::MAX_LENGTH_LONG_DESCRIPTION
+                ))),
+                params: HashMap::new(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
 pub fn validate_translation(text: &serde_json::Value) -> Result<(), ValidationError> {
     let translations = get_translations(text)?;
 

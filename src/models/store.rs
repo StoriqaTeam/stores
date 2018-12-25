@@ -53,6 +53,7 @@ pub struct Store {
 
 impl Store {
     pub const MAX_LENGTH_SHORT_DESCRIPTION: usize = 170;
+    pub const MAX_LENGTH_LONG_DESCRIPTION: usize = 8000;
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -81,7 +82,7 @@ pub struct NewStore {
     pub user_id: UserId,
     #[validate(custom = "validate_store_short_description")]
     pub short_description: serde_json::Value,
-    #[validate(custom = "validate_translation")]
+    #[validate(custom = "validate_store_long_description")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_slug")]
     pub slug: String,
@@ -119,7 +120,7 @@ pub struct UpdateStore {
     pub name: Option<serde_json::Value>,
     #[validate(custom = "validate_store_short_description")]
     pub short_description: Option<serde_json::Value>,
-    #[validate(custom = "validate_translation")]
+    #[validate(custom = "validate_store_long_description")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,

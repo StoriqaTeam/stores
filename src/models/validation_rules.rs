@@ -9,7 +9,7 @@ use validator::validate_length;
 use validator::ValidationError;
 use validator::Validator;
 
-use models::{Coupon, Store};
+use models::{BaseProduct, Coupon, Store};
 use stq_static_resources::Translation;
 use stq_types::{CouponCode, ProductPrice};
 
@@ -134,8 +134,6 @@ fn get_translations(text: &serde_json::Value) -> Result<Vec<Translation>, Valida
 }
 
 pub fn validate_store_short_description(text: &serde_json::Value) -> Result<(), ValidationError> {
-    validate_translation(text)?;
-
     let translations = get_translations(text)?;
 
     for t in translations {
@@ -154,9 +152,26 @@ pub fn validate_store_short_description(text: &serde_json::Value) -> Result<(), 
     Ok(())
 }
 
-pub fn validate_store_long_description(text: &serde_json::Value) -> Result<(), ValidationError> {
-    validate_translation(text)?;
+pub fn validate_base_product_short_description(text: &serde_json::Value) -> Result<(), ValidationError> {
+    let translations = get_translations(text)?;
 
+    for t in translations {
+        if t.text.len() > BaseProduct::MAX_LENGTH_SHORT_DESCRIPTION {
+            return Err(ValidationError {
+                code: Cow::from("text"),
+                message: Some(Cow::from(format!(
+                    "Text inside translation must be <= {} characters.",
+                    BaseProduct::MAX_LENGTH_SHORT_DESCRIPTION
+                ))),
+                params: HashMap::new(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_store_long_description(text: &serde_json::Value) -> Result<(), ValidationError> {
     let translations = get_translations(text)?;
 
     for t in translations {
@@ -166,6 +181,25 @@ pub fn validate_store_long_description(text: &serde_json::Value) -> Result<(), V
                 message: Some(Cow::from(format!(
                     "Text inside translation must be <= {} characters.",
                     Store::MAX_LENGTH_LONG_DESCRIPTION
+                ))),
+                params: HashMap::new(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_base_product_long_description(text: &serde_json::Value) -> Result<(), ValidationError> {
+    let translations = get_translations(text)?;
+
+    for t in translations {
+        if t.text.len() > BaseProduct::MAX_LENGTH_LONG_DESCRIPTION {
+            return Err(ValidationError {
+                code: Cow::from("text"),
+                message: Some(Cow::from(format!(
+                    "Text inside translation must be <= {} characters.",
+                    BaseProduct::MAX_LENGTH_LONG_DESCRIPTION
                 ))),
                 params: HashMap::new(),
             });

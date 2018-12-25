@@ -80,9 +80,9 @@ pub struct NewStore {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub user_id: UserId,
-    #[validate(custom = "validate_store_short_description")]
+    #[validate(custom = "validate_translation", custom = "validate_store_short_description")]
     pub short_description: serde_json::Value,
-    #[validate(custom = "validate_store_long_description")]
+    #[validate(custom = "validate_translation", custom = "validate_store_long_description")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_slug")]
     pub slug: String,
@@ -118,9 +118,9 @@ pub struct NewStore {
 pub struct UpdateStore {
     #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
-    #[validate(custom = "validate_store_short_description")]
+    #[validate(custom = "validate_translation", custom = "validate_store_short_description")]
     pub short_description: Option<serde_json::Value>,
-    #[validate(custom = "validate_store_long_description")]
+    #[validate(custom = "validate_translation", custom = "validate_store_long_description")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,

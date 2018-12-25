@@ -69,6 +69,11 @@ pub struct BaseProduct {
     pub weight_g: Option<i32>,
 }
 
+impl BaseProduct {
+    pub const MAX_LENGTH_SHORT_DESCRIPTION: usize = 170;
+    pub const MAX_LENGTH_LONG_DESCRIPTION: usize = 8000;
+}
+
 impl From<BaseProductRaw> for BaseProduct {
     fn from(raw: BaseProductRaw) -> BaseProduct {
         let BaseProductRaw {
@@ -141,9 +146,9 @@ pub struct NewBaseProduct {
     #[validate(custom = "validate_translation")]
     pub name: serde_json::Value,
     pub store_id: StoreId,
-    #[validate(custom = "validate_translation")]
+    #[validate(custom = "validate_translation", custom = "validate_base_product_short_description")]
     pub short_description: serde_json::Value,
-    #[validate(custom = "validate_translation")]
+    #[validate(custom = "validate_translation", custom = "validate_base_product_long_description")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub seo_title: Option<serde_json::Value>,
@@ -181,9 +186,9 @@ pub struct NewBaseProductWithVariants {
 pub struct UpdateBaseProduct {
     #[validate(custom = "validate_translation")]
     pub name: Option<serde_json::Value>,
-    #[validate(custom = "validate_translation")]
+    #[validate(custom = "validate_translation", custom = "validate_base_product_short_description")]
     pub short_description: Option<serde_json::Value>,
-    #[validate(custom = "validate_translation")]
+    #[validate(custom = "validate_translation", custom = "validate_base_product_long_description")]
     pub long_description: Option<serde_json::Value>,
     #[validate(custom = "validate_translation")]
     pub seo_title: Option<serde_json::Value>,

@@ -1,15 +1,17 @@
-extern crate serde_json;
-include!("integration_tests_setup.rs");
-
 use std::str::FromStr;
 
 use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
+use stq_http::request_util::read_body;
 use stq_static_resources::*;
 use stq_types::*;
 
+use futures::Future;
+use rand::Rng;
+
+use common::*;
 use stores_lib::models::*;
 
 pub fn create_new_base_product(name: &str, short_description: &str) -> NewBaseProduct {

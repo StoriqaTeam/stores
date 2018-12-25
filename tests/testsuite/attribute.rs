@@ -1,14 +1,14 @@
-extern crate serde_json;
-include!("integration_tests_setup.rs");
-
 use std::str::FromStr;
 
+use futures::Future;
 use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
 
 use stores_lib::models::*;
 
+use common::*;
+use stq_http::request_util::read_body;
 use stq_http::request_util::Currency as CurrencyHeader;
 use stq_static_resources::*;
 

@@ -1,6 +1,3 @@
-extern crate serde_json;
-include!("integration_tests_setup.rs");
-
 use std::str::FromStr;
 
 use hyper::header::{Authorization, ContentLength, ContentType};
@@ -9,7 +6,11 @@ use hyper::{Method, Request};
 
 use stq_types::{CategoryId, CategorySlug};
 
+use futures::Future;
+
+use common::*;
 use stores_lib::models::*;
+use stq_http::request_util::read_body;
 
 pub fn create_new_category(name: &str) -> NewCategory {
     NewCategory {

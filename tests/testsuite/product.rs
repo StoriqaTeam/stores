@@ -1,10 +1,9 @@
 use std::str::FromStr;
-use std::time::SystemTime;
 
+use futures::Future;
 use hyper::header::{Authorization, ContentLength, ContentType};
 use hyper::Uri;
 use hyper::{Method, Request};
-use futures::Future;
 use rand::Rng;
 
 use stq_http::request_util::read_body;
@@ -31,27 +30,6 @@ pub fn create_new_base_product(name: &str, short_description: &str) -> NewBasePr
         height_cm: Some(20),
         weight_g: Some(100),
         store_status: Some(ModerationStatus::Published),
-    }
-}
-
-pub fn create_product(id: ProductId, base_product_id: BaseProductId) -> RawProduct {
-    RawProduct {
-        id: id,
-        base_product_id: base_product_id,
-        is_active: true,
-        discount: None,
-        photo_main: None,
-        vendor_code: "vendor code".to_string(),
-        cashback: None,
-        additional_photos: None,
-        price: ProductPrice(1f64),
-        currency: Currency::STQ,
-        created_at: SystemTime::now(),
-        updated_at: SystemTime::now(),
-        pre_order: false,
-        pre_order_days: 0,
-        kafka_update_no: 0,
-        uuid: uuid::Uuid::new_v4(),
     }
 }
 

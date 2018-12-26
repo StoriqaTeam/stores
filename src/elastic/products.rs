@@ -400,6 +400,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
+        filters.push(json!({ "term": {"store_status": "published"}}));
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -493,6 +495,8 @@ impl ProductsElastic for ProductsElasticImpl {
         if let Some(status_filter) = status_filter {
             filters.push(status_filter);
         }
+
+        filters.push(json!({ "term": {"store_status": "published"}}));
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -604,6 +608,7 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let mut filters: Vec<serde_json::Value> = vec![];
         filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"store_status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -673,6 +678,8 @@ impl ProductsElastic for ProductsElasticImpl {
         if let Some(status_filter) = status_filter {
             filters.push(status_filter);
         }
+
+        filters.push(json!({ "term": {"store_status": "published"}}));
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -800,6 +807,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
+        filters.push(json!({ "term": {"store_status": "published"}}));
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -836,7 +845,8 @@ fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
                     "query": {
                         "multi_match":{
                             "query":name,
-                            "fields":["name.text.fuzzy_search","name.text.substring_search"],
+                            "fuzziness":"AUTO",
+                            "fields":["name.text.edge_ngram_search","name.text.ngram_search"],
                             "type":"most_fields"
                         }
                     }
@@ -846,6 +856,14 @@ fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
                     "query": {
                         "match": {
                             "short_description.text": name
+                        }
+                    }
+                }},
+                {"nested": {
+                    "path": "long_description",
+                    "query": {
+                        "match": {
+                            "long_description.text": name
                         }
                     }
                 }}

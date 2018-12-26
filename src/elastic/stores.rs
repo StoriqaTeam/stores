@@ -368,7 +368,8 @@ fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
                 "query" : {
                     "multi_match":{
                         "query":name,
-                        "fields":["name.text.fuzzy_search","name.text.substring_search"],
+                        "fuzziness":"AUTO",
+                        "fields":["name.text.edge_ngram_search","name.text.ngram_search"],
                         "type":"most_fields"
                     }
                 }

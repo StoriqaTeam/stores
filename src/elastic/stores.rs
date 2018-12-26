@@ -366,11 +366,11 @@ fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
         "nested" : {
                 "path" : "name",
                 "query" : {
-                    "multi_match":{
-                        "query":name,
-                        "fuzziness":"AUTO",
-                        "fields":["name.text.edge_ngram_search","name.text.ngram_search"],
-                        "type":"most_fields"
+                    "match": {
+                        "name.text":{
+                            "query":name,
+                            "fuzziness":"AUTO"
+                        }
                     }
                 }
             }

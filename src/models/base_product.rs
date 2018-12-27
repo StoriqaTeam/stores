@@ -286,3 +286,9 @@ pub struct BaseProductModerate {
     pub base_product_id: BaseProductId,
     pub status: ModerationStatus,
 }
+
+#[derive(Default, Serialize, Deserialize, Insertable, AsChangeset, Debug)]
+#[table_name = "base_products"]
+pub struct ServiceUpdateBaseProduct {
+    pub store_status: Option<ModerationStatus>,
+}

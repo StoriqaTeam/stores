@@ -14,11 +14,11 @@ use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
 use errors::Error;
 use models::{
-    Category, Direction, ModeratorStoreSearchResults, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, SearchStore, Store,
-    UpdateStore, Visibility,
+    Category, Direction, ModeratorStoreSearchResults, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, SearchStore,
+    ServiceUpdateBaseProduct, Store, UpdateStore, Visibility,
 };
 use repos::remove_unused_categories;
-use repos::{BaseProductsRepo, ReposFactory, StoresRepo};
+use repos::{BaseProductsRepo, BaseProductsSearchTerms, ReposFactory, StoresRepo};
 use services::Service;
 
 pub trait StoresService {
@@ -558,7 +558,15 @@ pub fn change_store_status(
             )).into());
     }
 
-    let _ = base_products_repo.update_store_status(store_id, new_status)?;
+    let _ = base_products_repo.update_service_fields(
+        BaseProductsSearchTerms {
+            store_id: Some(store_id),
+            ..Default::default()
+        },
+        ServiceUpdateBaseProduct {
+            store_status: Some(new_status),
+        },
+    )?;
 
     stores_repo.set_moderation_status(store_id, new_status)
 }

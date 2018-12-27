@@ -44,6 +44,8 @@ pub struct BaseProductsSearchTerms {
     pub store_id: Option<StoreId>,
 }
 
+type FilterBaseProductExpr = Box<BoxableExpression<base_products, Pg, SqlType = Bool>>;
+
 pub trait BaseProductsRepo {
     /// Get base_product count
     fn count(&self, visibility: Visibility) -> RepoResult<i64>;
@@ -128,8 +130,12 @@ pub trait BaseProductsRepo {
     /// Set moderation status for base_products by store. For store manager
     fn update_moderation_status_by_store(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
 
-    /// Set store_status field after store's status was changed
-    fn update_store_status(&self, store_id: StoreId, store_status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
+    /// Updates service base product fields as root
+    fn update_service_fields(
+        &self,
+        search_terms: BaseProductsSearchTerms,
+        payload: ServiceUpdateBaseProduct,
+    ) -> RepoResult<Vec<BaseProduct>>;
 
     /// Replace category in base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>>;
@@ -316,25 +322,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn search(&self, search_terms: BaseProductsSearchTerms) -> RepoResult<Vec<BaseProduct>> {
         debug!("Find many base products with search terms.");
 
-        type BoxedExpr = Box<BoxableExpression<base_products, Pg, SqlType = Bool>>;
-
-        let mut query: BoxedExpr = Box::new(id.eq(id));
-
-        if let Some(is_active_filter) = search_terms.is_active {
-            query = Box::new(query.and(is_active.eq(is_active_filter)));
-        }
-
-        if let Some(category_id_filter) = search_terms.category_id {
-            query = Box::new(query.and(category_id.eq(category_id_filter)));
-        }
-
-        if let Some(category_ids_filter) = search_terms.category_ids {
-            query = Box::new(query.and(category_id.eq_any(category_ids_filter)));
-        }
-
-        if let Some(store_id_filter) = search_terms.store_id {
-            query = Box::new(query.and(store_id.eq(store_id_filter)));
-        }
+        let query: FilterBaseProductExpr = search_terms.into();
 
         base_products
             .filter(query)
@@ -937,21 +925,36 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
-    /// Set store_status field after store's status was changed
-    fn update_store_status(&self, store_id_arg: StoreId, store_status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
-        debug!(
-            "update_store_status for base product by store_id {}. New status {:?}.",
-            store_id_arg, store_status_arg
-        );
+    /// Updates service base product fields as root
+    fn update_service_fields(
+        &self,
+        search_terms: BaseProductsSearchTerms,
+        payload: ServiceUpdateBaseProduct,
+    ) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Updates service base product fields as root.");
 
-        let filter = base_products.filter(store_id.eq(store_id_arg));
-        let query = diesel::update(filter).set(store_status.eq(store_status_arg));
+        let query: FilterBaseProductExpr = search_terms.into();
 
-        query
-            .get_results::<BaseProductRaw>(self.db_conn)
-            .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+        let update = diesel::update(base_products.filter(query)).set(&payload);
+        let results = update.get_results::<BaseProductRaw>(self.db_conn)?;
+        Ok(results.into_iter().map(BaseProduct::from).collect())
     }
+
+    /// Set store_status field after store's status was changed
+    // fn update_store_status(&self, store_id_arg: StoreId, store_status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+    //     debug!(
+    //         "update_store_status for base product by store_id {}. New status {:?}.",
+    //         store_id_arg, store_status_arg
+    //     );
+
+    //     let filter = base_products.filter(store_id.eq(store_id_arg));
+    //     let query = diesel::update(filter).set(store_status.eq(store_status_arg));
+
+    //     query
+    //         .get_results::<BaseProductRaw>(self.db_conn)
+    //         .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
+    //         .map_err(From::from)
+    // }
 
     /// Replace category in all base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>> {
@@ -1088,4 +1091,28 @@ fn by_moderator_search_terms(term: &ModeratorBaseProductSearchTerms) -> Box<Boxa
     }
 
     expr
+}
+
+impl Into<FilterBaseProductExpr> for BaseProductsSearchTerms {
+    fn into(self) -> FilterBaseProductExpr {
+        let mut query: FilterBaseProductExpr = Box::new(id.eq(id));
+
+        if let Some(is_active_filter) = self.is_active {
+            query = Box::new(query.and(is_active.eq(is_active_filter)));
+        }
+
+        if let Some(category_id_filter) = self.category_id {
+            query = Box::new(query.and(category_id.eq(category_id_filter)));
+        }
+
+        if let Some(category_ids_filter) = self.category_ids {
+            query = Box::new(query.and(category_id.eq_any(category_ids_filter)));
+        }
+
+        if let Some(store_id_filter) = self.store_id {
+            query = Box::new(query.and(store_id.eq(store_id_filter)));
+        }
+
+        query
+    }
 }

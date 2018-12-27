@@ -1448,7 +1448,11 @@ pub mod tests {
             Ok(vec![])
         }
 
-        fn update_store_status(&self, _store_id: StoreId, _store_status: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+        fn update_service_fields(
+            &self,
+            _search_terms: BaseProductsSearchTerms,
+            _payload: ServiceUpdateBaseProduct,
+        ) -> RepoResult<Vec<BaseProduct>> {
             Ok(vec![])
         }
 

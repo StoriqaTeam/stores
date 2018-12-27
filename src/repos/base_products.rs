@@ -940,22 +940,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         Ok(results.into_iter().map(BaseProduct::from).collect())
     }
 
-    /// Set store_status field after store's status was changed
-    // fn update_store_status(&self, store_id_arg: StoreId, store_status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
-    //     debug!(
-    //         "update_store_status for base product by store_id {}. New status {:?}.",
-    //         store_id_arg, store_status_arg
-    //     );
-
-    //     let filter = base_products.filter(store_id.eq(store_id_arg));
-    //     let query = diesel::update(filter).set(store_status.eq(store_status_arg));
-
-    //     query
-    //         .get_results::<BaseProductRaw>(self.db_conn)
-    //         .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-    //         .map_err(From::from)
-    // }
-
     /// Replace category in all base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>> {
         debug!("Replace category in base products.");
@@ -1093,23 +1077,23 @@ fn by_moderator_search_terms(term: &ModeratorBaseProductSearchTerms) -> Box<Boxa
     expr
 }
 
-impl Into<FilterBaseProductExpr> for BaseProductsSearchTerms {
-    fn into(self) -> FilterBaseProductExpr {
+impl From<BaseProductsSearchTerms> for FilterBaseProductExpr {
+    fn from(search: BaseProductsSearchTerms) -> FilterBaseProductExpr {
         let mut query: FilterBaseProductExpr = Box::new(id.eq(id));
 
-        if let Some(is_active_filter) = self.is_active {
+        if let Some(is_active_filter) = search.is_active {
             query = Box::new(query.and(is_active.eq(is_active_filter)));
         }
 
-        if let Some(category_id_filter) = self.category_id {
+        if let Some(category_id_filter) = search.category_id {
             query = Box::new(query.and(category_id.eq(category_id_filter)));
         }
 
-        if let Some(category_ids_filter) = self.category_ids {
+        if let Some(category_ids_filter) = search.category_ids {
             query = Box::new(query.and(category_id.eq_any(category_ids_filter)));
         }
 
-        if let Some(store_id_filter) = self.store_id {
+        if let Some(store_id_filter) = search.store_id {
             query = Box::new(query.and(store_id.eq(store_id_filter)));
         }
 

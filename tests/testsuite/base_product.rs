@@ -50,7 +50,6 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         width_cm: Some(40),
         height_cm: Some(20),
         weight_g: Some(100),
-        store_status: Some(ModerationStatus::Published),
     }
 }
 

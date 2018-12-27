@@ -212,7 +212,6 @@ pub struct UpdateBaseProduct {
     pub height_cm: Option<i32>,
     #[validate(range(min = "0", max = "1000000"))]
     pub weight_g: Option<i32>,
-    pub store_status: Option<ModerationStatus>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

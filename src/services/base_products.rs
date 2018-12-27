@@ -1351,7 +1351,6 @@ pub mod tests {
             width_cm: None,
             height_cm: None,
             weight_g: None,
-            store_status: None,
         }
     }
 

@@ -158,8 +158,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
@@ -178,8 +182,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -222,8 +230,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -344,8 +356,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -383,8 +399,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -431,8 +451,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let mut query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query = query.filter(store_id.eq(store_id_arg));

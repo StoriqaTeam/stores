@@ -560,7 +560,7 @@ impl ProductsElastic for ProductsElasticImpl {
             "name-suggest" : {
                 "prefix" : product_name,
                 "completion" : {
-                    "field" : "suggest_2",
+                    "field" : "suggest",
                     "size" : count,
                     "skip_duplicates": true,
                     "fuzzy": true,

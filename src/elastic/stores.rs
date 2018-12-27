@@ -150,7 +150,7 @@ impl StoresElastic for StoresElasticImpl {
             "name-suggest" : {
                 "prefix" : name,
                 "completion" : {
-                    "field" : "suggest_2",
+                    "field" : "suggest",
                     "size" : count,
                     "skip_duplicates": true,
                     "fuzzy": true,

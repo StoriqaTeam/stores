@@ -41,6 +41,7 @@ table! {
         width_cm -> Int4,
         height_cm -> Int4,
         weight_g -> Int4,
+        store_status -> Varchar,
     }
 }
 

@@ -44,6 +44,8 @@ pub struct BaseProductsSearchTerms {
     pub store_id: Option<StoreId>,
 }
 
+type FilterBaseProductExpr = Box<BoxableExpression<base_products, Pg, SqlType = Bool>>;
+
 pub trait BaseProductsRepo {
     /// Get base_product count
     fn count(&self, visibility: Visibility) -> RepoResult<i64>;
@@ -128,6 +130,13 @@ pub trait BaseProductsRepo {
     /// Set moderation status for base_products by store. For store manager
     fn update_moderation_status_by_store(&self, store_id: StoreId, status: ModerationStatus) -> RepoResult<Vec<BaseProduct>>;
 
+    /// Updates service base product fields as root
+    fn update_service_fields(
+        &self,
+        search_terms: BaseProductsSearchTerms,
+        payload: ServiceUpdateBaseProduct,
+    ) -> RepoResult<Vec<BaseProduct>>;
+
     /// Replace category in base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>>;
 
@@ -155,8 +164,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
@@ -175,8 +188,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -219,8 +236,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -301,25 +322,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn search(&self, search_terms: BaseProductsSearchTerms) -> RepoResult<Vec<BaseProduct>> {
         debug!("Find many base products with search terms.");
 
-        type BoxedExpr = Box<BoxableExpression<base_products, Pg, SqlType = Bool>>;
-
-        let mut query: BoxedExpr = Box::new(id.eq(id));
-
-        if let Some(is_active_filter) = search_terms.is_active {
-            query = Box::new(query.and(is_active.eq(is_active_filter)));
-        }
-
-        if let Some(category_id_filter) = search_terms.category_id {
-            query = Box::new(query.and(category_id.eq(category_id_filter)));
-        }
-
-        if let Some(category_ids_filter) = search_terms.category_ids {
-            query = Box::new(query.and(category_id.eq_any(category_ids_filter)));
-        }
-
-        if let Some(store_id_filter) = search_terms.store_id {
-            query = Box::new(query.and(store_id.eq(store_id_filter)));
-        }
+        let query: FilterBaseProductExpr = search_terms.into();
 
         base_products
             .filter(query)
@@ -341,8 +344,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -380,8 +387,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query
@@ -428,8 +439,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let mut query = match visibility {
             Visibility::Active => base_products.filter(is_active.eq(true)).into_boxed(),
             Visibility::Published => base_products
-                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
-                .into_boxed(),
+                .filter(
+                    is_active
+                        .eq(true)
+                        .and(status.eq(ModerationStatus::Published))
+                        .and(store_status.eq(ModerationStatus::Published)),
+                ).into_boxed(),
         };
 
         query = query.filter(store_id.eq(store_id_arg));
@@ -910,6 +925,21 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
     }
 
+    /// Updates service base product fields as root
+    fn update_service_fields(
+        &self,
+        search_terms: BaseProductsSearchTerms,
+        payload: ServiceUpdateBaseProduct,
+    ) -> RepoResult<Vec<BaseProduct>> {
+        debug!("Updates service base product fields as root.");
+
+        let query: FilterBaseProductExpr = search_terms.into();
+
+        let update = diesel::update(base_products.filter(query)).set(&payload);
+        let results = update.get_results::<BaseProductRaw>(self.db_conn)?;
+        Ok(results.into_iter().map(BaseProduct::from).collect())
+    }
+
     /// Replace category in all base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> RepoResult<Vec<BaseProduct>> {
         debug!("Replace category in base products.");
@@ -1045,4 +1075,28 @@ fn by_moderator_search_terms(term: &ModeratorBaseProductSearchTerms) -> Box<Boxa
     }
 
     expr
+}
+
+impl From<BaseProductsSearchTerms> for FilterBaseProductExpr {
+    fn from(search: BaseProductsSearchTerms) -> FilterBaseProductExpr {
+        let mut query: FilterBaseProductExpr = Box::new(id.eq(id));
+
+        if let Some(is_active_filter) = search.is_active {
+            query = Box::new(query.and(is_active.eq(is_active_filter)));
+        }
+
+        if let Some(category_id_filter) = search.category_id {
+            query = Box::new(query.and(category_id.eq(category_id_filter)));
+        }
+
+        if let Some(category_ids_filter) = search.category_ids {
+            query = Box::new(query.and(category_id.eq_any(category_ids_filter)));
+        }
+
+        if let Some(store_id_filter) = search.store_id {
+            query = Box::new(query.and(store_id.eq(store_id_filter)));
+        }
+
+        query
+    }
 }

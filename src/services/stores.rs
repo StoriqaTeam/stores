@@ -14,11 +14,11 @@ use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
 use errors::Error;
 use models::{
-    Category, Direction, ModeratorStoreSearchResults, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, SearchStore, Store,
-    UpdateStore, Visibility,
+    Category, Direction, ModeratorStoreSearchResults, ModeratorStoreSearchTerms, NewStore, Ordering, PaginationParams, SearchStore,
+    ServiceUpdateBaseProduct, Store, UpdateStore, Visibility,
 };
 use repos::remove_unused_categories;
-use repos::ReposFactory;
+use repos::{BaseProductsRepo, BaseProductsSearchTerms, ReposFactory, StoresRepo};
 use services::Service;
 
 pub trait StoresService {
@@ -418,21 +418,11 @@ impl<
         self.spawn_on_pool(move |conn| {
             {
                 let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
-                let store = stores_repo.find(store_id, Visibility::Active)?;
+                let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
 
-                let current_status = match store {
-                    Some(value) => value.status,
-                    None => return Err(Error::NotFound.into()),
-                };
-
-                if check_change_status(current_status, status) {
-                    stores_repo.set_moderation_status(store_id, status)
-                } else {
-                    Err(format_err!("Store status: {} not valid for set", status)
-                        .context(Error::Validate(
-                            validation_errors!({"stores": ["stores" => "Store new status is not valid"]}),
-                        )).into())
-                }
+                conn.transaction::<Store, FailureError, _>(move || {
+                    change_store_status(&*stores_repo, &*base_products_repo, store_id, status)
+                })
             }.map_err(|e: FailureError| e.context("Service stores, set_moderation_status endpoint error occurred.").into())
         })
     }
@@ -446,21 +436,11 @@ impl<
         self.spawn_on_pool(move |conn| {
             {
                 let stores_repo = repo_factory.create_stores_repo(&conn, user_id);
-                let store = stores_repo.find(store_id, Visibility::Active)?;
+                let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
 
-                let status = match store {
-                    Some(value) => value.status,
-                    None => return Err(Error::NotFound.into()),
-                };
-
-                if check_change_status(status, ModerationStatus::Moderation) {
-                    stores_repo.set_moderation_status(store_id, ModerationStatus::Moderation)
-                } else {
-                    Err(format_err!("Store with id: {}, cannot be sent to moderation", store_id)
-                        .context(Error::Validate(
-                            validation_errors!({"stores": ["stores" => "Store can not be sent to moderation"]}),
-                        )).into())
-                }
+                conn.transaction::<Store, FailureError, _>(move || {
+                    change_store_status(&*stores_repo, &*base_products_repo, store_id, ModerationStatus::Moderation)
+                })
             }.map_err(|e: FailureError| {
                 e.context("Service stores, send_store_to_moderation endpoint error occurred.")
                     .into()
@@ -480,27 +460,7 @@ impl<
                 let base_products_repo = repo_factory.create_base_product_repo(&conn, user_id);
 
                 conn.transaction::<Store, FailureError, _>(move || {
-                    let store = stores_repo.find(store_id, Visibility::Active)?;
-
-                    let status = match store {
-                        Some(value) => value.status,
-                        None => return Err(Error::NotFound.into()),
-                    };
-
-                    let update_store = if check_change_status(status, ModerationStatus::Draft) {
-                        stores_repo.set_moderation_status(store_id, ModerationStatus::Draft)
-                    } else {
-                        Err(
-                            format_err!("Store with id: {}, cannot be hided when the store in status: {}", store_id, status)
-                                .context(Error::Validate(
-                                    validation_errors!({"stores": ["stores" => "Store cannot be hided"]}),
-                                )).into(),
-                        )
-                    };
-
-                    let _ = base_products_repo.update_moderation_status_by_store(store_id, ModerationStatus::Draft)?;
-
-                    update_store
+                    change_store_status(&*stores_repo, &*base_products_repo, store_id, ModerationStatus::Draft)
                 })
             }.map_err(|e: FailureError| {
                 e.context("Service stores, set_store_moderation_status_draft endpoint error occurred.")
@@ -576,6 +536,39 @@ impl<
             Ok(check_can_update_by_status(current_status))
         })
     }
+}
+
+pub fn change_store_status(
+    stores_repo: &StoresRepo,
+    base_products_repo: &BaseProductsRepo,
+    store_id: StoreId,
+    new_status: ModerationStatus,
+) -> Result<Store, FailureError> {
+    let store = stores_repo.find(store_id, Visibility::Active)?;
+
+    let status = match store {
+        Some(value) => value.status,
+        None => return Err(Error::NotFound.into()),
+    };
+
+    if !check_change_status(status, new_status) {
+        return Err(format_err!("Store with id: {} cannot be sent to {}", store_id, new_status)
+            .context(Error::Validate(
+                validation_errors!({"stores": ["stores" => "Store can not be sent to new status"]}),
+            )).into());
+    }
+
+    let _ = base_products_repo.update_service_fields(
+        BaseProductsSearchTerms {
+            store_id: Some(store_id),
+            ..Default::default()
+        },
+        ServiceUpdateBaseProduct {
+            store_status: Some(new_status),
+        },
+    )?;
+
+    stores_repo.set_moderation_status(store_id, new_status)
 }
 
 pub fn check_change_status(current_status: ModerationStatus, new_status: ModerationStatus) -> bool {

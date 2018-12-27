@@ -1059,6 +1059,7 @@ pub mod tests {
                 height_cm: Some(20),
                 volume_cubic_cm: Some(48000),
                 weight_g: Some(100),
+                store_status: ModerationStatus::Published,
             }))
         }
 
@@ -1088,6 +1089,7 @@ pub mod tests {
                 height_cm: Some(20),
                 volume_cubic_cm: Some(48000),
                 weight_g: Some(100),
+                store_status: ModerationStatus::Published,
             }))
         }
 
@@ -1119,6 +1121,7 @@ pub mod tests {
                     height_cm: Some(20),
                     volume_cubic_cm: Some(48000),
                     weight_g: Some(100),
+                    store_status: ModerationStatus::Published,
                 };
 
                 result.push(val);
@@ -1168,6 +1171,7 @@ pub mod tests {
                     height_cm: Some(20),
                     volume_cubic_cm: Some(48000),
                     weight_g: Some(100),
+                    store_status: ModerationStatus::Published,
                 };
                 base_products.push(base_product);
             }
@@ -1209,6 +1213,7 @@ pub mod tests {
                     height_cm: Some(20),
                     volume_cubic_cm: Some(48000),
                     weight_g: Some(100),
+                    store_status: ModerationStatus::Published,
                 };
                 base_products.push(base_product);
             }
@@ -1253,6 +1258,7 @@ pub mod tests {
                     _ => None,
                 },
                 weight_g: payload.weight_g,
+                store_status: ModerationStatus::Published,
             })
         }
 
@@ -1285,6 +1291,7 @@ pub mod tests {
                     _ => None,
                 },
                 weight_g: payload.weight_g,
+                store_status: ModerationStatus::Published,
             })
         }
 
@@ -1314,6 +1321,7 @@ pub mod tests {
                 height_cm: Some(20),
                 volume_cubic_cm: Some(48000),
                 weight_g: Some(100),
+                store_status: ModerationStatus::Published,
             }))
         }
 
@@ -1343,6 +1351,7 @@ pub mod tests {
                 height_cm: Some(20),
                 volume_cubic_cm: Some(48000),
                 weight_g: Some(100),
+                store_status: ModerationStatus::Published,
             })
         }
 
@@ -1371,6 +1380,7 @@ pub mod tests {
                 height_cm: Some(20),
                 volume_cubic_cm: Some(48000),
                 weight_g: Some(100),
+                store_status: ModerationStatus::Published,
             }])
         }
 
@@ -1430,10 +1440,19 @@ pub mod tests {
                 height_cm: Some(20),
                 volume_cubic_cm: Some(48000),
                 weight_g: Some(100),
+                store_status: ModerationStatus::Published,
             })
         }
 
         fn update_moderation_status_by_store(&self, _store_id_arg: StoreId, _status_arg: ModerationStatus) -> RepoResult<Vec<BaseProduct>> {
+            Ok(vec![])
+        }
+
+        fn update_service_fields(
+            &self,
+            _search_terms: BaseProductsSearchTerms,
+            _payload: ServiceUpdateBaseProduct,
+        ) -> RepoResult<Vec<BaseProduct>> {
             Ok(vec![])
         }
 

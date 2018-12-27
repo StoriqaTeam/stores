@@ -40,6 +40,7 @@ pub struct BaseProductRaw {
     pub width_cm: i32,
     pub height_cm: i32,
     pub weight_g: i32,
+    pub store_status: ModerationStatus,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -67,6 +68,7 @@ pub struct BaseProduct {
     pub height_cm: Option<i32>,
     pub volume_cubic_cm: Option<i32>,
     pub weight_g: Option<i32>,
+    pub store_status: ModerationStatus,
 }
 
 impl BaseProduct {
@@ -99,6 +101,7 @@ impl From<BaseProductRaw> for BaseProduct {
             width_cm,
             height_cm,
             weight_g,
+            store_status,
         } = raw;
 
         let length_cm = if length_cm > 0 { Some(length_cm) } else { None };
@@ -135,6 +138,7 @@ impl From<BaseProductRaw> for BaseProduct {
             height_cm,
             volume_cubic_cm,
             weight_g,
+            store_status,
         }
     }
 }
@@ -167,6 +171,7 @@ pub struct NewBaseProduct {
     #[validate(range(min = "0", max = "1000000"))]
     pub weight_g: Option<i32>,
     pub uuid: Uuid,
+    pub store_status: Option<ModerationStatus>,
 }
 
 /// Payload for creating base product with variants
@@ -279,4 +284,10 @@ pub struct ModeratorBaseProductSearchResults {
 pub struct BaseProductModerate {
     pub base_product_id: BaseProductId,
     pub status: ModerationStatus,
+}
+
+#[derive(Default, Serialize, Deserialize, Insertable, AsChangeset, Debug)]
+#[table_name = "base_products"]
+pub struct ServiceUpdateBaseProduct {
+    pub store_status: Option<ModerationStatus>,
 }

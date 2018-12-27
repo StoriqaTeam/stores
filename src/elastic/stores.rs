@@ -150,7 +150,7 @@ impl StoresElastic for StoresElasticImpl {
             "name-suggest" : {
                 "prefix" : name,
                 "completion" : {
-                    "field" : "suggest_2",
+                    "field" : "suggest",
                     "size" : count,
                     "skip_duplicates": true,
                     "fuzzy": true,
@@ -366,10 +366,11 @@ fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
         "nested" : {
                 "path" : "name",
                 "query" : {
-                    "multi_match":{
-                        "query":name,
-                        "fields":["name.text.fuzzy_search","name.text.substring_search"],
-                        "type":"most_fields"
+                    "match": {
+                        "name.text":{
+                            "query":name,
+                            "fuzziness":"AUTO"
+                        }
                     }
                 }
             }

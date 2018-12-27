@@ -329,6 +329,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
+        filters.push(json!({ "term": {"store_status": "published"}}));
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let sorting = ProductsElasticImpl::create_sorting(prod.options.clone());
@@ -397,6 +399,8 @@ impl ProductsElastic for ProductsElasticImpl {
         if let Some(status_filter) = status_filter {
             filters.push(status_filter);
         }
+
+        filters.push(json!({ "term": {"store_status": "published"}}));
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -492,6 +496,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
+        filters.push(json!({ "term": {"store_status": "published"}}));
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -554,7 +560,7 @@ impl ProductsElastic for ProductsElasticImpl {
             "name-suggest" : {
                 "prefix" : product_name,
                 "completion" : {
-                    "field" : "suggest_2",
+                    "field" : "suggest",
                     "size" : count,
                     "skip_duplicates": true,
                     "fuzzy": true,
@@ -602,6 +608,7 @@ impl ProductsElastic for ProductsElasticImpl {
 
         let mut filters: Vec<serde_json::Value> = vec![];
         filters.push(json!({ "term": {"status": "published"}}));
+        filters.push(json!({ "term": {"store_status": "published"}}));
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -671,6 +678,8 @@ impl ProductsElastic for ProductsElasticImpl {
         if let Some(status_filter) = status_filter {
             filters.push(status_filter);
         }
+
+        filters.push(json!({ "term": {"store_status": "published"}}));
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -798,6 +807,8 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
+        filters.push(json!({ "term": {"store_status": "published"}}));
+
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
         let query = json!({
@@ -832,10 +843,11 @@ fn fuzzy_search_by_name_query(name: &str) -> serde_json::Value {
                 {"nested": {
                     "path": "name",
                     "query": {
-                        "multi_match":{
-                            "query":name,
-                            "fields":["name.text.fuzzy_search","name.text.substring_search"],
-                            "type":"most_fields"
+                        "match": {
+                            "name.text":{
+                                "query":name,
+                                "fuzziness":"AUTO"
+                            }
                         }
                     }
                 }},

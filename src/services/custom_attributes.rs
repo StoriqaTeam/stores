@@ -92,10 +92,15 @@ impl<
 
         self.spawn_on_pool(move |conn| {
             let custom_attributes_repo = repo_factory.create_custom_attributes_repo(&*conn, user_id);
+            let product_attrs_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
 
-            custom_attributes_repo
-                .delete(id_arg)
-                .map_err(|e| e.context("Service CustomAttributes, delete endpoint error occurred.").into())
+            conn.transaction::<CustomAttribute, FailureError, _>(move || {
+                let custom_attribute = custom_attributes_repo.get_custom_attribute(id_arg)?;
+                if let Some(custom_attribute) = custom_attribute {
+                    let _ = product_attrs_repo.delete_by_attribute_id(custom_attribute.base_product_id, custom_attribute.attribute_id)?;
+                }
+                custom_attributes_repo.delete(id_arg)
+            }).map_err(|e| e.context("Service CustomAttributes, delete endpoint error occurred.").into())
         })
     }
 }

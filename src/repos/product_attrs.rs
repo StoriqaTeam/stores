@@ -7,7 +7,7 @@ use diesel::sql_types::Bool;
 use diesel::Connection;
 use failure::Error as FailureError;
 
-use stq_types::{BaseProductId, ProductId, UserId};
+use stq_types::{AttributeId, AttributeValueId, BaseProductId, ProductId, UserId};
 
 use super::acl;
 use models::authorization::*;
@@ -17,8 +17,6 @@ use repos::types::{RepoAcl, RepoResult};
 use schema::base_products::dsl as BaseProducts;
 use schema::prod_attr_values::dsl::*;
 use schema::stores::dsl as Stores;
-
-use stq_types::{AttributeId, AttributeValueId};
 
 /// ProductAttrs repository, responsible for handling prod_attr_values
 pub struct ProductAttrsRepoImpl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> {
@@ -56,6 +54,9 @@ pub trait ProductAttrsRepo {
 
     /// Delete attribute value
     fn delete(&self, id_arg: i32) -> RepoResult<ProdAttr>;
+
+    /// Delete attribute values by base_product ID and attribute ID
+    fn delete_by_attribute_id(&self, base_product_id: BaseProductId, attr_id: AttributeId) -> RepoResult<()>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepoImpl<'a, T> {
@@ -235,6 +236,32 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 Ok(prod_attr)
             }).map_err(|e: FailureError| e.context(format!("Delete attribute value with id {}", id_arg)).into())
+    }
+
+    /// Delete attribute values by base_product ID and attribute ID
+    fn delete_by_attribute_id(&self, base_product_id: BaseProductId, attribute_id: AttributeId) -> RepoResult<()> {
+        debug!(
+            "Delete attribute value by base product id {} and attribute id {}.",
+            base_product_id, attribute_id
+        );
+
+        let filtered = prod_attr_values
+            .filter(base_prod_id.eq(base_product_id))
+            .filter(attr_id.eq(attribute_id));
+
+        let query = diesel::delete(filtered);
+        query
+            .get_result(self.db_conn)
+            .map_err(From::from)
+            .and_then(|prod_attr: ProdAttr| {
+                acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
+                Ok(())
+            }).map_err(|e: FailureError| {
+                e.context(format!(
+                    "Delete attribute values with base product id {} and attribute id {}",
+                    base_product_id, attribute_id
+                )).into()
+            })
     }
 }
 

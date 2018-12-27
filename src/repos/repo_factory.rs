@@ -1539,6 +1539,10 @@ pub mod tests {
         fn delete_all_attributes_not_in_list(&self, _product_id_arg: ProductId, _attr_values: Vec<i32>) -> RepoResult<Vec<ProdAttr>> {
             Ok(vec![])
         }
+
+        fn delete_by_attribute_id(&self, _base_product_id: BaseProductId, _attr_id: AttributeId) -> RepoResult<()> {
+            Ok(())
+        }
     }
 
     #[derive(Clone, Default)]

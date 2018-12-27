@@ -251,10 +251,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         let query = diesel::delete(filtered);
         query
-            .get_result(self.db_conn)
+            .get_results(self.db_conn)
             .map_err(From::from)
-            .and_then(|prod_attr: ProdAttr| {
-                acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
+            .and_then(|prod_attrs: Vec<ProdAttr>| {
+                for prod_attr in prod_attrs {
+                    acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
+                }
                 Ok(())
             }).map_err(|e: FailureError| {
                 e.context(format!(

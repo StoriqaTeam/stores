@@ -14,5 +14,4 @@ mod category;
 mod client_test;
 mod common;
 mod healthcheck_test;
-mod product;
 mod stores;

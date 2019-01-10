@@ -183,7 +183,7 @@ impl<
                 .and_then(move |categories_ids| {
                     self.spawn_on_pool(move |conn| {
                         let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-                        let root = categories_repo.get_all_categories()?;
+                        let root = categories_repo.get_all_categories_with_products()?;
                         let new_cat = remove_unused_categories(root, &categories_ids);
                         Ok(new_cat)
                     })

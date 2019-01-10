@@ -241,7 +241,7 @@ impl RocketRetailProduct {
         let picture = product
             .photo_main
             .as_ref()
-            .map(|photo_main| create_photo_url_from_product(photo_main, ImageSize::Medium))
+            .and_then(|photo_main| create_photo_url_from_product(photo_main, ImageSize::Medium))
             .unwrap_or_default();
         let url = create_product_url(cluster, base.store_id, base.id);
 
@@ -266,10 +266,10 @@ fn create_product_url(cluster: &str, store_id: StoreId, base_product_id: BasePro
     format!("https://{}/store/{}/products/{}", cluster, store_id, base_product_id)
 }
 
-fn create_photo_url_from_product(photo: &str, image_size: ImageSize) -> String {
+fn create_photo_url_from_product(photo: &str, image_size: ImageSize) -> Option<String> {
     match image_size {
-        ImageSize::Original => photo.to_string(),
-        _ => create_photo_url(photo, &image_size.to_string()).unwrap_or("".to_string()),
+        ImageSize::Original => Some(photo.to_string()),
+        _ => create_photo_url(photo, &image_size.to_string()),
     }
 }
 

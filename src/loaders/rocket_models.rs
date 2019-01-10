@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display, Error as FormatError, Formatter};
 
 use failure::Error as FailureError;
 use failure::Fail;
@@ -238,6 +238,12 @@ impl RocketRetailProduct {
         let ProductWithAttributes { product, attributes } = product_arg;
 
         let params = attributes.into_iter().map(|v| Param::from_attribute(v, lang.clone())).collect();
+        let picture = product
+            .photo_main
+            .as_ref()
+            .and_then(|photo_main| create_photo_url_from_product(photo_main, ImageSize::Medium))
+            .unwrap_or_default();
+        let url = create_product_url(cluster, base.store_id, base.id);
 
         Self {
             id: product.id.to_string(),
@@ -245,11 +251,11 @@ impl RocketRetailProduct {
             description: Some(description),
             vendor: Some(store_name),
             model: Some(product.vendor_code),
-            url: create_product_url(cluster, base.store_id, base.id),
+            url,
             price: product.price.into(),
             category_id: base.category_id.0,
             currency_id: product.currency.code().to_string(),
-            picture: product.photo_main.unwrap_or("".to_string()),
+            picture,
             params,
             ..Default::default()
         }
@@ -258,6 +264,31 @@ impl RocketRetailProduct {
 
 fn create_product_url(cluster: &str, store_id: StoreId, base_product_id: BaseProductId) -> String {
     format!("https://{}/store/{}/products/{}", cluster, store_id, base_product_id)
+}
+
+fn create_photo_url_from_product(photo: &str, image_size: ImageSize) -> Option<String> {
+    match image_size {
+        ImageSize::Original => Some(photo.to_string()),
+        _ => create_photo_url(photo, &image_size.to_string()),
+    }
+}
+
+fn create_photo_url(photo_url: &str, image_size: &str) -> Option<String> {
+    let mut parts_url = photo_url.split('/').collect::<Vec<_>>();
+    let photo_name = parts_url.pop()?;
+    let parts_name = photo_name.split('.').collect::<Vec<_>>();
+
+    if parts_name.len() != 2 {
+        debug!("cannot get photo name from string {}", photo_url);
+
+        None
+    } else {
+        let file_name = parts_name.first()?;
+        let ext = parts_name.last()?;
+        let new_name = format!("{}-{}.{}", file_name, image_size, ext);
+
+        Some(photo_url.replace(photo_name, new_name.as_str()))
+    }
 }
 
 impl ToXMLElement for RocketRetailProduct {
@@ -375,5 +406,23 @@ impl BuildElement for Element {
         }
 
         self
+    }
+}
+
+pub enum ImageSize {
+    Small,
+    Medium,
+    Large,
+    Original,
+}
+
+impl Display for ImageSize {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), FormatError> {
+        match self {
+            &ImageSize::Small => f.write_str("small"),
+            &ImageSize::Medium => f.write_str("medium"),
+            &ImageSize::Large => f.write_str("large"),
+            &ImageSize::Original => f.write_str("original"),
+        }
     }
 }

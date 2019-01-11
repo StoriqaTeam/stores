@@ -12,6 +12,7 @@ use super::types::ServiceFuture;
 use errors::Error;
 use models::{Attribute, NewCatAttr, OldCatAttr};
 use models::{Category, NewCategory, UpdateCategory};
+use repos::remove_empty_children_categories;
 use repos::types::RepoResult;
 use repos::{BaseProductsRepo, BaseProductsSearchTerms, CategoriesRepo, ReposFactory};
 use services::Service;
@@ -148,8 +149,13 @@ impl<
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
-            let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
-            categories_repo.get_all_categories_with_products().map_err(|e| {
+            {
+                let categories_repo = repo_factory.create_categories_repo(&*conn, user_id);
+                let categories = categories_repo.get_all_categories_with_products()?;
+                let new_categories = remove_empty_children_categories(categories);
+
+                Ok(new_categories)
+            }.map_err(|e: FailureError| {
                 e.context("Service Categories, `get_all_categories_with_products` endpoint error occurred.")
                     .into()
             })

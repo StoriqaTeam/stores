@@ -337,6 +337,18 @@ pub fn remove_unused_categories(mut cat: Category, used_categories_ids: &[Catego
     cat
 }
 
+pub fn remove_empty_children_categories(mut cat: Category) -> Category {
+    let mut children = vec![];
+    for cat_child in cat.children {
+        let new_cat = remove_empty_children_categories(cat_child);
+        if !new_cat.children.is_empty() || new_cat.level == CATEGORY_LEVEL3 {
+            children.push(new_cat);
+        }
+    }
+    cat.children = children;
+    cat
+}
+
 pub fn clear_child_categories(mut cat: Category, stack_level: i32) -> Category {
     if stack_level == 0 {
         cat.children.clear();

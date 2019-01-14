@@ -1345,7 +1345,6 @@ pub mod tests {
             seo_description: None,
             currency: Some(Currency::STQ),
             category_id: None,
-            rating: None,
             slug: None,
             length_cm: None,
             width_cm: None,

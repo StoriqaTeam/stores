@@ -59,7 +59,6 @@ pub fn create_update_store(name: &str, short_description: &str) -> UpdateStore {
         instagram_url: None,
         default_language: None,
         slogan: None,
-        rating: None,
         country: None,
         country_code: None,
         administrative_area_level_1: None,

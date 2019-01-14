@@ -137,7 +137,6 @@ pub struct UpdateStore {
     #[validate(custom = "validate_lang")]
     pub default_language: Option<String>,
     pub slogan: Option<String>,
-    pub rating: Option<f64>,
     pub country: Option<String>,
     pub administrative_area_level_1: Option<String>,
     pub administrative_area_level_2: Option<String>,

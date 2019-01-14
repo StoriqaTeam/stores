@@ -44,7 +44,6 @@ pub fn create_update_base_product(name: &str, short_description: &str) -> Update
         seo_description: None,
         currency: Some(Currency::STQ),
         category_id: Some(CategoryId(12)),
-        rating: None,
         slug: None,
         length_cm: Some(60),
         width_cm: Some(40),

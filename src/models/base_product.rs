@@ -201,7 +201,6 @@ pub struct UpdateBaseProduct {
     pub seo_description: Option<serde_json::Value>,
     pub currency: Option<Currency>,
     pub category_id: Option<CategoryId>,
-    pub rating: Option<f64>,
     #[validate(custom = "validate_slug")]
     pub slug: Option<String>,
     #[validate(range(min = "0", max = "1000"))]

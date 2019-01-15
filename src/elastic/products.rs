@@ -329,7 +329,9 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
-        filters.push(json!({ "term": {"store_status": "published"}}));
+        if let Some(status) = prod.options.as_ref().and_then(|o| o.status) {
+            filters.push(json!({ "term": {"store_status": status.to_string()}}));
+        }
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -400,7 +402,9 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
-        filters.push(json!({ "term": {"store_status": "published"}}));
+        if let Some(status) = prod.options.as_ref().and_then(|o| o.status) {
+            filters.push(json!({ "term": {"store_status": status.to_string()}}));
+        }
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -496,7 +500,9 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
-        filters.push(json!({ "term": {"store_status": "published"}}));
+        if let Some(status) = prod.options.as_ref().and_then(|o| o.status) {
+            filters.push(json!({ "term": {"store_status": status.to_string()}}));
+        }
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 
@@ -679,7 +685,9 @@ impl ProductsElastic for ProductsElasticImpl {
             filters.push(status_filter);
         }
 
-        filters.push(json!({ "term": {"store_status": "published"}}));
+        if let Some(status) = prod.options.as_ref().and_then(|o| o.status) {
+            filters.push(json!({ "term": {"store_status": status.to_string()}}));
+        }
 
         query_map.insert("filter".to_string(), serde_json::Value::Array(filters));
 

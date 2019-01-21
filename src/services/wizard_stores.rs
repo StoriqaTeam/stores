@@ -87,7 +87,8 @@ impl<
                             wizard_stores_repo.create(user_id)
                         }
                     })
-                }).map_err(|e| {
+                })
+                .map_err(|e| {
                     e.context("Service wizard store, create_wizard_store endpoint error occurred.")
                         .into()
                 })
@@ -127,7 +128,8 @@ impl<
                         return Err(format_err!("Store with slug '{}' already exists.", slug)
                             .context(Error::Validate(
                                 validation_errors!({"slug": ["slug" => "Store with this slug already exists"]}),
-                            )).into());
+                            ))
+                            .into());
                     }
                 }
                 let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, Some(user_id));

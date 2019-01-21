@@ -110,14 +110,16 @@ impl StoresElastic for StoresElasticImpl {
                 "sort" : [
                     { "rating" : { "order" : "desc"} }
                 ]
-            }).to_string()
+            })
+            .to_string()
         } else {
             json!({
                 "from" : offset, "size" : count,
                 "query": {
                     "bool" : query_map
                 }
-            }).to_string()
+            })
+            .to_string()
         };
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
@@ -135,7 +137,8 @@ impl StoresElastic for StoresElasticImpl {
                     e.context(format!(
                         "Search store by name error occurred. Store: {:?}, count: {:?}, offset: {:?}",
                         search_store, count, offset
-                    )).context(Error::ElasticSearch)
+                    ))
+                    .context(Error::ElasticSearch)
                     .into()
                 }),
         )
@@ -180,7 +183,8 @@ impl StoresElastic for StoresElasticImpl {
                     e.context(format!(
                         "Auto complete store name error occurred. Name: {:?}, count: {:?}, offset: {:?}",
                         name, count, _offset
-                    )).context(Error::ElasticSearch)
+                    ))
+                    .context(Error::ElasticSearch)
                     .into()
                 }),
         )
@@ -206,7 +210,8 @@ impl StoresElastic for StoresElasticImpl {
             "query": {
                 "bool" : query_map
             }
-        }).to_string();
+        })
+        .to_string();
 
         let url = format!("http://{}/{}/_count", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
@@ -254,7 +259,8 @@ impl StoresElastic for StoresElasticImpl {
                 }
             }
         }
-        }).to_string();
+        })
+        .to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
@@ -275,7 +281,8 @@ impl StoresElastic for StoresElasticImpl {
                         }
                     }
                     countries
-                }).map_err(move |e| {
+                })
+                .map_err(move |e| {
                     e.context(format!("Aggregate countries for store error occurred. Store: {:?}", search_store))
                         .context(Error::ElasticSearch)
                         .into()
@@ -329,7 +336,8 @@ impl StoresElastic for StoresElasticImpl {
                     }
                 }
             }
-        }).to_string();
+        })
+        .to_string();
 
         let url = format!("http://{}/{}/_search", self.elastic_address, ElasticIndex::Store);
         let mut headers = Headers::new();
@@ -352,7 +360,8 @@ impl StoresElastic for StoresElasticImpl {
                         }
                     };
                     categories_ids
-                }).map_err(move |e| {
+                })
+                .map_err(move |e| {
                     e.context(format!("Aggregate categories for stores error occurred. Store: {:?}", search_store))
                         .context(Error::ElasticSearch)
                         .into()

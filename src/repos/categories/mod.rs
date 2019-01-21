@@ -156,7 +156,8 @@ where
                     .get_result::<RawCategory>(self.db_conn)
                     .map(|created_category| created_category.into())
                     .map_err(From::from)
-            }).and_then(|category| {
+            })
+            .and_then(|category| {
                 acl::check(&*self.acl, Resource::Categories, Action::Create, self, Some(&category)).and_then(|_| Ok(category))
             });
 
@@ -176,22 +177,26 @@ where
                 let filter = categories.filter(id.eq(category_id_arg));
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<RawCategory>(self.db_conn).map_err(From::from)
-            }).and_then(|updated_category| {
+            })
+            .and_then(|updated_category| {
                 categories
                     .load::<RawCategory>(self.db_conn)
                     .map_err(From::from)
                     .map(|cats| (updated_category, cats))
-            }).map(|(updated_category, cats)| {
+            })
+            .map(|(updated_category, cats)| {
                 let id_arg = updated_category.id;
                 let mut result: Category = updated_category.into();
                 let children = create_tree(&cats, Some(id_arg));
                 result.children = children;
                 result
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating category with id {} and payload {:?} error occurred",
                     category_id_arg, payload
-                )).into()
+                ))
+                .into()
             })
     }
 
@@ -226,7 +231,8 @@ where
                     .filter(is_active.eq(true))
                     .load::<RawCategory>(self.db_conn)
                     .map_err(From::from)
-            }).map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
+            })
+            .map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
     }
 
     fn get_all_categories(&self) -> RepoResult<Category> {
@@ -264,7 +270,8 @@ where
                     set_attributes(&mut root, &cat_hash);
                     self.cache.set(root.clone());
                     Ok(root)
-                }).map_err(|e: FailureError| e.context("Get all categories error occurred").into())
+                })
+                .map_err(|e: FailureError| e.context("Get all categories error occurred").into())
         }
     }
 
@@ -285,7 +292,8 @@ where
                                 .eq(ModerationStatus::Published)
                                 .and(id.eq(BaseProducts::category_id)),
                         )),
-                    ).load(self.db_conn)?;
+                    )
+                    .load(self.db_conn)?;
 
                 let mut cats: Vec<RawCategory> = data
                     .into_iter()
@@ -293,7 +301,8 @@ where
                         (cat_level, Some(_)) if cat_level == CATEGORY_LEVEL3 => Some(cat),
                         (cat_level, _) if cat_level < CATEGORY_LEVEL3 => Some(cat),
                         _ => None,
-                    }).collect();
+                    })
+                    .collect();
 
                 cats.sort();
                 cats.dedup();
@@ -304,7 +313,8 @@ where
                 set_attributes(&mut root, &cat_hash);
 
                 Ok(root)
-            }).map_err(|e: FailureError| e.context("Get `get_all_categories_with_products` error occurred").into())
+            })
+            .map_err(|e: FailureError| e.context("Get `get_all_categories_with_products` error occurred").into())
     }
 }
 

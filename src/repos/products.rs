@@ -91,7 +91,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(product))?;
                 };
                 Ok(product)
-            }).map_err(|e: FailureError| e.context(format!("Find product with id: {} error occurred", product_id_arg)).into())
+            })
+            .map_err(|e: FailureError| e.context(format!("Find product with id: {} error occurred", product_id_arg)).into())
     }
 
     /// Find specific product by ID with additional filters
@@ -112,7 +113,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(product))?;
                 };
                 Ok(product)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Find product with id: {} by filters error occurred", product_id_arg))
                     .into()
             })
@@ -131,7 +133,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
-            }).map_err(move |e: FailureError| e.context(format!("Find in products {:?} error occurred.", product_ids)).into())
+            })
+            .map_err(move |e: FailureError| e.context(format!("Find in products {:?} error occurred.", product_ids)).into())
     }
 
     /// Creates new product
@@ -162,7 +165,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Find in products from {} count {} error occurred.", from, count))
                     .into()
             })
@@ -184,7 +188,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Find in products with id {} error occurred.", base_id_arg))
                     .into()
             })
@@ -207,7 +212,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(products_res.clone())
-            }).map_err(|e: FailureError| e.context(format!("Find in products with ids error occurred.")).into())
+            })
+            .map_err(|e: FailureError| e.context(format!("Find in products with ids error occurred.")).into())
     }
 
     /// Updates specific product
@@ -220,11 +226,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 let query = diesel::update(filter).set(&payload);
                 query.get_result::<RawProduct>(self.db_conn).map_err(From::from)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!(
                     "Updating product with id {} and payload {:?} error occurred.",
                     product_id_arg, payload
-                )).into()
+                ))
+                .into()
             })
     }
 
@@ -237,7 +245,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
                 let query = diesel::update(filter).set(is_active.eq(false));
                 self.execute_query(query)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Deactivate product with id {} error occurred.", product_id_arg))
                     .into()
             })
@@ -258,11 +267,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 }
 
                 Ok(results)
-            }).and_then(|_| {
+            })
+            .and_then(|_| {
                 let filtered = products.filter(base_product_id.eq(base_product_id_arg)).filter(is_active.eq(true));
                 let query_update = diesel::update(filtered).set(is_active.eq(false));
                 query_update.get_results(self.db_conn).map_err(From::from)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!("Deactivate products by base_product_id {} failed", base_product_id_arg))
                     .into()
             })
@@ -285,18 +296,21 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
                 }
                 Ok(())
-            }).and_then(|_| {
+            })
+            .and_then(|_| {
                 diesel::update(products)
                     .filter(base_product_id.eq(base_product_id_arg))
                     .filter(is_active.eq(true))
                     .set(currency.eq(currency_arg))
                     .execute(self.db_conn)
                     .map_err(From::from)
-            }).map_err(|e: FailureError| {
+            })
+            .map_err(|e: FailureError| {
                 e.context(format!(
                     "Setting currency {} on all product with base_product_id {} error occurred.",
                     currency_arg, base_product_id_arg
-                )).into()
+                ))
+                .into()
             })
     }
 }

@@ -100,7 +100,8 @@ impl<
                     let _ = product_attrs_repo.delete_by_attribute_id(custom_attribute.base_product_id, custom_attribute.attribute_id)?;
                 }
                 custom_attributes_repo.delete(id_arg)
-            }).map_err(|e| e.context("Service CustomAttributes, delete endpoint error occurred.").into())
+            })
+            .map_err(|e| e.context("Service CustomAttributes, delete endpoint error occurred.").into())
         })
     }
 }

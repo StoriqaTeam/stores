@@ -277,7 +277,8 @@ impl<T> Acl<Resource, Action, Scope, Rule, FailureError, T> for ApplicationAcl {
                 };
 
                 check_result && check_rule
-            }).filter(|permission| scope_checker.is_in_scope(*user_id, &permission.scope, obj));
+            })
+            .filter(|permission| scope_checker.is_in_scope(*user_id, &permission.scope, obj));
 
         if acls.count() > 0 {
             Ok(true)
@@ -494,7 +495,8 @@ mod tests {
                 &s,
                 Some(Rule::ModerationStatus(ModerationStatus::Draft)),
                 Some(&resource)
-            ).unwrap(),
+            )
+            .unwrap(),
             true,
             "ACL does not allow update actions on store for ordinary_user."
         );
@@ -531,7 +533,8 @@ mod tests {
                 &s,
                 Some(Rule::ModerationStatus(ModerationStatus::Moderation)),
                 Some(&resource)
-            ).unwrap(),
+            )
+            .unwrap(),
             true,
             "ACL does not allow read action on store for moderator."
         );

@@ -70,7 +70,8 @@ where
             .map_err(From::from)
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
-            }).map_err(|e: FailureError| e.context("List all category attributes error occurred").into())
+            })
+            .map_err(|e: FailureError| e.context("List all category attributes error occurred").into())
     }
 
     /// Find category attributes by attribute ID
@@ -81,7 +82,8 @@ where
             .map_err(From::from)
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
-            }).map_err(|e: FailureError| e.context("Find category attributes by attribute ID error occurred").into())
+            })
+            .map_err(|e: FailureError| e.context("Find category attributes by attribute ID error occurred").into())
     }
 
     /// Creates new category attribute

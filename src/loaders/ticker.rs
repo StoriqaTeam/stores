@@ -51,7 +51,7 @@ struct ExmoCurrencyPairs(pub Vec<ExmoCurrencyPair>);
 
 impl From<ExmoCurrencyPairs> for NewCurrencyExchange {
     fn from(pairs: ExmoCurrencyPairs) -> Self {
-        pairs.0.iter().fold(NewCurrencyExchange::default(), |rates, pair| {
+        let mut currency_exchange = pairs.0.iter().fold(NewCurrencyExchange::default(), |rates, pair| {
             let ExmoCurrencyPair {
                 left_code,
                 right_code,
@@ -79,9 +79,13 @@ impl From<ExmoCurrencyPairs> for NewCurrencyExchange {
                         .entry(left_code.clone())
                         .or_insert([(left_code.clone(), ExchangeRate(1.0))].iter().cloned().collect());
 
-                    // buy price for the reversed exchange rate is calculated as an inverse of the sell price
-                    if let Some(buy_price) = (Decimal::new(1, 0) / sell_price).to_f64() {
-                        (*left_currency_reversed_rates).insert(right_code.clone(), ExchangeRate(buy_price));
+                    if left_code == right_code {
+                        (*left_currency_reversed_rates).insert(right_code.clone(), ExchangeRate(1.0));
+                    } else {
+                        // buy price for the reversed exchange rate is calculated as an inverse of the sell price
+                        if let Some(buy_price) = (Decimal::new(1, 0) / sell_price).to_f64() {
+                            (*left_currency_reversed_rates).insert(right_code.clone(), ExchangeRate(buy_price));
+                        }
                     }
                 }
                 {
@@ -89,13 +93,39 @@ impl From<ExmoCurrencyPairs> for NewCurrencyExchange {
                         .entry(right_code.clone())
                         .or_insert([(right_code.clone(), ExchangeRate(1.0))].iter().cloned().collect());
 
-                    if let Some(buy_price) = buy_price.to_f64() {
-                        (*right_currency_reversed_rates).insert(left_code.clone(), ExchangeRate(buy_price));
+                    if left_code == right_code {
+                        (*right_currency_reversed_rates).insert(right_code.clone(), ExchangeRate(1.0));
+                    } else {
+                        if let Some(buy_price) = buy_price.to_f64() {
+                            (*right_currency_reversed_rates).insert(left_code.clone(), ExchangeRate(buy_price));
+                        }
                     }
                 }
             }
             NewCurrencyExchange { data }
-        })
+        });
+
+        // Added ETH STQ pairs
+        if let Some(usd) = currency_exchange.data.get(&Currency::USD).cloned() {
+            let usd_eth = usd.get(&Currency::ETH).cloned().unwrap_or(ExchangeRate(1.0));
+            let usd_stq = usd.get(&Currency::STQ).cloned().unwrap_or(ExchangeRate(1.0));
+            {
+                let mut stq = currency_exchange
+                    .data
+                    .entry(Currency::STQ)
+                    .or_insert([(Currency::STQ, ExchangeRate(1.0))].iter().cloned().collect());
+                stq.entry(Currency::ETH).or_insert(ExchangeRate(usd_eth.0 / usd_stq.0));
+            }
+
+            {
+                let mut eth = currency_exchange
+                    .data
+                    .entry(Currency::ETH)
+                    .or_insert([(Currency::ETH, ExchangeRate(1.0))].iter().cloned().collect());
+                eth.entry(Currency::STQ).or_insert(ExchangeRate(usd_stq.0 / usd_eth.0));
+            }
+        }
+        currency_exchange
     }
 }
 

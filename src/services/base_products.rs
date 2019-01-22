@@ -1203,7 +1203,7 @@ fn calculate_customer_price(
     if let Some(currency_map) = currencies_map {
         for base_product in base_products {
             for mut variant in &mut base_product.variants {
-                variant.customer_price.price.0 *= currency_map[&variant.product.currency].0;
+                variant.customer_price.price.0 *= currency_map.get(&variant.product.currency).map(|c| c.0).unwrap_or(1.0);
                 variant.customer_price.currency = currency;
             }
         }

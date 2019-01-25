@@ -7,6 +7,7 @@ use diesel::Connection;
 use failure::Error as FailureError;
 use r2d2::ManageConnection;
 
+use stq_static_resources::currency_type::CurrencyType;
 use stq_static_resources::Currency;
 use stq_types::{AttributeId, AttributeValueCode, BaseProductId, ProductId, ProductPrice, ProductSellerPrice, StoreId};
 
@@ -58,6 +59,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
 
         self.spawn_on_pool(move |conn| {
             {
@@ -65,7 +67,7 @@ impl<
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                 let raw_product = products_repo.find(product_id)?;
                 if let Some(raw_product) = raw_product {
-                    let customer_price = calculate_customer_price(&*currency_exchange, &raw_product, currency)?;
+                    let customer_price = calculate_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)?;
                     let result_product = Product::new(raw_product, customer_price);
 
                     Ok(Some(result_product))
@@ -82,6 +84,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
 
         self.spawn_on_pool(move |conn| {
             {
@@ -91,7 +94,7 @@ impl<
 
                 let raw_product = products_repo.find_by_filters(product_id, product_filters)?;
                 if let Some(raw_product) = raw_product {
-                    let customer_price = calculate_customer_price(&*currency_exchange, &raw_product, currency)?;
+                    let customer_price = calculate_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)?;
                     let result_product = Product::new(raw_product, customer_price);
 
                     Ok(Some(result_product))
@@ -180,6 +183,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
 
         self.spawn_on_pool(move |conn| {
             {
@@ -190,7 +194,7 @@ impl<
                 let products = raw_products
                     .into_iter()
                     .map(|raw_product| {
-                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)
                             .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
                     })
                     .collect::<RepoResult<Vec<Product>>>();
@@ -311,6 +315,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
 
         self.spawn_on_pool(move |conn| {
             {
@@ -321,7 +326,7 @@ impl<
                 let result_products = raw_products
                     .into_iter()
                     .map(|raw_product| {
-                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)
                             .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
                     })
                     .collect::<RepoResult<Vec<Product>>>();
@@ -336,6 +341,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
 
         self.spawn_on_pool(move |conn| {
             {
@@ -357,7 +363,7 @@ impl<
                 let result_products = raw_products
                     .into_iter()
                     .map(|raw_product| {
-                        calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                        calculate_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)
                             .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
                     })
                     .collect::<RepoResult<Vec<Product>>>();
@@ -426,8 +432,14 @@ impl<
 pub fn calculate_customer_price(
     currency_exchange: &CurrencyExchangeRepo,
     product_arg: &RawProduct,
-    currency: Currency,
+    crypto_currency: Currency,
+    fiat_currency: Currency,
 ) -> RepoResult<CustomerPrice> {
+    let currency = match product_arg.currency.currency_type() {
+        CurrencyType::Crypto => crypto_currency,
+        CurrencyType::Fiat => fiat_currency,
+    };
+
     let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
 
     if let Some(currency_map) = currencies_map {

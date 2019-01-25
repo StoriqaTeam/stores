@@ -23,7 +23,7 @@ use validator::Validate;
 use stq_http::{
     controller::{Controller, ControllerFuture},
     errors::ErrorMessageWrapper,
-    request_util::{self, parse_body, read_body, serialize_future, Currency as CurrencyHeader},
+    request_util::{self, parse_body, read_body, serialize_future, Currency as CurrencyHeader, FiatCurrency as FiatCurrencyHeader},
 };
 
 use stq_static_resources::{Currency, ModerationStatus};
@@ -93,8 +93,20 @@ impl<
 
         let currency = match headers
             .get::<CurrencyHeader>()
-            .ok_or(format_err!("Missing currency header"))
+            .ok_or(format_err!("Missing Currency header"))
             .and_then(|sid| Currency::from_code(sid).ok_or(format_err!("Invalid currency: {}", sid)))
+            .map_err(|e| e.context(Error::Parse).into())
+        {
+            Ok(v) => v,
+            Err(e) => {
+                return Box::new(future::err(e));
+            }
+        };
+
+        let fiat_currency = match headers
+            .get::<FiatCurrencyHeader>()
+            .ok_or(format_err!("Missing FiatCurrency header"))
+            .and_then(|sid| Currency::from_code(sid).ok_or(format_err!("Invalid fiat currency: {}", sid)))
             .map_err(|e| e.context(Error::Parse).into())
         {
             Ok(v) => v,
@@ -105,7 +117,7 @@ impl<
 
         let correlation_token = request_util::get_correlation_token(&req);
 
-        let dynamic_context = DynamicContext::new(user_id, currency, correlation_token);
+        let dynamic_context = DynamicContext::new(user_id, currency, fiat_currency, correlation_token);
 
         let service = Service::new(self.static_context.clone(), dynamic_context);
 

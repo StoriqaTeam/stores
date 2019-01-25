@@ -9,7 +9,7 @@ use stores_lib::models::*;
 
 use common::*;
 use stq_http::request_util::read_body;
-use stq_http::request_util::Currency as CurrencyHeader;
+use stq_http::request_util::{Currency as CurrencyHeader, FiatCurrency as FiatCurrencyHeader};
 use stq_static_resources::*;
 
 pub fn create_new_attribute(name: &str) -> CreateAttributePayload {
@@ -49,6 +49,7 @@ fn attributes_crud() {
     req.headers_mut().set(ContentLength(body.len() as u64));
     req.headers_mut().set(Authorization("1".to_string()));
     req.headers_mut().set(CurrencyHeader("STQ".to_string()));
+    req.headers_mut().set(FiatCurrencyHeader("USD".to_string()));
     req.set_body(body);
 
     let mut code = context
@@ -66,6 +67,7 @@ fn attributes_crud() {
 
     let mut req = Request::new(Method::Get, url.clone());
     req.headers_mut().set(CurrencyHeader("STQ".to_string()));
+    req.headers_mut().set(FiatCurrencyHeader("USD".to_string()));
 
     code = context
         .core
@@ -87,6 +89,7 @@ fn attributes_crud() {
     req.headers_mut().set(ContentLength(body.len() as u64));
     req.headers_mut().set(Authorization("1".to_string()));
     req.headers_mut().set(CurrencyHeader("STQ".to_string()));
+    req.headers_mut().set(FiatCurrencyHeader("USD".to_string()));
     req.set_body(body);
 
     code = context

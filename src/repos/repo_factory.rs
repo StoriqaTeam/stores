@@ -248,7 +248,7 @@ pub mod tests {
         let client_stream = client.stream();
         handle.spawn(client_stream.for_each(|_| Ok(())));
         let static_context = StaticContext::new(db_pool, cpu_pool, client_handle, Arc::new(config), MOCK_REPO_FACTORY);
-        let dynamic_context = DynamicContext::new(user_id, Currency::STQ, String::default());
+        let dynamic_context = DynamicContext::new(user_id, Currency::STQ, Currency::USD, String::default());
 
         Service::new(static_context, dynamic_context)
     }

@@ -224,6 +224,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
 
         self.spawn_on_pool(move |conn| {
             {
@@ -242,7 +243,7 @@ impl<
                     let result_products = raw_products
                         .into_iter()
                         .map(|raw_product| {
-                            calculate_customer_price(&*currency_exchange, &raw_product, currency)
+                            calculate_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)
                                 .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
                         })
                         .collect::<RepoResult<Vec<Product>>>()?;

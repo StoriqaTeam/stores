@@ -21,7 +21,7 @@ use models::*;
 use repos::CouponSearch;
 
 use repos::{CouponValidate, RepoResult, ReposFactory, UsedCouponSearch};
-use services::products::calculate_customer_price;
+use services::products::calculate_product_customer_price;
 use services::Service;
 
 pub trait CouponsService {
@@ -243,7 +243,7 @@ impl<
                     let result_products = raw_products
                         .into_iter()
                         .map(|raw_product| {
-                            calculate_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)
+                            calculate_product_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)
                                 .and_then(|customer_price| Ok(Product::new(raw_product, customer_price)))
                         })
                         .collect::<RepoResult<Vec<Product>>>()?;

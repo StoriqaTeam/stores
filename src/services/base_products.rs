@@ -22,6 +22,7 @@ use repos::get_parent_category;
 use repos::remove_unused_categories;
 use repos::{BaseProductsRepo, BaseProductsSearchTerms, CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
 use services::create_product_attributes_values;
+use services::products::calculate_customer_price;
 use services::Service;
 use services::{check_can_update_by_status, check_change_status, check_vendor_code};
 
@@ -208,6 +209,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let client_handle = self.static_context.client_handle.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
         let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
         let service = self.clone();
@@ -226,7 +228,7 @@ impl<
                         service.spawn_on_pool(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
-                            calculate_customer_price(&mut base_products, currency_map, currency);
+                            calculate_base_products_customer_price(&mut base_products, currency_map, currency, fiat_currency);
                             Ok(base_products)
                         })
                     }
@@ -247,6 +249,7 @@ impl<
     ) -> ServiceFuture<Vec<BaseProductWithVariants>> {
         let user_id = self.dynamic_context.user_id;
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
@@ -255,7 +258,7 @@ impl<
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                 let mut base_products = base_products_repo.most_viewed(search_product, count, offset)?;
                 let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                calculate_customer_price(&mut base_products, currencies_map, currency);
+                calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
                 Ok(base_products)
             }
             .map_err(|e: FailureError| {
@@ -278,6 +281,7 @@ impl<
 
         let user_id = self.dynamic_context.user_id;
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
         let repo_factory = self.static_context.repo_factory.clone();
         Box::new(
             self.flatten_categories(search_product.options.clone())
@@ -292,7 +296,7 @@ impl<
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
                             let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                            calculate_customer_price(&mut base_products, currencies_map, currency);
+                            calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
 
                             Ok(base_products)
                         })
@@ -485,6 +489,7 @@ impl<
         let user_id = self.dynamic_context.user_id;
         let repo_factory = self.static_context.repo_factory.clone();
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
         let visibility = visibility.unwrap_or(Visibility::Published);
 
         debug!(
@@ -506,7 +511,7 @@ impl<
                         let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
                         let mut base_products = vec![base_product];
 
-                        calculate_customer_price(&mut base_products, currencies_map, currency);
+                        calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
 
                         return Ok(base_products.pop());
                     };
@@ -736,6 +741,7 @@ impl<
     fn find_by_cart(&self, cart: Vec<CartProduct>) -> ServiceFuture<Vec<StoreWithBaseProducts>> {
         let user_id = self.dynamic_context.user_id;
         let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
         let repo_factory = self.static_context.repo_factory.clone();
 
         self.spawn_on_pool(move |conn| {
@@ -770,7 +776,7 @@ impl<
                     .collect::<RepoResult<Vec<BaseProductWithVariants>>>()?;
 
                 let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                calculate_customer_price(&mut base_products, currencies_map, currency);
+                calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
 
                 let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
                 for base_product_with_variants in base_products {
@@ -1195,17 +1201,21 @@ fn enrich_new_base_product(stores_repo: &StoresRepo, new_base_product: &mut NewB
     Ok(())
 }
 
-fn calculate_customer_price(
+fn calculate_base_products_customer_price(
     base_products: &mut [BaseProductWithVariants],
     currencies_map: Option<HashMap<Currency, ExchangeRate>>,
-    currency: Currency,
+    crypto_currency: Currency,
+    fiat_currency: Currency,
 ) {
-    if let Some(currency_map) = currencies_map {
-        for base_product in base_products {
-            for mut variant in &mut base_product.variants {
-                variant.customer_price.price.0 *= currency_map.get(&variant.product.currency).map(|c| c.0).unwrap_or(1.0);
-                variant.customer_price.currency = currency;
-            }
+    for base_product in base_products {
+        for mut variant in &mut base_product.variants {
+            variant.customer_price = calculate_customer_price(
+                variant.customer_price.price,
+                variant.customer_price.currency,
+                currencies_map.clone(),
+                crypto_currency,
+                fiat_currency,
+            );
         }
     }
 }

@@ -457,7 +457,7 @@ pub fn calculate_customer_price(
     };
 
     if let Some(currency_map) = currencies_map {
-        let price = ProductPrice(price.0 * currency_map[&currency].0);
+        let price = ProductPrice(price.0 * currency_map[&product_currency].0 / currency_map[&currency].0);
         CustomerPrice { price, currency }
     } else {
         // When no currency convert how seller price

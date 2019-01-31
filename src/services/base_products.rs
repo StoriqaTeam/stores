@@ -169,7 +169,11 @@ pub trait BaseProductsService {
     fn remove_non_third_level_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
 
     /// Create currency map
-    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
+    fn create_currency_map(
+        &self,
+        options: Option<ProductsSearchOptions>,
+        currency: Currency,
+    ) -> ServiceFuture<Option<ProductsSearchOptions>>;
 
     /// Replace category in all base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> ServiceFuture<Vec<BaseProduct>>;
@@ -215,7 +219,7 @@ impl<
         let service = self.clone();
         Box::new(
             self.flatten_categories(search_product.options.clone())
-                .and_then(move |options| self.create_currency_map(options))
+                .and_then(move |options| self.create_currency_map(options, fiat_currency))
                 .and_then(move |options| {
                     let currency_map = options.clone().and_then(|o| o.currency_map);
                     search_product.options = options;
@@ -327,9 +331,10 @@ impl<
         let client_handle = self.static_context.client_handle.clone();
         let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
+        let fiat_currency = self.dynamic_context.fiat_currency;
         Box::new(
             self.flatten_categories(search_product.options.clone())
-                .and_then(move |options| self.create_currency_map(options))
+                .and_then(move |options| self.create_currency_map(options, fiat_currency))
                 .and_then(move |options| {
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
@@ -1022,8 +1027,11 @@ impl<
         }
     }
 
-    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
-        let currency = self.dynamic_context.currency;
+    fn create_currency_map(
+        &self,
+        options: Option<ProductsSearchOptions>,
+        currency: Currency,
+    ) -> ServiceFuture<Option<ProductsSearchOptions>> {
         let repo_factory = self.static_context.repo_factory.clone();
         let user_id = self.dynamic_context.user_id;
 

@@ -447,24 +447,27 @@ pub fn calculate_product_customer_price(
 pub fn calculate_customer_price(
     price: ProductPrice,
     product_currency: Currency,
-    currencies_map: Option<HashMap<Currency, ExchangeRate>>,
+    product_currency_map: Option<HashMap<Currency, ExchangeRate>>,
     crypto_currency: Currency,
     fiat_currency: Currency,
 ) -> CustomerPrice {
-    let currency = match product_currency.currency_type() {
+    let header_currency = match product_currency.currency_type() {
         CurrencyType::Crypto => crypto_currency,
         CurrencyType::Fiat => fiat_currency,
     };
 
-    if let Some(currency_map) = currencies_map {
-        let price = ProductPrice(
-            price.0 * currency_map.get(&product_currency).map(|c| c.0).unwrap_or(1.0)
-                / currency_map.get(&currency).map(|c| c.0).unwrap_or(1.0),
-        );
-        CustomerPrice { price, currency }
+    if let Some(currency_map) = product_currency_map {
+        let price = ProductPrice(price.0 / currency_map.get(&header_currency).map(|c| c.0).unwrap_or(1.0));
+        CustomerPrice {
+            price,
+            currency: header_currency,
+        }
     } else {
         // When no currency convert how seller price
-        CustomerPrice { price, currency }
+        CustomerPrice {
+            price,
+            currency: header_currency,
+        }
     }
 }
 

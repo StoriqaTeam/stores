@@ -10,7 +10,7 @@ use futures::future::*;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, BaseProductSlug, CategoryId, ExchangeRate, ProductId, StoreId, StoreIdentifier};
+use stq_types::{BaseProductId, BaseProductSlug, CategoryId, ProductId, StoreId, StoreIdentifier};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -221,18 +221,17 @@ impl<
             self.flatten_categories(search_product.options.clone())
                 .and_then(move |options| self.create_currency_map(options, fiat_currency))
                 .and_then(move |options| {
-                    let currency_map = options.clone().and_then(|o| o.currency_map);
                     search_product.options = options;
-                    products_el
-                        .search_by_name(search_product, count, offset)
-                        .map(|el_products| (el_products, currency_map))
+                    products_el.search_by_name(search_product, count, offset)
                 })
                 .and_then({
-                    move |(el_products, currency_map)| {
+                    move |el_products| {
                         service.spawn_on_pool(move |conn| {
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                            let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
-                            calculate_base_products_customer_price(&mut base_products, currency_map, currency, fiat_currency);
+                            let latest_currencies = currency_exchange.get_latest()?;
+                            calculate_base_products_customer_price(&mut base_products, latest_currencies, currency, fiat_currency);
                             Ok(base_products)
                         })
                     }
@@ -261,8 +260,8 @@ impl<
                 let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                 let mut base_products = base_products_repo.most_viewed(search_product, count, offset)?;
-                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
+                let latest_currencies = currency_exchange.get_latest()?;
+                calculate_base_products_customer_price(&mut base_products, latest_currencies, currency, fiat_currency);
                 Ok(base_products)
             }
             .map_err(|e: FailureError| {
@@ -299,9 +298,8 @@ impl<
                             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
                             let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
                             let mut base_products = base_products_repo.convert_from_elastic(el_products)?;
-                            let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                            calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
-
+                            let latest_currencies = currency_exchange.get_latest()?;
+                            calculate_base_products_customer_price(&mut base_products, latest_currencies, currency, fiat_currency);
                             Ok(base_products)
                         })
                     }
@@ -513,11 +511,9 @@ impl<
                         base_product.map(|base_product| BaseProductWithVariants::new(base_product, vec![Product::from(product)]))
                     })?;
                     if let Some(base_product) = base_product {
-                        let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
                         let mut base_products = vec![base_product];
-
-                        calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
-
+                        let latest_currencies = currency_exchange.get_latest()?;
+                        calculate_base_products_customer_price(&mut base_products, latest_currencies, currency, fiat_currency);
                         return Ok(base_products.pop());
                     };
                 }
@@ -780,8 +776,8 @@ impl<
                     })
                     .collect::<RepoResult<Vec<BaseProductWithVariants>>>()?;
 
-                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
-                calculate_base_products_customer_price(&mut base_products, currencies_map, currency, fiat_currency);
+                let latest_currencies = currency_exchange.get_latest()?;
+                calculate_base_products_customer_price(&mut base_products, latest_currencies, currency, fiat_currency);
 
                 let mut group_by_store_id = BTreeMap::<StoreId, Vec<BaseProductWithVariants>>::default();
                 for base_product_with_variants in base_products {
@@ -1211,19 +1207,17 @@ fn enrich_new_base_product(stores_repo: &StoresRepo, new_base_product: &mut NewB
 
 fn calculate_base_products_customer_price(
     base_products: &mut [BaseProductWithVariants],
-    currencies_map: Option<HashMap<Currency, ExchangeRate>>,
+    latest_currencies: Option<CurrencyExchange>,
     crypto_currency: Currency,
     fiat_currency: Currency,
 ) {
     for base_product in base_products {
+        let currency = base_product.base_product.currency;
+        let currencies_map = latest_currencies
+            .as_ref()
+            .and_then(|all_rates| all_rates.data.get(&currency).cloned());
         for mut variant in &mut base_product.variants {
-            variant.customer_price = calculate_customer_price(
-                variant.product.price,
-                variant.product.currency,
-                currencies_map.clone(),
-                crypto_currency,
-                fiat_currency,
-            );
+            variant.customer_price = calculate_customer_price(&variant.product, &currencies_map, crypto_currency, fiat_currency);
         }
     }
 }

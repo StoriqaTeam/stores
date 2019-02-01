@@ -1218,8 +1218,8 @@ fn calculate_base_products_customer_price(
     for base_product in base_products {
         for mut variant in &mut base_product.variants {
             variant.customer_price = calculate_customer_price(
-                variant.customer_price.price,
-                variant.customer_price.currency,
+                variant.product.price,
+                variant.product.currency,
                 currencies_map.clone(),
                 crypto_currency,
                 fiat_currency,

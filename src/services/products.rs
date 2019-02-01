@@ -431,33 +431,31 @@ impl<
 
 pub fn calculate_product_customer_price(
     currency_exchange: &CurrencyExchangeRepo,
-    product_arg: &RawProduct,
+    product: &RawProduct,
     crypto_currency: Currency,
     fiat_currency: Currency,
 ) -> RepoResult<CustomerPrice> {
     Ok(calculate_customer_price(
-        product_arg.price,
-        product_arg.currency,
-        currency_exchange.get_exchange_for_currency(product_arg.currency)?,
+        product,
+        &currency_exchange.get_exchange_for_currency(product.currency)?,
         crypto_currency,
         fiat_currency,
     ))
 }
 
 pub fn calculate_customer_price(
-    price: ProductPrice,
-    product_currency: Currency,
-    product_currency_map: Option<HashMap<Currency, ExchangeRate>>,
+    product: &RawProduct,
+    product_currency_map: &Option<HashMap<Currency, ExchangeRate>>,
     crypto_currency: Currency,
     fiat_currency: Currency,
 ) -> CustomerPrice {
-    let header_currency = match product_currency.currency_type() {
+    let header_currency = match product.currency.currency_type() {
         CurrencyType::Crypto => crypto_currency,
         CurrencyType::Fiat => fiat_currency,
     };
 
     if let Some(currency_map) = product_currency_map {
-        let price = ProductPrice(price.0 / currency_map.get(&header_currency).map(|c| c.0).unwrap_or(1.0));
+        let price = ProductPrice(product.price.0 / currency_map.get(&header_currency).map(|c| c.0).unwrap_or(1.0));
         CustomerPrice {
             price,
             currency: header_currency,
@@ -465,7 +463,7 @@ pub fn calculate_customer_price(
     } else {
         // When no currency convert how seller price
         CustomerPrice {
-            price,
+            price: product.price,
             currency: header_currency,
         }
     }

@@ -721,7 +721,9 @@ impl<
                     if let Some(new_cat_id) = payload.category_id {
                         // updating product categories of the store
                         let _ = update_product_categories(&*stores_repo, old_prod.store_id, old_prod.category_id, new_cat_id)?;
-                    } else if let Some(currency) = payload.currency {
+                    }
+
+                    if let Some(currency) = payload.currency {
                         // updating currency of base_products variants
                         products_repo.update_currency(currency, updated_prod.id)?;
                     }

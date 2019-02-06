@@ -140,7 +140,7 @@ impl ProductsElasticImpl {
                             "source" : r###"
                                 def cur = doc['variants.currency'].value;
                                 def koef = params.cur_map[cur];
-                                def price = doc['variants.price'].value * koef;
+                                def price = doc['variants.price'].value / koef;
                                 return (params.min == null || price >= params.min) && (params.max == null || price <= params.max);
                             "###,
                             "lang"   : "painless",
@@ -723,7 +723,7 @@ impl ProductsElastic for ProductsElasticImpl {
                                             "source": r###"
                                                 def cur = doc['variants.currency'].value;
                                                 def koef = params.cur_map[cur];
-                                                return doc['variants.price'].value * koef;
+                                                return doc['variants.price'].value / koef;
                                             "###,
                                         }
                                     }
@@ -736,7 +736,7 @@ impl ProductsElastic for ProductsElasticImpl {
                                             "source": r###"
                                                 def cur = doc['variants.currency'].value;
                                                 def koef = params.cur_map[cur];
-                                                return doc['variants.price'].value * koef;
+                                                return doc['variants.price'].value / koef;
                                             "###,
                                         }
                                     }

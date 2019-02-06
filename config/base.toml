@@ -1,8 +1,8 @@
 [server]
 host = "0.0.0.0"
 port = "8000"
-database = "postgresql://stores:stores@stores-pg/stores"
-elastic = "stores-es:9200"
+database = "postgresql://stores:stores@db-postgresql/stores"
+elastic = "elasticsearch:9200"
 # redis = "redis://stores-redis"
 thread_count = 20
 cache_ttl_sec = 600

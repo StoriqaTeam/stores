@@ -10,7 +10,7 @@ use futures::future::*;
 use r2d2::ManageConnection;
 
 use stq_static_resources::{Currency, ModerationStatus};
-use stq_types::{BaseProductId, BaseProductSlug, CategoryId, ProductId, StoreId, StoreIdentifier};
+use stq_types::{BaseProductId, BaseProductSlug, CategoryId, ExchangeRate, ProductId, StoreId, StoreIdentifier};
 
 use super::types::ServiceFuture;
 use elastic::{ProductsElastic, ProductsElasticImpl};
@@ -169,11 +169,7 @@ pub trait BaseProductsService {
     fn remove_non_third_level_categories(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
 
     /// Create currency map
-    fn create_currency_map(
-        &self,
-        options: Option<ProductsSearchOptions>,
-        currency: Currency,
-    ) -> ServiceFuture<Option<ProductsSearchOptions>>;
+    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>>;
 
     /// Replace category in all base products
     fn replace_category(&self, payload: CategoryReplacePayload) -> ServiceFuture<Vec<BaseProduct>>;
@@ -219,7 +215,7 @@ impl<
         let service = self.clone();
         Box::new(
             self.flatten_categories(search_product.options.clone())
-                .and_then(move |options| self.create_currency_map(options, fiat_currency))
+                .and_then(move |options| self.create_currency_map(options))
                 .and_then(move |options| {
                     search_product.options = options;
                     products_el.search_by_name(search_product, count, offset)
@@ -329,10 +325,9 @@ impl<
         let client_handle = self.static_context.client_handle.clone();
         let address = self.static_context.config.server.elastic.clone();
         let products_el = ProductsElasticImpl::new(client_handle, address);
-        let fiat_currency = self.dynamic_context.fiat_currency;
         Box::new(
             self.flatten_categories(search_product.options.clone())
-                .and_then(move |options| self.create_currency_map(options, fiat_currency))
+                .and_then(move |options| self.create_currency_map(options))
                 .and_then(move |options| {
                     search_product.options = options;
                     products_el.aggregate_price(search_product)
@@ -1025,18 +1020,29 @@ impl<
         }
     }
 
-    fn create_currency_map(
-        &self,
-        options: Option<ProductsSearchOptions>,
-        currency: Currency,
-    ) -> ServiceFuture<Option<ProductsSearchOptions>> {
+    fn create_currency_map(&self, options: Option<ProductsSearchOptions>) -> ServiceFuture<Option<ProductsSearchOptions>> {
         let repo_factory = self.static_context.repo_factory.clone();
+        let fiat_currency = self.dynamic_context.fiat_currency;
         let user_id = self.dynamic_context.user_id;
 
         if let Some(mut options) = options {
             self.spawn_on_pool(move |conn| {
                 let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
-                let currencies_map = currency_exchange.get_exchange_for_currency(currency)?;
+                // We need to reconvert each currency into fiat currency to search in elastic
+                let currencies_map = currency_exchange.get_latest()?.map(|currencies| {
+                    let mut currencies_map = HashMap::new();
+                    if let Some(fiat) = currencies.data.get(&fiat_currency) {
+                        for cur in fiat.keys() {
+                            let value = if let Some(cur_hash) = currencies.data.get(&cur) {
+                                cur_hash.get(&fiat_currency).map(|c| c.0).unwrap_or(1.0)
+                            } else {
+                                1.0
+                            };
+                            currencies_map.insert(*cur, ExchangeRate(value));
+                        }
+                    }
+                    currencies_map
+                });
                 options.currency_map = currencies_map;
                 Ok(Some(options))
             })

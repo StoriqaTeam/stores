@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_types::Bool;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 use repos::types::RepoAcl;
 
@@ -57,7 +58,7 @@ where
         diesel::insert_into(attribute_values)
             .values(&new_attribute_value)
             .get_result::<AttributeValue>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|attr_value| {
                 acl::check(&*self.acl, Resource::AttributeValues, Action::Create, self, Some(&attr_value)).and_then(|_| Ok(attr_value))
             })
@@ -103,7 +104,7 @@ where
             .filter(query)
             .order_by(id)
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<AttributeValue>| {
                 for result in results.iter() {
                     acl::check(&*self.acl, Resource::AttributeValues, Action::Read, self, Some(result))?;
@@ -124,7 +125,7 @@ where
         diesel::update(attribute_values.filter(id.eq(id_arg)))
             .set(&update)
             .get_result::<AttributeValue>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
     }
 
     fn delete(&self, id_arg: AttributeValueId) -> RepoResult<AttributeValue> {
@@ -133,7 +134,7 @@ where
 
         diesel::delete(attribute_values.filter(id.eq(id_arg)))
             .get_result::<AttributeValue>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
     }
 }
 

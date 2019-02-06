@@ -9,6 +9,7 @@ use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_types::{Bool, VarChar};
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 use failure::Fail;
 
@@ -89,7 +90,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(From::from)
+        query.get_result::<Ty>(self.db_conn).map_err(|e| Error::from(e).into())
     }
 }
 
@@ -106,7 +107,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         };
 
         acl::check(&*self.acl, Resource::Stores, Action::Read, self, None)
-            .and_then(|_| query.count().get_result(self.db_conn).map_err(From::from))
+            .and_then(|_| query.count().get_result(self.db_conn).map_err(|e| Error::from(e).into()))
             .map_err(|e| FailureError::from(e).context("Count stores error occurred").into())
     }
 
@@ -125,7 +126,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .filter(id.eq(store_id_arg))
             .first(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|store: Option<Store>| {
                 if let Some(ref store) = store {
                     acl::check_with_rule(
@@ -157,7 +158,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .filter(slug.eq(&store_slug))
             .first(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|store: Option<Store>| {
                 if let Some(ref store) = store {
                     acl::check_with_rule(
@@ -180,7 +181,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_store = diesel::insert_into(stores).values(&payload);
         query_store
             .get_result::<Store>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|store| acl::check(&*self.acl, Resource::Stores, Action::Create, self, Some(&store)).and_then(|_| Ok(store)))
             .map_err(|e: FailureError| e.context(format!("Create store {:?} error occurred.", payload)).into())
     }
@@ -201,7 +202,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .order(id)
             .limit(count.into())
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|stores_res: Vec<Store>| {
                 for store in &stores_res {
                     acl::check_with_rule(
@@ -239,7 +240,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = stores.filter(id.eq(store_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Store>(self.db_conn).map_err(From::from)
+                query.get_result::<Store>(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -274,7 +275,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|store_res: Option<Store>| {
                 if let Some(store_res) = store_res {
                     acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store_res))?;
@@ -296,7 +297,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|store: Option<Store>| {
                 if let Some(ref store) = store {
                     acl::check_with_rule(
@@ -319,7 +320,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::select(exists(stores.filter(slug.eq(slug_arg.clone())).filter(is_active.eq(true))));
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(move |e: FailureError| e.context(format!("Store slug exists {} error occurred.", slug_arg)).into())
     }
 
@@ -336,7 +337,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 );
                 diesel::dsl::sql::<(diesel::sql_types::Bool)>(&query_str)
                     .get_result(self.db_conn)
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .collect::<RepoResult<Vec<bool>>>();
 
@@ -366,7 +367,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             vendor_code_exists_query
                 .get_result::<bool>(self.db_conn)
                 .map(Some)
-                .map_err(From::from)
+                .map_err(|e| Error::from(e).into())
         }
         .map_err(move |e: FailureError| {
             let msg = format!("Vendor code '{}' exists in store '{}' error occurred.", vendor_code, store_id);
@@ -414,7 +415,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<Store>| {
                 for store in results.iter() {
                     acl::check_with_rule(
@@ -433,7 +434,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         stores: results,
                         total_count: total_count as u32,
                     })
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -450,7 +451,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|s: Store| {
                 acl::check_with_rule(
                     &*self.acl,
@@ -465,7 +466,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = stores.filter(id.eq(store_id_arg));
                 let query = diesel::update(filter).set(status.eq(status_arg));
 
-                query.get_result(self.db_conn).map_err(From::from)
+                query.get_result(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Set moderation status for store {:?} error occurred", store_id_arg))

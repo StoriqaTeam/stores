@@ -4,6 +4,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 
 use stq_types::{BaseProductId, CustomAttributeId, UserId};
@@ -55,7 +56,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = custom_attributes.filter(base_product_id.eq(base_product_id_arg)).order(id);
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|custom_attributes_res: Vec<CustomAttribute>| {
                 for custom_attribute in &custom_attributes_res {
                     acl::check(&*self.acl, Resource::CustomAttributes, Action::Read, self, Some(&custom_attribute))?;
@@ -77,7 +78,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_custom_attribute = diesel::insert_into(custom_attributes).values(&payload);
         query_custom_attribute
             .get_result::<CustomAttribute>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|custom_attribute| {
                 acl::check(
                     &*self.acl,
@@ -101,7 +102,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|attributes_vec: Vec<CustomAttribute>| {
                 for attribute in &attributes_vec {
                     acl::check(&*self.acl, Resource::CustomAttributes, Action::Read, self, Some(&attribute))?;
@@ -118,7 +119,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|attribute: Option<CustomAttribute>| {
                 if let Some(attribute) = attribute.clone() {
                     acl::check(&*self.acl, Resource::CustomAttributes, Action::Read, self, Some(&attribute))?;
@@ -135,7 +136,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::delete(filtered);
         query
             .get_result::<CustomAttribute>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|custom_attribute| {
                 acl::check(
                     &*self.acl,

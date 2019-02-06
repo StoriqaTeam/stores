@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_types::Bool;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 
 use stq_types::{CouponCode, CouponId, StoreId, UserId};
@@ -67,7 +68,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::insert_into(Coupons::coupons).values(&payload);
         query
             .get_result::<Coupon>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value| {
                 acl::check(&*self.acl, Resource::Coupons, Action::Create, self, Some(&value))?;
 
@@ -83,7 +84,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|values: Vec<Coupon>| {
                 for value in &values {
                     acl::check(&*self.acl, Resource::Coupons, Action::Read, self, Some(&value))?;
@@ -101,7 +102,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value: Option<Coupon>| {
                 if let Some(value) = value.clone() {
                     acl::check(&*self.acl, Resource::Coupons, Action::Read, self, Some(&value))?;
@@ -121,7 +122,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value: Option<Coupon>| {
                 if let Some(value) = value.as_ref() {
                     acl::check(&*self.acl, Resource::Coupons, Action::Read, self, Some(value))?;
@@ -150,7 +151,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|values: Vec<Coupon>| {
                 for value in &values {
                     acl::check(&*self.acl, Resource::Coupons, Action::Read, self, Some(&value))?;
@@ -168,13 +169,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value| acl::check(&*self.acl, Resource::Coupons, Action::Update, self, Some(&value)))
             .and_then(|_| {
                 let filtered = Coupons::coupons.filter(Coupons::id.eq(&id_arg));
                 let query = diesel::update(filtered).set(&payload);
 
-                query.get_result::<Coupon>(self.db_conn).map_err(From::from)
+                query.get_result::<Coupon>(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -192,13 +193,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value| acl::check(&*self.acl, Resource::Coupons, Action::Delete, self, Some(&value)))
             .and_then(|_| {
                 let filtered = Coupons::coupons.filter(Coupons::id.eq(&id_arg));
                 let query = diesel::delete(filtered);
 
-                query.get_result::<Coupon>(self.db_conn).map_err(From::from)
+                query.get_result::<Coupon>(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| e.context(format!("Delete coupon: {:?} error occurred", id_arg)).into())
     }

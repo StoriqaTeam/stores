@@ -4,6 +4,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 
 use stq_types::{BaseProductId, CouponId, UserId};
@@ -49,7 +50,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::insert_into(DslCouponScope::coupon_scope_base_products).values(&payload);
         query
             .get_result::<CouponScopeBaseProducts>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value| {
                 acl::check(&*self.acl, Resource::CouponScopeBaseProducts, Action::Create, self, Some(&value))?;
 
@@ -69,7 +70,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|values: Vec<CouponScopeBaseProducts>| {
                 let mut results = vec![];
 
@@ -96,7 +97,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_result::<CouponScopeBaseProducts>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(|e: FailureError| {
                 e.context(format!(
                     "Delete record coupon scope for base product, coupon_id: {} and base_product_id: {} error occurred",

@@ -5,6 +5,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 use std::sync::Arc;
 use stq_cache::cache::Cache;
@@ -74,7 +75,7 @@ where
             query
                 .get_result(self.db_conn)
                 .optional()
-                .map_err(From::from)
+                .map_err(|e| Error::from(e).into())
                 .and_then(|attribute: Option<Attribute>| {
                     if let Some(attribute) = attribute.clone() {
                         acl::check(&*self.acl, Resource::Attributes, Action::Read, self, Some(&attribute))?;
@@ -93,7 +94,7 @@ where
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|attributes_vec: Vec<Attribute>| {
                 for attribute in &attributes_vec {
                     acl::check(&*self.acl, Resource::Attributes, Action::Read, self, Some(&attribute))?;
@@ -109,7 +110,7 @@ where
         let query_attribute = diesel::insert_into(attributes).values(&payload);
         query_attribute
             .get_result::<Attribute>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|attribute| {
                 acl::check(&*self.acl, Resource::Attributes, Action::Create, self, Some(&attribute)).and_then(|_| {
                     self.cache.set(attribute.id, attribute.clone());
@@ -126,13 +127,13 @@ where
 
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|attribute| acl::check(&*self.acl, Resource::Attributes, Action::Update, self, Some(&attribute)))
             .and_then(|_| {
                 self.cache.remove(attribute_id_arg);
                 let filter = attributes.filter(id.eq(attribute_id_arg));
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<Attribute>(self.db_conn).map_err(From::from)
+                query.get_result::<Attribute>(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(

@@ -1,6 +1,8 @@
+use diesel::result::{DatabaseErrorKind, Error as DieselError};
+use failure::Fail;
 use hyper::StatusCode;
 use serde_json;
-use validator::ValidationErrors;
+use validator::{ValidationError, ValidationErrors};
 
 use stq_http::errors::{Codeable, PayloadCarrier};
 
@@ -18,6 +20,8 @@ pub enum Error {
     Connection,
     #[fail(display = "Elastic search error")]
     ElasticSearch,
+    #[fail(display = "service error - internal")]
+    Internal,
 }
 
 impl Codeable for Error {
@@ -26,7 +30,7 @@ impl Codeable for Error {
             Error::NotFound => StatusCode::NotFound,
             Error::Validate(_) => StatusCode::BadRequest,
             Error::Parse => StatusCode::UnprocessableEntity,
-            Error::Connection | Error::ElasticSearch => StatusCode::InternalServerError,
+            Error::Connection | Error::ElasticSearch | Error::Internal => StatusCode::InternalServerError,
             Error::Forbidden => StatusCode::Forbidden,
         }
     }
@@ -37,6 +41,23 @@ impl PayloadCarrier for Error {
         match *self {
             Error::Validate(ref e) => serde_json::to_value(e.clone()).ok(),
             _ => None,
+        }
+    }
+}
+
+impl<'a> From<DieselError> for Error {
+    fn from(e: DieselError) -> Self {
+        match e {
+            DieselError::DatabaseError(DatabaseErrorKind::UniqueViolation, ref info) => {
+                let mut errors = ValidationErrors::new();
+                let mut error = ValidationError::new("not_unique");
+                let message: &str = info.message();
+                error.add_param("message".into(), &message);
+                errors.add("repo", error);
+                Error::Validate(errors)
+            }
+            DieselError::NotFound => Error::NotFound,
+            _ => Error::Internal,
         }
     }
 }

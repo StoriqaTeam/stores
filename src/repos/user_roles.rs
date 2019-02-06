@@ -10,6 +10,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 use std::sync::Arc;
 use stq_cache::cache::Cache;
@@ -84,7 +85,7 @@ where
             let query = user_roles.filter(user_id.eq(user_id_value));
             query
                 .get_results::<UserRole>(self.db_conn)
-                .map_err(From::from)
+                .map_err(|e| Error::from(e).into())
                 .and_then(|user_roles_arg: Vec<UserRole>| {
                     for user_role_arg in &user_roles_arg {
                         acl::check(&*self.acl, Resource::UserRoles, Action::Read, self, Some(&user_role_arg))?;
@@ -114,7 +115,7 @@ where
         let query = diesel::insert_into(user_roles).values(&payload);
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|user_role_arg: UserRole| {
                 acl::check(&*self.acl, Resource::UserRoles, Action::Create, self, Some(&user_role_arg))?;
                 Ok(user_role_arg)
@@ -128,7 +129,7 @@ where
         let query = diesel::delete(filtered);
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|user_role_arg: UserRole| {
                 acl::check(&*self.acl, Resource::UserRoles, Action::Delete, self, Some(&user_role_arg))?;
                 Ok(user_role_arg)
@@ -147,7 +148,7 @@ where
         let query = diesel::delete(filtered);
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|user_roles_arg: Vec<UserRole>| {
                 for user_role_arg in &user_roles_arg {
                     acl::check(&*self.acl, Resource::UserRoles, Action::Delete, self, Some(&user_role_arg))?;
@@ -164,7 +165,7 @@ where
         let query = diesel::delete(filtered);
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|user_role_arg| {
                 acl::check(&*self.acl, Resource::UserRoles, Action::Delete, self, Some(&user_role_arg))?;
                 Ok(user_role_arg)
@@ -181,7 +182,7 @@ where
         let query = user_roles.filter(name.eq(&role_name));
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<UserRole>| {
                 for user_role in results.iter() {
                     acl::check(&*self.acl, Resource::UserRoles, Action::Read, self, Some(&user_role))?;

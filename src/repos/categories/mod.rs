@@ -1,6 +1,7 @@
 //! Repos contains all info about working with categories
 use std::collections::HashMap;
 use std::hash::BuildHasher;
+use std::sync::Arc;
 
 use diesel;
 use diesel::connection::AnsiTransactionManager;
@@ -8,8 +9,9 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
-use std::sync::Arc;
+
 use stq_cache::cache::CacheSingle;
 use stq_static_resources::ModerationStatus;
 use stq_types::{AttributeId, CategoryId, CategorySlug, UserId};
@@ -134,7 +136,7 @@ where
             categories
                 .find(payload.parent_id)
                 .get_result::<RawCategory>(self.db_conn)
-                .map_err(From::from)
+                .map_err(|e| Error::from(e).into())
                 .and_then(|cat| get_child_category_level(cat.into()))
         };
 
@@ -155,7 +157,7 @@ where
                     .values(&new_cat)
                     .get_result::<RawCategory>(self.db_conn)
                     .map(|created_category| created_category.into())
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .and_then(|category| {
                 acl::check(&*self.acl, Resource::Categories, Action::Create, self, Some(&category)).and_then(|_| Ok(category))
@@ -171,17 +173,17 @@ where
         let query = categories.find(category_id_arg);
         query
             .get_result::<RawCategory>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|_| acl::check(&*self.acl, Resource::Categories, Action::Update, self, None))
             .and_then(|_| {
                 let filter = categories.filter(id.eq(category_id_arg));
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<RawCategory>(self.db_conn).map_err(From::from)
+                query.get_result::<RawCategory>(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .and_then(|updated_category| {
                 categories
                     .load::<RawCategory>(self.db_conn)
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
                     .map(|cats| (updated_category, cats))
             })
             .map(|(updated_category, cats)| {
@@ -208,7 +210,7 @@ where
         categories
             .filter(id.eq_any(category_ids_arg))
             .load::<RawCategory>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|raw_cats| {
                 raw_cats
                     .into_iter()
@@ -230,7 +232,7 @@ where
                 categories
                     .filter(is_active.eq(true))
                     .load::<RawCategory>(self.db_conn)
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| e.context("Get raw categories error occurred").into())
     }

@@ -5,6 +5,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 
 use stq_types::{StoreId, UserId};
@@ -49,7 +50,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|comment: Option<ModeratorStoreComments>| {
                 if let Some(ref comment) = comment {
                     acl::check(&*self.acl, Resource::ModeratorStoreComments, Action::Read, self, Some(comment))?;
@@ -65,7 +66,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_store = diesel::insert_into(moderator_store_comments).values(&payload);
         query_store
             .get_result::<ModeratorStoreComments>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|comment| {
                 acl::check(&*self.acl, Resource::ModeratorStoreComments, Action::Create, self, None)?;
                 Ok(comment)

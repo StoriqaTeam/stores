@@ -10,6 +10,7 @@ use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_types::{Bool, VarChar};
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 use failure::Fail;
 
@@ -150,7 +151,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(From::from)
+        query.get_result::<Ty>(self.db_conn).map_err(|e| Error::from(e).into())
     }
 }
 
@@ -174,7 +175,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         };
 
         acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, None)
-            .and_then(|_| query.count().get_result(self.db_conn).map_err(From::from))
+            .and_then(|_| query.count().get_result(self.db_conn).map_err(|e| Error::from(e).into()))
             .map_err(|e| FailureError::from(e).context("Count base products error occurred").into())
     }
 
@@ -203,7 +204,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .first::<BaseProductRaw>(self.db_conn)
             .map(BaseProduct::from)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|base_product: Option<BaseProduct>| {
                 if let Some(ref base_product) = base_product {
                     acl::check_with_rule(
@@ -254,7 +255,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .first::<BaseProductRaw>(self.db_conn)
             .map(BaseProduct::from)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|base_product: Option<BaseProduct>| {
                 if let Some(ref base_product) = base_product {
                     acl::check_with_rule(
@@ -283,7 +284,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<BaseProduct>| {
                 for base_product in results.iter() {
                     acl::check_with_rule(
@@ -315,7 +316,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .first::<BaseProductRaw>(self.db_conn)
             .map(BaseProduct::from)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(|e: FailureError| {
                 e.context(format!(
                     "Find base product by id: {}, filters = {:?} error occurred",
@@ -335,7 +336,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .filter(query)
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<BaseProduct>| {
                 for result in results.iter() {
                     acl::check(&*self.acl, Resource::BaseProducts, Action::Read, self, Some(result))?;
@@ -380,7 +381,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query_base_product
             .get_result::<BaseProductRaw>(self.db_conn)
             .map(BaseProduct::from)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|base_prod| {
                 acl::check(&*self.acl, Resource::BaseProducts, Action::Create, self, Some(&base_prod)).and_then(|_| Ok(base_prod))
             })
@@ -412,7 +413,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .limit(count.into())
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
                     acl::check_with_rule(
@@ -472,7 +473,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
                     acl::check_with_rule(
@@ -518,7 +519,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query
                     .get_result::<BaseProductRaw>(self.db_conn)
                     .map(BaseProduct::from)
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -541,7 +542,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<BaseProductRaw>(self.db_conn)
             .map(BaseProduct::from)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(|e: FailureError| {
                 e.context(format!("Updating views of base product with id {} failed", base_product_id_arg))
                     .into()
@@ -561,7 +562,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .get_result::<BaseProductRaw>(self.db_conn)
             .map(BaseProduct::from)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(|e: FailureError| {
                 e.context(format!("Updating views of base product with slug {} failed", base_product_slug))
                     .into()
@@ -594,7 +595,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<BaseProduct>| {
                 for base_product in &results {
                     acl::check(&*self.acl, Resource::BaseProducts, Action::Delete, self, Some(base_product))?;
@@ -608,7 +609,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query_update
                     .get_results::<BaseProductRaw>(self.db_conn)
                     .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Deactivate base products by store_id {} failed", store_id_arg))
@@ -622,7 +623,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::select(exists(base_products.filter(slug.eq(slug_arg.clone()))));
         query
             .get_result(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(move |e: FailureError| e.context(format!("Check if store slug {} exists failed", slug_arg)).into())
     }
 
@@ -853,7 +854,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|base_products_res: Vec<BaseProduct>| {
                 for base_product in &base_products_res {
                     acl::check_with_rule(
@@ -872,7 +873,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                         base_products: base_products_res,
                         total_count: total_count as u32,
                     })
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -890,7 +891,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|bs: Vec<BaseProduct>| {
                 for base in &bs {
                     acl::check_with_rule(
@@ -911,7 +912,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query
                     .get_results::<BaseProductRaw>(self.db_conn)
                     .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -948,7 +949,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<BaseProduct>| {
                 let ids = results.into_iter().map(|p| p.id).collect();
 
@@ -991,7 +992,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_results::<BaseProductRaw>(self.db_conn)
             .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|bs: Vec<BaseProduct>| {
                 for base in &bs {
                     acl::check_with_rule(
@@ -1018,7 +1019,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 query
                     .get_results::<BaseProductRaw>(self.db_conn)
                     .map(|raw_base_products| raw_base_products.into_iter().map(BaseProduct::from).collect::<Vec<_>>())
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| e.context("Replace category in base products error occurred").into())
     }
@@ -1032,13 +1033,13 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .filter(status.eq(ModerationStatus::Published))
             .order(id)
             .get_results::<BaseProductRaw>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(|e: FailureError| e.context("Getting all base products with variants."))?;
 
         let all_products = RawProduct::belonging_to(&all_base_products)
             .filter(Products::is_active.eq(true))
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(|e: FailureError| e.context("Getting all variants."))?
             .grouped_by(&all_base_products);
 
@@ -1055,7 +1056,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
                 query
                     .get_results::<(ProdAttr, Attribute)>(self.db_conn)
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
                     .and_then(|attributes| {
                         let mut variants_attributes = vec![];
                         for variant in variants {

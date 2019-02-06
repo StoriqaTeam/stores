@@ -4,7 +4,9 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
+
 use failure::Fail;
 use std::sync::Arc;
 use stq_cache::cache::CacheSingle;
@@ -67,7 +69,7 @@ where
         let query = cat_attr_values.filter(cat_id.eq(category_id_arg)).order(id);
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
             })
@@ -79,7 +81,7 @@ where
         let query = cat_attr_values.filter(attr_id.eq(attribute_id_arg)).order(id);
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|cat_attrs_res: Vec<CatAttr>| {
                 acl::check(&*self.acl, Resource::CategoryAttrs, Action::Read, self, None).and_then(|_| Ok(cat_attrs_res.clone()))
             })
@@ -124,7 +126,7 @@ where
         cat_attr_values
             .filter(cat_id.eq_any(category_ids_arg))
             .load::<CatAttr>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|cat_attrs| {
                 cat_attrs
                     .into_iter()

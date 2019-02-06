@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::sql_types::Bool;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 
 use stq_types::{CouponId, UserId};
@@ -61,7 +62,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query = diesel::insert_into(DslUsedCoupons::used_coupons).values(&payload);
         query
             .get_result::<UsedCoupon>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value| {
                 acl::check(&*self.acl, Resource::UsedCoupons, Action::Create, self, Some(&value))?;
 
@@ -80,7 +81,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|values: Vec<UsedCoupon>| {
                 for value in &values {
                     acl::check(&*self.acl, Resource::UsedCoupons, Action::Read, self, Some(&value))?;
@@ -104,7 +105,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|values: Vec<UsedCoupon>| {
                 for value in &values {
                     acl::check(&*self.acl, Resource::UsedCoupons, Action::Read, self, Some(&value))?;
@@ -128,7 +129,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|value: Option<UsedCoupon>| match value {
                 Some(_) => Ok(true),
                 None => Ok(false),
@@ -153,7 +154,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_result::<UsedCoupon>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .map_err(|e: FailureError| {
                 e.context(format!(
                     "Delete used coupon: by coupon_id: {} and user_id: {} error occurred",

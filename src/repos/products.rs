@@ -5,6 +5,7 @@ use diesel::prelude::*;
 use diesel::query_dsl::LoadQuery;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 
 use stq_static_resources::Currency;
@@ -72,7 +73,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     }
 
     fn execute_query<Ty: Send + 'static, U: LoadQuery<T, Ty> + Send + 'static>(&self, query: U) -> RepoResult<Ty> {
-        query.get_result::<Ty>(self.db_conn).map_err(From::from)
+        query.get_result::<Ty>(self.db_conn).map_err(|e| Error::from(e).into())
     }
 }
 
@@ -85,7 +86,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|product: Option<RawProduct>| {
                 if let Some(ref product) = product {
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(product))?;
@@ -107,7 +108,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result(self.db_conn)
             .optional()
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|product: Option<RawProduct>| {
                 if let Some(ref product) = product {
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(product))?;
@@ -127,7 +128,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|products_res: Vec<RawProduct>| {
                 for product in &products_res {
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
@@ -143,7 +144,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let query_product = diesel::insert_into(products).values(&payload);
         query_product
             .get_result::<RawProduct>(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|prod| acl::check(&*self.acl, Resource::Products, Action::Create, self, Some(&prod)).and_then(|_| Ok(prod)))
             .map_err(|e: FailureError| e.context(format!("Create products {:?} error occurred.", payload)).into())
     }
@@ -159,7 +160,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|products_res: Vec<RawProduct>| {
                 for product in &products_res {
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
@@ -182,7 +183,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|products_res: Vec<RawProduct>| {
                 for product in &products_res {
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
@@ -206,7 +207,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|products_res: Vec<RawProduct>| {
                 for product in &products_res {
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
@@ -225,7 +226,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 let filter = products.filter(id.eq(product_id_arg)).filter(is_active.eq(true));
 
                 let query = diesel::update(filter).set(&payload);
-                query.get_result::<RawProduct>(self.db_conn).map_err(From::from)
+                query.get_result::<RawProduct>(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -260,7 +261,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|results: Vec<RawProduct>| {
                 for product in &results {
                     acl::check(&*self.acl, Resource::Products, Action::Delete, self, Some(product))?;
@@ -271,7 +272,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .and_then(|_| {
                 let filtered = products.filter(base_product_id.eq(base_product_id_arg)).filter(is_active.eq(true));
                 let query_update = diesel::update(filtered).set(is_active.eq(false));
-                query_update.get_results(self.db_conn).map_err(From::from)
+                query_update.get_results(self.db_conn).map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Deactivate products by base_product_id {} failed", base_product_id_arg))
@@ -290,7 +291,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
 
         query
             .get_results(self.db_conn)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|products_res: Vec<RawProduct>| {
                 for product in &products_res {
                     acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
@@ -303,7 +304,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     .filter(is_active.eq(true))
                     .set(currency.eq(currency_arg))
                     .execute(self.db_conn)
-                    .map_err(From::from)
+                    .map_err(|e| Error::from(e).into())
             })
             .map_err(|e: FailureError| {
                 e.context(format!(

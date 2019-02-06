@@ -6,6 +6,7 @@ use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_dsl::RunQueryDsl;
 use diesel::Connection;
+use errors::Error;
 use failure::Error as FailureError;
 
 use stq_static_resources::Currency;
@@ -53,7 +54,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             .first(self.db_conn)
             .optional()
             .map(|v: Option<DbCurrencyExchange>| v.map(CurrencyExchange::from))
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|currency_exchange_arg: Option<CurrencyExchange>| {
                 if let Some(ref currency_exchange_arg) = currency_exchange_arg {
                     acl::check(
@@ -83,7 +84,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         query
             .get_result::<DbCurrencyExchange>(self.db_conn)
             .map(CurrencyExchange::from)
-            .map_err(From::from)
+            .map_err(|e| Error::from(e).into())
             .and_then(|currency_exchange_arg| {
                 acl::check(
                     &*self.acl,

@@ -104,6 +104,42 @@ where
             },
         ))
     }
+
+    pub fn update_level(&self, category: &mut Category) -> RepoResult<()> {
+        let mut current_level = match category.parent_id {
+            None => 1,
+            Some(parent_id_arg) => self.find(parent_id_arg)?.map(|parent| parent.level + 1).unwrap_or(1),
+        };
+        let mut categories_vec = vec![category];
+        let mut categories_update = vec![];
+
+        loop {
+            let mut children: Vec<&mut Category> = vec![];
+            for cat in categories_vec {
+                cat.level = current_level;
+                children.append(&mut cat.children.iter_mut().collect());
+                categories_update.push((cat.id, current_level));
+            }
+
+            if children.len() == 0 {
+                break;
+            } else {
+                current_level += 1;
+                categories_vec = children;
+            }
+        }
+
+        self.db_conn.transaction(|| {
+            for (id_arg, level_arg) in categories_update {
+                diesel::update(categories)
+                    .set(level.eq(level_arg))
+                    .filter(id.eq(id_arg))
+                    .execute(self.db_conn)?;
+            }
+
+            Ok(())
+        })
+    }
 }
 
 impl<'a, C, T> CategoriesRepo for CategoriesRepoImpl<'a, C, T>
@@ -186,12 +222,13 @@ where
                     .map_err(|e| Error::from(e).into())
                     .map(|cats| (updated_category, cats))
             })
-            .map(|(updated_category, cats)| {
+            .and_then(|(updated_category, cats)| {
                 let id_arg = updated_category.id;
                 let mut result: Category = updated_category.into();
                 let children = create_tree(&cats, Some(id_arg));
                 result.children = children;
-                result
+                self.update_level(&mut result)?;
+                Ok(result)
             })
             .map_err(|e: FailureError| {
                 e.context(format!(
@@ -324,9 +361,9 @@ fn create_tree(cats: &[RawCategory], parent_id_arg: Option<CategoryId>) -> Vec<C
     let mut branch = vec![];
     for cat in cats {
         if cat.parent_id == parent_id_arg {
-            let childs = create_tree(cats, Some(cat.id));
+            let children = create_tree(cats, Some(cat.id));
             let mut cat_tree: Category = cat.into();
-            cat_tree.children = childs;
+            cat_tree.children = children;
             branch.push(cat_tree);
         }
     }

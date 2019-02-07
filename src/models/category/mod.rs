@@ -76,7 +76,7 @@ pub struct NewCategory {
 }
 
 /// Payload for updating categories
-#[derive(Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
+#[derive(Default, Serialize, Deserialize, Insertable, AsChangeset, Validate, Debug)]
 #[table_name = "categories"]
 pub struct UpdateCategory {
     #[validate(custom = "validate_translation")]

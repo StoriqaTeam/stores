@@ -20,7 +20,9 @@ use repos::clear_child_categories;
 use repos::get_all_children_till_the_end;
 use repos::get_parent_category;
 use repos::remove_unused_categories;
-use repos::{BaseProductsRepo, BaseProductsSearchTerms, CategoriesRepo, RepoResult, ReposFactory, StoresRepo};
+use repos::{
+    BaseProductsRepo, BaseProductsSearchTerms, CategoriesRepo, ProductAttrsRepo, ProductsRepo, RepoResult, ReposFactory, StoresRepo,
+};
 use services::create_product_attributes_values;
 use services::products::calculate_customer_price;
 use services::Service;
@@ -707,6 +709,7 @@ impl<
             let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
             let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
             let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+            let product_attrs_repo = repo_factory.create_product_attrs_repo(&*conn, user_id);
             conn.transaction::<BaseProduct, FailureError, _>(move || {
                 let old_prod = base_products_repo.find(base_product_id, Visibility::Active)?;
                 if let Some(old_prod) = old_prod {
@@ -715,6 +718,7 @@ impl<
                     let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
                     if let Some(new_cat_id) = payload.category_id {
                         // updating product categories of the store
+                        let _ = after_base_product_category_update(&*products_repo, &*product_attrs_repo, base_product_id);
                         let _ = update_product_categories(&*stores_repo, old_prod.store_id, old_prod.category_id, new_cat_id)?;
                     }
 
@@ -1158,6 +1162,21 @@ impl<
             Ok(check_can_update_by_status(current_status))
         })
     }
+}
+
+fn after_base_product_category_update(
+    products_repo: &ProductsRepo,
+    product_attrs_repo: &ProductAttrsRepo,
+    base_prod_id: BaseProductId,
+) -> Result<(), FailureError> {
+    product_attrs_repo.delete_by_base_product_id(base_prod_id)?;
+    let mut all_products = products_repo.find_with_base_id(base_prod_id)?;
+    all_products.sort_by_key(|p| p.created_at);
+    //delete all except the first one
+    for product in all_products.iter().skip(1) {
+        products_repo.deactivate(product.id)?;
+    }
+    Ok(())
 }
 
 fn validate_base_product(base_products_repo: &BaseProductsRepo, payload: &NewBaseProduct) -> Result<(), FailureError> {

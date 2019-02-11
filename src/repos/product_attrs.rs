@@ -58,6 +58,9 @@ pub trait ProductAttrsRepo {
 
     /// Delete attribute values by base_product ID and attribute ID
     fn delete_by_attribute_id(&self, base_product_id: BaseProductId, attr_id: AttributeId) -> RepoResult<()>;
+
+    /// Delete attribute values by base_product ID
+    fn delete_by_base_product_id(&self, base_product_id: BaseProductId) -> RepoResult<()>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> ProductAttrsRepoImpl<'a, T> {
@@ -278,6 +281,33 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     base_product_id, attribute_id
                 ))
                 .into()
+            })
+    }
+
+    /// Delete attribute values by base_product ID
+    fn delete_by_base_product_id(&self, base_product_id: BaseProductId) -> RepoResult<()> {
+        debug!("Delete attribute value by base product id {}.", base_product_id);
+
+        let query = prod_attr_values.filter(base_prod_id.eq(base_product_id));
+
+        query
+            .get_results(self.db_conn)
+            .map_err(|e| Error::from(e).into())
+            .and_then(|prod_attrs: Vec<ProdAttr>| {
+                for prod_attr in prod_attrs {
+                    acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
+                }
+                Ok(())
+            })
+            .and_then(|_| {
+                diesel::delete(query)
+                    .execute(self.db_conn)
+                    .map_err(|e| Error::from(e).into())
+                    .map(|_| ())
+            })
+            .map_err(|e: FailureError| {
+                e.context(format!("Delete attribute values with base product id {}", base_product_id))
+                    .into()
             })
     }
 }

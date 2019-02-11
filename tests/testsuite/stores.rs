@@ -37,6 +37,7 @@ fn create_new_store(name: &str, short_description: &str) -> NewStore {
         political: None,
         postal_code: None,
         route: None,
+        saga_id: None,
         street_number: None,
         place_id: None,
         uuid: uuid::Uuid::new_v4(),

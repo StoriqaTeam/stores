@@ -1,0 +1,1 @@
+ALTER TABLE stores ADD COLUMN saga_id UUID UNIQUE;

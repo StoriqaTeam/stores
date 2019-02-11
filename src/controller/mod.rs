@@ -335,6 +335,9 @@ impl<
             // DELETE /stores/:id/delete
             (&Delete, Some(Route::StoreDelete(store_id))) => serialize_future(service.delete(store_id)),
 
+            // DELETE /stores/by_saga_id/:saga_id
+            (&Delete, Some(Route::StoreBySagaId(saga_id))) => serialize_future(service.deactivate_store_by_saga_id(saga_id)),
+
             // Get /stores/by_user_id/<user_id>
             (&Get, Some(Route::StoreByUser(user_id_arg))) => serialize_future(service.get_store_by_user(user_id_arg)),
 

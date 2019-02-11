@@ -1697,6 +1697,12 @@ pub mod tests {
             Ok(store)
         }
 
+        fn deactivate_by_saga_id(&self, saga_id: SagaId) -> RepoResult<Store> {
+            let mut store = create_store(StoreId(1), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
+            store.is_active = false;
+            Ok(store)
+        }
+
         fn delete_by_user(&self, _user_id_arg: UserId) -> RepoResult<Option<Store>> {
             Ok(None)
         }
@@ -1764,6 +1770,7 @@ pub mod tests {
             political: None,
             postal_code: None,
             route: None,
+            saga_id: None,
             street_number: None,
             place_id: None,
             kafka_update_no: 0,
@@ -1796,6 +1803,7 @@ pub mod tests {
             political: None,
             postal_code: None,
             route: None,
+            saga_id: None,
             street_number: None,
             place_id: None,
             uuid: uuid::Uuid::new_v4(),

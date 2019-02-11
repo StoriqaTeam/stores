@@ -205,6 +205,7 @@ table! {
         kafka_update_no -> Int4,
         country_code -> Nullable<Varchar>,
         uuid -> Uuid,
+        saga_id -> Nullable<Uuid>,
     }
 }
 

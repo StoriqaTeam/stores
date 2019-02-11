@@ -14,7 +14,7 @@ use failure::Error as FailureError;
 use failure::Fail;
 
 use stq_static_resources::{ModerationStatus, Translation};
-use stq_types::{StoreId, StoreSlug, UserId};
+use stq_types::{SagaId, StoreId, StoreSlug, UserId};
 
 use models::*;
 use repos::acl;
@@ -51,6 +51,9 @@ pub trait StoresRepo {
 
     /// Deactivates specific store
     fn deactivate(&self, store_id: StoreId) -> RepoResult<Store>;
+
+    /// Deactivates store by saga ID
+    fn deactivate_by_saga_id(&self, saga_id: SagaId) -> RepoResult<Store>;
 
     /// Delete store by user id
     fn delete_by_user(&self, user_id_arg: UserId) -> RepoResult<Option<Store>>;
@@ -263,6 +266,26 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Deactivate store with id {} error occurred.", store_id_arg))
+                    .into()
+            })
+    }
+
+    fn deactivate_by_saga_id(&self, saga_id_arg: SagaId) -> RepoResult<Store> {
+        debug!("Deactivate store with saga ID {}.", saga_id_arg);
+
+        let query = stores.filter(saga_id.eq(saga_id_arg));
+
+        query
+            .get_result(self.db_conn)
+            .map_err(|e| Error::from(e).into())
+            .and_then(|store| {
+                acl::check(&*self.acl, Resource::Stores, Action::Delete, self, Some(&store))?;
+                let filter = stores.filter(saga_id.eq(saga_id_arg));
+                let query = diesel::update(filter).set(is_active.eq(false));
+                self.execute_query(query)
+            })
+            .map_err(|e: FailureError| {
+                e.context(format!("Deactivate store with saga ID {} error occurred.", saga_id_arg))
                     .into()
             })
     }

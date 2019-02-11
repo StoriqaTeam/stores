@@ -6,7 +6,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use stq_static_resources::ModerationStatus;
-use stq_types::{Alpha3, CategoryId, StoreId, UserId};
+use stq_types::{Alpha3, CategoryId, SagaId, StoreId, UserId};
 
 use models::validation_rules::*;
 use models::BaseProductWithVariants;
@@ -49,6 +49,7 @@ pub struct Store {
     pub kafka_update_no: i32,
     pub country_code: Option<Alpha3>,
     pub uuid: Uuid,
+    pub saga_id: Option<SagaId>,
 }
 
 impl Store {
@@ -110,6 +111,7 @@ pub struct NewStore {
     pub place_id: Option<String>,
     pub country_code: Option<Alpha3>,
     pub uuid: Uuid,
+    pub saga_id: Option<SagaId>,
 }
 
 /// Payload for updating users

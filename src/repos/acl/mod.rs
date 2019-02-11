@@ -379,6 +379,7 @@ mod tests {
             political: None,
             postal_code: None,
             route: None,
+            saga_id: None,
             street_number: None,
             place_id: None,
             kafka_update_no: 0,

@@ -80,6 +80,7 @@ pub enum Route {
     StoresSlugExists,
     Store(StoreId),
     StoreDelete(StoreId),
+    StoreBySagaId(SagaId),
     StoreBySlug(StoreSlug),
     StoreCount,
     StoreByUser(UserId),
@@ -132,6 +133,13 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .get(0)
             .and_then(|string_id| string_id.parse::<StoreId>().ok())
             .map(Route::StoreDelete)
+    });
+
+    router.add_route_with_params(r"^/stores/by_saga_id/(.+)$", |params| {
+        params
+            .get(0)
+            .and_then(|saga_id| saga_id.parse::<SagaId>().ok())
+            .map(Route::StoreBySagaId)
     });
 
     // Stores/by-slug/:slug route

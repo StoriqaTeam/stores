@@ -8,7 +8,7 @@ use futures::{future, Future};
 use r2d2::ManageConnection;
 
 use stq_static_resources::ModerationStatus;
-use stq_types::{StoreId, StoreSlug, UserId};
+use stq_types::{SagaId, StoreId, StoreSlug, UserId};
 
 use super::types::ServiceFuture;
 use elastic::{StoresElastic, StoresElasticImpl};
@@ -42,6 +42,8 @@ pub trait StoresService {
     fn get_store_products_count(&self, store_id: StoreId, visibility: Option<Visibility>) -> ServiceFuture<i32>;
     /// Deactivates specific store
     fn deactivate_store(&self, store_id: StoreId) -> ServiceFuture<Store>;
+    /// Deactivates store by saga ID
+    fn deactivate_store_by_saga_id(&self, saga_id: SagaId) -> ServiceFuture<Store>;
     /// Get store by user id
     fn get_store_by_user(&self, user_id: UserId) -> ServiceFuture<Option<Store>>;
     /// Deactivates store by user id
@@ -261,6 +263,34 @@ impl<
                     let _wizard_store = wizard_stores_repo.delete(deactive_store.user_id);
 
                     Ok(deactive_store)
+                })
+            }
+            .map_err(|e: FailureError| e.context("Service Stores, deactivate endpoint error occurred.").into())
+        })
+    }
+
+    fn deactivate_store_by_saga_id(&self, saga_id_arg: SagaId) -> ServiceFuture<Store> {
+        let repo_factory = self.static_context.repo_factory.clone();
+        let user_id = self.dynamic_context.user_id;
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let stores_repo = repo_factory.create_stores_repo(&*conn, user_id);
+                let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+                let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                let wizard_stores_repo = repo_factory.create_wizard_stores_repo(&*conn, user_id);
+                conn.transaction::<Store, FailureError, _>(move || {
+                    let store = stores_repo.deactivate_by_saga_id(saga_id_arg)?;
+
+                    let base_products = base_products_repo.deactivate_by_store(store.id)?;
+
+                    for base_product in &base_products {
+                        products_repo.deactivate_by_base_product(base_product.id)?;
+                    }
+
+                    let _wizard_store = wizard_stores_repo.delete(store.user_id);
+
+                    Ok(store)
                 })
             }
             .map_err(|e: FailureError| e.context("Service Stores, deactivate endpoint error occurred.").into())
@@ -656,6 +686,7 @@ pub mod tests {
             political: None,
             postal_code: None,
             route: None,
+            saga_id: None,
             street_number: None,
             place_id: None,
             uuid: Uuid::new_v4(),

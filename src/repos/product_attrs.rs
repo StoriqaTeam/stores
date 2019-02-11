@@ -288,9 +288,8 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
     fn delete_by_base_product_id(&self, base_product_id: BaseProductId) -> RepoResult<()> {
         debug!("Delete attribute value by base product id {}.", base_product_id);
 
-        let filtered = prod_attr_values.filter(base_prod_id.eq(base_product_id));
+        let query = prod_attr_values.filter(base_prod_id.eq(base_product_id));
 
-        let query = diesel::delete(filtered);
         query
             .get_results(self.db_conn)
             .map_err(|e| Error::from(e).into())
@@ -299,6 +298,12 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                     acl::check(&*self.acl, Resource::ProductAttrs, Action::Delete, self, Some(&prod_attr))?;
                 }
                 Ok(())
+            })
+            .and_then(|_| {
+                diesel::delete(query)
+                    .execute(self.db_conn)
+                    .map_err(|e| Error::from(e).into())
+                    .map(|_| ())
             })
             .map_err(|e: FailureError| {
                 e.context(format!("Delete attribute values with base product id {}", base_product_id))

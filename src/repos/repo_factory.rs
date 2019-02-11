@@ -1565,6 +1565,10 @@ pub mod tests {
         fn delete_by_attribute_id(&self, _base_product_id: BaseProductId, _attr_id: AttributeId) -> RepoResult<()> {
             Ok(())
         }
+
+        fn delete_by_base_product_id(&self, _base_product_id: BaseProductId) -> RepoResult<()> {
+            Ok(())
+        }
     }
 
     #[derive(Clone, Default)]

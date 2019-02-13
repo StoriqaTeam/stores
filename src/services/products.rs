@@ -1,5 +1,5 @@
 //! Products Services, presents CRUD operations with product
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use diesel::connection::AnsiTransactionManager;
 use diesel::pg::Pg;
@@ -16,7 +16,7 @@ use errors::Error;
 use models::*;
 use repos::{
     AttributeValuesRepo, AttributesRepo, BaseProductsSearchTerms, CurrencyExchangeRepo, CustomAttributesRepo, ProductAttrsRepo,
-    ProductFilters, RepoResult, ReposFactory, StoresRepo,
+    ProductFilters, ProductsRepo, RepoResult, ReposFactory, StoresRepo,
 };
 use services::check_can_update_by_status;
 use services::Service;
@@ -238,6 +238,7 @@ impl<
                 let result_product: Product = products_repo.create((product, base_product.currency).into())?.into();
 
                 create_product_attributes_values(
+                    &*products_repo,
                     &*prod_attr_repo,
                     &*attr_repo,
                     &*custom_attributes_repo,
@@ -294,6 +295,7 @@ impl<
 
                 if let Some(attributes) = payload.attributes {
                     create_product_attributes_values(
+                        &*products_repo,
                         &*prod_attr_repo,
                         &*attr_repo,
                         &*custom_attributes_repo,
@@ -470,6 +472,7 @@ pub fn calculate_customer_price(
 }
 
 pub fn create_product_attributes_values(
+    products_repo: &ProductsRepo,
     prod_attr_repo: &ProductAttrsRepo,
     attr_repo: &AttributesRepo,
     custom_attributes_repo: &CustomAttributesRepo,
@@ -482,6 +485,7 @@ pub fn create_product_attributes_values(
     prod_attr_repo.delete_all_attributes(product_arg.id)?;
     let attribute_values = fill_attr_value(attribute_values_repo, attribute_values)?;
     check_products_attribute_values_are_unique(prod_attr_repo, custom_attributes_repo, base_product_arg, attribute_values.clone())?;
+    update_custom_attributes(products_repo, custom_attributes_repo, base_product_arg, attribute_values.clone())?;
 
     for attr_value in attribute_values {
         let attr = attr_repo.find(attr_value.attr_id)?;
@@ -560,6 +564,38 @@ fn check_products_attribute_values_are_unique(
     } else {
         Ok(())
     }
+}
+
+fn update_custom_attributes(
+    products_repo: &ProductsRepo,
+    custom_attributes_repo: &CustomAttributesRepo,
+    base_product_id: BaseProductId,
+    new_product_attributes: Vec<AttrValue>,
+) -> Result<(), FailureError> {
+    let all_custom_attributes = custom_attributes_repo.find_all_attributes(base_product_id)?;
+    let old_custom_attributes: HashSet<AttributeId> = all_custom_attributes.iter().map(|ca| ca.attribute_id).collect();
+    let new_custom_attributes: HashSet<AttributeId> = new_product_attributes.iter().map(|ca| ca.attr_id).collect();
+    if old_custom_attributes != new_custom_attributes {
+        let variants_count = products_repo.find_with_base_id(base_product_id)?.len();
+        if variants_count > 1 {
+            return Err(
+                format_err!("Can not update attributes: base product has {} active variants", variants_count)
+                    .context(Error::Validate(
+                        validation_errors!({"attributes": ["attributes" => "Too many variants."]}),
+                    ))
+                    .into(),
+            );
+        } else {
+            custom_attributes_repo.delete_all(base_product_id)?;
+            for new_product_attribute in new_product_attributes {
+                custom_attributes_repo.create(NewCustomAttribute {
+                    base_product_id,
+                    attribute_id: new_product_attribute.attr_id,
+                })?;
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn check_vendor_code(stores_repo: &StoresRepo, store_id: StoreId, vendor_code: &str) -> Result<(), FailureError> {

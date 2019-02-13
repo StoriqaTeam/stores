@@ -718,7 +718,9 @@ impl<
                     let updated_prod = base_products_repo.update(base_product_id, payload.clone())?;
                     if let Some(new_cat_id) = payload.category_id {
                         // updating product categories of the store
-                        let _ = after_base_product_category_update(&*products_repo, &*product_attrs_repo, base_product_id);
+                        if old_prod.category_id != new_cat_id {
+                            let _ = after_base_product_category_update(&*products_repo, &*product_attrs_repo, base_product_id);
+                        }
                         let _ = update_product_categories(&*stores_repo, old_prod.store_id, old_prod.category_id, new_cat_id)?;
                     }
 

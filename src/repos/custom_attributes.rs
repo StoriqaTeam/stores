@@ -39,6 +39,9 @@ pub trait CustomAttributesRepo {
 
     /// Delete custom attribute
     fn delete(&self, id_arg: CustomAttributeId) -> RepoResult<CustomAttribute>;
+
+    /// Delete all custom attributes
+    fn delete_all(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<CustomAttribute>>;
 }
 
 impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager> + 'static> CustomAttributesRepoImpl<'a, T> {
@@ -148,6 +151,39 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 Ok(custom_attribute)
             })
             .map_err(|e: FailureError| e.context(format!("Delete custom attribute: {:?} error occurred", id_arg)).into())
+    }
+
+    /// Delete all custom attributes
+    fn delete_all(&self, base_product_id_arg: BaseProductId) -> RepoResult<Vec<CustomAttribute>> {
+        debug!("Delete all custom attribute base product id {:?}.", base_product_id_arg);
+        let query = custom_attributes.filter(base_product_id.eq(base_product_id_arg));
+        query
+            .get_results(self.db_conn)
+            .map_err(|e| Error::from(e).into())
+            .and_then(|custom_attributes_res: Vec<CustomAttribute>| {
+                for custom_attribute in &custom_attributes_res {
+                    acl::check(
+                        &*self.acl,
+                        Resource::CustomAttributes,
+                        Action::Delete,
+                        self,
+                        Some(&custom_attribute),
+                    )?;
+                }
+                Ok(custom_attributes_res)
+            })
+            .and_then(|_| {
+                diesel::delete(query)
+                    .get_results::<CustomAttribute>(self.db_conn)
+                    .map_err(|e| Error::from(e).into())
+            })
+            .map_err(|e: FailureError| {
+                e.context(format!(
+                    "Delete all custom attributes error occurred for base product {}",
+                    base_product_id_arg
+                ))
+                .into()
+            })
     }
 }
 

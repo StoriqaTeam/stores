@@ -464,6 +464,10 @@ pub mod tests {
                 attribute_id: AttributeId(1),
             })
         }
+
+        fn delete_all(&self, _base_product_id_arg: BaseProductId) -> RepoResult<Vec<CustomAttribute>> {
+            Ok(vec![])
+        }
     }
 
     #[derive(Clone, Default)]
@@ -1697,7 +1701,7 @@ pub mod tests {
             Ok(store)
         }
 
-        fn deactivate_by_saga_id(&self, saga_id: SagaId) -> RepoResult<Store> {
+        fn deactivate_by_saga_id(&self, _saga_id: SagaId) -> RepoResult<Store> {
             let mut store = create_store(StoreId(1), serde_json::from_str(MOCK_STORE_NAME_JSON).unwrap());
             store.is_active = false;
             Ok(store)

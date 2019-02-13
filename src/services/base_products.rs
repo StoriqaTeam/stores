@@ -672,6 +672,7 @@ impl<
                     let product = products_repo.create((variant.product, base_prod.currency).into())?;
                     // create attributes values for variant
                     create_product_attributes_values(
+                        &*products_repo,
                         &*prod_attr_repo,
                         &*attr_repo,
                         &*custom_attributes_repo,

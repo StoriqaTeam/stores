@@ -382,7 +382,7 @@ impl<
                 }
             }
 
-            // Post /base_products/search_by_ids
+            // Post /products/search_by_ids
             (&Post, Some(Route::ProductsByIds)) => serialize_future(
                 parse_body::<GetProducts>(req.body())
                     .map_err(|e| e.context("Parsing body failed, target: GetProducts").context(Error::Parse).into())

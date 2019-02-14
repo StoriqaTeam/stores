@@ -226,3 +226,8 @@ impl ProductWithAttributes {
         Self { product, attributes }
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct GetProducts {
+    pub ids: Vec<ProductId>,
+}

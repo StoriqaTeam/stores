@@ -24,6 +24,8 @@ use services::Service;
 pub trait ProductsService {
     /// Returns product by ID
     fn get_product(&self, product_id: ProductId) -> ServiceFuture<Option<Product>>;
+    /// Returns products by IDs
+    fn get_products(&self, product_ids: Vec<ProductId>) -> ServiceFuture<Vec<Product>>;
     /// Return product by ID
     fn get_product_without_filters(&self, product_id: ProductId) -> ServiceFuture<Option<Product>>;
     /// Returns product seller price by ID
@@ -76,6 +78,31 @@ impl<
                 }
             }
             .map_err(|e: FailureError| e.context("Service Product, get_product endpoint error occurred.").into())
+        })
+    }
+
+    /// Returns products by IDs
+    fn get_products(&self, product_ids: Vec<ProductId>) -> ServiceFuture<Vec<Product>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+        let currency = self.dynamic_context.currency;
+        let fiat_currency = self.dynamic_context.fiat_currency;
+
+        self.spawn_on_pool(move |conn| {
+            {
+                let products_repo = repo_factory.create_product_repo(&*conn, user_id);
+                let currency_exchange = repo_factory.create_currency_exchange_repo(&*conn, user_id);
+                let raw_products = products_repo.find_many(product_ids)?;
+                let products: Result<Vec<_>, _> = raw_products
+                    .into_iter()
+                    .map(|raw_product| {
+                        calculate_product_customer_price(&*currency_exchange, &raw_product, currency, fiat_currency)
+                            .map(|customer_price| Product::new(raw_product, customer_price))
+                    })
+                    .collect();
+                products
+            }
+            .map_err(|e: FailureError| e.context("Service Product, get_products endpoint error occurred.").into())
         })
     }
 

@@ -508,6 +508,17 @@ impl<
                 }
             }
 
+            // Post /base_products/search_by_ids
+            (&Post, Some(Route::BaseProductsByIds)) => serialize_future(
+                parse_body::<GetBaseProducts>(req.body())
+                    .map_err(|e| {
+                        e.context("Parsing body failed, target: GetBaseProducts")
+                            .context(Error::Parse)
+                            .into()
+                    })
+                    .and_then(move |payload| service.get_base_products(payload.ids)),
+            ),
+
             // GET /base_products/count
             (&Get, Some(Route::BaseProductsCount)) => {
                 let visibility = parse_query!(

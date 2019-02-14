@@ -290,3 +290,8 @@ pub struct BaseProductModerate {
 pub struct ServiceUpdateBaseProduct {
     pub store_status: Option<ModerationStatus>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct GetBaseProducts {
+    pub ids: Vec<BaseProductId>,
+}

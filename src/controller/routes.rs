@@ -63,6 +63,7 @@ pub enum Route {
     ModeratorStoreComment(StoreId),
     ModeratorStoreSearch,
     Products,
+    ProductsByIds,
     ProductStoreId,
     Product(ProductId),
     ProductWithoutFilters(ProductId),
@@ -223,6 +224,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Products Routes
     router.add_route(r"^/products$", || Route::Products);
+
+    // Products by ids routes
+    router.add_route(r"^/products/search_by_ids$", || Route::ProductsByIds);
 
     // Product Store Id Routes
     router.add_route(r"^/products/store_id$", || Route::ProductStoreId);

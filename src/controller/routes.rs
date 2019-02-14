@@ -10,6 +10,7 @@ pub enum Route {
     AttributeValue(AttributeValueId),
     AttributeValues(AttributeId),
     BaseProducts,
+    BaseProductsByIds,
     BaseProductsCount,
     BaseProductWithVariants,
     BaseProductsSearch,
@@ -287,6 +288,9 @@ pub fn create_route_parser() -> RouteParser<Route> {
 
     // Base products routes
     router.add_route(r"^/base_products$", || Route::BaseProducts);
+
+    // Base products by ids routes
+    router.add_route(r"^/base_products/search_by_ids$", || Route::BaseProductsByIds);
 
     // Base products/:id route
     router.add_route_with_params(r"^/base_products/(\d+)$", |params| {

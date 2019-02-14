@@ -76,6 +76,9 @@ pub trait BaseProductsService {
     /// Returns product by ID
     fn get_base_product(&self, base_product_id: BaseProductId, visibility: Option<Visibility>) -> ServiceFuture<Option<BaseProduct>>;
 
+    /// Returns products by IDs
+    fn get_base_products(&self, base_product_ids: Vec<BaseProductId>) -> ServiceFuture<Vec<BaseProduct>>;
+
     /// Returns product by ID
     fn get_base_product_without_filters(&self, base_product_id: BaseProductId) -> ServiceFuture<Option<BaseProduct>>;
 
@@ -443,6 +446,20 @@ impl<
             base_products_repo
                 .find(base_product_id, visibility)
                 .map_err(|e| e.context("Service BaseProduct, get_base_product endpoint error occurred.").into())
+        })
+    }
+
+    /// Returns products by IDs
+    fn get_base_products(&self, base_product_ids: Vec<BaseProductId>) -> ServiceFuture<Vec<BaseProduct>> {
+        let user_id = self.dynamic_context.user_id;
+        let repo_factory = self.static_context.repo_factory.clone();
+
+        debug!("Get base products by ids ({})", base_product_ids.len());
+        self.spawn_on_pool(move |conn| {
+            let base_products_repo = repo_factory.create_base_product_repo(&*conn, user_id);
+            base_products_repo
+                .find_many(base_product_ids)
+                .map_err(|e| e.context("Service BaseProduct, get_base_products endpoint error occurred.").into())
         })
     }
 

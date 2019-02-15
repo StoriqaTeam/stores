@@ -7,7 +7,7 @@ use serde_json;
 use treexml::{Document, Element, ElementBuilder, XmlVersion};
 
 use stq_static_resources::{Language, Translation};
-use stq_types::{BaseProductId, StoreId};
+use stq_types::{BaseProductId, ProductId, StoreId};
 
 use errors::Error;
 use models::{Attribute, BaseProduct, ProdAttr, ProductWithAttributes, RawCategory};
@@ -243,7 +243,6 @@ impl RocketRetailProduct {
             .as_ref()
             .and_then(|photo_main| create_photo_url_from_product(photo_main, ImageSize::Medium))
             .unwrap_or_default();
-        let url = create_product_url(cluster, base.store_id, base.id);
 
         Self {
             id: product.id.to_string(),
@@ -251,7 +250,7 @@ impl RocketRetailProduct {
             description: Some(description),
             vendor: Some(store_name),
             model: Some(product.vendor_code),
-            url,
+            url: create_product_url(cluster, base.store_id, base.id, product.id),
             price: product.price.into(),
             category_id: base.category_id.0,
             currency_id: product.currency.code().to_string(),
@@ -262,8 +261,11 @@ impl RocketRetailProduct {
     }
 }
 
-fn create_product_url(cluster: &str, store_id: StoreId, base_product_id: BaseProductId) -> String {
-    format!("https://{}/store/{}/products/{}", cluster, store_id, base_product_id)
+fn create_product_url(cluster: &str, store_id: StoreId, base_product_id: BaseProductId, product_id: ProductId) -> String {
+    format!(
+        "https://{}/store/{}/products/{}/variant/{}",
+        cluster, store_id, base_product_id, product_id
+    )
 }
 
 fn create_photo_url_from_product(photo: &str, image_size: ImageSize) -> Option<String> {

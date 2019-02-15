@@ -43,6 +43,9 @@ pub trait StoresRepo {
     /// Returns list of stores, limited by `from` and `count` parameters
     fn list(&self, from: StoreId, count: i32, visibility: Visibility) -> RepoResult<Vec<Store>>;
 
+    /// Returns list of all stores.
+    fn all(&self, visibility: Visibility) -> RepoResult<Vec<Store>>;
+
     /// Creates new store
     fn create(&self, payload: NewStore) -> RepoResult<Store>;
 
@@ -223,6 +226,35 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Find in stores from {} count {} error occurred.", from, count))
                     .into()
             })
+    }
+
+    fn all(&self, visibility: Visibility) -> RepoResult<Vec<Store>> {
+        debug!("List all stores");
+
+        let query = match visibility {
+            Visibility::Active => stores.filter(is_active.eq(true)).into_boxed(),
+            Visibility::Published => stores
+                .filter(is_active.eq(true).and(status.eq(ModerationStatus::Published)))
+                .into_boxed(),
+        };
+
+        query
+            .get_results(self.db_conn)
+            .map_err(From::from)
+            .and_then(|stores_res: Vec<Store>| {
+                for store in &stores_res {
+                    acl::check_with_rule(
+                        &*self.acl,
+                        Resource::Stores,
+                        Action::Read,
+                        self,
+                        Rule::ModerationStatus(store.status),
+                        Some(store),
+                    )?;
+                }
+                Ok(stores_res.clone())
+            })
+            .map_err(|e: FailureError| e.context(format!("List all stores error occurred.")).into())
     }
 
     /// Updates specific store

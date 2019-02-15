@@ -203,32 +203,32 @@ pub fn start_server<F: FnOnce() + 'static>(config: Config, port: &Option<String>
     .unwrap();
 }
 
-pub fn start_rocket_retail_loader(config: Config) {
-    let mut core = Core::new().expect("Unexpected error creating event loop core");
-    let handle = Arc::new(core.handle());
-
-    let env = loaders::RocketRetailEnvironment::new(config);
-    handle.spawn(create_rocket_retail_loader(env));
-
-    core.run(tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
-        info!("Ctrl+C received. Exit");
-
-        Ok(())
-    }))
-    .unwrap();
-}
-
-fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Future<Item = (), Error = ()> {
-    let loader = loaders::RocketRetailLoader::new(env);
-
-    let stream = loader.start();
-    stream
-        .or_else(|e| {
-            error!("Error in rocket retail loader: {}.", e);
-            futures::future::ok(())
-        })
-        .for_each(|_| futures::future::ok(()))
-}
+//pub fn start_rocket_retail_loader(config: Config) {
+//    let mut core = Core::new().expect("Unexpected error creating event loop core");
+//    let handle = Arc::new(core.handle());
+//
+//    let env = loaders::RocketRetailEnvironment::new(config);
+//    handle.spawn(create_rocket_retail_loader(env));
+//
+//    core.run(tokio_signal::ctrl_c().flatten_stream().take(1u64).for_each(|()| {
+//        info!("Ctrl+C received. Exit");
+//
+//        Ok(())
+//    }))
+//    .unwrap();
+//}
+//
+//fn create_rocket_retail_loader(env: loaders::RocketRetailEnvironment) -> impl Future<Item = (), Error = ()> {
+//    let loader = loaders::RocketRetailLoader::new(env);
+//
+//    let stream = loader.start();
+//    stream
+//        .or_else(|e| {
+//            error!("Error in rocket retail loader: {}.", e);
+//            futures::future::ok(())
+//        })
+//        .for_each(|_| futures::future::ok(()))
+//}
 
 pub fn start_ticker(config: Config) -> impl Future<Item = (), Error = FailureError> {
     let Config { server, ticker, .. } = config;

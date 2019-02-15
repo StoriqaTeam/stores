@@ -4,6 +4,7 @@
 pub mod attribute_values;
 pub mod attributes;
 pub mod base_products;
+pub mod catalogs;
 pub mod categories;
 pub mod coupons;
 pub mod currency_exchange;
@@ -18,6 +19,7 @@ pub mod wizard_stores;
 pub use self::attribute_values::*;
 pub use self::attributes::*;
 pub use self::base_products::*;
+pub use self::catalogs::*;
 pub use self::categories::*;
 pub use self::coupons::*;
 pub use self::currency_exchange::*;

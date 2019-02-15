@@ -1674,6 +1674,10 @@ pub mod tests {
             Ok(stores)
         }
 
+        fn all(&self, visibility: Visibility) -> RepoResult<Vec<Store>> {
+            self.list(StoreId(1), 10, visibility)
+        }
+
         fn create(&self, payload: NewStore) -> RepoResult<Store> {
             let store = create_store(StoreId(1), payload.name);
             Ok(store)
@@ -1880,6 +1884,10 @@ pub mod tests {
                 products.push(product);
             }
             Ok(products)
+        }
+
+        fn list_all(&self) -> RepoResult<Vec<RawProduct>> {
+            self.list(0, 10)
         }
 
         fn create(&self, payload: NewProduct) -> RepoResult<RawProduct> {

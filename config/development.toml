@@ -1,3 +1,4 @@
+# TODO: remove.
 [S3]
 region = "us-east-1"
 bucket = "storiqa-dev"

@@ -19,7 +19,7 @@ name = "stores"
 path = "src/main.rs"
 
 [dependencies]
-chrono = { version = "0.4", features = ["serde"] }
+chrono = "0.4"
 config = { version = "0.9", default-features = false, features = ["toml"] }
 diesel = { version = "1.3.3", features = ["postgres", "extras", "64-column-tables"] }
 failure = "0.1.1"

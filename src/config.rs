@@ -19,6 +19,8 @@ pub struct Config {
     pub client: Client,
     pub graylog: Option<GrayLogConfig>,
     pub sentry: Option<SentryConfig>,
+    pub rocket_retail: Option<RocketRetail>,
+    pub s3: Option<S3>,
     pub ticker: Option<Ticker>,
 }
 
@@ -42,12 +44,30 @@ pub struct Client {
     pub http_timeout_ms: u64,
 }
 
+/// Http client settings
+#[derive(Debug, Deserialize, Clone)]
+pub struct RocketRetail {
+    pub interval_s: usize,
+    pub file_name: String,
+    pub cluster: String,
+    pub thread_count: usize,
+}
+
 /// Ticker settings
 #[derive(Debug, Deserialize, Clone)]
 pub struct Ticker {
     pub api_endpoint_url: String,
     pub interval_s: u64,
     pub thread_count: usize,
+}
+
+/// AWS S3 credentials
+#[derive(Debug, Deserialize, Clone)]
+pub struct S3 {
+    pub key: String,
+    pub secret: String,
+    pub region: String,
+    pub bucket: String,
 }
 
 /// Creates new app config struct

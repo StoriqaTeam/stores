@@ -45,9 +45,6 @@ pub trait ProductsRepo {
     /// Returns list of products, limited by `from` and `count` parameters
     fn list(&self, from: i32, count: i32) -> RepoResult<Vec<RawProduct>>;
 
-    /// Returns list of products
-    fn list_all(&self) -> RepoResult<Vec<RawProduct>>;
-
     /// Returns list of products with base id
     fn find_with_base_id(&self, base_id: BaseProductId) -> RepoResult<Vec<RawProduct>>;
 
@@ -174,22 +171,6 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
                 e.context(format!("Find in products from {} count {} error occurred.", from, count))
                     .into()
             })
-    }
-
-    fn list_all(&self) -> RepoResult<Vec<RawProduct>> {
-        debug!("List all products.");
-        let query = products.filter(is_active.eq(true));
-
-        query
-            .get_results(self.db_conn)
-            .map_err(From::from)
-            .and_then(|products_res: Vec<RawProduct>| {
-                for product in &products_res {
-                    acl::check(&*self.acl, Resource::Products, Action::Read, self, Some(&product))?;
-                }
-                Ok(products_res.clone())
-            })
-            .map_err(|e: FailureError| e.context(format!("List all products error occurred.")).into())
     }
 
     /// Returns list of products with base id

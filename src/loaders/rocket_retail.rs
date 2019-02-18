@@ -6,7 +6,7 @@ use chrono::Utc;
 use diesel::{pg::PgConnection, r2d2::ConnectionManager, Connection};
 use failure::{Error as FailureError, Fail};
 use futures::future;
-    use futures::future::Either;
+use futures::future::Either;
 use futures::prelude::*;
 use futures_cpupool::CpuPool;
 use r2d2::{self, Pool};
@@ -92,7 +92,7 @@ impl RocketRetailLoader {
                     Either::B(self.clone().make_step())
                 }
             } else {
-                info!("Rocket retail loader: disabled. Config section [catalogs] not set.");
+                info!("Rocket retail loader: disabled. Config section [rocket_retail] not set.");
                 Either::A(future::ok(()))
             }
         })
@@ -104,7 +104,7 @@ impl RocketRetailLoader {
             *busy = true;
         }
 
-        let config = self.config.clone().expect("Can't load catalogs config!");
+        let config = self.config.clone().expect("Can't load rocket_retail config!");
         let service_s3 = self.s3.clone().expect("Can't load S3 client!");
         let service2 = self.clone();
         let cluster = config.cluster.clone();

@@ -6,7 +6,7 @@ use serde_json;
 
 use treexml::{Document, Element, ElementBuilder, XmlVersion};
 
-use stq_static_resources::{Language, Translation};
+use stq_static_resources::{Language, ModerationStatus, Translation};
 use stq_types::{BaseProductId, ProductId, StoreId};
 
 use super::errors::Error;
@@ -216,15 +216,16 @@ pub struct RocketRetailProduct {
 impl RocketRetailProduct {
     pub fn new(
         base: CatalogResponseBaseProduct,
-        store_name: serde_json::Value,
+        store: CatalogResponseStore,
         product: CatalogResponseProduct,
         attributes: Vec<CatalogResponseProdAttr>,
         lang_arg: Option<Language>,
         cluster: &str,
+        warehouse_quantity: i32,
     ) -> Self {
         let lang = lang_arg.unwrap_or(DEFAULT_LANG);
 
-        let store_translations = get_translations(store_name).unwrap_or_default();
+        let store_translations = get_translations(store.name).unwrap_or_default();
         let store_name = get_text_by_lang(&store_translations, lang.clone()).unwrap_or(format!("no store name for language: {}", lang));
 
         let translation_names = get_translations(base.name.clone()).unwrap_or_default();
@@ -242,6 +243,8 @@ impl RocketRetailProduct {
             .and_then(|photo_main| create_photo_url_from_product(photo_main, ImageSize::Medium))
             .unwrap_or_default();
         let url = create_product_url(cluster, base.store_id, base.id, product.id);
+        let available =
+            Some(store.status == ModerationStatus::Published && base.status == ModerationStatus::Published && warehouse_quantity > 0);
 
         Self {
             id: product.id.to_string(),
@@ -255,6 +258,7 @@ impl RocketRetailProduct {
             currency_id: product.currency.code().to_string(),
             picture,
             params,
+            available,
             ..Default::default()
         }
     }
@@ -408,6 +412,7 @@ impl BuildElement for Element {
     }
 }
 
+#[allow(unused)]
 pub enum ImageSize {
     Small,
     Medium,

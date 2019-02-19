@@ -20,21 +20,18 @@ mod errors;
 mod models;
 mod providers;
 mod stores_responses;
+mod warehouses_responses;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use failure::Fail;
-use futures::future::lazy;
-use futures::future::Either;
 use futures::stream::Stream;
-use futures::sync::mpsc;
 use futures::Future;
 use tokio::timer::Interval;
 use tokio_core::reactor::Core;
 
 use self::config::Config;
-use self::models::ToXMLDocument;
 use self::providers::catalogs::CatalogProvider;
 use self::providers::s3::S3Provider;
 

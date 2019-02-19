@@ -16,10 +16,6 @@ pub struct S3Provider {
 }
 
 impl S3Provider {
-    pub fn new() -> Result<S3Provider, FailureError> {
-        S3Provider::with_config(Config::new()?)
-    }
-
     pub fn with_config(config: Config) -> Result<S3Provider, FailureError> {
         let S3Config { key, secret, .. } = config.s3.clone();
         let http_client = HttpClient::new()?;

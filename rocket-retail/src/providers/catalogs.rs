@@ -4,7 +4,7 @@ use failure::Error as FailureError;
 use crate::config::Config;
 use crate::models::*;
 use crate::stores_responses::*;
-use stq_static_resources::language::Language;
+use crate::warehouses_responses::*;
 
 pub struct CatalogProvider {
     config: Config,
@@ -12,10 +12,6 @@ pub struct CatalogProvider {
 }
 
 impl CatalogProvider {
-    pub fn new() -> Result<CatalogProvider, FailureError> {
-        CatalogProvider::with_config(Config::new()?)
-    }
-
     pub fn with_config(config: Config) -> Result<CatalogProvider, FailureError> {
         Ok(CatalogProvider {
             config,
@@ -35,10 +31,18 @@ impl CatalogProvider {
         Ok(catalog)
     }
 
+    pub fn get_stocks_from_warehouses(&self) -> Result<Vec<CatalogStocksResponse>, FailureError> {
+        let client = self.client.clone();
+        let url = format!("{}/stocks", self.config.warehouses_microservice.url.clone());
+        let mut response = client.get(url.as_str()).send()?;
+        let catalog: Vec<CatalogStocksResponse> = response.json()?;
+        Ok(catalog)
+    }
+
     pub fn get_rocket_retail_catalog(&self) -> Result<RocketRetailCatalog, FailureError> {
         let catalog = self.get_catalog_from_stores()?;
+        let stocks = self.get_stocks_from_warehouses()?;
         let cluster = self.config.cluster.clone();
-        let default_lang = Some(Language::En);
 
         let categories: Vec<_> = catalog
             .categories
@@ -54,14 +58,21 @@ impl CatalogProvider {
             .filter_map(|p| {
                 let bp = catalog.find_base_product_by_id(p.base_product_id)?;
                 let s = catalog.find_store_by_id(bp.store_id)?;
+                let stock_quantity = stocks
+                    .iter()
+                    .filter(|st| st.product_id == p.id)
+                    .map(|st| st.quantity.0)
+                    .next()
+                    .unwrap_or_default();
 
                 Some(RocketRetailProduct::new(
                     bp.clone(),
-                    s.name.clone(),
+                    s.clone(),
                     p.clone(),
                     catalog.find_prod_attrs_by_product_id(p.id),
                     Some(DEFAULT_LANG),
                     &cluster,
+                    stock_quantity,
                 ))
             })
             .collect();

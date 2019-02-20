@@ -651,7 +651,7 @@ impl<
         let NewBaseProductWithVariants {
             mut new_base_product,
             variants,
-            selected_attributes,
+            ..
         } = payload;
 
         self.spawn_on_pool(move |conn| {
@@ -699,15 +699,6 @@ impl<
                         variant.attributes,
                     )?;
                 }
-
-                // Save selected_attributes
-                selected_attributes
-                    .into_iter()
-                    .map(|attribute_id| {
-                        let new_custom_attribute = NewCustomAttribute::new(attribute_id, base_prod.id);
-                        custom_attributes_repo.create(new_custom_attribute)
-                    })
-                    .collect::<RepoResult<Vec<_>>>()?;
 
                 Ok(base_prod)
             })

@@ -522,8 +522,8 @@ mod tests {
         assert_eq!(
             acl.allows(Resource::Stores, Action::All, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
-            false,
-            "ACL allows all actions on store for moderator."
+            true,
+            "ACL does not allow all actions on store for moderator."
         );
         assert_eq!(
             acl.allows(
@@ -540,20 +540,20 @@ mod tests {
         assert_eq!(
             acl.allows(Resource::Stores, Action::Create, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
-            false,
-            "ACL allows create actions on store for moderator."
+            true,
+            "ACL does not allow create actions on store for moderator."
         );
         assert_eq!(
             acl.allows(Resource::Stores, Action::Update, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
-            false,
-            "ACL allows update actions on store for moderator."
+            true,
+            "ACL does not allow update actions on store for moderator."
         );
         assert_eq!(
             acl.allows(Resource::Stores, Action::Delete, &s, Some(Rule::Any), Some(&resource))
                 .unwrap(),
-            false,
-            "ACL allows delete actions on store for moderator."
+            true,
+            "ACL does not allow delete actions on store for moderator."
         );
         assert_eq!(
             acl.allows(Resource::Stores, Action::Moderate, &s, Some(Rule::Any), Some(&resource))

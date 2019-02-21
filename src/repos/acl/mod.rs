@@ -224,12 +224,10 @@ impl ApplicationAcl {
         hash.insert(
             StoresRole::Moderator,
             vec![
-                permission!(Resource::BaseProducts, Action::Moderate),
-                permission!(Resource::BaseProducts, Action::Read, Scope::All, Rule::Any),
+                permission!(Resource::BaseProducts),
                 permission!(Resource::ModeratorProductComments),
                 permission!(Resource::ModeratorStoreComments),
-                permission!(Resource::Stores, Action::Moderate),
-                permission!(Resource::Stores, Action::Read, Scope::All, Rule::Any),
+                permission!(Resource::Stores),
             ],
         );
 

@@ -43,9 +43,7 @@ fn main() {
     let catalog_provider = CatalogProvider::with_config(config.clone()).expect("Could not create catalog provider.");
     let s3_provider = S3Provider::with_config(config.clone()).expect("Could not create S3 provider.");
 
-    let catalog = catalog_provider
-        .get_rocket_retail_catalog()
-        .expect("Could not retrieve catalog from stores microservice.");
+    let catalog = catalog_provider.get_rocket_retail_catalog().expect("Could not retrieve catalog.");
 
     let interval =
         Interval::new(Instant::now(), Duration::from_secs(config.interval_s as u64)).map_err(|e| e.context("timer creation error").into());

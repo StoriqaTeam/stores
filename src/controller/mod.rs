@@ -4,6 +4,7 @@
 //! of `Service` layer to http responses
 
 pub mod context;
+pub mod responses;
 pub mod routes;
 pub mod utils;
 
@@ -39,6 +40,7 @@ use sentry_integration::log_and_capture_error;
 use services::attribute_values::{AttributeValuesService, NewAttributeValuePayload};
 use services::attributes::AttributesService;
 use services::base_products::BaseProductsService;
+use services::catalogs::CatalogService;
 use services::categories::CategoriesService;
 use services::coupons::CouponsService;
 use services::currency_exchange::CurrencyExchangeService;
@@ -1054,6 +1056,8 @@ impl<
 
             // DELETE /attributes/<attribute_id>
             (&Delete, Some(Route::Attribute(attribute_id))) => serialize_future(service.delete_attribute(attribute_id)),
+
+            (&Get, Some(Route::Catalog)) => serialize_future(service.get_catalog()),
 
             // GET /categories/<category_id>
             (&Get, Some(Route::Category(category_id))) => serialize_future(service.get_category(category_id)),

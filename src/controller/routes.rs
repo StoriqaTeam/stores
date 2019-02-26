@@ -30,6 +30,7 @@ pub enum Route {
     BaseProductWithVariant(BaseProductId),
     BaseProductCustomAttributes(BaseProductId),
     BaseProductPublish,
+    Catalog,
     Categories,
     CategoriesWithProducts,
     Category(CategoryId),
@@ -635,6 +636,7 @@ pub fn create_route_parser() -> RouteParser<Route> {
             .and_then(|string_id| string_id.parse().ok())
             .map(|id| Route::RoleById { id })
     });
+    router.add_route(r"^/catalog$", || Route::Catalog);
 
     router
 }

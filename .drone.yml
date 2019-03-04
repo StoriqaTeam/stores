@@ -72,6 +72,18 @@ pipeline:
     when:
       event: push
       branch: master
+# Releases rocket-retail
+  build-rocket:
+    image: rust:1.31-stretch
+    environment:
+    - CARGO_HOME=deps
+    - CARGO_TARGET_DIR=target
+    - RUSTFLAGS=-C opt-level=1 -C debuginfo=0
+    commands:
+    - cargo build --release --locked --manifest-path rocket-retail/Cargo.toml
+    when:
+      event: push
+      branch: master
 
 ###
 # Packaging
@@ -97,8 +109,6 @@ pipeline:
     image: plugins/docker
     repo: storiqateam/stq-stores-rocket
     dockerfile: Dockerfile.pollers
-    build_args:
-    - binary=rocket_retail
     tags:
     - ${DRONE_BRANCH//\//_}
     - ${DRONE_BRANCH//\//_}${DRONE_BUILD_NUMBER}
@@ -132,22 +142,6 @@ pipeline:
     dockerfile: Dockerfile.stores
     build_args:
     - env=release
-    tags:
-    - '${DRONE_TAG}'
-    - latest
-    secrets:
-    - docker_username
-    - docker_password
-    when:
-      event: tag
-  package_rocket:
-    group: package
-    image: plugins/docker
-    repo: storiqateam/stq-stores-rocket
-    dockerfile: Dockerfile.pollers
-    build_args:
-    - env=release
-    - binary=rocket_retail
     tags:
     - '${DRONE_TAG}'
     - latest
@@ -218,8 +212,8 @@ pipeline:
     - source: k8s_nightly_addr
       target: k8s_addr
     when:
-      branch: master
       event: push
+      branch: master
   deploy2nightly_ticker:
     group: deploy
     image: jackthestripper/drone_setimage

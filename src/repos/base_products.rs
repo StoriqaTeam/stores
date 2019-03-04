@@ -1031,6 +1031,7 @@ impl<'a, T: Connection<Backend = Pg, TransactionManager = AnsiTransactionManager
         let all_base_products = base_products
             .filter(is_active.eq(true))
             .filter(status.eq(ModerationStatus::Published))
+            .filter(store_status.eq(ModerationStatus::Published))
             .order(id)
             .get_results::<BaseProductRaw>(self.db_conn)
             .map_err(|e| Error::from(e).into())

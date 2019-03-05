@@ -84,6 +84,16 @@ pipeline:
     when:
       event: push
       branch: master
+  build-rocket:
+    image: rust:1.31-stretch
+    environment:
+    - CARGO_HOME=deps
+    - CARGO_TARGET_DIR=target
+    - RUSTFLAGS=-C opt-level=1 -C debuginfo=0
+    commands:
+    - cargo build --release --locked --manifest-path rocket-retail/Cargo.toml
+    when:
+      event: tag
 
 ###
 # Packaging
@@ -156,7 +166,6 @@ pipeline:
     repo: storiqateam/stq-stores-ticker
     dockerfile: Dockerfile.pollers
     build_args:
-    - env=release
     - binary=ticker
     tags:
     - '${DRONE_TAG}'
